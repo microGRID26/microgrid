@@ -1,16 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import type { Project } from '@/types/database'
 
 export default async function CommandPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: projects } = await supabase
+  const { data } = await supabase
     .from('projects')
     .select('id, name, city, stage, stage_date, pm, blocker, contract')
     .order('stage_date', { ascending: true })
     .limit(500)
+
+  const projects = (data ?? []) as Pick<Project, 'id'|'name'|'city'|'stage'|'stage_date'|'pm'|'blocker'|'contract'>[]
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -21,12 +24,12 @@ export default async function CommandPage() {
             <p className="text-gray-400 text-sm mt-1">Command Center</p>
           </div>
           <div className="text-sm text-gray-400">
-            {user.email} · {projects?.length ?? 0} projects
+            {user.email} · {projects.length} projects
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3">
-          {projects?.map(p => (
+          {projects.map(p => (
             <div key={p.id} className="bg-gray-800 rounded-xl p-4 flex items-center gap-4">
               <div className="flex-1">
                 <div className="font-medium">{p.name}</div>
@@ -36,7 +39,7 @@ export default async function CommandPage() {
                 {p.stage}
               </div>
               {p.blocker && (
-                <div className="text-xs text-red-400 max-w-48 truncate">
+                <div className="text-xs text-red-400 max-w-xs truncate">
                   🚫 {p.blocker}
                 </div>
               )}
