@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { fmt$, fmtDate, daysAgo, STAGE_LABELS, STAGE_ORDER } from '@/lib/utils'
 import type { Project, Note } from '@/types/database'
+import { BomTab } from './BomTab'
 
 // ── TASK DEFINITIONS ──────────────────────────────────────────────────────────
 const TASKS: Record<string, { id: string; name: string; pre: string[]; req: boolean }[]> = {
@@ -172,7 +173,7 @@ interface ProjectPanelProps {
 export function ProjectPanel({ project: initialProject, onClose, onProjectUpdated }: ProjectPanelProps) {
   const supabase = createClient()
   const [project, setProject] = useState<Project>(initialProject)
-  const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'files'>('tasks')
+  const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files'>('tasks')
   const [taskStates, setTaskStates] = useState<Record<string, string>>({})
   const [notes, setNotes] = useState<Note[]>([])
   const [newNote, setNewNote] = useState('')
@@ -189,6 +190,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const [ahjInfo, setAhjInfo] = useState<any>(null)
   const [utilityInfo, setUtilityInfo] = useState<any>(null)
   const [serviceCalls, setServiceCalls] = useState<any[]>([])
+  const [stageHistory, setStageHistory] = useState<any[]>([])
 
   const pid = project.id
   const stageTasks = TASKS[project.stage] ?? []
@@ -215,6 +217,16 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     if (data) setNotes(data as Note[])
   }, [pid])
 
+  const loadStageHistory = useCallback(async () => {
+    const { data } = await (supabase as any).from('stage_history').select('*').eq('project_id', pid).order('entered', { ascending: false })
+    if (data) setStageHistory(data)
+  }, [pid])
+
+  const loadServiceCalls = useCallback(async () => {
+    const { data } = await (supabase as any).from('service_calls').select('*').eq('project_id', pid).order('created_at', { ascending: false }).limit(5)
+    if (data) setServiceCalls(data)
+  }, [pid])
+
   const loadAhjUtil = useCallback(async () => {
     if (project.ahj) {
       const { data } = await (supabase as any).from('ahjs').select('permit_phone,permit_website,max_duration,electric_code,permit_notes').ilike('name', project.ahj).limit(1).single()
@@ -225,11 +237,6 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
       if (data) setUtilityInfo(data)
     }
   }, [project.ahj, project.utility])
-
-  const loadServiceCalls = useCallback(async () => {
-    const { data } = await (supabase as any).from('service_calls').select('*').eq('project_id', pid).order('created_at', { ascending: false }).limit(5)
-    if (data) setServiceCalls(data)
-  }, [pid])
 
   const loadFolder = useCallback(async () => {
     const { data } = await supabase.from('project_folders').select('folder_url').eq('project_id', pid).single()
@@ -250,6 +257,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     loadFolder()
     loadAhjUtil()
     loadServiceCalls()
+    loadStageHistory()
   }, [initialProject.id])
 
   // Update task status
@@ -470,6 +478,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
             { id: 'tasks', label: `Tasks${stuckCount ? ` (${stuckCount} stuck)` : ''}`, stuck: stuckCount > 0 },
             { id: 'notes', label: `Notes${notes.length ? ` (${notes.length})` : ''}`, stuck: false },
             { id: 'info',  label: 'Info', stuck: false },
+            { id: 'bom',   label: 'BOM', stuck: false },
             { id: 'files', label: 'Files', stuck: false },
           ] as const).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
@@ -645,6 +654,16 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                     <EditRow label="PTO" field="pto_date" value={project.pto_date} draft={editDraft} editing={editMode} onChange={setEditDraft} type="date" />
                     <EditRow label="In service" field="in_service_date" value={project.in_service_date} draft={editDraft} editing={editMode} onChange={setEditDraft} type="date" />
                   </Section>
+                  {stageHistory.length > 0 && (
+                    <Section title="Stage History">
+                      {stageHistory.map((h: any, i: number) => (
+                        <div key={i} className="flex gap-2 py-0.5 text-xs">
+                          <span className="text-gray-500 w-28 flex-shrink-0">{h.entered ? new Date(h.entered + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</span>
+                          <span className="text-gray-300">{h.stage}</span>
+                        </div>
+                      ))}
+                    </Section>
+                  )}
                   {serviceCalls.length > 0 && (
                     <Section title="Service Calls">
                       {serviceCalls.map((sc: any) => (
@@ -666,6 +685,9 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
               </div>
             </div>
           )}
+
+          {/* BOM */}
+          {tab === 'bom' && <BomTab project={project} />}
 
           {/* FILES */}
           {tab === 'files' && (
