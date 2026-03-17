@@ -79,6 +79,14 @@ export default function AuditPage() {
   const [taskStates, setTaskStates] = useState<Record<string, Record<string, string>>>({})
   const [selected, setSelected] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
+
+  async function signOut() {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
   const [filter, setFilter] = useState<AuditFilter>('stuck')
   const [sort, setSort] = useState<AuditSort>('count')
   const [pmFilter, setPmFilter] = useState('all')
@@ -196,6 +204,10 @@ export default function AuditPage() {
           </svg>
           Help
         </a>
+        <button onClick={signOut}
+          className="text-xs px-3 py-1.5 rounded-md transition-colors text-gray-500 hover:text-white hover:bg-gray-800">
+          Sign out
+        </button>
 
       </nav>
 

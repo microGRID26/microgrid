@@ -55,6 +55,14 @@ export default function SchedulePage() {
   const [jobFilter, setJobFilter] = useState('all')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
+
+  async function signOut() {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
   const [assignModal, setAssignModal] = useState<{
     crewId: string | null
     date: string
@@ -151,6 +159,10 @@ export default function SchedulePage() {
           </svg>
           Help
         </a>
+        <button onClick={signOut}
+          className="text-xs px-3 py-1.5 rounded-md transition-colors text-gray-500 hover:text-white hover:bg-gray-800">
+          Sign out
+        </button>
 
         <div className="ml-auto text-xs text-gray-500">{totalJobs} jobs this week</div>
       </nav>

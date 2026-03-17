@@ -119,6 +119,14 @@ export default function QueuePage() {
   const [availablePms, setAvailablePms] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
+  async function signOut() {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
+
   const loadData = useCallback(async () => {
     const pm = userPm
     const [projRes, taskRes, allProjRes] = await Promise.all([
@@ -201,6 +209,10 @@ export default function QueuePage() {
           </svg>
           Help
         </a>
+        <button onClick={signOut}
+          className="text-xs px-3 py-1.5 rounded-md transition-colors text-gray-500 hover:text-white hover:bg-gray-800">
+          Sign out
+        </button>
 
         <div className="ml-auto text-xs text-gray-400">
           <select

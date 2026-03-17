@@ -55,6 +55,14 @@ export default function FundingPage() {
   const [funding, setFunding] = useState<Record<string, ProjectFunding>>({})
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
+
+  async function signOut() {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
   const [msFilter, setMsFilter] = useState<MilestoneKey | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<FundingFilter>('eligible')
   const [financierFilter, setFinancierFilter] = useState('all')
@@ -170,6 +178,10 @@ export default function FundingPage() {
           </svg>
           Help
         </a>
+        <button onClick={signOut}
+          className="text-xs px-3 py-1.5 rounded-md transition-colors text-gray-500 hover:text-white hover:bg-gray-800">
+          Sign out
+        </button>
 
       </nav>
 

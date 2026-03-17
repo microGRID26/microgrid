@@ -336,6 +336,14 @@ export default function CommandPage() {
     aging: true, ok: false,
   })
   const [loading, setLoading] = useState(true)
+
+  async function signOut() {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
   const [lastRefresh, setLastRefresh] = useState(Date.now())
   const [showExport, setShowExport] = useState(false)
 
@@ -451,6 +459,10 @@ export default function CommandPage() {
           </svg>
           Help
         </a>
+        <button onClick={signOut}
+          className="text-xs px-3 py-1.5 rounded-md transition-colors text-gray-500 hover:text-white hover:bg-gray-800">
+          Sign out
+        </button>
 
         <div className="ml-auto flex items-center gap-3">
           <input

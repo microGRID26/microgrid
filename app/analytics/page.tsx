@@ -72,6 +72,14 @@ export default function AnalyticsPage() {
   const [tab, setTab] = useState<'leadership'|'pipeline'|'pm'>('leadership')
   const [loading, setLoading] = useState(true)
 
+  async function signOut() {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
+
   const loadData = useCallback(async () => {
     const [projRes, fundRes] = await Promise.all([
       supabase.from('projects').select('*'),
@@ -210,6 +218,10 @@ export default function AnalyticsPage() {
           </svg>
           Help
         </a>
+        <button onClick={signOut}
+          className="text-xs px-3 py-1.5 rounded-md transition-colors text-gray-500 hover:text-white hover:bg-gray-800">
+          Sign out
+        </button>
 
         <div className="ml-auto flex items-center gap-2">
           <select value={period} onChange={e => setPeriod(e.target.value as Period)}

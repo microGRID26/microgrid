@@ -36,6 +36,14 @@ export default function ServicePage() {
   const [projects, setProjects] = useState<Record<string, Project>>({})
   const [selected, setSelected] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
+
+  async function signOut() {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
   const [statusFilter, setStatusFilter] = useState('all')
   const [search, setSearch] = useState('')
 
@@ -111,6 +119,10 @@ export default function ServicePage() {
           </svg>
           Help
         </a>
+        <button onClick={signOut}
+          className="text-xs px-3 py-1.5 rounded-md transition-colors text-gray-500 hover:text-white hover:bg-gray-800">
+          Sign out
+        </button>
 
       </nav>
 
