@@ -217,6 +217,7 @@ export default function CommandPage() {
   const [todaySchedule, setTodaySchedule] = useState<Schedule[]>([])
   const [user, setUser] = useState<{ email: string } | null>(null)
   const [pmFilter, setPmFilter] = useState<string>('all')
+  const [search, setSearch] = useState<string>('')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [collapsed, setCollapsed] = useState<Partial<Record<Section, boolean>>>({
     aging: true, ok: false,
@@ -258,7 +259,20 @@ export default function CommandPage() {
   }, [loadData])
 
   // Filtered projects
-  const filtered = pmFilter === 'all' ? projects : projects.filter(p => p.pm === pmFilter)
+  const filtered = (() => {
+    let result = pmFilter === 'all' ? projects : projects.filter(p => p.pm === pmFilter)
+    if (search.trim()) {
+      const q = search.toLowerCase().trim()
+      result = result.filter(p =>
+        p.name?.toLowerCase().includes(q) ||
+        p.id?.toLowerCase().includes(q) ||
+        p.city?.toLowerCase().includes(q) ||
+        p.pm?.toLowerCase().includes(q) ||
+        p.address?.toLowerCase().includes(q)
+      )
+    }
+    return result
+  })()
 
   // Get overdue task project IDs
   const overduePids = new Set(
@@ -292,13 +306,19 @@ export default function CommandPage() {
       <nav className="bg-gray-950 border-b border-gray-800 flex items-center gap-2 px-4 py-2 sticky top-0 z-50">
         <span className="text-green-400 font-bold text-base mr-2">MicroGRID</span>
         {['Command','Queue','Pipeline','Analytics','Audit','Schedule','Service','Funding'].map(v => (
-          <button key={v}
-            className={`text-xs px-3 py-1.5 rounded-md transition-colors ${v === 'Command' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
-          >
+          <a key={v} href={v === 'Queue' ? '/queue' : '#'}
+            className={`text-xs px-3 py-1.5 rounded-md transition-colors ${v === 'Command' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}>
             {v}
-          </button>
+          </a>
         ))}
         <div className="ml-auto flex items-center gap-3">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search projects..."
+            className="text-xs bg-gray-800 text-gray-200 border border-gray-700 rounded-md px-3 py-1.5 w-44 focus:outline-none focus:border-green-500 placeholder-gray-500"
+          />
           <select
             value={pmFilter}
             onChange={e => setPmFilter(e.target.value)}
