@@ -210,7 +210,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   // Update task status
   async function updateTaskStatus(taskId: string, status: string) {
     setTaskStates(prev => ({ ...prev, [taskId]: status }))
-    await supabase.from('task_state').upsert({
+    await (supabase as any).from('task_state').upsert({
       project_id: pid,
       task_id: taskId,
       status,
@@ -228,7 +228,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     if (!newNote.trim()) return
     setSaving(true)
     const pm = userEmail.split('@')[0] ?? 'PM'
-    await supabase.from('notes').insert({
+    await (supabase as any).from('notes').insert({
       project_id: pid,
       text: newNote.trim(),
       time: new Date().toISOString(),
