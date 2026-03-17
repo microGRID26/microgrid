@@ -579,7 +579,7 @@ function UsersManager() {
         position: draft.position,
         admin: draft.admin ?? false,
         active: draft.active ?? true,
-        avatar_color: draft.avatar_color,
+        color: draft.avatar_color,
       })
     } else if (editing) {
       await (supabase as any).from('users').update({
@@ -589,7 +589,7 @@ function UsersManager() {
         position: draft.position,
         admin: draft.admin,
         active: draft.active,
-        avatar_color: draft.avatar_color,
+        color: draft.avatar_color,
       }).eq('id', editing.id)
     }
     setSaving(false)
@@ -599,9 +599,6 @@ function UsersManager() {
     setTimeout(() => setToast(''), 2500)
     load()
   }
-
-  const deptCounts: Record<string, number> = {}
-  users.forEach(u => { if (u.department) deptCounts[u.department] = (deptCounts[u.department] || 0) + 1 })
 
   return (
     <div className="flex flex-col h-full">
@@ -787,7 +784,7 @@ function CrewsManager() {
           <div key={crew.id} className="bg-gray-800/40 border border-gray-700/60 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
-                <div className={`w-2.5 h-2.5 rounded-full ${crew.active ? 'bg-green-400' : 'bg-gray-600'}`} />
+                <div className={`w-2.5 h-2.5 rounded-full ${crew.active === 'TRUE' || crew.active === 'true' ? 'bg-green-400' : 'bg-gray-600'}`} />
                 <div>
                   <h3 className="text-sm font-semibold text-white">{crew.name}</h3>
                   <p className="text-xs text-gray-500">{crew.warehouse ? `Warehouse: ${crew.warehouse}` : 'No warehouse set'}</p>
@@ -1193,7 +1190,7 @@ export default function AdminPage() {
         setIsAdmin(data.admin === true)
       } else {
         // Check hardcoded admin emails as fallback
-        const adminEmails = ['gregkelsch@trismartsolar.com', 'heidihildreth@trismartsolar.com']
+        const adminEmails = ['gkelsch@trismartsolar.com', 'hguevara@trismartsolar.com']
         setIsAdmin(adminEmails.includes(user.email ?? ''))
       }
     }
