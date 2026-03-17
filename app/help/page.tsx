@@ -15,16 +15,16 @@ const TABS: { id: Tab; label: string }[] = [
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-5 py-4 mb-3">
-      <h3 className="text-sm font-semibold text-gray-900 mb-1">{title}</h3>
-      <div className="text-sm text-gray-600 leading-relaxed">{children}</div>
+    <div className="bg-gray-900 border border-gray-800 rounded-lg px-5 py-4 mb-3">
+      <h3 className="text-sm font-semibold text-white mb-1">{title}</h3>
+      <div className="text-sm text-gray-400 leading-relaxed">{children}</div>
     </div>
   )
 }
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-6 mb-3 px-1">{title}</div>
+    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-6 mb-3 px-1">{title}</div>
   )
 }
 
@@ -33,7 +33,7 @@ function Ul({ items }: { items: string[] }) {
     <ul className="mt-2 space-y-1">
       {items.map((item, i) => (
         <li key={i} className="flex items-start gap-2">
-          <span className="text-gray-400 mt-0.5">•</span>
+          <span className="text-gray-600 mt-0.5">•</span>
           <span>{item}</span>
         </li>
       ))}
@@ -387,7 +387,7 @@ export default function HelpPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-950">
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-900 border-b border-gray-800 h-11 flex items-center px-4 gap-1">
         <span className="text-white font-semibold text-sm mr-3">MicroGRID</span>
@@ -418,20 +418,20 @@ export default function HelpPage() {
 
       {/* Hero */}
       <div className="pt-11">
-        <div className="bg-green-600 px-8 py-8">
+        <div className="bg-green-700 px-8 py-8">
           <h1 className="text-2xl font-bold text-white">MicroGRID CRM — Help</h1>
           <p className="text-green-100 text-sm mt-1">Documentation and guides for every role</p>
         </div>
 
         {/* Tab bar */}
-        <div className="bg-white border-b border-gray-200 px-8 sticky top-11 z-40">
+        <div className="bg-gray-900 border-b border-gray-800 px-8 sticky top-11 z-40">
           <div className="flex gap-0">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`text-sm px-5 py-3.5 border-b-2 transition-colors font-medium ${
                   tab === t.id
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                    ? 'border-green-400 text-green-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-300'
                 }`}>
                 {t.label}
               </button>
