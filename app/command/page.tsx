@@ -464,9 +464,13 @@ export default function CommandPage() {
             ↻ {Math.round((Date.now() - lastRefresh) / 60000)}m ago
           </button>
           <button
-            onClick={() => exportProjectsCSV(filtered)}
-            className="text-xs text-gray-500 hover:text-white transition-colors"
-          >↓ Export</button>
+            onClick={() => setShowExport(true)}
+            className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export
+          </button>
           {showNameInput ? (
             <input
               autoFocus
