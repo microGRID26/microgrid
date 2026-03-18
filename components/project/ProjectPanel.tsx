@@ -871,7 +871,18 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                     <EditRow label="Site surveyor" field="site_surveyor" value={project.site_surveyor} draft={editDraft} editing={editMode} onChange={setEditDraft} />
                   </Section>
                   <Section title="Permitting">
-                    <AutocompleteRow label="AHJ" field="ahj" value={project.ahj} draft={editDraft} editing={editMode} onChange={setEditDraft} table="ahjs" />
+                    {!editMode && project.ahj ? (
+                      <div className="flex gap-2 py-0.5">
+                        <span className="text-gray-500 text-xs w-28 flex-shrink-0">AHJ</span>
+                        <button
+                          onClick={() => setShowAhjModal(true)}
+                          className="text-xs text-green-400 hover:text-green-300 hover:underline text-left transition-colors">
+                          {project.ahj}
+                        </button>
+                      </div>
+                    ) : (
+                      <AutocompleteRow label="AHJ" field="ahj" value={project.ahj} draft={editDraft} editing={editMode} onChange={setEditDraft} table="ahjs" />
+                    )}
                     {!editMode && ahjInfo && (
                       <div className="ml-0 mt-1 mb-2 pl-28 space-y-0.5">
                         {ahjInfo.permit_phone && <div className="text-xs text-green-400">{ahjInfo.permit_phone}</div>}
