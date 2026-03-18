@@ -20,16 +20,18 @@ const TASKS: Record<string, { id: string; name: string; pre: string[]; req: bool
     { id: 'survey_review',name: 'Survey Review',              pre: ['site_survey'],   req: true  },
   ],
   design: [
-    { id: 'build_design', name: 'Build Design',               pre: ['survey_review'], req: true  },
-    { id: 'scope',        name: 'Scope of Work',              pre: ['build_design'],  req: true  },
-    { id: 'monitoring',   name: 'Monitoring',                 pre: ['scope'],         req: true  },
-    { id: 'build_eng',    name: 'Build Engineering',          pre: ['scope'],         req: true  },
-    { id: 'eng_approval', name: 'Engineering Approval',       pre: ['build_eng'],     req: true  },
-    { id: 'stamps',       name: 'Stamps Required',            pre: ['eng_approval'],  req: true  },
-    { id: 'wp1',          name: 'WP1',                        pre: ['scope'],         req: false },
-    { id: 'prod_add',     name: 'Production Addendum',        pre: ['scope'],         req: false },
-    { id: 'new_ia',       name: 'Create New IA',              pre: ['scope'],         req: false },
-    { id: 'reroof',       name: 'Reroof Procedure',           pre: ['scope'],         req: false },
+    { id: 'build_design',    name: 'Build Design',            pre: ['survey_review'], req: true  },
+    { id: 'scope',           name: 'Scope of Work',           pre: ['build_design'],  req: true  },
+    { id: 'monitoring',      name: 'Monitoring',              pre: ['scope'],         req: true  },
+    { id: 'build_eng',       name: 'Build Engineering',       pre: ['scope'],         req: true  },
+    { id: 'eng_approval',    name: 'Engineering Approval',    pre: ['build_eng'],     req: true  },
+    { id: 'stamps',          name: 'Stamps Required',         pre: ['eng_approval'],  req: false }, // optional per source data
+    { id: 'wp1',             name: 'WP1',                     pre: ['scope'],         req: false },
+    { id: 'prod_add',        name: 'Production Addendum',     pre: ['scope'],         req: false },
+    { id: 'new_ia',          name: 'Create New IA',           pre: ['scope'],         req: false },
+    { id: 'reroof',          name: 'Reroof Procedure',        pre: ['scope'],         req: false },
+    { id: 'onsite_redesign', name: 'OnSite Redesign',         pre: ['scope'],         req: false },
+    { id: 'quote_ext_scope', name: 'Quote — Extended Scope',  pre: ['scope'],         req: false },
   ],
   permit: [
     { id: 'hoa',          name: 'HOA Approval',               pre: ['eng_approval'],  req: true  },
@@ -61,14 +63,240 @@ const TASKS: Record<string, { id: string; name: string; pre: string[]; req: bool
   ],
 }
 
-const TASK_STATUSES = ['Not Ready','Ready To Start','In Progress','Pending Resolution','Revision Required','Complete']
+// ── TASK STATUSES — 'Scheduled' added (was missing, exists in live DB data) ──
+const TASK_STATUSES = ['Not Ready','Ready To Start','In Progress','Scheduled','Pending Resolution','Revision Required','Complete']
+
 const STATUS_STYLE: Record<string, string> = {
   'Complete':           'bg-green-900 text-green-300',
   'In Progress':        'bg-blue-900 text-blue-300',
+  'Scheduled':          'bg-indigo-900 text-indigo-300',
   'Pending Resolution': 'bg-red-900 text-red-300',
   'Revision Required':  'bg-amber-900 text-amber-300',
   'Ready To Start':     'bg-gray-700 text-gray-200',
   'Not Ready':          'bg-gray-800 text-gray-500',
+}
+
+// ── PENDING RESOLUTION REASONS — keyed by task ID ────────────────────────────
+const PENDING_REASONS: Record<string, string[]> = {
+  welcome: [
+    'Credit Declined','Customer Unresponsive','EC Has Not Completed the Lead',
+    'H/O Requested Another Time','IA Not Signed','Invalid ACH Information',
+    'LA Not Signed','Need to Change Lenders','No Lender Yet',
+    'Pending Cancellation','Welcome Checklist/Call Not Completed',
+  ],
+  ia: [
+    'Incorrect Adders','Incorrect Email','Incorrect Name','Incorrect Phone',
+    'Incorrect Price','Incorrect Site Address','Incorrect System Data',
+    'Missing Adder','Missing Document','Missing Information','Missing Promise','Not Signed',
+  ],
+  ub: [
+    'Document Not Found','Missing Account #','Missing Customer Name','Missing ESID',
+    'Missing Meter #','Missing Service Address','Missing Utility Company Name',
+    'Not Current','Not Readable',
+  ],
+  sched_survey: ['Awaiting Customer Reply','Customer Wants to Wait','Scheduling Conflict'],
+  ntp: [
+    'IA Resign','Missing Utility Bill','Need ACH Information','Need Drivers License / ID',
+    'Need Income Verification','Need Property Ownership','NTP Not Granted',
+    'NTP Requires Other','Pending HCO','Pending NCCO',
+    'Requires Shade Study and Plan Set','Title Stip',
+  ],
+  site_survey: [
+    'Customer Requested','Invalid ACH Information','Requires Secondary Site Survey',
+    'Rescheduled','Structural/Electrical Incomplete',
+  ],
+  survey_review: [
+    'Extended Scope of Work - Asbestos','Extended Scope of Work - Electrical',
+    'Extended Scope of Work - Structural','Missing Attic Pics','Missing Documents',
+    'Missing Drone Pics','Missing Electrical Pics','Missing Roof Pics',
+    'MPU Review','Pending DQ','Requires Secondary Site Survey',
+    'Roof Review Needed','Utility Bill Rejection','Waiting for AHJ/Utility',
+  ],
+  build_design: [
+    'Extended Scope of Work - Asbestos','Extended Scope of Work - Electrical',
+    'Extended Scope of Work - Structural','Missing Adder','MPU Review','Pending DQ',
+    'Requires Missing Document Upload','Requires Photo Re-upload',
+    'Requires Secondary Site Survey','Requires Table Discussion','Utility Bill Rejection',
+  ],
+  scope: [
+    'Extended Scope of Work - Electrical','Extended Scope of Work - Structural',
+    'Pending Approval','Requires Missing Document Upload','Requires Photo Re-upload',
+    'Requires Secondary Site Survey','Requires Table Discussion','Reroof Required',
+  ],
+  build_eng: [
+    'Battery Review','Escalated','ESID #','Extended Scope of Work - Electrical',
+    'Extended Scope of Work - Structural','Internal Battery Check',
+    'Utility Bill Rejection','Waiting for Confirmation',
+  ],
+  eng_approval: [
+    'Battery Review','Extended Scope of Work - Electrical','Extended Scope of Work - Structural',
+    'Internal Battery Checking','Missing Document','Missing Photos',
+    'Pending Cancellation','Pending DQ','Sent for Stamps','Stamps Required',
+  ],
+  stamps: [
+    'Electrical DQ','Missing Document','Pending EC or Homeowner',
+    'Pending Site Survey Photos','Pending Stamps','Structural DQ',
+  ],
+  prod_add: ['Production Addendum Sent'],
+  new_ia:   ['Awaiting Customer Reply','Awaiting Dealer Reply','IA Not Signed'],
+  reroof:   ['Awaiting Change Order','Awaiting Discovery','Getting Estimate','Locating Vendor','Onboarding Vendor'],
+  onsite_redesign: ['Awaiting Customer Reply','Missing Signature'],
+  hoa: [
+    'Awaiting Application Receipt Confirmation','Awaiting Customer Reply',
+    'Awaiting EC Reply','Awaiting HOA Prep Completion','Awaiting HOA Reply',
+    'City Permit Required','Engineering Stamp Required','Fee Receipt Confirmation Required',
+    'Fee Required','HOA Denial Attention Required','HOA Escalation',
+    'Legal Escalation Required','Lot Survey with Panel Placement Required',
+    'Missing Neighbor Signatures','More Information Required by HOA',
+    'Need 10% Design/Letter','Need Customer to Submit to HOA',
+    'PV Watts/NREL Calculations Required','Specific HOA Document Required',
+  ],
+  city_permit: [
+    'City Registration Need/Sent/Pending','Customer Requesting Design Change',
+    'EC/Customer Concerns','Licensing/Compliance','Objection Letter',
+    'Open Permits/Pending Inspection','Pending Cancellation','Pending Customer Signature',
+    'Pending Deed/Proof of Ownership','Pending Engineer Stamped Plans',
+    'Pending Engineering Revision','Pending HOA Approval',
+    'Pending Homeowner Authorization/Action','Pending Utility Approval First',
+    'Pending WPI Documents','Permit Drop Off/Pickup',
+    'Previous Unpaid Permits','Unpaid Property Taxes',
+  ],
+  util_permit: [
+    'Customer Authorization','Customer Requesting Design Change','Duplicate Under Review',
+    'EC/Customer Concerns','Licensing/Compliance','Missing Site Survey Photos',
+    'Open Permits/Pending Inspection','Pending Cancellation','Pending City Registration',
+    'Pending City Reply','Pending CPS Signed Documents','Pending Customer Signature',
+    'Pending Deed/Proof of Ownership','Pending Engineer Stamped Plans',
+    'Pending Engineering Revision','Pending HOA Approval',
+    'Pending ICA and PTO for Existing System','Pending Proof of Insurance',
+    'Pending Utility Approval (No Objection Letter)','Pending Utility Availability',
+    'Pending Utility Bill/Account Information','Pending Utility Reply',
+    'Pending WPI Documents','Permit Drop Off/Pick-Up','Previous Unpaid Permits',
+  ],
+  checkpoint1: [
+    'Asbestos Removal/Restoration','Awaiting Field Ops',
+    'Contract Issue - Addendum Not Signed','Contract Issue - Agreements Mismatch',
+    'Contract Issue - Unsigned Docs','Credit Expired','Engineering/IA Mismatch',
+    'Homeowner Request Wait or Cancel','Inventory - Battery Shortage',
+    'Inventory - Inverter Shortage','Inventory - Module Shortage',
+    'Inventory - Racking Shortage','Legal','Need Design Revision',
+    'Need Engineering Revision','Need HOA Approval','Need New IA','Need Reroof',
+    'NTP Not Granted','Pending HCO','Pending NCCO','Pending Paykeeper Deposit',
+    'Pending Permit Approval per Requirement','Pending Reroof Cure',
+    'Pending Roof Completion','Pending Utility Outage',
+    'Production Addendum Required','Reroof Discovered',
+  ],
+  sched_install: [
+    'Awaiting Customer Reply','Crew Availability','Customer Wants to Wait',
+    'Pending Cancellation','Pending Equipment','Pending Permit Approval',
+  ],
+  inventory:    ['Equipment Ordered','Equipment Shortage','Inventory Ordered','Inventory Shortage'],
+  insp_review: [
+    'City Permit Approval Pending','City Permit Update Needed','Design Update Needed',
+    'Engineering Update Needed','Gen 2 Duracell','Legal',
+    'Pending Solrite Subcontractor Completion','Pending Sonnen Battery Commissioning',
+    'Service Needed','Utility Permit Approval Pending','Utility Permit Update Needed',
+  ],
+  sched_city: [
+    'Awaiting City Reply','Awaiting Customer Reply','Customer Escalation',
+    'Install is Incomplete','Legal','Licensing/Compliance','Pending Cancellation',
+    'Pending City Availability','Pending Crew Availability','Pending Engineering',
+    'Pending Homeowner Availability','Pending Inspection Corrections',
+    'Pending Permit Approval','Pending Permit Revision','Pending Post Install Letter',
+    'Pending QC','Pending Service','Pending WPI8',
+  ],
+  sched_util: [
+    'Awaiting City Reply','Awaiting Customer Reply','Awaiting Utility Reply',
+    'Install is Incomplete','Legal','Licensing/Compliance','Pending Cancellation',
+    'Pending City Approval First','Pending Crew Availability','Pending Customer Signature',
+    'Pending Engineering','Pending Homeowner Availability','Pending Inspection Corrections',
+    'Pending Permit Approval','Pending QC','Pending Service',
+    'Pending SunRaise Release','Pending Utility Approval','Pending Utility Availability',
+  ],
+  city_insp: [
+    'Awaiting City Reply','Escalated to Customer Service',
+    'Inspection Report Requested','Pending Install','Pending Utility Approval First',
+  ],
+  util_insp: ['Escalated to Customer Service','Pending Customer Signature','Pending Install','Pending Meter Set'],
+  city_upd: [
+    'Licensing/Compliance','Need City Registration','Need Customer Signature',
+    'Need Deed/Proof of Ownership','Need Engineer Stamped Plans','Need Engineering Revision',
+    'Need HOA Approval','Need WPI Documents','Objection Letter',
+    'Open Permits/Pending Inspection','Pending Utility Approval',
+    'Permit Drop Off/Pickup','Possible Dispositions','Previous Unpaid Permits',
+  ],
+  util_upd: ['Need Customer Signature','Need Proof of Insurance','Pending Transformer Upgrade','Transformer Upgrade Review'],
+  pto:       ['Pending PTO Issuance'],
+  in_service: [
+    'Abnormal Grid','Awaiting Customer Reply','Awaiting RMA',
+    'Awaiting System Update To Take Effect','Battery Issues','CT Issues',
+    'Gateway/DTU Not Reporting','Meter Set','Production Issue/MNR','System Activation Incomplete',
+  ],
+}
+
+// ── REVISION REQUIRED REASONS — keyed by stage ───────────────────────────────
+const REVISION_REASONS: Record<string, string[]> = {
+  evaluation: [
+    'Incorrect Customer Info','Need ACH Information','Need Drivers License / ID',
+    'Need Income Verification','Need New IA','Need New Loan Doc',
+    'Need Property Ownership','Plan Revision','PPW Too High',
+    'Rejected - Other','Updated Shade Study Required',
+  ],
+  survey: [
+    'Animals Present','Customer Postponed','Customer Request to Cancel',
+    'Missing Attic Pics','Missing Drone Pics','Missing Electrical Pics',
+    'Missing Roof Pics','Missing Site Pics','Need Equipment',
+    'No Access to Attic','No Access to Site','Reroof Procedure',
+  ],
+  design: [
+    'AHJ Correction','Attachment Change','Battery Addition','Confirmed DQ',
+    'Customer Request','Electrical Corrections','Engineering Audit',
+    'HOA Request','Layout Change','Lender Request','Missing Stamps/Letters',
+    'Need New IA DS','New Electrical Notes','Panel Count Change','Panel Type Change',
+    'Production Addendum Required','Reengineer – Customer Request',
+    'Requested Cancel','Supply Chain Issues','Utility Correction','Windspeed Change',
+  ],
+  permit: [
+    'City Permit Revision','CP1 - Need Reroof','Incorrect / Missing Data on Plans',
+    'Incorrect / Missing PV Labels','Incorrect Adders','Incorrect Email',
+    'Incorrect Name','Incorrect Permit Submitted','Incorrect Phone','Incorrect Price',
+    'Incorrect Site Address','Incorrect System Data','Incorrect or No Setbacks',
+    'Loan Doc Not Signed','Missing Adder','Missing Wind Cert Docs (WPI1/8)',
+    'Need Engineering Revision','Need New CPS Form','Need New IA','New NTP Required',
+    'Pending City Approval','Pending Stipulations','Plan Revision',
+    'Production Addendum Required','Reroof Discovered',
+    'Updated Shade Study Required','Utility Permit Revision','Workflow Cancelled',
+  ],
+  install: [
+    'AHJ Denied','City No-Show','Correction Needed (Specify in Comments)',
+    'Crew Not Available/Call-In','Customer Canceled','Customer Reschedule',
+    'Customer Unresponsive / Not Available','Disconnect/Reconnect',
+    'HOA Denied','Incident','Inspection Delay','Missing Material','Missing Photos',
+    'Need Reroof','OSR Required','Pending Battery Completion',
+    'Ran Out of Daylight','System Commissioning Error',
+    'TriSMART Reschedule','Utility No-Show','Waiting for HOA Approval','Weather',
+  ],
+  inspection: [
+    'AHJ Reschedule / Cancel','Battery Corrections Needed','City No-Show',
+    'Conduit Strapping','Correction Needed (Specify in Comments)',
+    'Crew Not Available / Call-In','Customer Canceled',
+    'Customer Issue (Previous Work / Existing Issue)','Customer Reschedule',
+    'Customer Unresponsive / Not Available','Electrical Wall Install Error',
+    'Grounding, Electrical Wall','Grounding, Roof',
+    'Incorrect / Missing Data on Plans','Incorrect / Missing PV Labels',
+    'Incorrect Equipment Installed','Incorrect Permit Submitted',
+    'Incorrect or No Setbacks','Install Not Matching Plans',
+    'LST/IPC Interconnection Not to Code','Microinverter(s) Not Reporting',
+    'Missing Barriers','Missing Documents on Site','Missing Equipment',
+    'Missing Homeowner / Gate Locked','Missing Host','Missing Material',
+    'Missing Photos','Missing Smoke Detectors','Missing Wind Cert Docs (WPI1/8)',
+    'New AHJ Requirement','Not Scheduled with AHJ','OSR Required',
+    'Pending Battery Completion','Ran Out of Daylight',
+    'Rejected - Need Engineer Stamped Plans','Rough Inspection Required',
+    'System Commissioning Error','Trench','TriSMART Rescheduled',
+    'Utility No-Show','Weather','Wire Management','Workmanship',
+  ],
+  complete: ['Need PTO Letter','Needs to Reschedule','Tech Required'],
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -90,7 +318,7 @@ function EditRow({ label, field, value, draft, editing, onChange, small, type = 
   editing: boolean
   onChange: (d: any) => void
   small?: boolean
-  type?: 'text' | 'date'
+  type?: 'text' | 'date' | 'number'
 }) {
   const current = field in draft ? draft[field] : value
   if (!editing) {
@@ -117,6 +345,40 @@ function EditRow({ label, field, value, draft, editing, onChange, small, type = 
   )
 }
 
+function SelectEditRow({ label, field, value, draft, editing, onChange, options }: {
+  label: string
+  field: string
+  value?: string | null
+  draft: Record<string, any>
+  editing: boolean
+  onChange: (d: any) => void
+  options: string[]
+}) {
+  const current = field in draft ? draft[field] : value
+  if (!editing) {
+    if (!value) return null
+    return (
+      <div className="flex gap-2 py-0.5">
+        <span className="text-gray-500 text-xs w-28 flex-shrink-0">{label}</span>
+        <span className="text-gray-200 text-xs">{value}</span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex gap-2 py-0.5 items-center">
+      <span className="text-gray-500 text-xs w-28 flex-shrink-0">{label}</span>
+      <select
+        value={current ?? ''}
+        onChange={e => onChange((d: any) => ({ ...d, [field]: e.target.value || null }))}
+        className="flex-1 bg-gray-700 text-white text-xs rounded px-2 py-1 border border-gray-600 focus:border-green-500 focus:outline-none"
+      >
+        <option value="">Select...</option>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  )
+}
+
 function AutocompleteRow({ label, field, value, draft, editing, onChange, table, searchCol = 'name' }: {
   label: string
   field: string
@@ -135,10 +397,8 @@ function AutocompleteRow({ label, field, value, draft, editing, onChange, table,
   const [focused, setFocused] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  // Sync query when draft changes externally
   useEffect(() => { setQuery(current ?? '') }, [current])
 
-  // Close on outside click
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
@@ -147,7 +407,6 @@ function AutocompleteRow({ label, field, value, draft, editing, onChange, table,
     return () => document.removeEventListener('mousedown', handle)
   }, [])
 
-  // Search DB as user types
   useEffect(() => {
     if (!focused || query.length < 2) { setSuggestions([]); setOpen(false); return }
     const timer = setTimeout(async () => {
@@ -188,9 +447,7 @@ function AutocompleteRow({ label, field, value, draft, editing, onChange, table,
         {open && suggestions.length > 0 && (
           <div className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-gray-800 border border-gray-600 rounded-md shadow-xl overflow-hidden max-h-48 overflow-y-auto">
             {suggestions.map(s => (
-              <button
-                key={s}
-                type="button"
+              <button key={s} type="button"
                 className="w-full text-left px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-700 hover:text-white transition-colors"
                 onMouseDown={() => {
                   setQuery(s)
@@ -216,32 +473,64 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function TaskRow({ task, status, locked, onStatusChange }: {
+function TaskRow({ task, status, reason, pendingReasons, revisionReasons, locked, onStatusChange, onReasonChange }: {
   task: { id: string; name: string; req: boolean }
   status: string
+  reason: string
+  pendingReasons: string[]
+  revisionReasons: string[]
   locked: boolean
   onStatusChange: (taskId: string, status: string) => void
+  onReasonChange: (taskId: string, reason: string) => void
 }) {
+  const showReason = status === 'Pending Resolution' || status === 'Revision Required'
+  const reasonOptions = status === 'Pending Resolution' ? pendingReasons : revisionReasons
+
   return (
-    <div className={`flex items-center gap-2 py-1.5 px-2 rounded-lg mb-1 ${status === 'Complete' ? 'opacity-50' : ''} ${locked ? 'opacity-30 pointer-events-none' : ''}`}>
-      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-        status === 'Complete' ? 'bg-green-500' :
-        status === 'Pending Resolution' ? 'bg-red-500' :
-        status === 'Revision Required' ? 'bg-amber-500' :
-        status === 'In Progress' ? 'bg-blue-500' :
-        status === 'Ready To Start' ? 'bg-gray-400' : 'bg-gray-700'
-      }`} />
-      <span className={`flex-1 text-xs ${task.req ? 'text-white' : 'text-gray-400'}`}>
-        {task.name}{!task.req && <span className="text-gray-600 ml-1">(opt)</span>}
-      </span>
-      <select
-        value={status}
-        disabled={locked}
-        onChange={e => onStatusChange(task.id, e.target.value)}
-        className={`text-xs rounded px-1.5 py-0.5 border-0 cursor-pointer ${STATUS_STYLE[status] ?? 'bg-gray-800 text-gray-400'}`}
-      >
-        {TASK_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-      </select>
+    <div className={`py-1.5 px-2 rounded-lg mb-1 ${status === 'Complete' ? 'opacity-50' : ''} ${locked ? 'opacity-30 pointer-events-none' : ''}`}>
+      <div className="flex items-center gap-2">
+        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+          status === 'Complete'           ? 'bg-green-500'  :
+          status === 'Pending Resolution' ? 'bg-red-500'    :
+          status === 'Revision Required'  ? 'bg-amber-500'  :
+          status === 'In Progress'        ? 'bg-blue-500'   :
+          status === 'Scheduled'          ? 'bg-indigo-400' :
+          status === 'Ready To Start'     ? 'bg-gray-400'   : 'bg-gray-700'
+        }`} />
+        <span className={`flex-1 text-xs ${task.req ? 'text-white' : 'text-gray-400'}`}>
+          {task.name}{!task.req && <span className="text-gray-600 ml-1">(opt)</span>}
+        </span>
+        <select
+          value={status}
+          disabled={locked}
+          onChange={e => onStatusChange(task.id, e.target.value)}
+          className={`text-xs rounded px-1.5 py-0.5 border-0 cursor-pointer ${STATUS_STYLE[status] ?? 'bg-gray-800 text-gray-400'}`}
+        >
+          {TASK_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+
+      {/* Reason dropdown — shown when Pending Resolution or Revision Required */}
+      {showReason && reasonOptions.length > 0 && (
+        <div className="mt-1.5 ml-4 flex items-center gap-2">
+          <span className="text-xs text-gray-500 flex-shrink-0 w-10">Reason</span>
+          <select
+            value={reason}
+            onChange={e => onReasonChange(task.id, e.target.value)}
+            className={`flex-1 text-xs rounded px-2 py-0.5 border-0 cursor-pointer ${
+              status === 'Pending Resolution' ? 'bg-red-950 text-red-300' : 'bg-amber-950 text-amber-300'
+            }`}
+          >
+            <option value="">Select reason...</option>
+            {reasonOptions.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+      )}
+
+      {/* Show saved reason as dim context when status is something else */}
+      {!showReason && reason && (
+        <div className="mt-0.5 ml-4 text-xs text-gray-600 italic">{reason}</div>
+      )}
     </div>
   )
 }
@@ -265,6 +554,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const [project, setProject] = useState<Project>(initialProject)
   const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files'>('tasks')
   const [taskStates, setTaskStates] = useState<Record<string, string>>({})
+  const [taskReasons, setTaskReasons] = useState<Record<string, string>>({})
   const [notes, setNotes] = useState<Note[]>([])
   const [newNote, setNewNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -292,13 +582,17 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     setTimeout(() => setToast(null), 3000)
   }
 
-  // Load task states
   const loadTasks = useCallback(async () => {
-    const { data } = await supabase.from('task_state').select('task_id, status').eq('project_id', pid)
+    const { data } = await supabase.from('task_state').select('task_id, status, reason').eq('project_id', pid)
     if (data) {
-      const map: Record<string, string> = {}
-      data.forEach((t: any) => { map[t.task_id] = t.status })
-      setTaskStates(map)
+      const statusMap: Record<string, string> = {}
+      const reasonMap: Record<string, string> = {}
+      data.forEach((t: any) => {
+        statusMap[t.task_id] = t.status
+        if (t.reason) reasonMap[t.task_id] = t.reason
+      })
+      setTaskStates(statusMap)
+      setTaskReasons(reasonMap)
     }
   }, [pid])
 
@@ -319,7 +613,6 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
 
   const loadAhjUtil = useCallback(async () => {
     if (project.ahj) {
-      // FIX: use contains-match (%name%) so minor formatting differences don't silently fail
       const { data } = await (supabase as any).from('ahjs').select('permit_phone,permit_website,max_duration,electric_code,permit_notes').ilike('name', `%${project.ahj}%`).limit(1).maybeSingle()
       setAhjInfo(data ?? null)
     }
@@ -329,7 +622,6 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     }
   }, [project.ahj, project.utility])
 
-  // FIX: use maybeSingle() so missing folder row doesn't throw an error
   const loadFolder = useCallback(async () => {
     const { data } = await (supabase as any).from('project_folders').select('folder_url').eq('project_id', pid).maybeSingle()
     setFolderUrl(data?.folder_url ?? null)
@@ -339,13 +631,11 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? ''))
   }, [])
 
-  // FIX: sync project state when parent updates the same project (stage advance, blocker change, etc.)
   useEffect(() => {
     setProject(initialProject)
     setBlockerInput(initialProject.blocker ?? '')
   }, [initialProject.id, initialProject.stage, initialProject.stage_date, initialProject.blocker])
 
-  // Reload data when project ID changes (switching between projects)
   useEffect(() => {
     setAhjInfo(null)
     setUtilityInfo(null)
@@ -357,12 +647,28 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     loadStageHistory()
   }, [initialProject.id])
 
-  // Update task status
   async function updateTaskStatus(taskId: string, status: string) {
     setTaskStates(prev => ({ ...prev, [taskId]: status }))
+    const needsReason = status === 'Pending Resolution' || status === 'Revision Required'
+    if (!needsReason) {
+      setTaskReasons(prev => { const n = { ...prev }; delete n[taskId]; return n })
+    }
     await (supabase as any).from('task_state').upsert({
-      project_id: pid, task_id: taskId, status,
+      project_id: pid,
+      task_id: taskId,
+      status,
+      reason: needsReason ? (taskReasons[taskId] ?? null) : null,
       completed_date: status === 'Complete' ? new Date().toISOString().slice(0, 10) : null,
+    }, { onConflict: 'project_id,task_id' })
+  }
+
+  async function updateTaskReason(taskId: string, reason: string) {
+    setTaskReasons(prev => ({ ...prev, [taskId]: reason }))
+    await (supabase as any).from('task_state').upsert({
+      project_id: pid,
+      task_id: taskId,
+      status: taskStates[taskId] ?? 'Not Ready',
+      reason: reason || null,
     }, { onConflict: 'project_id,task_id' })
   }
 
@@ -370,7 +676,6 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     return task.pre.some(preId => taskStates[preId] !== 'Complete')
   }
 
-  // Add note
   async function addNote() {
     if (!newNote.trim()) return
     setSaving(true)
@@ -385,7 +690,6 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     showToast('Note added')
   }
 
-  // Set blocker
   async function setBlocker() {
     const text = blockerInput.trim()
     await (supabase as any).from('projects').update({ blocker: text || null }).eq('id', pid)
@@ -395,7 +699,6 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     showToast(text ? 'Blocker set' : 'Blocker cleared')
   }
 
-  // Save edits
   async function saveEdits() {
     setEditSaving(true)
     await (supabase as any).from('projects').update(editDraft).eq('id', pid)
@@ -407,77 +710,40 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     showToast('Project updated')
   }
 
-  // FIX: pre-populate ALL editable fields so Save without changes doesn't lose data
   function startEdit() {
     setEditDraft({
-      // Contact
-      name: project.name,
-      city: project.city,
-      address: project.address,
-      phone: project.phone,
-      email: project.email,
-      // Contract
-      contract: project.contract,
-      systemkw: project.systemkw,
-      financier: project.financier,
-      financing_type: project.financing_type,
-      down_payment: project.down_payment,
-      tpo_escalator: project.tpo_escalator,
-      financier_adv_pmt: project.financier_adv_pmt,
-      disposition: project.disposition,
-      dealer: project.dealer,
-      // Equipment
-      module: project.module,
-      module_qty: project.module_qty,
-      inverter: project.inverter,
-      inverter_qty: project.inverter_qty,
-      battery: project.battery,
-      battery_qty: project.battery_qty,
-      optimizer: project.optimizer,
-      optimizer_qty: project.optimizer_qty,
-      // Site & Electrical
-      meter_location: project.meter_location,
-      panel_location: project.panel_location,
-      voltage: project.voltage,
-      msp_bus_rating: project.msp_bus_rating,
-      mpu: project.mpu,
-      shutdown: project.shutdown,
+      name: project.name, city: project.city, address: project.address,
+      phone: project.phone, email: project.email,
+      contract: project.contract, systemkw: project.systemkw,
+      financier: project.financier, financing_type: project.financing_type,
+      down_payment: project.down_payment, tpo_escalator: project.tpo_escalator,
+      financier_adv_pmt: project.financier_adv_pmt, disposition: project.disposition,
+      dealer: project.dealer, module: project.module, module_qty: project.module_qty,
+      inverter: project.inverter, inverter_qty: project.inverter_qty,
+      battery: project.battery, battery_qty: project.battery_qty,
+      optimizer: project.optimizer, optimizer_qty: project.optimizer_qty,
+      meter_location: project.meter_location, panel_location: project.panel_location,
+      voltage: project.voltage, msp_bus_rating: project.msp_bus_rating,
+      mpu: project.mpu, shutdown: project.shutdown,
       performance_meter: project.performance_meter,
       interconnection_breaker: project.interconnection_breaker,
-      main_breaker: project.main_breaker,
-      hoa: project.hoa,
-      esid: project.esid,
-      // Team
-      pm: project.pm,
-      advisor: project.advisor,
-      consultant: project.consultant,
-      consultant_email: project.consultant_email,
-      site_surveyor: project.site_surveyor,
-      // Permitting
-      ahj: project.ahj,
-      utility: project.utility,
-      permit_number: project.permit_number,
-      utility_app_number: project.utility_app_number,
+      main_breaker: project.main_breaker, hoa: project.hoa, esid: project.esid,
+      pm: project.pm, advisor: project.advisor, consultant: project.consultant,
+      consultant_email: project.consultant_email, site_surveyor: project.site_surveyor,
+      ahj: project.ahj, utility: project.utility,
+      permit_number: project.permit_number, utility_app_number: project.utility_app_number,
       permit_fee: project.permit_fee,
-      city_permit_date: project.city_permit_date,
-      utility_permit_date: project.utility_permit_date,
-      // Milestones
-      sale_date: project.sale_date,
-      ntp_date: project.ntp_date,
-      survey_scheduled_date: project.survey_scheduled_date,
-      survey_date: project.survey_date,
-      install_scheduled_date: project.install_scheduled_date,
-      install_complete_date: project.install_complete_date,
-      city_inspection_date: project.city_inspection_date,
-      utility_inspection_date: project.utility_inspection_date,
-      pto_date: project.pto_date,
-      in_service_date: project.in_service_date,
+      city_permit_date: project.city_permit_date, utility_permit_date: project.utility_permit_date,
+      sale_date: project.sale_date, ntp_date: project.ntp_date,
+      survey_scheduled_date: project.survey_scheduled_date, survey_date: project.survey_date,
+      install_scheduled_date: project.install_scheduled_date, install_complete_date: project.install_complete_date,
+      city_inspection_date: project.city_inspection_date, utility_inspection_date: project.utility_inspection_date,
+      pto_date: project.pto_date, in_service_date: project.in_service_date,
     })
     setEditMode(true)
     setTab('info')
   }
 
-  // Advance stage
   async function advanceStage() {
     if (!nextStage) return
     const { ok, missing } = canAdvance(project.stage, taskStates)
@@ -509,7 +775,6 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
       <div className="flex-1 bg-black/50" onClick={onClose} />
       <div className="w-full max-w-4xl bg-gray-900 flex flex-col shadow-2xl overflow-hidden">
 
-        {/* Toast */}
         {toast && (
           <div className="absolute top-4 right-4 bg-gray-700 text-white text-xs px-4 py-2 rounded-lg shadow-lg z-10">
             {toast}
@@ -533,25 +798,17 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
             <button onClick={onClose} className="text-gray-400 hover:text-white text-xl ml-4 flex-shrink-0">×</button>
           </div>
 
-          {/* Action bar */}
           <div className="flex items-center gap-3 mt-3 flex-wrap">
-            {/* Blocker button */}
             {!showBlockerForm ? (
-              <button
-                onClick={() => setShowBlockerForm(true)}
+              <button onClick={() => setShowBlockerForm(true)}
                 className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                  project.blocker
-                    ? 'bg-red-900 text-red-300 hover:bg-red-800'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
-              >
+                  project.blocker ? 'bg-red-900 text-red-300 hover:bg-red-800' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                }`}>
                 {project.blocker ? `🚫 ${project.blocker}` : '+ Set Blocker'}
               </button>
             ) : (
               <div className="flex items-center gap-2 flex-1">
-                <input
-                  autoFocus
-                  value={blockerInput}
+                <input autoFocus value={blockerInput}
                   onChange={e => setBlockerInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') setBlocker(); if (e.key === 'Escape') setShowBlockerForm(false) }}
                   placeholder="Describe the blocker..."
@@ -564,11 +821,8 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                 <button onClick={() => setShowBlockerForm(false)} className="text-xs text-gray-500 hover:text-white px-2">Cancel</button>
               </div>
             )}
-
-            {/* Edit button */}
             {!showBlockerForm && !editMode && (
-              <button onClick={startEdit}
-                className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors">
+              <button onClick={startEdit} className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors">
                 ✏ Edit
               </button>
             )}
@@ -584,18 +838,12 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                 </button>
               </div>
             )}
-            {/* Stage advance */}
             {nextStage && !showBlockerForm && (
-              <button
-                onClick={advanceStage}
-                disabled={advancing}
+              <button onClick={advanceStage} disabled={advancing}
                 title={!advance.ok ? `Complete required tasks: ${advance.missing.join(', ')}` : ''}
                 className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ml-auto ${
-                  advance.ok
-                    ? 'bg-green-700 hover:bg-green-600 text-white'
-                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                }`}
-              >
+                  advance.ok ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                }`}>
                 {advancing ? 'Moving...' : `→ ${STAGE_LABELS[nextStage]}`}
               </button>
             )}
@@ -615,8 +863,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
               className={`px-5 py-3 text-sm font-medium transition-colors ${
                 tab === t.id ? 'border-b-2 border-green-400 text-green-400' :
                 t.stuck ? 'text-red-400 hover:text-red-300' : 'text-gray-400 hover:text-white'
-              }`}
-            >{t.label}</button>
+              }`}>{t.label}</button>
           ))}
         </div>
 
@@ -632,15 +879,20 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                   {' · '}Required tasks must be complete to advance stage.
                 </div>
                 {stageTasks.map(task => (
-                  <TaskRow key={task.id} task={task}
+                  <TaskRow
+                    key={task.id}
+                    task={task}
                     status={taskStates[task.id] ?? 'Not Ready'}
+                    reason={taskReasons[task.id] ?? ''}
+                    pendingReasons={PENDING_REASONS[task.id] ?? []}
+                    revisionReasons={REVISION_REASONS[project.stage] ?? []}
                     locked={isLocked(task)}
                     onStatusChange={updateTaskStatus}
+                    onReasonChange={updateTaskReason}
                   />
                 ))}
                 {stageTasks.length === 0 && <div className="text-gray-500 text-xs">No tasks defined for this stage.</div>}
 
-                {/* Prior stage summaries */}
                 <div className="mt-6 space-y-1">
                   {STAGE_ORDER.filter(s => s !== project.stage && TASKS[s]).map(stageId => {
                     const tasks = TASKS[stageId] ?? []
@@ -649,8 +901,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                     if (done === 0 && stuck === 0) return null
                     return (
                       <div key={stageId} className="text-xs text-gray-600 flex gap-2">
-                        <span>{STAGE_LABELS[stageId]}</span>
-                        <span>—</span>
+                        <span>{STAGE_LABELS[stageId]}</span><span>—</span>
                         <span>{done}/{tasks.length} complete</span>
                         {stuck > 0 && <span className="text-red-500">{stuck} stuck</span>}
                       </div>
@@ -665,12 +916,9 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
           {tab === 'notes' && (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="p-4 border-b border-gray-800 flex-shrink-0">
-                <textarea
-                  value={newNote}
-                  onChange={e => setNewNote(e.target.value)}
+                <textarea value={newNote} onChange={e => setNewNote(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addNote() }}
-                  placeholder="Add a note… (⌘+Enter to save)"
-                  rows={3}
+                  placeholder="Add a note… (⌘+Enter to save)" rows={3}
                   className="w-full bg-gray-800 text-white text-sm rounded-lg p-3 border border-gray-700 focus:border-green-500 focus:outline-none resize-none placeholder-gray-500"
                 />
                 <div className="flex justify-end mt-2">
@@ -709,36 +957,45 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                     <EditRow label="Email" field="email" value={project.email} draft={editDraft} editing={editMode} onChange={setEditDraft} small />
                   </Section>
                   <Section title="Contract">
-                    <EditRow label="Amount ($)" field="contract" value={project.contract?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="System (kW)" field="systemkw" value={project.systemkw?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+                    <EditRow label="Amount ($)" field="contract" value={project.contract?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="number" />
+                    <EditRow label="System (kW)" field="systemkw" value={project.systemkw?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="number" />
                     <EditRow label="Financier" field="financier" value={project.financier} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Financing" field="financing_type" value={project.financing_type} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Down payment" field="down_payment" value={project.down_payment?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="TPO escalator" field="tpo_escalator" value={project.tpo_escalator?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+                    <SelectEditRow label="Financing" field="financing_type" value={project.financing_type} draft={editDraft} editing={editMode} onChange={setEditDraft}
+                      options={['Loan','TPO (Lease, PPA)','Cash']} />
+                    <EditRow label="Down payment" field="down_payment" value={project.down_payment?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="number" />
+                    <EditRow label="TPO escalator" field="tpo_escalator" value={project.tpo_escalator?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="number" />
                     <EditRow label="Adv pmt sched" field="financier_adv_pmt" value={project.financier_adv_pmt} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Disposition" field="disposition" value={project.disposition} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+                    <SelectEditRow label="Disposition" field="disposition" value={project.disposition} draft={editDraft} editing={editMode} onChange={setEditDraft}
+                      options={['Sale','Loyalty','Cancelled']} />
                     <EditRow label="Dealer" field="dealer" value={project.dealer} draft={editDraft} editing={editMode} onChange={setEditDraft} />
                   </Section>
                   <Section title="Equipment">
                     <EditRow label="Module" field="module" value={project.module} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Module qty" field="module_qty" value={project.module_qty?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+                    <EditRow label="Module qty" field="module_qty" value={project.module_qty?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="number" />
                     <EditRow label="Inverter" field="inverter" value={project.inverter} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Inverter qty" field="inverter_qty" value={project.inverter_qty?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+                    <EditRow label="Inverter qty" field="inverter_qty" value={project.inverter_qty?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="number" />
                     <EditRow label="Battery" field="battery" value={project.battery} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Battery qty" field="battery_qty" value={project.battery_qty?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+                    <EditRow label="Battery qty" field="battery_qty" value={project.battery_qty?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="number" />
                     <EditRow label="Optimizer" field="optimizer" value={project.optimizer} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Optimizer qty" field="optimizer_qty" value={project.optimizer_qty?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+                    <EditRow label="Optimizer qty" field="optimizer_qty" value={project.optimizer_qty?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="number" />
                   </Section>
                   <Section title="Site & Electrical">
                     <EditRow label="Meter location" field="meter_location" value={project.meter_location} draft={editDraft} editing={editMode} onChange={setEditDraft} />
                     <EditRow label="Panel location" field="panel_location" value={project.panel_location} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Voltage" field="voltage" value={project.voltage} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="MSP bus rating" field="msp_bus_rating" value={project.msp_bus_rating} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="MPU" field="mpu" value={project.mpu?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Shutdown" field="shutdown" value={project.shutdown?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Perf meter" field="performance_meter" value={project.performance_meter} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Interconnect" field="interconnection_breaker" value={project.interconnection_breaker} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Main breaker" field="main_breaker" value={project.main_breaker} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+                    <SelectEditRow label="Voltage" field="voltage" value={project.voltage} draft={editDraft} editing={editMode} onChange={setEditDraft}
+                      options={['120','240']} />
+                    <SelectEditRow label="MSP bus rating" field="msp_bus_rating" value={project.msp_bus_rating} draft={editDraft} editing={editMode} onChange={setEditDraft}
+                      options={['100A','125A','150A','200A','225A','400A']} />
+                    <SelectEditRow label="MPU" field="mpu" value={project.mpu?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft}
+                      options={['Yes','No']} />
+                    <SelectEditRow label="Shutdown" field="shutdown" value={project.shutdown?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft}
+                      options={['Yes','No']} />
+                    <SelectEditRow label="Perf meter" field="performance_meter" value={project.performance_meter} draft={editDraft} editing={editMode} onChange={setEditDraft}
+                      options={['Yes','No']} />
+                    <SelectEditRow label="Interconnect" field="interconnection_breaker" value={project.interconnection_breaker} draft={editDraft} editing={editMode} onChange={setEditDraft}
+                      options={['15A','20A','25A','30A','40A','50A','60A']} />
+                    <SelectEditRow label="Main breaker" field="main_breaker" value={project.main_breaker} draft={editDraft} editing={editMode} onChange={setEditDraft}
+                      options={['100A','125A','150A','200A','225A','400A']} />
                     <EditRow label="HOA" field="hoa" value={project.hoa} draft={editDraft} editing={editMode} onChange={setEditDraft} />
                     <EditRow label="ESID" field="esid" value={project.esid?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
                   </Section>
@@ -772,7 +1029,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                     )}
                     <EditRow label="Permit #" field="permit_number" value={project.permit_number} draft={editDraft} editing={editMode} onChange={setEditDraft} />
                     <EditRow label="Utility app #" field="utility_app_number" value={project.utility_app_number} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-                    <EditRow label="Permit fee" field="permit_fee" value={project.permit_fee?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+                    <EditRow label="Permit fee" field="permit_fee" value={project.permit_fee?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="number" />
                     <EditRow label="City permit" field="city_permit_date" value={project.city_permit_date} draft={editDraft} editing={editMode} onChange={setEditDraft} type="date" />
                     <EditRow label="Utility permit" field="utility_permit_date" value={project.utility_permit_date} draft={editDraft} editing={editMode} onChange={setEditDraft} type="date" />
                   </Section>
