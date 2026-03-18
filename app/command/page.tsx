@@ -6,6 +6,7 @@ import { daysAgo, fmt$, fmtDate, STAGE_LABELS, SLA_THRESHOLDS, STAGE_TASKS } fro
 import { exportProjectsCSV, ALL_EXPORT_FIELDS, DEFAULT_EXPORT_KEYS } from '@/lib/export-utils'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { NewProjectModal } from '@/components/project/NewProjectModal'
+import { ConstructionBanner } from '@/components/ConstructionBanner'
 import type { Project, Schedule } from '@/types/database'
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -485,6 +486,8 @@ export default function CommandPage() {
           Sign out
         </button>
 
+        <ConstructionBanner />
+
         <div className="ml-auto flex items-center gap-3">
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search projects..."
@@ -596,7 +599,7 @@ export default function CommandPage() {
             onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
             collapsed={!!collapsed.ok} onToggle={() => toggleSection('ok')} />
 
-          <CommandSection id="inService" title={`In Service — Legacy (${sections.inService.length})`}
+          <CommandSection id="inService" title={`In Service (${sections.inService.length})`}
             projects={sections.inService} color="text-gray-500" taskMapAll={taskMapAll}
             onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
             collapsed={!!collapsed.inService} onToggle={() => toggleSection('inService')} />
