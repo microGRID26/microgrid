@@ -555,6 +555,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files'>('tasks')
   const [taskStates, setTaskStates] = useState<Record<string, string>>({})
   const [taskReasons, setTaskReasons] = useState<Record<string, string>>({})
+  const [taskStatesRaw, setTaskStatesRaw] = useState<{task_id: string; status: string; reason?: string; completed_date?: string | null}[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [newNote, setNewNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -567,6 +568,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const [editMode, setEditMode] = useState(false)
   const [editDraft, setEditDraft] = useState<Partial<Project>>({})
   const [editSaving, setEditSaving] = useState(false)
+  const [taskView, setTaskView] = useState<'current' | 'all'>('current')
   const [ahjInfo, setAhjInfo] = useState<any>(null)
   const [utilityInfo, setUtilityInfo] = useState<any>(null)
   const [serviceCalls, setServiceCalls] = useState<any[]>([])
@@ -583,7 +585,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   }
 
   const loadTasks = useCallback(async () => {
-    const { data } = await supabase.from('task_state').select('task_id, status, reason').eq('project_id', pid)
+    const { data } = await supabase.from('task_state').select('task_id, status, reason, completed_date').eq('project_id', pid)
     if (data) {
       const statusMap: Record<string, string> = {}
       const reasonMap: Record<string, string> = {}
@@ -593,6 +595,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
       })
       setTaskStates(statusMap)
       setTaskReasons(reasonMap)
+      setTaskStatesRaw(data)
     }
   }, [pid])
 
@@ -890,40 +893,147 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
           {tab === 'tasks' && (
             <div className="flex-1 overflow-y-auto p-6">
               <div className="max-w-2xl">
-                <div className="text-xs text-gray-500 mb-4">
-                  Current stage: <span className="text-white">{STAGE_LABELS[project.stage]}</span>
-                  {' · '}Required tasks must be complete to advance stage.
-                </div>
-                {stageTasks.map(task => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    status={taskStates[task.id] ?? 'Not Ready'}
-                    reason={taskReasons[task.id] ?? ''}
-                    pendingReasons={PENDING_REASONS[task.id] ?? []}
-                    revisionReasons={REVISION_REASONS[project.stage] ?? []}
-                    locked={isLocked(task)}
-                    onStatusChange={updateTaskStatus}
-                    onReasonChange={updateTaskReason}
-                  />
-                ))}
-                {stageTasks.length === 0 && <div className="text-gray-500 text-xs">No tasks defined for this stage.</div>}
 
-                <div className="mt-6 space-y-1">
-                  {STAGE_ORDER.filter(s => s !== project.stage && TASKS[s]).map(stageId => {
-                    const tasks = TASKS[stageId] ?? []
-                    const done = tasks.filter(t => taskStates[t.id] === 'Complete').length
-                    const stuck = tasks.filter(t => ['Pending Resolution','Revision Required'].includes(taskStates[t.id] ?? '')).length
-                    if (done === 0 && stuck === 0) return null
-                    return (
-                      <div key={stageId} className="text-xs text-gray-600 flex gap-2">
-                        <span>{STAGE_LABELS[stageId]}</span><span>—</span>
-                        <span>{done}/{tasks.length} complete</span>
-                        {stuck > 0 && <span className="text-red-500">{stuck} stuck</span>}
-                      </div>
-                    )
-                  })}
+                {/* Toggle */}
+                <div className="flex items-center gap-1 mb-5 bg-gray-800 rounded-lg p-1 w-fit">
+                  <button
+                    onClick={() => setTaskView('current')}
+                    className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+                      taskView === 'current' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Current Stage
+                  </button>
+                  <button
+                    onClick={() => setTaskView('all')}
+                    className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+                      taskView === 'all' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    All Tasks
+                  </button>
                 </div>
+
+                {/* Current Stage View */}
+                {taskView === 'current' && (
+                  <>
+                    <div className="text-xs text-gray-500 mb-4">
+                      Current stage: <span className="text-white">{STAGE_LABELS[project.stage]}</span>
+                      {' · '}Required tasks must be complete to advance stage.
+                    </div>
+                    {stageTasks.map(task => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        status={taskStates[task.id] ?? 'Not Ready'}
+                        reason={taskReasons[task.id] ?? ''}
+                        pendingReasons={PENDING_REASONS[task.id] ?? []}
+                        revisionReasons={REVISION_REASONS[project.stage] ?? []}
+                        locked={isLocked(task)}
+                        onStatusChange={updateTaskStatus}
+                        onReasonChange={updateTaskReason}
+                      />
+                    ))}
+                    {stageTasks.length === 0 && <div className="text-gray-500 text-xs">No tasks defined for this stage.</div>}
+
+                    <div className="mt-6 space-y-1">
+                      {STAGE_ORDER.filter(s => s !== project.stage && TASKS[s]).map(stageId => {
+                        const tasks = TASKS[stageId] ?? []
+                        const done = tasks.filter(t => taskStates[t.id] === 'Complete').length
+                        const stuck = tasks.filter(t => ['Pending Resolution','Revision Required'].includes(taskStates[t.id] ?? '')).length
+                        if (done === 0 && stuck === 0) return null
+                        return (
+                          <div key={stageId} className="text-xs text-gray-600 flex gap-2">
+                            <span>{STAGE_LABELS[stageId]}</span><span>—</span>
+                            <span>{done}/{tasks.length} complete</span>
+                            {stuck > 0 && <span className="text-red-500">{stuck} stuck</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {/* All Tasks View */}
+                {taskView === 'all' && (
+                  <div className="space-y-6">
+                    {STAGE_ORDER.filter(s => TASKS[s]).map(stageId => {
+                      const tasks = TASKS[stageId] ?? []
+                      const isCurrent = stageId === project.stage
+                      const doneCount = tasks.filter(t => taskStates[t.id] === 'Complete').length
+                      const stuckCount = tasks.filter(t => ['Pending Resolution','Revision Required'].includes(taskStates[t.id] ?? '')).length
+
+                      return (
+                        <div key={stageId}>
+                          {/* Stage header */}
+                          <div className="flex items-center gap-3 mb-2 pb-1.5 border-b border-gray-800">
+                            <span className={`text-xs font-bold uppercase tracking-wider ${isCurrent ? 'text-green-400' : 'text-gray-400'}`}>
+                              {STAGE_LABELS[stageId]}
+                            </span>
+                            {isCurrent && (
+                              <span className="text-xs bg-green-900 text-green-300 px-1.5 py-0.5 rounded font-medium">Current</span>
+                            )}
+                            <span className="text-xs text-gray-600">{doneCount}/{tasks.length} complete</span>
+                            {stuckCount > 0 && (
+                              <span className="text-xs text-red-400">{stuckCount} stuck</span>
+                            )}
+                          </div>
+
+                          {/* Task rows */}
+                          <div className="space-y-0">
+                            {tasks.map(task => {
+                              const status = taskStates[task.id] ?? 'Not Ready'
+                              const reason = taskReasons[task.id] ?? ''
+                              const completedDate = (taskStatesRaw.find(t => t.task_id === task.id)?.completed_date) ?? null
+
+                              return (
+                                <div key={task.id} className={`flex items-center gap-3 py-1.5 px-2 rounded ${
+                                  status === 'Complete' ? 'opacity-50' : ''
+                                }`}>
+                                  {/* Status dot */}
+                                  <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                    status === 'Complete'           ? 'bg-green-500'  :
+                                    status === 'Pending Resolution' ? 'bg-red-500'    :
+                                    status === 'Revision Required'  ? 'bg-amber-500'  :
+                                    status === 'In Progress'        ? 'bg-blue-500'   :
+                                    status === 'Scheduled'          ? 'bg-indigo-400' :
+                                    status === 'Ready To Start'     ? 'bg-gray-400'   : 'bg-gray-700'
+                                  }`} />
+
+                                  {/* Task name */}
+                                  <span className={`flex-1 text-xs ${task.req ? 'text-gray-200' : 'text-gray-500'}`}>
+                                    {task.name}
+                                    {!task.req && <span className="text-gray-700 ml-1">(opt)</span>}
+                                  </span>
+
+                                  {/* Reason — if stuck */}
+                                  {reason && (status === 'Pending Resolution' || status === 'Revision Required') && (
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                      status === 'Pending Resolution' ? 'bg-red-950 text-red-400' : 'bg-amber-950 text-amber-400'
+                                    }`}>{reason}</span>
+                                  )}
+
+                                  {/* Completed date */}
+                                  {completedDate && (
+                                    <span className="text-xs text-gray-600 flex-shrink-0">
+                                      {new Date(completedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </span>
+                                  )}
+
+                                  {/* Status badge */}
+                                  <span className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${STATUS_STYLE[status] ?? 'bg-gray-800 text-gray-500'}`}>
+                                    {status}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
               </div>
             </div>
           )}
