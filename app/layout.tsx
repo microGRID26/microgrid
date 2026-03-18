@@ -22,10 +22,24 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         {SHOW_BANNER && (
-          <div className="w-full bg-amber-500 text-amber-950 text-xs font-medium text-center py-1.5 px-4 flex items-center justify-center gap-2 sticky top-0 z-[9999]">
-            <span>🚧</span>
-            <span>MicroGRID CRM is under active development — features are being added daily. Some things may change.</span>
-            <span>🚧</span>
+          <div style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            zIndex: 9999,
+            backgroundColor: '#dc2626',
+            color: 'white',
+            fontWeight: 800,
+            fontSize: '11px',
+            letterSpacing: '0.08em',
+            padding: '6px 12px 6px 10px',
+            borderRadius: '4px 4px 4px 0px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            clipPath: 'polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 calc(100% - 8px))',
+          }}>
+            🚧 UNDER CONSTRUCTION
           </div>
         )}
         {children}
