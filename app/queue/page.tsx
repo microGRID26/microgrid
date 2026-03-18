@@ -73,7 +73,6 @@ export default function QueuePage() {
   const [availablePms, setAvailablePms] = useState<string[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
 
   async function signOut() {
     const supabase = createClient()
