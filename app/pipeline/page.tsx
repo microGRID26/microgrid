@@ -58,7 +58,7 @@ export default function PipelinePage() {
     if (ahjFilter !== 'all' && p.ahj !== ahjFilter) return false
     if (search.trim()) {
       const q = search.toLowerCase()
-      return p.name?.toLowerCase().includes(q) || p.id?.toLowerCase().includes(q) || p.city?.toLowerCase().includes(q)
+      if (!p.name?.toLowerCase().includes(q) && !p.id?.toLowerCase().includes(q) && !p.city?.toLowerCase().includes(q)) return false
     }
     return true
   })

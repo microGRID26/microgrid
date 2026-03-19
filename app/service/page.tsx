@@ -62,7 +62,7 @@ export default function ServicePage() {
     if (search.trim()) {
       const q = search.toLowerCase()
       const p = projects[c.project_id]
-      return p?.name?.toLowerCase().includes(q) || c.project_id?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q)
+      if (!p?.name?.toLowerCase().includes(q) && !c.project_id?.toLowerCase().includes(q) && !c.description?.toLowerCase().includes(q)) return false
     }
     return true
   })

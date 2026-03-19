@@ -129,9 +129,7 @@ export default function FundingPage() {
   const totalFunded = rows.filter(r => r.isFunded).length
   const totalAmount = rows.filter(r => r.isFunded).reduce((s, r) => s + (Number(r.amount) || 0), 0)
   const pendingAmount = rows.filter(r => r.isEligible && !r.isFunded).reduce((s, r) => {
-    const f = funding[r.project.id]
-    const projected = r.milestone === 'm3' ? f?.m3_projected : null
-    return s + (Number(projected) || 0)
+    return s + (Number(r.amount) || 0)
   }, 0)
 
   if (loading) return (
