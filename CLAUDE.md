@@ -98,6 +98,35 @@ The `disposition` field has three meaningful states: `null` (active), `'Loyalty'
 
 When adding new views or filters, decide deliberately which dispositions to include. The queue behavior (showing Loyalty but hiding In Service) is intentional, not a bug.
 
+### Filter Pattern
+
+When combining search with dropdown filters, do **not** early-return the search match result. This was a recurring bug where search text would bypass other active filters. The correct pattern:
+
+```typescript
+// WRONG — search overrides other filters
+if (search.trim()) {
+  return name.includes(q) || id.includes(q)
+}
+
+// RIGHT — search narrows, other filters still apply
+if (search.trim()) {
+  if (!name.includes(q) && !id.includes(q)) return false
+}
+return true
+```
+
+### cycleDays Helper
+
+`daysAgo()` returns `0` for null/undefined input (never returns null). Use `||` (not `??`) when falling back between date fields, since `??` only coalesces null/undefined and `0` is a valid number that won't trigger it:
+
+```typescript
+// WRONG — ?? never falls through because daysAgo always returns a number
+daysAgo(p.sale_date) ?? daysAgo(p.stage_date)
+
+// RIGHT — || falls through when daysAgo returns 0
+daysAgo(p.sale_date) || daysAgo(p.stage_date)
+```
+
 ## Known Bugs
 
 - The `loyalty` field on `projects` is unused — all loyalty logic checks `disposition === 'Loyalty'` instead. The column should eventually be dropped or reconciled.
