@@ -986,39 +986,54 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
               </button>
             )}
             <div className="ml-auto flex items-center gap-1">
-              <button
-                onClick={async () => {
-                  const newDisp = project.disposition === 'Inactive' ? 'Sale' : 'Inactive'
-                  if (!confirm(`${newDisp === 'Inactive' ? 'Inactivate' : 'Reactivate'} this project?`)) return
-                  await (supabase as any).from('projects').update({ disposition: newDisp }).eq('id', project.id)
-                  setProject(p => ({ ...p, disposition: newDisp }))
-                  if (onProjectUpdated) onProjectUpdated()
-                }}
-                className={`text-[10px] px-2 py-1 rounded transition-colors ${
-                  project.disposition === 'Inactive'
-                    ? 'text-green-400 hover:bg-green-900/30'
-                    : 'text-gray-500 hover:text-amber-400 hover:bg-amber-900/20'
-                }`}
-                title={project.disposition === 'Inactive' ? 'Reactivate project' : 'Inactivate project'}
-              >
-                {project.disposition === 'Inactive' ? 'Reactivate' : 'Inactivate'}
-              </button>
-              <button
-                onClick={async () => {
-                  if (!confirm(`DELETE ${project.name} (${project.id})? This cannot be undone.`)) return
-                  if (!confirm('Are you absolutely sure? All project data will be permanently deleted.')) return
-                  await supabase.from('task_state').delete().eq('project_id', project.id)
-                  await supabase.from('notes').delete().eq('project_id', project.id)
-                  await (supabase as any).from('stage_history').delete().eq('project_id', project.id)
-                  await supabase.from('projects').delete().eq('id', project.id)
-                  onClose()
-                  if (onProjectUpdated) onProjectUpdated()
-                }}
-                className="text-[10px] px-2 py-1 rounded text-gray-600 hover:text-red-400 hover:bg-red-900/20 transition-colors"
-                title="Permanently delete project"
-              >
-                Delete
-              </button>
+              {project.disposition === 'Cancelled' ? (
+                <button
+                  onClick={async () => {
+                    if (!confirm('Reactivate this project? It will return to the active pipeline.')) return
+                    await (supabase as any).from('projects').update({ disposition: 'Sale' }).eq('id', project.id)
+                    setProject(p => ({ ...p, disposition: 'Sale' }))
+                    if (onProjectUpdated) onProjectUpdated()
+                  }}
+                  className="text-[10px] px-2 py-1 rounded text-green-400 hover:bg-green-900/30 transition-colors"
+                >
+                  Reactivate
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Cancel ${project.name}? It will be removed from the active pipeline.`)) return
+                    await (supabase as any).from('projects').update({ disposition: 'Cancelled' }).eq('id', project.id)
+                    setProject(p => ({ ...p, disposition: 'Cancelled' }))
+                    if (onProjectUpdated) onProjectUpdated()
+                  }}
+                  className="text-[10px] px-2 py-1 rounded text-gray-500 hover:text-amber-400 hover:bg-amber-900/20 transition-colors"
+                >
+                  Cancel Project
+                </button>
+              )}
+              {currentUser?.admin && (
+                <button
+                  onClick={async () => {
+                    if (!confirm(`DELETE ${project.name} (${project.id})? This cannot be undone.`)) return
+                    if (!confirm('Are you absolutely sure? All project data will be permanently deleted.')) return
+                    await supabase.from('task_state').delete().eq('project_id', project.id)
+                    await supabase.from('notes').delete().eq('project_id', project.id)
+                    await (supabase as any).from('stage_history').delete().eq('project_id', project.id)
+                    await (supabase as any).from('task_history').delete().eq('project_id', project.id)
+                    await (supabase as any).from('schedule').delete().eq('project_id', project.id)
+                    await (supabase as any).from('service_calls').delete().eq('project_id', project.id)
+                    await (supabase as any).from('project_funding').delete().eq('project_id', project.id)
+                    await (supabase as any).from('project_folders').delete().eq('project_id', project.id)
+                    await supabase.from('projects').delete().eq('id', project.id)
+                    onClose()
+                    if (onProjectUpdated) onProjectUpdated()
+                  }}
+                  className="text-[10px] px-2 py-1 rounded text-gray-600 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                  title="Admin only — permanently delete project and all related data"
+                >
+                  Delete
+                </button>
+              )}
             </div>
           </div>
         </div>
