@@ -566,6 +566,17 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
         return next
       })
 
+      // ── Cascade: also clear project dates for reset tasks ──────────────
+      const dateClearUpdates: Record<string, null> = {}
+      for (const id of cascadeResets) {
+        const df = TASK_DATE_FIELDS[id]
+        if (df && (project as any)[df]) dateClearUpdates[df] = null
+      }
+      if (Object.keys(dateClearUpdates).length > 0) {
+        await (supabase as any).from('projects').update(dateClearUpdates).eq('id', pid)
+        setProject(p => ({ ...p, ...dateClearUpdates }))
+      }
+
       showToast(`Reset ${cascadeResets.length} downstream task${cascadeResets.length > 1 ? 's' : ''}`)
     }
 
@@ -577,18 +588,49 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     if (status === 'Complete') {
       const dateField = TASK_DATE_FIELDS[taskId]
       if (dateField && !(project as any)[dateField]) {
-        const today = new Date().toISOString().slice(0, 10)
         await (supabase as any).from('projects').update({ [dateField]: today }).eq('id', pid)
         setProject(p => ({ ...p, [dateField]: today }))
       }
     }
 
-    // ── Auto-clear project date when task is un-completed (cascade reset) ──
+    // ── Auto-clear project date when task is un-completed ────────────────
     if (status !== 'Complete' && !cascadeResets) {
       const dateField = TASK_DATE_FIELDS[taskId]
       if (dateField && (project as any)[dateField]) {
         await (supabase as any).from('projects').update({ [dateField]: null }).eq('id', pid)
         setProject(p => ({ ...p, [dateField]: null }))
+      }
+    }
+
+    // ── Auto-detect blocker from Pending Resolution ─────────────────────
+    if (status === 'Pending Resolution') {
+      const taskName = ALL_TASKS_MAP[taskId] ?? taskId
+      const reason = taskReasons[taskId] ?? ''
+      const blockerText = reason ? `${taskName}: ${reason}` : taskName
+      // Only auto-set if no blocker currently exists
+      if (!project.blocker) {
+        await (supabase as any).from('projects').update({ blocker: blockerText }).eq('id', pid)
+        setProject(p => ({ ...p, blocker: blockerText }))
+        setBlockerInput(blockerText)
+        onProjectUpdated()
+      }
+    }
+
+    // ── Auto-clear blocker when task moves away from Pending Resolution ──
+    if (status !== 'Pending Resolution' && status !== 'Revision Required' && !cascadeResets) {
+      // Check if blocker was auto-set from this task (matches task name pattern)
+      const taskName = ALL_TASKS_MAP[taskId] ?? taskId
+      if (project.blocker && project.blocker.startsWith(taskName)) {
+        // Check if any OTHER required tasks are still stuck
+        const otherStuck = (TASKS[project.stage] ?? []).some(t =>
+          t.id !== taskId && (taskStates[t.id] === 'Pending Resolution' || taskStates[t.id] === 'Revision Required')
+        )
+        if (!otherStuck) {
+          await (supabase as any).from('projects').update({ blocker: null }).eq('id', pid)
+          setProject(p => ({ ...p, blocker: null }))
+          setBlockerInput('')
+          onProjectUpdated()
+        }
       }
     }
 
@@ -608,13 +650,34 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
       }
     }
 
+    // ── Auto-trigger funding milestone eligibility ───────────────────────
+    if (status === 'Complete') {
+      // install_done → M2 eligible, pto → M3 eligible
+      const milestoneField = taskId === 'install_done' ? 'm2_status' : taskId === 'pto' ? 'm3_status' : null
+      if (milestoneField) {
+        // Only update if status is currently null/empty (not already submitted/funded)
+        const { data: fundingRow } = await (supabase as any)
+          .from('project_funding')
+          .select(milestoneField)
+          .eq('project_id', pid)
+          .maybeSingle()
+        const currentMsStatus = fundingRow?.[milestoneField]
+        if (!currentMsStatus || currentMsStatus === 'Not Submitted') {
+          await (supabase as any).from('project_funding').upsert(
+            { project_id: pid, [milestoneField]: 'Eligible' },
+            { onConflict: 'project_id' }
+          )
+          const msLabel = taskId === 'install_done' ? 'M2' : 'M3'
+          showToast(`${msLabel} milestone now Eligible`)
+        }
+      }
+    }
+
     // ── Auto-advance stage when all required tasks are Complete ───────────
     if (status === 'Complete' && !cascadeResets) {
-      // Build updated task states including this change
       const updatedStates = { ...taskStates, [taskId]: status }
       const { ok } = canAdvance(project.stage, updatedStates)
       if (ok && nextStage) {
-        const today = new Date().toISOString().slice(0, 10)
         await (supabase as any).from('projects').update({ stage: nextStage, stage_date: today }).eq('id', pid)
         await (supabase as any).from('stage_history').insert({ project_id: pid, stage: nextStage, entered: today })
         void (supabase as any).from('audit_log').insert({
