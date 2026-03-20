@@ -485,10 +485,6 @@ export default function CommandPage() {
               {displayName || user?.email?.split('@')[0]}
             </button>
           )}
-          <button onClick={() => setShowNewProject(true)}
-            className="text-xs bg-green-600 hover:bg-green-500 text-white font-medium px-3 py-1.5 rounded-lg transition-colors">
-            + New Project
-          </button>
         </>} />
 
       {/* ── METRICS BAR ──────────────────────────────────────────────────── */}
