@@ -87,7 +87,7 @@ export function Nav({ active, right, onNewProject }: NavProps) {
         Help
       </a>
 
-      {onNewProject && (
+      {onNewProject && currentUser?.isAdmin && (
         <button onClick={onNewProject}
           className="text-xs px-3 py-1.5 rounded-md transition-colors bg-green-700 hover:bg-green-600 text-white font-medium">
           + New Project

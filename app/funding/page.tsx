@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Nav } from '@/components/Nav'
+import { useCurrentUser } from '@/lib/useCurrentUser'
 import { fmt$, fmtDate, STAGE_LABELS } from '@/lib/utils'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import type { Project, ProjectFunding, NonfundedCode } from '@/types/database'
@@ -45,12 +46,13 @@ function getMsData(f: ProjectFunding | null, p: Project, ms: MilestoneKey): MsDa
 
 // ── Inline Editable Cell ──────────────────────────────────────────────────────
 
-function EditableCell({ value, onSave, type = 'text', placeholder = '—', className = '' }: {
+function EditableCell({ value, onSave, type = 'text', placeholder = '—', className = '', disabled = false }: {
   value: string | number | null
   onSave: (val: string | null) => Promise<void>
   type?: 'text' | 'number' | 'date' | 'currency'
   placeholder?: string
   className?: string
+  disabled?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -58,6 +60,7 @@ function EditableCell({ value, onSave, type = 'text', placeholder = '—', class
   const inputRef = useRef<HTMLInputElement>(null)
 
   const startEdit = (e: React.MouseEvent) => {
+    if (disabled) return
     e.stopPropagation()
     setDraft(value != null ? String(value) : '')
     setEditing(true)
@@ -99,8 +102,8 @@ function EditableCell({ value, onSave, type = 'text', placeholder = '—', class
   return (
     <div
       onClick={startEdit}
-      className={`cursor-pointer hover:bg-gray-700 hover:text-white rounded px-1 py-0.5 -mx-1 -my-1 min-h-[24px] flex items-center transition-colors w-full ${saving ? 'opacity-50' : ''} ${className}`}
-      title="Click to edit"
+      className={`rounded px-1 py-0.5 -mx-1 -my-1 min-h-[24px] flex items-center transition-colors w-full ${saving ? 'opacity-50' : ''} ${disabled ? '' : 'cursor-pointer hover:bg-gray-700 hover:text-white'} ${className}`}
+      title={disabled ? undefined : 'Click to edit'}
     >
       {display}
     </div>
@@ -120,7 +123,7 @@ function MsBadge({ ms, data }: { ms: MilestoneKey; data: MsData }) {
 
 // ── Status Dropdown ───────────────────────────────────────────────────────────
 
-function StatusSelect({ value, onSave, compact }: { value: string | null; onSave: (val: string | null) => Promise<void>; compact?: boolean }) {
+function StatusSelect({ value, onSave, compact, disabled = false }: { value: string | null; onSave: (val: string | null) => Promise<void>; compact?: boolean; disabled?: boolean }) {
   const [saving, setSaving] = useState(false)
 
   const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -141,8 +144,8 @@ function StatusSelect({ value, onSave, compact }: { value: string | null; onSave
       value={value ?? ''}
       onChange={handleChange}
       onClick={e => e.stopPropagation()}
-      disabled={saving}
-      className={`bg-transparent border-0 text-[10px] cursor-pointer focus:outline-none w-full ${color} ${saving ? 'opacity-50' : ''}`}
+      disabled={saving || disabled}
+      className={`bg-transparent border-0 text-[10px] focus:outline-none w-full ${color} ${saving ? 'opacity-50' : ''} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
     >
       <option value="">—</option>
       {FUNDING_STATUSES.map(s => <option key={s} value={s}>{compact ? s.slice(0, 3) : s}</option>)}
@@ -152,11 +155,12 @@ function StatusSelect({ value, onSave, compact }: { value: string | null; onSave
 
 // ── NF Code Picker ────────────────────────────────────────────────────────────
 
-function NfCodePicker({ value, onSave, codes, slot }: {
+function NfCodePicker({ value, onSave, codes, slot, disabled = false }: {
   value: string | null
   onSave: (val: string | null) => Promise<void>
   codes: NonfundedCode[]
   slot: number
+  disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -191,14 +195,14 @@ function NfCodePicker({ value, onSave, codes, slot }: {
       {value ? (
         <span className="inline-flex items-center gap-0.5">
           <span
-            className="bg-red-900/50 text-red-300 text-[10px] px-1 py-0.5 rounded cursor-pointer hover:bg-red-800"
-            onClick={e => { e.stopPropagation(); setOpen(!open) }}
+            className={`bg-red-900/50 text-red-300 text-[10px] px-1 py-0.5 rounded ${disabled ? '' : 'cursor-pointer hover:bg-red-800'}`}
+            onClick={e => { e.stopPropagation(); if (!disabled) setOpen(!open) }}
             title={codes.find(c => c.code === value)?.description ?? value}
           >{value}</span>
-          <button onClick={e => { e.stopPropagation(); select(null) }} className="text-gray-600 hover:text-red-400 text-[10px]" title="Remove">x</button>
+          {!disabled && <button onClick={e => { e.stopPropagation(); select(null) }} className="text-gray-600 hover:text-red-400 text-[10px]" title="Remove">x</button>}
         </span>
       ) : (
-        <button onClick={e => { e.stopPropagation(); setOpen(!open) }} className="text-gray-600 hover:text-gray-300 text-xs" title={`Add NF code ${slot}`}>+</button>
+        !disabled && <button onClick={e => { e.stopPropagation(); setOpen(!open) }} className="text-gray-600 hover:text-gray-300 text-xs" title={`Add NF code ${slot}`}>+</button>
       )}
       {open && (
         <div className="absolute z-50 top-full left-0 mt-1 w-80 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -227,11 +231,12 @@ function NfCodePicker({ value, onSave, codes, slot }: {
 
 // ── Milestone Cell Group ──────────────────────────────────────────────────────
 
-function MsCells({ ms, data, pid, saveFundingField }: {
+function MsCells({ ms, data, pid, saveFundingField, disabled = false }: {
   ms: MilestoneKey
   data: MsData
   pid: string
   saveFundingField: (projectId: string, field: string, value: string | number | null) => Promise<void>
+  disabled?: boolean
 }) {
   const field = (f: string) => `${ms}_${f}`
   return (
@@ -240,15 +245,15 @@ function MsCells({ ms, data, pid, saveFundingField }: {
         <MsBadge ms={ms} data={data} />
       </td>
       <td className="px-1 py-1.5 font-mono">
-        <EditableCell value={data.amount} type="currency"
+        <EditableCell value={data.amount} type="currency" disabled={disabled}
           onSave={async val => saveFundingField(pid, field('amount'), val ? Number(val) : null)} />
       </td>
       <td className="px-1 py-1.5">
-        <EditableCell value={data.funded_date} type="date"
+        <EditableCell value={data.funded_date} type="date" disabled={disabled}
           onSave={async val => saveFundingField(pid, field('funded_date'), val)} />
       </td>
       <td className="px-1 py-1.5">
-        <StatusSelect value={data.status}
+        <StatusSelect value={data.status} disabled={disabled}
           onSave={async val => saveFundingField(pid, field('status'), val)} compact />
       </td>
     </>
@@ -259,6 +264,8 @@ function MsCells({ ms, data, pid, saveFundingField }: {
 
 export default function FundingPage() {
   const supabase = createClient()
+  const { user: currentUser } = useCurrentUser()
+  const canEditFunding = currentUser?.isFinance ?? false
   const [projects, setProjects] = useState<Project[]>([])
   const [funding, setFunding] = useState<Record<string, ProjectFunding>>({})
   const [nfCodes, setNfCodes] = useState<NonfundedCode[]>([])
@@ -483,18 +490,18 @@ export default function FundingPage() {
                   <td className="px-2 py-1.5 text-gray-300 font-mono whitespace-nowrap">{row.project.contract ? fmt$(Number(row.project.contract)) : '—'}</td>
 
                   {/* M1 */}
-                  <MsCells ms="m1" data={row.m1} pid={pid} saveFundingField={saveFundingField} />
+                  <MsCells ms="m1" data={row.m1} pid={pid} saveFundingField={saveFundingField} disabled={!canEditFunding} />
                   {/* M2 */}
-                  <MsCells ms="m2" data={row.m2} pid={pid} saveFundingField={saveFundingField} />
+                  <MsCells ms="m2" data={row.m2} pid={pid} saveFundingField={saveFundingField} disabled={!canEditFunding} />
                   {/* M3 */}
-                  <MsCells ms="m3" data={row.m3} pid={pid} saveFundingField={saveFundingField} />
+                  <MsCells ms="m3" data={row.m3} pid={pid} saveFundingField={saveFundingField} disabled={!canEditFunding} />
 
                   {/* NF Codes */}
                   <td className="px-2 py-1.5 border-l border-gray-700">
                     <div className="flex items-center gap-1">
-                      <NfCodePicker value={row.nf1} codes={nfCodes} slot={1} onSave={async val => saveFundingField(pid, nfField(1), val)} />
-                      <NfCodePicker value={row.nf2} codes={nfCodes} slot={2} onSave={async val => saveFundingField(pid, nfField(2), val)} />
-                      <NfCodePicker value={row.nf3} codes={nfCodes} slot={3} onSave={async val => saveFundingField(pid, nfField(3), val)} />
+                      <NfCodePicker value={row.nf1} codes={nfCodes} slot={1} disabled={!canEditFunding} onSave={async val => saveFundingField(pid, nfField(1), val)} />
+                      <NfCodePicker value={row.nf2} codes={nfCodes} slot={2} disabled={!canEditFunding} onSave={async val => saveFundingField(pid, nfField(2), val)} />
+                      <NfCodePicker value={row.nf3} codes={nfCodes} slot={3} disabled={!canEditFunding} onSave={async val => saveFundingField(pid, nfField(3), val)} />
                     </div>
                   </td>
                   {/* Notes — show combined, edit m1 notes for now */}
@@ -502,8 +509,9 @@ export default function FundingPage() {
                     <EditableCell
                       value={allNotes || null}
                       type="text"
-                      placeholder="Add note..."
+                      placeholder={canEditFunding ? "Add note..." : "—"}
                       className="text-gray-400 text-[10px]"
+                      disabled={!canEditFunding}
                       onSave={async val => saveFundingField(pid, 'm1_notes', val)}
                     />
                   </td>
