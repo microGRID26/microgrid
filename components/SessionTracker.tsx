@@ -7,35 +7,48 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 const SESSION_KEY = 'microgrid_session_id'
 
 export function SessionTracker() {
-  const { user } = useCurrentUser()
+  const { user, loading } = useCurrentUser()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const initialized = useRef(false)
 
   useEffect(() => {
-    if (!user?.id || initialized.current) return
+    if (loading || initialized.current) return
 
+    // Use user from hook, or fall back to auth session directly
     const supabase = createClient()
-    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
 
-    // Check if we already have a session for this browser tab
-    const existingSessionId = sessionStorage.getItem(SESSION_KEY)
+    async function init() {
+      let userId = user?.id
+      let userName = user?.name
+      let userEmail = user?.email
 
-    if (existingSessionId) {
-      // Session exists — just start heartbeat
-      initialized.current = true
-      startHeartbeat(supabase, existingSessionId)
-      return
-    }
+      // If useCurrentUser didn't find a users table row, get info from auth directly
+      if (!userId) {
+        const { data: authData } = await supabase.auth.getUser()
+        if (!authData.user) return // Not logged in
+        userId = authData.user.id
+        userEmail = authData.user.email ?? ''
+        userName = authData.user.user_metadata?.full_name ?? userEmail?.split('@')[0] ?? 'Unknown'
+      }
 
-    // Create new session (one per login/tab)
-    async function createSession() {
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
+
+      // Check if we already have a session for this browser tab
+      const existingSessionId = sessionStorage.getItem(SESSION_KEY)
+      if (existingSessionId) {
+        initialized.current = true
+        startHeartbeat(supabase, existingSessionId)
+        return
+      }
+
+      // Create new session
       try {
         const { data, error } = await (supabase as any)
           .from('user_sessions')
           .insert({
-            user_id: user!.id,
-            user_name: user!.name,
-            user_email: user!.email,
+            user_id: userId,
+            user_name: userName,
+            user_email: userEmail,
             logged_in_at: new Date().toISOString(),
             last_active_at: new Date().toISOString(),
             page: currentPath,
@@ -58,15 +71,11 @@ export function SessionTracker() {
       }
     }
 
-    createSession()
-
     function startHeartbeat(sb: any, sid: string) {
-      // Immediate update
       const path = typeof window !== 'undefined' ? window.location.pathname : '/'
       ;(sb as any).from('user_sessions').update({ last_active_at: new Date().toISOString(), page: path }).eq('id', sid)
         .then(() => {}).catch((err: any) => console.error('heartbeat failed:', err))
 
-      // Heartbeat every 60s
       intervalRef.current = setInterval(() => {
         const p = typeof window !== 'undefined' ? window.location.pathname : '/'
         ;(sb as any).from('user_sessions').update({ last_active_at: new Date().toISOString(), page: p }).eq('id', sid)
@@ -74,10 +83,12 @@ export function SessionTracker() {
       }, 60_000)
     }
 
+    init()
+
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [user?.id])
+  }, [loading, user?.id])
 
   return null
 }
