@@ -57,12 +57,12 @@ Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered list), `/pipeline` 
 ### Shared Code
 
 - `lib/utils.ts` — `cn()` (clsx+twMerge), `fmt$()`, `fmtDate()`, `daysAgo()`, `escapeIlike()` (sanitizes user input for Supabase `.ilike()` queries), `STAGE_LABELS`, `STAGE_ORDER`, `SLA_THRESHOLDS`, `STAGE_TASKS` (task definitions per stage)
-- `lib/tasks.ts` — single source of truth for task definitions, statuses, reasons, and cascade helper. Extracted from `lib/utils.ts` to eliminate duplication between pages and ProjectPanel. Includes `TASK_STATUSES`, `TASK_REASONS`, prerequisite graph, and `getDownstreamTasks()` for revision cascade logic. Also includes cycle detection to prevent circular prerequisite chains.
+- `lib/tasks.ts` — single source of truth for task definitions, statuses, reasons, and cascade helper. Exports: `TASKS`, `TASK_STATUSES`, `STATUS_STYLE`, `PENDING_REASONS`, `REVISION_REASONS`, `ALL_TASKS_MAP`, `ALL_TASKS_FLAT`, `TASK_TO_STAGE`, `TASK_DATE_FIELDS` (11 task→project date mappings), `getSameStageDownstream()` (BFS for revision cascade). Includes cycle detection at module load.
 - `lib/export-utils.ts` — CSV export with field picker (50+ fields, grouped)
 - `types/database.ts` — full TypeScript types for all Supabase tables
 - `components/Nav.tsx` — shared navigation bar with right-side slot for page controls
 - `components/project/ProjectPanel.tsx` — large modal (overview/tasks/notes/files/BOM tabs) used across multiple pages
-- `components/FeedbackButton.tsx` — floating feedback button rendered on every page (bottom-right corner). Submits to `feedback` table with type, description, user info, and current page. Uses `SECURITY DEFINER` RPC function for inserts to bypass RLS.
+- `components/FeedbackButton.tsx` — floating feedback button rendered on every page (bottom-right corner). Submits to `feedback` table with type, message, user info, and current page. Insert allowed for all authenticated users via permissive RLS policy.
 - `components/SessionTracker.tsx` — automatic session tracking component. Logs user sessions to `user_sessions` table with login time, current page, and 60-second heartbeat for duration. Auth fallback handles edge cases where session is not yet available.
 
 ### Key Database Tables
@@ -73,10 +73,10 @@ Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered list), `/pipeline` 
 - **schedule** — crew assignments with `job_type` (survey/install/inspection/service)
 - **project_funding** — M1/M2/M3 milestone amounts, dates, CB credits
 - **stage_history** — audit trail of stage transitions
-- **change_orders** — HCO/change order records. Tracks type, reason, origin, priority, status (Open/In Progress/Waiting On Signature/Complete/Cancelled), assignment, 6-step design workflow (`step_1` through `step_6` booleans), original and new design values (panel count, panel type, system size, kWh/yr), and timestamped notes.
-- **feedback** — user-submitted feedback. Fields: `type` (Bug/Feature/Improvement/Question), `description`, `status` (Open/In Progress/Resolved/Closed), `user_name`, `user_email`, `page`, `admin_notes`. Insert uses `SECURITY DEFINER` RPC function to bypass RLS.
-- **user_sessions** — login/session tracking. Fields: `user_id`, `user_name`, `login_at`, `last_seen_at`, `current_page`, `duration_seconds`. Updated via 60-second heartbeat from `SessionTracker` component.
-- **audit_log** — change audit trail. Records all project field changes with `project_id`, `field`, `old_value`, `new_value`, `changed_by`, `changed_at`. Also logs project deletions before cascade.
+- **change_orders** — HCO/change order records. Fields: `project_id`, `title`, `type`, `reason`, `origin`, `priority`, `status` (Open/In Progress/Waiting On Signature/Complete/Cancelled), `assigned_to`, `created_by`, `notes` (chronological timestamped text). 6-step workflow booleans: `design_request_submitted`, `design_in_progress`, `design_pending_approval`, `design_approved`, `design_complete`, `design_signed`. Original/new design values: `original_panel_count`/`new_panel_count`, `original_system_size`/`new_system_size`, etc.
+- **feedback** — user-submitted feedback. Fields: `type` (Bug/Feature Request/Improvement/Question), `message`, `status` (New/Reviewing/In Progress/Addressed/Won't Fix), `user_name`, `user_email`, `page`, `admin_notes`. Delete policy uses `auth_is_super_admin()` SECURITY DEFINER function.
+- **user_sessions** — login/session tracking. Fields: `user_id`, `user_name`, `user_email`, `logged_in_at`, `last_active_at`, `page`. Updated via 60-second heartbeat from `SessionTracker` component. Duration computed client-side.
+- **audit_log** — change audit trail. Records all project field changes with `project_id`, `field`, `old_value`, `new_value`, `changed_by`, `changed_by_id`, `changed_at`. Also logs project deletions (`field = 'project_deleted'`) before cascade.
 - **ahjs**, **utilities** — reference data for permit authorities and utility companies
 
 ### SLA System
@@ -110,7 +110,7 @@ New projects auto-create a folder structure in the MicroGRID Projects shared Goo
 - Font: Inter (Google Fonts)
 - Use `cn()` from `lib/utils.ts` for conditional Tailwind classes
 - Icon library: `lucide-react`
-- Date formatting: `date-fns` via `fmtDate()` and `daysAgo()` helpers
+- Date formatting: `fmtDate()` and `daysAgo()` helpers in `lib/utils.ts` (native Date API, returns `'—'` for null)
 
 ## Critical Notes
 
@@ -132,14 +132,16 @@ The `active` column on `crews` is stored as a **string** (`'TRUE'`/`'FALSE'`), n
 
 ### Disposition Filtering
 
-The `disposition` field has three meaningful states: `null` (active), `'Loyalty'`, and `'In Service'`. Filtering is **intentionally inconsistent** across pages:
+The `disposition` field has these states: `null`/`'Sale'` (active), `'Loyalty'`, `'In Service'`, `'Cancelled'`. Filtering across pages:
 
-- **Command** (`/command`): excludes both from the main pipeline, then renders them as separate sections at the bottom
-- **Pipeline** (`/pipeline`): excludes both `'In Service'` and `'Loyalty'`
-- **Analytics** (`/analytics`): excludes both `'In Service'` and `'Loyalty'`
-- **Queue** (`/queue`): excludes only `'In Service'` — Loyalty projects **do** appear because PMs still actively manage them
+- **Command** (`/command`): excludes `In Service`, `Loyalty`, and `Cancelled` from pipeline. Loyalty and In Service shown as separate sections at the bottom.
+- **Pipeline** (`/pipeline`): excludes `In Service`, `Loyalty`, and `Cancelled`
+- **Analytics** (`/analytics`): excludes `In Service`, `Loyalty`, and `Cancelled` at query level
+- **Funding** (`/funding`): excludes `In Service`, `Loyalty`, and `Cancelled` at query level
+- **Audit** (`/audit`): excludes `Cancelled` and `In Service`. Loyalty projects **do** appear.
+- **Queue** (`/queue`): excludes `In Service` and `Cancelled` — Loyalty projects **do** appear because PMs still actively manage them
 
-When adding new views or filters, decide deliberately which dispositions to include. The queue behavior (showing Loyalty but hiding In Service) is intentional, not a bug.
+`Cancelled` is always excluded from active views. When adding new views or filters, decide deliberately which dispositions to include. The Queue/Audit behavior (showing Loyalty) is intentional, not a bug.
 
 ### Filter Pattern
 
