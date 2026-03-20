@@ -66,92 +66,213 @@ function ForPMs() {
       </Card>
 
       <SectionHeader title="Task System" />
+
+      {/* ── Stage Navigation mockup ──────────────────────────────── */}
       <Card title="Stage navigation">
-        The Tasks tab opens with a row of stage pills across the top — one for each pipeline stage. Each pill
-        shows a completion fraction (e.g., Design 6/12). A green dot marks the current stage. Click any pill to
-        view that stage's tasks without leaving the panel. Use this to check work done in earlier stages or
-        preview what's ahead.
+        The Tasks tab opens with stage pills across the top. Each pill shows a completion fraction. A green dot marks the current stage. Click any pill to view that stage.
+        <div className="mt-3 flex flex-wrap gap-1">
+          <span className="text-xs px-2.5 py-1.5 rounded-md bg-gray-800 text-gray-400">Evaluation <span className="text-green-400 text-[10px]">5/5</span></span>
+          <span className="text-xs px-2.5 py-1.5 rounded-md bg-gray-800 text-gray-400">Site Survey <span className="text-green-400 text-[10px]">2/2</span></span>
+          <span className="text-xs px-2.5 py-1.5 rounded-md bg-gray-700 text-white ring-1 ring-gray-600 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-400" />Design <span className="text-red-400 text-[10px]">6/12</span></span>
+          <span className="text-xs px-2.5 py-1.5 rounded-md bg-gray-800 text-gray-400">Permitting <span className="text-gray-500 text-[10px]">0/6</span></span>
+          <span className="text-xs px-2.5 py-1.5 rounded-md bg-gray-800 text-gray-400">Installation <span className="text-gray-500 text-[10px]">0/4</span></span>
+          <span className="text-xs px-2.5 py-1.5 rounded-md bg-gray-800 text-gray-400">Inspection <span className="text-gray-500 text-[10px]">0/8</span></span>
+          <span className="text-xs px-2.5 py-1.5 rounded-md bg-gray-800 text-gray-400">Complete <span className="text-gray-500 text-[10px]">0/2</span></span>
+        </div>
       </Card>
+
+      {/* ── Stage Progress Header mockup ─────────────────────────── */}
       <Card title="Stage progress header">
-        Below the stage pills, the header shows the stage name, a CURRENT badge (if viewing the active stage),
-        days in stage with SLA color coding (green/amber/red), a stuck task count, and a progress bar. The bar
-        turns amber or red when SLA thresholds are breached.
+        Below the pills, the header shows stage name, days in stage (color-coded to SLA), stuck count, and a progress bar.
+        <div className="mt-3 bg-gray-800/50 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold text-white uppercase tracking-wider">Design</span>
+            <span className="text-[10px] bg-green-900 text-green-300 px-1.5 py-0.5 rounded font-medium uppercase">Current</span>
+            <span className="text-xs text-green-400">3d in stage</span>
+            <span className="text-xs text-red-400 font-medium">1 stuck</span>
+            <span className="text-xs text-gray-500 ml-auto">50%</span>
+          </div>
+          <div className="mt-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-blue-500" style={{ width: '50%' }} />
+          </div>
+        </div>
       </Card>
+
+      {/* ── Task Table mockup ────────────────────────────────────── */}
       <Card title="Task table layout">
-        Each task is a single row with these elements left to right:
-        <Ul items={[
-          '* (asterisk) — required task. Tasks without * are optional',
-          'Expand arrow (▸) — click to expand inline history for that task',
-          'Task name — bold for required, dimmed for optional, with (opt) label',
-          'Revision count badge — amber badge showing how many times this task has been revised (e.g., "2 rev")',
-          'Completed date — when the task was marked Complete',
-          'Status dropdown — select the current status',
-        ]} />
+        Each task is a row. Required tasks show *, optional show (opt). Status dropdown on the right. Color-coded left borders.
+        <div className="mt-3 border border-gray-700 rounded-lg overflow-hidden text-xs">
+          {/* Complete row */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-700 border-l-2 border-l-green-500 bg-green-950/20">
+            <span className="text-green-500 font-bold w-3 text-center">*</span>
+            <span className="w-4 text-center text-gray-500">▸</span>
+            <span className="flex-1 text-gray-100">Build Design</span>
+            <span className="text-[10px] text-gray-500">Mar 5</span>
+            <span className="bg-green-900 text-green-300 px-1.5 py-0.5 rounded">Complete</span>
+          </div>
+          {/* In Progress row */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-700 border-l-2 border-l-blue-500 bg-blue-950/10">
+            <span className="text-green-500 font-bold w-3 text-center">*</span>
+            <span className="w-4 text-center text-gray-500">▸</span>
+            <span className="flex-1 text-gray-100">Scope of Work</span>
+            <span className="bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded">In Progress</span>
+          </div>
+          {/* Pending Resolution row */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-700 border-l-2 border-l-red-500 bg-red-950/20">
+            <span className="text-green-500 font-bold w-3 text-center">*</span>
+            <span className="w-4 text-center text-gray-500">▸</span>
+            <span className="flex-1 text-gray-100">Build Engineering</span>
+            <span className="text-[10px] bg-amber-900/60 text-amber-400 px-1.5 py-0.5 rounded font-medium">2 rev</span>
+            <span className="bg-red-900 text-red-300 px-1.5 py-0.5 rounded">Pending Resolution</span>
+          </div>
+          {/* Reason sub-row */}
+          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-700 pl-10 bg-red-950/10">
+            <span className="text-[10px] text-gray-500">Reason</span>
+            <span className="bg-red-950 text-red-300 px-1.5 py-0.5 rounded text-[11px]">MPU Review</span>
+          </div>
+          {/* Revision Required row */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-700 border-l-2 border-l-amber-500 bg-amber-950/20">
+            <span className="text-green-500 font-bold w-3 text-center">*</span>
+            <span className="w-4" />
+            <span className="flex-1 text-gray-100">Engineering Approval</span>
+            <span className="bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded">Revision Required</span>
+          </div>
+          {/* Locked row */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-700 border-l-2 border-l-transparent opacity-40">
+            <span className="w-3" />
+            <span className="w-4" />
+            <span className="flex-1 text-gray-400">Stamps Required <span className="text-gray-600">(opt)</span></span>
+            <span className="bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded">Not Ready</span>
+          </div>
+        </div>
+        <div className="mt-2 text-[10px] text-gray-600">Locked tasks (dimmed) cannot be changed until prerequisites are complete.</div>
       </Card>
+
+      {/* ── Row Color Legend ──────────────────────────────────────── */}
       <Card title="Row color coding">
-        Each row has a colored left border and subtle background tint based on its status:
-        <Ul items={[
-          'Green border — Complete',
-          'Red border — Pending Resolution (waiting on external action)',
-          'Amber border — Revision Required (needs rework)',
-          'Blue border — In Progress',
-          'Indigo border — Scheduled',
-          'No border — Not Ready or Ready To Start',
-        ]} />
+        <div className="mt-2 space-y-1.5 text-xs">
+          <div className="flex items-center gap-2"><span className="w-16 h-5 rounded border-l-2 border-l-green-500 bg-green-950/20" /><span>Complete</span></div>
+          <div className="flex items-center gap-2"><span className="w-16 h-5 rounded border-l-2 border-l-red-500 bg-red-950/20" /><span>Pending Resolution — waiting on external action</span></div>
+          <div className="flex items-center gap-2"><span className="w-16 h-5 rounded border-l-2 border-l-amber-500 bg-amber-950/20" /><span>Revision Required — needs rework</span></div>
+          <div className="flex items-center gap-2"><span className="w-16 h-5 rounded border-l-2 border-l-blue-500 bg-blue-950/10" /><span>In Progress</span></div>
+          <div className="flex items-center gap-2"><span className="w-16 h-5 rounded border-l-2 border-l-indigo-400" /><span>Scheduled</span></div>
+          <div className="flex items-center gap-2"><span className="w-16 h-5 rounded border-l-2 border-l-transparent bg-gray-800" /><span>Not Ready / Ready To Start</span></div>
+        </div>
       </Card>
+
+      {/* ── Status Legend ─────────────────────────────────────────── */}
       <Card title="Task statuses">
-        Each task moves through these statuses:
-        <Ul items={[
-          'Not Ready — prerequisites not done yet (task is locked)',
-          'Ready to Start — prerequisites done, waiting to begin',
-          'In Progress — actively being worked',
-          'Scheduled — work is scheduled for a specific date',
-          'Pending Resolution — blocked, waiting on external action (select a reason)',
-          'Revision Required — needs rework (select a reason, triggers cascade reset)',
-          'Complete — done',
-        ]} />
+        <div className="mt-2 space-y-1.5 text-xs">
+          <div className="flex items-center gap-2"><span className="bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded">Not Ready</span><span className="text-gray-400">— prerequisites not done (task is locked)</span></div>
+          <div className="flex items-center gap-2"><span className="bg-gray-700 text-gray-200 px-1.5 py-0.5 rounded">Ready To Start</span><span className="text-gray-400">— prerequisites done, waiting to begin</span></div>
+          <div className="flex items-center gap-2"><span className="bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded">In Progress</span><span className="text-gray-400">— actively being worked</span></div>
+          <div className="flex items-center gap-2"><span className="bg-indigo-900 text-indigo-300 px-1.5 py-0.5 rounded">Scheduled</span><span className="text-gray-400">— work scheduled for a specific date</span></div>
+          <div className="flex items-center gap-2"><span className="bg-red-900 text-red-300 px-1.5 py-0.5 rounded">Pending Resolution</span><span className="text-gray-400">— blocked, waiting on external action</span></div>
+          <div className="flex items-center gap-2"><span className="bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded">Revision Required</span><span className="text-gray-400">— needs rework (triggers cascade)</span></div>
+          <div className="flex items-center gap-2"><span className="bg-green-900 text-green-300 px-1.5 py-0.5 rounded">Complete</span><span className="text-gray-400">— done</span></div>
+        </div>
       </Card>
+
       <Card title="How tasks unlock (prerequisites)">
         Tasks with a lock icon are waiting on prerequisite tasks to be completed first. You cannot change a
-        locked task. When all prerequisites are Complete, the task automatically unlocks to its current status
-        (usually Ready To Start). The prerequisite chain flows within and across stages — for example, Engineering
-        Approval requires Build Engineering, which requires Scope of Work.
+        locked task. When all prerequisites are Complete, the task automatically unlocks. The prerequisite
+        chain flows within and across stages — for example, Engineering Approval requires Build Engineering,
+        which requires Scope of Work.
       </Card>
+
       <Card title="Required vs optional tasks">
-        Tasks marked with * are required — they must all be Complete before you can advance to the next stage.
-        Tasks marked (opt) are optional and do not block stage advancement. Optional tasks like WP1, Production
-        Addendum, or Reroof Procedure are only relevant for certain projects.
+        Tasks marked with <span className="text-green-500 font-bold">*</span> are required — they must all be
+        Complete before you can advance to the next stage. Tasks marked <span className="text-gray-500">(opt)</span> are
+        optional and do not block stage advancement.
       </Card>
+
       <Card title="Reasons (Pending Resolution & Revision Required)">
         When you set a task to Pending Resolution or Revision Required, a reason dropdown appears below the row.
         Select the specific reason — this is visible across the system (Command Center, Queue, Audit page).
-        Some tasks without predefined reasons show a free-text input instead. Always set a reason so other PMs
-        and leadership can see why a task is stuck.
+        Some tasks without predefined reasons show a free-text input instead.
       </Card>
+
+      {/* ── Cascade Confirmation mockup ──────────────────────────── */}
       <Card title="Revision Required — cascade reset">
-        When you set a task to Revision Required, the system checks for downstream tasks in the same stage that
-        have already been worked on. If any exist, a confirmation dialog appears listing exactly which tasks will
-        be reset to Not Ready. This is because downstream work may be invalid if the upstream task changes. For
-        example, setting Build Design to Revision Required will reset Scope of Work, Build Engineering, and
-        Engineering Approval back to Not Ready.
+        When you set a task to Revision Required, the system checks for downstream tasks that have been worked on.
+        A confirmation dialog appears:
+        <div className="mt-3 bg-gray-800 border border-gray-700 rounded-xl p-4 max-w-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-amber-400 text-lg">↩</span>
+            <span className="text-sm font-semibold text-white">Revision Required</span>
+          </div>
+          <p className="text-xs text-gray-300 mb-3">
+            Setting <span className="text-white font-medium">Build Design</span> to Revision Required
+            will reset 3 downstream tasks to Not Ready:
+          </p>
+          <div className="bg-gray-900 rounded-lg p-2 mb-3 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-200">Scope of Work</span>
+              <span className="text-[10px] bg-green-900 text-green-300 px-1.5 py-0.5 rounded">Complete → Not Ready</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-200">Build Engineering</span>
+              <span className="text-[10px] bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded">In Progress → Not Ready</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-200">Engineering Approval</span>
+              <span className="text-[10px] bg-green-900 text-green-300 px-1.5 py-0.5 rounded">Complete → Not Ready</span>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <span className="px-3 py-1.5 text-xs text-gray-400 border border-gray-700 rounded-md">Cancel</span>
+            <span className="px-3 py-1.5 text-xs bg-amber-700 text-white rounded-md font-medium">Reset 3 tasks & continue</span>
+          </div>
+        </div>
         <Ul items={[
-          'The cascade only resets tasks within the same stage',
-          'Only tasks that are NOT already "Not Ready" are listed',
-          'You can cancel the dialog to abort the revision',
-          'All resets are logged to task history with a (cascade) marker',
-          'Cross-stage tasks (e.g., permits after a design revision) must be reset manually if needed',
+          'Cascade only resets tasks within the same stage',
+          'Only tasks not already "Not Ready" are listed',
+          'Cancel aborts the revision entirely',
+          'All resets logged to task history with (cascade) marker',
         ]} />
       </Card>
+
+      {/* ── Inline History mockup ────────────────────────────────── */}
       <Card title="Inline task history">
-        Click the ▸ arrow next to any task name to expand its revision history. This shows every status change
-        for that task in chronological order — date, time, new status, reason, and who made the change. Use this
-        to see how many times a task has been revised and why. The revision count badge (e.g., "2 rev") shows at
-        a glance how many times the task entered Revision Required status.
+        Click the ▸ arrow next to any task to expand its history. Shows every status change with date, time, status, reason, and who.
+        <div className="mt-3 bg-gray-800 rounded-lg p-3 text-[11px]">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-medium">History (4)</div>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 w-14">Mar 18</span>
+              <span className="text-gray-600 w-12">2:30 PM</span>
+              <span className="bg-red-900 text-red-300 px-1 py-0.5 rounded">Pending Resolution</span>
+              <span className="text-red-400">MPU Review</span>
+              <span className="text-gray-600 ml-auto">Greg K</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 w-14">Mar 15</span>
+              <span className="text-gray-600 w-12">9:15 AM</span>
+              <span className="bg-amber-900 text-amber-300 px-1 py-0.5 rounded">Revision Required</span>
+              <span className="text-amber-400">Panel Count Change</span>
+              <span className="text-gray-600 ml-auto">Jen H</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 w-14">Mar 10</span>
+              <span className="text-gray-600 w-12">4:00 PM</span>
+              <span className="bg-green-900 text-green-300 px-1 py-0.5 rounded">Complete</span>
+              <span className="text-gray-600 ml-auto">Jen H</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 w-14">Mar 8</span>
+              <span className="text-gray-600 w-12">11:20 AM</span>
+              <span className="bg-blue-900 text-blue-300 px-1 py-0.5 rounded">In Progress</span>
+              <span className="text-gray-600 ml-auto">Jen H</span>
+            </div>
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-gray-500">The <span className="bg-amber-900/60 text-amber-400 px-1.5 py-0.5 rounded text-[10px] font-medium">2 rev</span> badge shows at a glance how many revisions a task has had.</div>
       </Card>
+
       <Card title="Full History view">
-        Toggle from Stage View to Full History using the buttons at the top of the Tasks tab. Full History shows
-        a chronological log of all task changes across all stages for this project, most recent first. Each entry
-        shows the stage, task name, status, reason, who changed it, and when.
+        Toggle from Stage View to Full History at the top of the Tasks tab. Shows a chronological log of all
+        task changes across all stages, most recent first. Each entry shows stage label, task name, status badge,
+        reason, who changed it, and when.
       </Card>
 
       <SectionHeader title="Stage Advancement" />
