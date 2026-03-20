@@ -7,8 +7,8 @@ import { Nav } from '@/components/Nav'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import type { Project } from '@/types/database'
-import { ClipboardList, Plus, X, Search, ChevronDown, Check, Pencil } from 'lucide-react'
-import { useSearchParams, ReadonlyURLSearchParams } from 'next/navigation'
+import { ClipboardList, Plus, X, Check } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
 // ── TYPES ────────────────────────────────────────────────────────────────────
@@ -359,6 +359,7 @@ function ChangeOrdersContent() {
           <ChangeOrderDetailPanel
             order={selected}
             users={users}
+            currentUser={currentUser}
             onClose={() => setSelected(null)}
             onUpdated={(updated) => {
               setSelected(updated)
@@ -391,10 +392,54 @@ function ChangeOrdersContent() {
   )
 }
 
+// ── COMPARISON ROW — local state + save on blur ─────────────────────────────
+function ComparisonRow({ field: f, co, updateField }: {
+  field: typeof COMPARISON_FIELDS[number]
+  co: ChangeOrder
+  updateField: (field: string, value: any) => void
+}) {
+  const origVal = (co as any)[f.origKey]
+  const newVal = (co as any)[f.newKey]
+  const [localVal, setLocalVal] = useState(newVal ?? '')
+
+  useEffect(() => { setLocalVal(newVal ?? '') }, [newVal])
+
+  const changed = localVal != null && localVal !== '' && String(origVal) !== String(localVal)
+
+  function handleBlur() {
+    const parsed = f.format === 'text' ? (localVal || null) : (localVal !== '' ? Number(localVal) : null)
+    if (String(parsed ?? '') !== String(newVal ?? '')) {
+      updateField(f.newKey, parsed)
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-0 px-3 py-1.5 border-b border-gray-800/50 last:border-0 items-center">
+      <span className="text-xs text-gray-400">{f.label}</span>
+      <span className="text-xs text-gray-300 text-center">{formatField(origVal, f.format)}</span>
+      <div className="flex justify-center">
+        <input
+          type={f.format === 'text' ? 'text' : 'number'}
+          value={localVal}
+          onChange={e => setLocalVal(e.target.value)}
+          onBlur={handleBlur}
+          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+          placeholder="-"
+          className={cn(
+            'text-xs text-center bg-transparent border-b border-gray-700 focus:border-green-500 focus:outline-none w-20 py-0.5',
+            changed ? 'text-green-400 font-medium border-green-800' : 'text-gray-400'
+          )}
+        />
+      </div>
+    </div>
+  )
+}
+
 // ── DETAIL PANEL ─────────────────────────────────────────────────────────────
-function ChangeOrderDetailPanel({ order, users, onClose, onUpdated, onOpenProject }: {
+function ChangeOrderDetailPanel({ order, users, currentUser, onClose, onUpdated, onOpenProject }: {
   order: ChangeOrder
   users: { id: string; name: string }[]
+  currentUser: any
   onClose: () => void
   onUpdated: (co: ChangeOrder) => void
   onOpenProject: (pid: string) => void
@@ -436,7 +481,7 @@ function ChangeOrderDetailPanel({ order, users, onClose, onUpdated, onOpenProjec
     const now = new Date()
     const stamp = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' })
       + ' ' + now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    const by = (order.project as any)?.pm?.split(' ').map((w: string) => w[0]).join('') ?? ''
+    const by = currentUser?.name ?? 'Unknown'
     const entry = `${stamp} ${by} - ${newNote.trim()}`
     const updated = co.notes ? `${entry}\n\n${co.notes}` : entry
     await updateField('notes', updated)
@@ -598,33 +643,9 @@ function ChangeOrderDetailPanel({ order, users, onClose, onUpdated, onOpenProjec
               <span className="text-xs text-gray-500 font-medium text-center">Original</span>
               <span className="text-xs text-gray-500 font-medium text-center">New</span>
             </div>
-            {COMPARISON_FIELDS.map(f => {
-              const origVal = (co as any)[f.origKey]
-              const newVal = (co as any)[f.newKey]
-              const changed = newVal != null && newVal !== '' && String(origVal) !== String(newVal)
-              return (
-                <div key={f.label} className="grid grid-cols-3 gap-0 px-3 py-1.5 border-b border-gray-800/50 last:border-0 items-center">
-                  <span className="text-xs text-gray-400">{f.label}</span>
-                  <span className="text-xs text-gray-300 text-center">{formatField(origVal, f.format)}</span>
-                  <div className="flex justify-center">
-                    <input
-                      type={f.format === 'text' ? 'text' : 'number'}
-                      value={newVal ?? ''}
-                      onChange={e => {
-                        const v = e.target.value
-                        const parsed = f.format === 'text' ? (v || null) : (v ? Number(v) : null)
-                        updateField(f.newKey, parsed)
-                      }}
-                      placeholder="-"
-                      className={cn(
-                        'text-xs text-center bg-transparent border-b border-gray-700 focus:border-green-500 focus:outline-none w-20 py-0.5',
-                        changed ? 'text-green-400 font-medium border-green-800' : 'text-gray-400'
-                      )}
-                    />
-                  </div>
-                </div>
-              )
-            })}
+            {COMPARISON_FIELDS.map(f => (
+              <ComparisonRow key={f.label} field={f} co={co} updateField={updateField} />
+            ))}
           </div>
         </div>
 
@@ -727,6 +748,7 @@ function NewChangeOrderModal({ users, currentUser, onClose, onCreated }: {
       original_panel_count: p.module_qty ?? null,
       original_panel_type: p.module ?? null,
       original_system_size: p.systemkw ?? null,
+      original_loan_amount: p.contract ?? null,
       original_lease_ppa_escalator: p.tpo_escalator ?? null,
       original_adv_pmt_schedule: p.financier_adv_pmt ?? null,
       original_plan_type: p.financing_type ?? null,
@@ -855,6 +877,7 @@ function NewChangeOrderModal({ users, currentUser, onClose, onCreated }: {
                 {(selectedProject as any).module_qty && <div>Panel Count: <span className="text-gray-200">{(selectedProject as any).module_qty}</span></div>}
                 {(selectedProject as any).module && <div>Panel Type: <span className="text-gray-200">{(selectedProject as any).module}</span></div>}
                 {(selectedProject as any).systemkw && <div>System Size: <span className="text-gray-200">{(selectedProject as any).systemkw} kW</span></div>}
+                {(selectedProject as any).contract && <div>Contract: <span className="text-gray-200">{fmt$((selectedProject as any).contract)}</span></div>}
                 {(selectedProject as any).financing_type && <div>Plan Type: <span className="text-gray-200">{(selectedProject as any).financing_type}</span></div>}
               </div>
             </div>
