@@ -206,7 +206,23 @@ export function InfoTab({ project, editMode, editDraft, setEditDraft, ahjInfo, u
         <div>
           <Section title="Customer">
             <EditRow label="Name" field="name" value={project.name} draft={editDraft} editing={editMode} onChange={setEditDraft} />
-            <EditRow label="Address" field="address" value={project.address} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+            {editMode ? (
+              <EditRow label="Address" field="address" value={project.address} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+            ) : (
+              project.address ? (
+                <div className="flex gap-2 py-0.5">
+                  <span className="text-gray-500 text-xs w-28 flex-shrink-0">Address</span>
+                  <a
+                    href={`https://maps.google.com/?q=${encodeURIComponent([project.address, project.city].filter(Boolean).join(', '))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-400 text-xs break-words hover:underline"
+                  >
+                    {project.address}
+                  </a>
+                </div>
+              ) : null
+            )}
             <EditRow label="City" field="city" value={project.city} draft={editDraft} editing={editMode} onChange={setEditDraft} />
             <EditRow label="Phone" field="phone" value={project.phone} draft={editDraft} editing={editMode} onChange={setEditDraft} />
             <EditRow label="Email" field="email" value={project.email} draft={editDraft} editing={editMode} onChange={setEditDraft} small />

@@ -25,6 +25,13 @@ interface Props {
 
 export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobType, crews, onClose, onSaved }: Props) {
   const supabase = createClient()
+
+  // Lock background scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
   const [form, setForm] = useState({
     crew_id: crewId ?? (crews[0]?.id ?? ''),
     date,

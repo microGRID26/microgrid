@@ -23,12 +23,18 @@ const STATUS_BADGE: Record<string, string> = {
   cancelled: 'bg-gray-800 text-gray-500',
 }
 
-function Row({ label, value }: { label: string; value?: string | number | null }) {
+function Row({ label, value, href }: { label: string; value?: string | number | null; href?: string }) {
   if (value == null || value === '') return null
   return (
     <div className="flex gap-2 py-0.5">
       <span className="text-gray-500 text-xs w-28 flex-shrink-0">{label}</span>
-      <span className="text-gray-200 text-xs break-words">{value}</span>
+      {href ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" className="text-green-400 text-xs break-words hover:underline">
+          {value}
+        </a>
+      ) : (
+        <span className="text-gray-200 text-xs break-words">{value}</span>
+      )}
     </div>
   )
 }
@@ -51,6 +57,13 @@ interface Props {
 
 export function JobBriefPanel({ scheduleId, onClose, onEdit, onOpenProject }: Props) {
   const supabase = createClient()
+
+  // Lock background scroll when panel is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
   const [job, setJob] = useState<any>(null)
   const [project, setProject] = useState<Project | null>(null)
   const [crewName, setCrewName] = useState<string>('')
@@ -163,9 +176,9 @@ export function JobBriefPanel({ scheduleId, onClose, onEdit, onOpenProject }: Pr
           {/* Customer */}
           <Section title="Customer">
             <Row label="Name" value={p?.name} />
-            <Row label="Phone" value={p?.phone} />
+            <Row label="Phone" value={p?.phone} href={p?.phone ? `tel:${p.phone.replace(/\D/g, '')}` : undefined} />
             <Row label="Email" value={p?.email} />
-            <Row label="Address" value={address} />
+            <Row label="Address" value={address} href={address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : undefined} />
           </Section>
 
           {/* System */}

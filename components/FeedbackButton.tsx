@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,14 @@ export function FeedbackButton() {
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [toast, setToast] = useState('')
+
+  // Lock background scroll when feedback modal is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = '' }
+    }
+  }, [open])
 
   // Hide on /login
   if (typeof window !== 'undefined' && window.location.pathname === '/login') return null
@@ -51,11 +59,11 @@ export function FeedbackButton() {
       {/* Floating button */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-[90] flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
+        className="fixed bottom-3 right-3 md:bottom-5 md:right-5 z-[90] flex items-center gap-2 px-2 py-2 md:px-3 bg-gray-800 border border-gray-700 rounded-lg
                    text-gray-400 hover:text-white hover:border-gray-600 shadow-lg transition-colors text-xs"
       >
         <MessageSquarePlus className="w-4 h-4" />
-        Feedback
+        <span className="hidden md:inline">Feedback</span>
       </button>
 
       {/* Modal */}

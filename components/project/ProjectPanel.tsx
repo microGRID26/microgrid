@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { fmt$, fmtDate, daysAgo, STAGE_LABELS, STAGE_ORDER, escapeIlike } from '@/lib/utils'
 import { TASKS, TASK_STATUSES, STATUS_STYLE, PENDING_REASONS, REVISION_REASONS, ALL_TASKS_MAP, ALL_TASKS_FLAT, TASK_DATE_FIELDS, getSameStageDownstream } from '@/lib/tasks'
@@ -312,6 +312,12 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     resets: { id: string; name: string; currentStatus: string }[]
   } | null>(null)
   const [changeOrderCount, setChangeOrderCount] = useState(0)
+
+  // Lock background scroll when panel is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
 
   const pid = project.id
   const stageTasks = TASKS[project.stage] ?? []
@@ -880,8 +886,8 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/50" onClick={onClose} />
-      <div className="w-full max-w-4xl bg-gray-900 flex flex-col shadow-2xl overflow-hidden">
+      <div className="hidden md:flex flex-1 bg-black/50" onClick={onClose} />
+      <div className="w-full md:max-w-4xl bg-gray-900 flex flex-col shadow-2xl overflow-hidden">
 
         {toast && (
           <div className="absolute top-4 right-4 bg-gray-700 text-white text-xs px-4 py-2 rounded-lg shadow-lg z-10">

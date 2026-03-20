@@ -314,7 +314,7 @@ export function TasksTab({
                           value={status}
                           disabled={locked}
                           onChange={e => updateTaskStatus(task.id, e.target.value)}
-                          className={`text-xs rounded px-1.5 py-0.5 border-0 cursor-pointer flex-shrink-0 ${
+                          className={`text-xs rounded px-2 py-1.5 md:px-1.5 md:py-0.5 border-0 cursor-pointer flex-shrink-0 ${
                             STATUS_STYLE[status] ?? 'bg-gray-800 text-gray-400'
                           } ${locked ? 'cursor-not-allowed' : ''}`}
                         >
@@ -332,7 +332,7 @@ export function TasksTab({
                             <select
                               value={reason}
                               onChange={e => updateTaskReason(task.id, e.target.value)}
-                              className={`text-xs rounded px-1.5 py-0.5 border-0 cursor-pointer flex-1 ${
+                              className={`text-xs rounded px-2 py-1.5 md:px-1.5 md:py-0.5 border-0 cursor-pointer flex-1 ${
                                 status === 'Pending Resolution' ? 'bg-red-950 text-red-300' : 'bg-amber-950 text-amber-300'
                               }`}
                             >
@@ -345,7 +345,7 @@ export function TasksTab({
                               value={reason}
                               placeholder="Enter reason..."
                               onChange={e => updateTaskReason(task.id, e.target.value)}
-                              className={`text-xs rounded px-1.5 py-0.5 border-0 flex-1 ${
+                              className={`text-xs rounded px-2 py-1.5 md:px-1.5 md:py-0.5 border-0 flex-1 ${
                                 status === 'Pending Resolution' ? 'bg-red-950 text-red-300 placeholder:text-red-800' : 'bg-amber-950 text-amber-300 placeholder:text-amber-800'
                               }`}
                             />

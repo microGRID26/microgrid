@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+
 import { createClient } from '@/lib/supabase/client'
 import { escapeIlike } from '@/lib/utils'
 
@@ -83,6 +84,13 @@ function AutocompleteInput({ value, onChange, table, placeholder, className }: {
 
 export function NewProjectModal({ onClose, onCreated, existingIds, pms }: Props) {
   const supabase = createClient()
+
+  // Lock background scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({

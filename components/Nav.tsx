@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ConstructionBanner } from '@/components/ConstructionBanner'
+import { Menu, X } from 'lucide-react'
 
 // ── Shared nav for all pages ──────────────────────────────────────────────────
 // Usage: <Nav active="Queue" right={<>search + filters</>} />
@@ -45,6 +47,7 @@ interface NavProps {
 
 export function Nav({ active, right, onNewProject }: NavProps) {
   const { user: currentUser, loading } = useCurrentUser()
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   async function signOut() {
     const supabase = createClient()
@@ -53,61 +56,161 @@ export function Nav({ active, right, onNewProject }: NavProps) {
   }
 
   return (
-    <nav className="bg-gray-950 border-b border-gray-800 flex items-center gap-2 px-4 py-2 sticky top-0 z-50 flex-shrink-0">
-      <span className="text-green-400 font-bold text-base mr-2">MicroGRID</span>
+    <>
+      <nav className="bg-gray-950 border-b border-gray-800 flex items-center gap-2 px-4 py-2 sticky top-0 z-50 flex-shrink-0">
+        <span className="text-green-400 font-bold text-base mr-2">MicroGRID</span>
 
-      {NAV_LINKS.map(v => (
-        <a key={v.label} href={v.href}
-          className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
-            v.label === active
-              ? 'bg-gray-800 text-white'
-              : 'text-gray-400 hover:text-white hover:bg-gray-800'
-          }`}>
-          {v.label}
-        </a>
-      ))}
+        {/* Desktop nav links */}
+        <div className="hidden md:flex items-center gap-2">
+          {NAV_LINKS.map(v => (
+            <a key={v.label} href={v.href}
+              className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
+                v.label === active
+                  ? 'bg-gray-800 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`}>
+              {v.label}
+            </a>
+          ))}
 
-      {(!loading && currentUser?.isAdmin) && (
-        <a href="/admin"
-          className={`text-xs px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 ${
-            active === 'Admin'
-              ? 'bg-gray-800 text-white'
-              : 'text-gray-400 hover:text-white hover:bg-gray-800'
-          }`}>
-          {GEAR_ICON}
-          Admin
-        </a>
-      )}
+          {(!loading && currentUser?.isAdmin) && (
+            <a href="/admin"
+              className={`text-xs px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 ${
+                active === 'Admin'
+                  ? 'bg-gray-800 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`}>
+              {GEAR_ICON}
+              Admin
+            </a>
+          )}
 
-      <a href="/help"
-        className={`text-xs px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 ${
-          active === 'Help'
-            ? 'bg-gray-800 text-white'
-            : 'text-gray-400 hover:text-white hover:bg-gray-800'
-        }`}>
-        {HELP_ICON}
-        Help
-      </a>
+          <a href="/help"
+            className={`text-xs px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 ${
+              active === 'Help'
+                ? 'bg-gray-800 text-white'
+                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}>
+            {HELP_ICON}
+            Help
+          </a>
 
-      {onNewProject && currentUser && (
-        <button onClick={onNewProject}
-          className="text-xs px-3 py-1.5 rounded-md transition-colors bg-green-700 hover:bg-green-600 text-white font-medium">
-          + New Project
+          {onNewProject && currentUser && (
+            <button onClick={onNewProject}
+              className="text-xs px-3 py-1.5 rounded-md transition-colors bg-green-700 hover:bg-green-600 text-white font-medium">
+              + New Project
+            </button>
+          )}
+
+          <ConstructionBanner />
+        </div>
+
+        {/* Desktop right slot */}
+        {right && (
+          <div className="hidden md:flex ml-auto items-center gap-2">
+            {right}
+          </div>
+        )}
+
+        {/* Desktop sign out */}
+        <button onClick={signOut}
+          className="hidden md:block ml-auto text-xs px-3 py-1.5 rounded-md transition-colors text-gray-500 hover:text-white hover:bg-gray-800">
+          Sign out
         </button>
-      )}
 
-      <ConstructionBanner />
+        {/* Mobile hamburger button */}
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="md:hidden ml-auto text-gray-400 hover:text-white p-1.5"
+          aria-label="Open menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      </nav>
 
-      {right && (
-        <div className="ml-auto flex items-center gap-2">
-          {right}
+      {/* Mobile drawer overlay */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-[60] md:hidden">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60" onClick={() => setDrawerOpen(false)} />
+
+          {/* Drawer */}
+          <div className="absolute inset-0 bg-gray-950 flex flex-col overflow-y-auto">
+            {/* Drawer header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 flex-shrink-0">
+              <span className="text-green-400 font-bold text-base">MicroGRID</span>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="text-gray-400 hover:text-white p-1.5"
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Main nav links */}
+            <div className="flex-1 py-2">
+              {onNewProject && currentUser && (
+                <button
+                  onClick={() => { setDrawerOpen(false); onNewProject() }}
+                  className="w-full text-left py-3 px-4 text-base font-medium bg-green-700 text-white active:bg-green-600 transition-colors"
+                >
+                  + New Project
+                </button>
+              )}
+
+              {NAV_LINKS.map(v => (
+                <a key={v.label} href={v.href}
+                  onClick={() => setDrawerOpen(false)}
+                  className={`block py-3 px-4 text-base font-medium transition-colors ${
+                    v.label === active
+                      ? 'text-green-400 bg-gray-900'
+                      : 'text-gray-300 active:bg-gray-800'
+                  }`}>
+                  {v.label}
+                </a>
+              ))}
+
+              {/* Divider */}
+              <div className="border-t border-gray-800 my-2" />
+
+              {(!loading && currentUser?.isAdmin) && (
+                <a href="/admin"
+                  onClick={() => setDrawerOpen(false)}
+                  className={`flex items-center gap-2 py-3 px-4 text-base font-medium transition-colors ${
+                    active === 'Admin'
+                      ? 'text-green-400 bg-gray-900'
+                      : 'text-gray-300 active:bg-gray-800'
+                  }`}>
+                  {GEAR_ICON}
+                  Admin
+                </a>
+              )}
+
+              <a href="/help"
+                onClick={() => setDrawerOpen(false)}
+                className={`flex items-center gap-2 py-3 px-4 text-base font-medium transition-colors ${
+                  active === 'Help'
+                    ? 'text-green-400 bg-gray-900'
+                    : 'text-gray-300 active:bg-gray-800'
+                }`}>
+                {HELP_ICON}
+                Help
+              </a>
+
+              <button onClick={() => { setDrawerOpen(false); signOut() }}
+                className="w-full text-left py-3 px-4 text-base font-medium text-gray-500 active:bg-gray-800 transition-colors">
+                Sign out
+              </button>
+
+              {/* Construction banner in drawer */}
+              <div className="px-4 py-2">
+                <ConstructionBanner />
+              </div>
+            </div>
+          </div>
         </div>
       )}
-
-      <button onClick={signOut}
-        className="ml-auto text-xs px-3 py-1.5 rounded-md transition-colors text-gray-500 hover:text-white hover:bg-gray-800">
-        Sign out
-      </button>
-    </nav>
+    </>
   )
 }
