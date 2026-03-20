@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { fmt$, fmtDate, daysAgo, STAGE_LABELS, STAGE_ORDER } from '@/lib/utils'
-import { TASKS, TASK_STATUSES, STATUS_STYLE, PENDING_REASONS, REVISION_REASONS, ALL_TASKS_MAP, ALL_TASKS_FLAT, getSameStageDownstream } from '@/lib/tasks'
+import { TASKS, TASK_STATUSES, STATUS_STYLE, PENDING_REASONS, REVISION_REASONS, ALL_TASKS_MAP, ALL_TASKS_FLAT, TASK_DATE_FIELDS, getSameStageDownstream } from '@/lib/tasks'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import type { Project, Note } from '@/types/database'
 import { BomTab } from './BomTab'
@@ -562,19 +562,58 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     // Invalidate cache so History view reloads fresh on next open
     setTaskHistoryLoaded(false)
 
-    // Auto-flip disposition when In Service task status changes
+    // ── Auto-populate project date when task is marked Complete ────────────
+    if (status === 'Complete') {
+      const dateField = TASK_DATE_FIELDS[taskId]
+      if (dateField) {
+        const today = new Date().toISOString().slice(0, 10)
+        await (supabase as any).from('projects').update({ [dateField]: today }).eq('id', pid)
+        setProject(p => ({ ...p, [dateField]: today }))
+      }
+    }
+
+    // ── Auto-clear project date when task is un-completed (cascade reset) ──
+    if (status !== 'Complete' && !cascadeResets) {
+      const dateField = TASK_DATE_FIELDS[taskId]
+      if (dateField && (project as any)[dateField]) {
+        await (supabase as any).from('projects').update({ [dateField]: null }).eq('id', pid)
+        setProject(p => ({ ...p, [dateField]: null }))
+      }
+    }
+
+    // ── Auto-flip disposition when In Service task status changes ─────────
     if (taskId === 'in_service') {
       if (status === 'Complete') {
         await (supabase as any).from('projects').update({ disposition: 'In Service' }).eq('id', pid)
         setProject(p => ({ ...p, disposition: 'In Service' }))
         onProjectUpdated()
         showToast('Project marked In Service ✓')
+        return // skip auto-advance toast below
       } else if (project.disposition === 'In Service') {
-        // Revert only if disposition was auto-set — don't clobber manual overrides
         await (supabase as any).from('projects').update({ disposition: 'Sale' }).eq('id', pid)
         setProject(p => ({ ...p, disposition: 'Sale' }))
         onProjectUpdated()
         showToast('Disposition reverted to Sale')
+      }
+    }
+
+    // ── Auto-advance stage when all required tasks are Complete ───────────
+    if (status === 'Complete' && !cascadeResets) {
+      // Build updated task states including this change
+      const updatedStates = { ...taskStates, [taskId]: status }
+      const { ok } = canAdvance(project.stage, updatedStates)
+      if (ok && nextStage) {
+        const today = new Date().toISOString().slice(0, 10)
+        await (supabase as any).from('projects').update({ stage: nextStage, stage_date: today }).eq('id', pid)
+        await (supabase as any).from('stage_history').insert({ project_id: pid, stage: nextStage, entered: today })
+        void (supabase as any).from('audit_log').insert({
+          project_id: pid, field: 'stage',
+          old_value: project.stage, new_value: nextStage,
+          changed_by: currentUser?.name ?? null, changed_by_id: currentUser?.id ?? null,
+        })
+        setProject(p => ({ ...p, stage: nextStage as Project['stage'], stage_date: today }))
+        onProjectUpdated()
+        showToast(`All tasks done — advanced to ${STAGE_LABELS[nextStage]}`)
       }
     }
   }

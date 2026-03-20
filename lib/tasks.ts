@@ -334,3 +334,26 @@ export function getSameStageDownstream(taskId: string): string[] {
   }
   return downstream
 }
+
+// ── TASK → PROJECT DATE FIELD MAPPING ───────────────────────────────────────
+// When a task is marked Complete, auto-set the corresponding project date field.
+// Only tasks with a clear 1:1 date mapping are included.
+export const TASK_DATE_FIELDS: Record<string, string> = {
+  // Evaluation
+  ntp:            'ntp_date',
+  // Survey
+  sched_survey:   'survey_scheduled_date',
+  site_survey:    'survey_date',
+  // Permit
+  city_permit:    'city_permit_date',
+  util_permit:    'utility_permit_date',
+  // Install
+  sched_install:  'install_scheduled_date',
+  install_done:   'install_complete_date',
+  // Inspection
+  city_insp:      'city_inspection_date',
+  util_insp:      'utility_inspection_date',
+  // Complete
+  pto:            'pto_date',
+  in_service:     'in_service_date',
+}
