@@ -41,6 +41,7 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
   const [deleting, setDeleting] = useState(false)
   const [conflict, setConflict] = useState<string | null>(null)
   const [existingJob, setExistingJob] = useState<Schedule | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   function set(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }))
@@ -106,6 +107,7 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
   async function save() {
     if (!form.project_id && !selectedProject?.id) return
     setSaving(true)
+    setError(null)
     const pid = selectedProject?.id ?? form.project_id
     const record = {
       crew_id: form.crew_id,
@@ -116,20 +118,30 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
       notes: form.notes || null,
       status: form.status,
     }
+    let result
     if (scheduleId) {
-      await (supabase as any).from('schedule').update(record).eq('id', scheduleId)
+      result = await (supabase as any).from('schedule').update(record).eq('id', scheduleId)
     } else {
-      await (supabase as any).from('schedule').insert(record)
+      result = await (supabase as any).from('schedule').insert(record)
     }
     setSaving(false)
+    if (result.error) {
+      setError(result.error.message ?? 'Failed to save job. Please try again.')
+      return
+    }
     onSaved()
   }
 
   async function deleteJob() {
     if (!scheduleId) return
     setDeleting(true)
-    await (supabase as any).from('schedule').update({ status: 'cancelled' }).eq('id', scheduleId)
+    setError(null)
+    const result = await (supabase as any).from('schedule').update({ status: 'cancelled' }).eq('id', scheduleId)
     setDeleting(false)
+    if (result.error) {
+      setError(result.error.message ?? 'Failed to cancel job. Please try again.')
+      return
+    }
     onSaved()
   }
 
@@ -237,6 +249,11 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
           {/* Conflict warning */}
           {conflict && (
             <div className="text-xs text-amber-400 bg-amber-950 rounded-lg px-3 py-2">⚠ {conflict}</div>
+          )}
+
+          {/* Error message */}
+          {error && (
+            <div className="text-xs text-red-400 bg-red-950 rounded-lg px-3 py-2">{error}</div>
           )}
         </div>
 
