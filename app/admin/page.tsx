@@ -1087,7 +1087,113 @@ function ReleaseNotes() {
   return (
     <div className="max-w-3xl">
       <h2 className="text-base font-semibold text-white mb-1">Release Notes</h2>
-      <p className="text-xs text-gray-500 mb-4">Internal version history for NOVA CRM</p>
+      <p className="text-xs text-gray-500 mb-4">Internal version history for MicroGRID CRM</p>
+
+      <div className={sectionCls}>Session 10 - March 20, 2026</div>
+
+      <div className={cardCls}>
+        <div className={titleCls}>Task System Overhaul</div>
+        <div className={bodyCls}>
+          Complete rewrite of the Tasks tab in ProjectPanel.
+          {bullet([
+            'Stage navigation pills — click any stage to view its tasks with completion fractions (e.g., "Design 6/12")',
+            'Table layout with color-coded rows: green (complete), red (pending), amber (revision), blue (in progress)',
+            'Inline task history — click ▸ to expand any task and see its full revision trail',
+            'Duration tracking — blue badges show days from started to completed',
+            'Revision cascade — setting a task to Revision Required auto-resets downstream tasks with confirmation dialog',
+            'Free-text reason input for tasks without predefined reason dropdowns',
+          ])}
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <div className={titleCls}>Automation Engine</div>
+        <div className={bodyCls}>
+          11 automations now fire when task statuses change:
+          {bullet([
+            'Auto-populate project dates — 11 task-to-date mappings (survey_date, install_complete_date, pto_date, etc.)',
+            'Auto-advance stage — completing last required task auto-advances to next stage',
+            'Auto-detect blockers — Pending Resolution auto-sets project blocker with ⏸ prefix',
+            'Auto-clear blockers — resolving stuck task auto-clears blocker if no other tasks stuck',
+            'Funding milestone triggers — Installation Complete → M2 Eligible, PTO → M3 Eligible',
+            'Task duration tracking — started_date auto-set when task moves to In Progress',
+            'Cascade date clearing — revision cascade also clears corresponding project dates',
+            'Auto-set In Service disposition when In Service task completed',
+            'Task history logging — all status/reason changes recorded to task_history table',
+          ])}
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <div className={titleCls}>Change Order Queue (New Page)</div>
+        <div className={bodyCls}>
+          Full change order management system at /change-orders, modeled after NetSuite Cases.
+          {bullet([
+            'Queue table with status/PM/search filters and realtime subscription',
+            'Detail panel with editable status, priority, type, reason, origin, assignment',
+            '6-step design workflow with auto-status (Open → In Progress → Complete)',
+            'Design comparison table — original vs new values with green diff highlighting',
+            'Chronological timestamped notes with user name',
+            'Project integration — badge in ProjectPanel header links to filtered change orders',
+            'Clickable project names in queue table open ProjectPanel directly',
+          ])}
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <div className={titleCls}>Google Drive Integration</div>
+        <div className={bodyCls}>
+          New projects auto-create folder structure in MicroGRID Projects shared drive via Google Apps Script.
+          16 subfolders created automatically (01 Proposal through 20 Cases).
+          Drive link saved to project_folders table and accessible from Files tab.
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <div className={titleCls}>Feedback System</div>
+        <div className={bodyCls}>
+          Floating feedback button on every page. Users submit bugs, feature requests, improvements, or questions.
+          Auto-captures user name, email, and current page. Admin portal feedback manager with clickable type/status
+          filter badges, admin notes, and super-admin delete.
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <div className={titleCls}>Audit Trail</div>
+        <div className={bodyCls}>
+          Session tracking — automatic login detection with 60-second heartbeat showing current page and duration.
+          Change log — all project field changes with old/new values, who changed it, and when.
+          Project deletions now logged to audit trail before cascade delete.
+          Admin portal Audit Trail module with Sessions and Changes tabs.
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <div className={titleCls}>Command Center Updates</div>
+        <div className={bodyCls}>
+          {bullet([
+            'New "Pending Resolution" section between Blocked and Critical (orange)',
+            'Pending metric card in top bar',
+            'All sections start collapsed — click metric cards to expand',
+            'Cancelled projects filtered from active pipeline sections',
+            'Overlapping section membership bug fixed (pending excludes crit/risk)',
+          ])}
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <div className={titleCls}>Infrastructure & Code Quality</div>
+        <div className={bodyCls}>
+          {bullet([
+            'Shared task constants extracted to lib/tasks.ts — single source of truth, eliminates duplication',
+            'Task history logging fixed — pm_id column bug was silently failing all inserts',
+            'All fire-and-forget DB inserts (void) converted to awaited with error logging',
+            'Audit log inserts converted from void to awaited',
+            'Help page updated with interactive visual mockups for all sections',
+            'Project creation form: state dropdown (defaults TX), phone type=tel, zip maxLength=5',
+          ])}
+        </div>
+      </div>
 
       <div className={sectionCls}>Session 9 - March 19, 2026</div>
 

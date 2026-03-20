@@ -680,11 +680,12 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
       if (ok && nextStage) {
         await (supabase as any).from('projects').update({ stage: nextStage, stage_date: today }).eq('id', pid)
         await (supabase as any).from('stage_history').insert({ project_id: pid, stage: nextStage, entered: today })
-        void (supabase as any).from('audit_log').insert({
+        const { error: auditErr } = await (supabase as any).from('audit_log').insert({
           project_id: pid, field: 'stage',
           old_value: project.stage, new_value: nextStage,
           changed_by: currentUser?.name ?? null, changed_by_id: currentUser?.id ?? null,
         })
+        if (auditErr) console.error('audit_log insert failed:', auditErr)
         setProject(p => ({ ...p, stage: nextStage as Project['stage'], stage_date: today }))
         onProjectUpdated()
         showToast(`All tasks done — advanced to ${STAGE_LABELS[nextStage]}`)
@@ -759,7 +760,8 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
         changed_by_id: currentUser?.id ?? null,
       }))
     if (auditEntries.length > 0) {
-      void (supabase as any).from('audit_log').insert(auditEntries)
+      const { error: auditErr2 } = await (supabase as any).from('audit_log').insert(auditEntries)
+      if (auditErr2) console.error('audit_log insert failed:', auditErr2)
     }
 
     setProject(p => ({ ...p, ...editDraft }))
@@ -815,11 +817,12 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     const today = new Date().toISOString().slice(0, 10)
     await (supabase as any).from('projects').update({ stage: nextStage, stage_date: today }).eq('id', pid)
     await (supabase as any).from('stage_history').insert({ project_id: pid, stage: nextStage, entered: today })
-    void (supabase as any).from('audit_log').insert({
+    const { error: auditErr3 } = await (supabase as any).from('audit_log').insert({
       project_id: pid, field: 'stage',
       old_value: project.stage, new_value: nextStage,
       changed_by: currentUser?.name ?? null, changed_by_id: currentUser?.id ?? null,
     })
+    if (auditErr3) console.error('audit_log insert failed:', auditErr3)
     setProject(p => ({ ...p, stage: nextStage as Project['stage'], stage_date: today }))
     setAdvancing(false)
     onProjectUpdated()
@@ -954,6 +957,12 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                   onClick={async () => {
                     if (!confirm(`DELETE ${project.name} (${project.id})? This cannot be undone.`)) return
                     if (!confirm('Are you absolutely sure? All project data will be permanently deleted.')) return
+                    // Log deletion to audit trail before deleting
+                    await (supabase as any).from('audit_log').insert({
+                      project_id: project.id, field: 'project_deleted',
+                      old_value: project.name, new_value: null,
+                      changed_by: currentUser?.name ?? null, changed_by_id: currentUser?.id ?? null,
+                    })
                     await supabase.from('task_state').delete().eq('project_id', project.id)
                     await supabase.from('notes').delete().eq('project_id', project.id)
                     await (supabase as any).from('stage_history').delete().eq('project_id', project.id)

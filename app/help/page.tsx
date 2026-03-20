@@ -4,10 +4,9 @@ import { Nav } from '@/components/Nav'
 
 import { useState } from 'react'
 
-type Tab = 'whatsnew' | 'pms' | 'funding' | 'leadership' | 'everyone' | 'admins'
+type Tab = 'pms' | 'funding' | 'leadership' | 'everyone' | 'admins'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'whatsnew',   label: "What's New"      },
   { id: 'pms',        label: 'For PMs'        },
   { id: 'funding',    label: 'For Funding'     },
   { id: 'leadership', label: 'For Leadership'  },
@@ -44,89 +43,6 @@ function Ul({ items }: { items: string[] }) {
 }
 
 // ── TAB CONTENT ───────────────────────────────────────────────────────────────
-
-function WhatsNew() {
-  return (
-    <div>
-      <SectionHeader title="March 20, 2026 — Major Release" />
-
-      <Card title="Task System Overhaul">
-        A complete rebuild of how tasks work in the project panel.
-        <Ul items={[
-          'Stage navigation pills — click any stage to view its tasks, completion fractions shown (e.g., "Design 6/12")',
-          'Table layout with color-coded rows — green (complete), red (pending resolution), amber (revision required), blue (in progress)',
-          'Inline task history — click the arrow to expand any task and see its full revision trail',
-          'Duration tracking — blue badges show how long each task took (started to completed)',
-          'Revision cascade — setting a task to "Revision Required" auto-resets downstream tasks with confirmation dialog',
-        ]} />
-      </Card>
-
-      <Card title="Automations">
-        The system now handles repetitive bookkeeping automatically.
-        <Ul items={[
-          'Auto-populate project dates — completing a task auto-fills the matching project date (11 mappings: survey_date, install_complete_date, pto_date, etc.)',
-          'Auto-advance stage — completing the last required task auto-advances to next stage',
-          'Auto-detect blockers — tasks entering Pending Resolution auto-set the project blocker',
-          'Auto-clear blockers — resolving a stuck task auto-clears the blocker (if auto-set)',
-          'Funding milestone triggers — completing Installation Complete auto-sets M2 to Eligible, completing PTO auto-sets M3 to Eligible',
-          'Task duration tracking — started_date auto-set when task moves to In Progress',
-        ]} />
-      </Card>
-
-      <Card title="Change Order Queue (New Page)">
-        Full change order management at /change-orders.
-        <Ul items={[
-          'Create change orders with auto-populated original design values from project',
-          '6-step design workflow with auto-status progression (Open to In Progress to Complete)',
-          'Design comparison table (original vs new values, green highlighting for changes)',
-          'Chronological timestamped notes',
-          'Project integration — badge in project panel links to filtered change orders',
-        ]} />
-      </Card>
-
-      <Card title="Google Drive Integration">
-        <Ul items={[
-          'New projects auto-create folder structure in MicroGRID Projects shared drive',
-          '16 subfolders (01 Proposal through 20 Cases) created automatically',
-          'Drive link saved and accessible from Files tab in project panel',
-        ]} />
-      </Card>
-
-      <Card title="Feedback System">
-        <Ul items={[
-          'Floating feedback button on every page',
-          'Submit bugs, feature requests, improvements, questions',
-          'Auto-captures your name, email, and current page',
-          'Admin portal feedback manager with type/status filters and admin notes',
-        ]} />
-      </Card>
-
-      <Card title="Audit Trail">
-        <Ul items={[
-          'Session tracking — login times, duration, current page for every user',
-          'Change log — all project field changes with old/new values, who, when',
-          'Admin portal Audit Trail module with Sessions and Changes tabs',
-        ]} />
-      </Card>
-
-      <Card title="Command Center Updates">
-        <Ul items={[
-          'New "Pending Resolution" section between Blocked and Critical',
-          'All sections start collapsed (click metric cards to expand)',
-          'Cancelled projects filtered from active pipeline',
-        ]} />
-      </Card>
-
-      <Card title="Infrastructure">
-        <Ul items={[
-          'Shared task constants extracted to lib/tasks.ts (single source of truth)',
-          'Task history logging fixed (was silently failing)',
-          'Fire-and-forget DB calls converted to awaited with error logging',
-        ]} />
-      </Card>
-    </div>
-  )
-}
 
 function ForPMs() {
   return (
@@ -1071,7 +987,7 @@ function ForAdmins() {
 // ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 
 export default function HelpPage() {
-  const [tab, setTab] = useState<Tab>('whatsnew')
+  const [tab, setTab] = useState<Tab>('pms')
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -1102,7 +1018,6 @@ export default function HelpPage() {
 
         {/* Content */}
         <div className="max-w-3xl mx-auto px-8 py-6 pb-16">
-          {tab === 'whatsnew'   && <WhatsNew />}
           {tab === 'pms'        && <ForPMs />}
           {tab === 'funding'    && <ForFunding />}
           {tab === 'leadership' && <ForLeadership />}
