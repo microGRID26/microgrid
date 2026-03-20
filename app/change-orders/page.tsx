@@ -156,16 +156,19 @@ function ChangeOrdersContent() {
     if (data) setUsers(data)
   }, [])
 
+  const loadDataRef = useRef(loadData)
+  loadDataRef.current = loadData
+
   useEffect(() => { loadData(); loadUsers() }, [loadData, loadUsers])
 
   // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel('change-orders-realtime')
-      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'change_orders' }, () => loadData())
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'change_orders' }, () => loadDataRef.current())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [loadData])
+  }, [])
 
   // ── FILTERING ──────────────────────────────────────────────────────────────
   const pmMap = new Map<string, string>()
@@ -221,8 +224,13 @@ function ChangeOrdersContent() {
 
   // ── HANDLERS ─────────────────────────────────────────────────────────────
   const openProject = async (projectId: string) => {
-    const { data } = await supabase.from('projects').select('*').eq('id', projectId).single()
-    if (data) setSelectedProject(data as Project)
+    const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single()
+    if (error || !data) {
+      console.error('Failed to load project:', error)
+      alert(`Failed to load project ${projectId}`)
+      return
+    }
+    setSelectedProject(data as Project)
   }
 
   const onOrderCreated = (co: ChangeOrder) => {

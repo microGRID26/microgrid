@@ -13,7 +13,7 @@ interface Props {
 function nextProjectId(existingIds: string[]): string {
   const nums = existingIds
     .map(id => parseInt((id || '').replace('PROJ-', '')) || 0)
-    .filter(n => n > 0)
+    .filter(n => n > 0 && n < 1000000)
   const max = nums.length > 0 ? Math.max(...nums) : 30312
   return `PROJ-${max + 1}`
 }

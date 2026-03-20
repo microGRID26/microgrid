@@ -13,7 +13,6 @@ export function SessionTracker() {
 
   useEffect(() => {
     if (!user?.id || initialized.current) return
-    initialized.current = true
 
     const supabase = createClient()
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
@@ -23,39 +22,55 @@ export function SessionTracker() {
 
     if (existingSessionId) {
       // Session exists — just start heartbeat
+      initialized.current = true
       startHeartbeat(supabase, existingSessionId)
       return
     }
 
     // Create new session (one per login/tab)
-    ;(supabase as any)
-      .from('user_sessions')
-      .insert({
-        user_id: user.id,
-        user_name: user.name,
-        user_email: user.email,
-        logged_in_at: new Date().toISOString(),
-        last_active_at: new Date().toISOString(),
-        page: currentPath,
-      })
-      .select('id')
-      .single()
-      .then(({ data }: { data: { id: string } | null }) => {
+    async function createSession() {
+      try {
+        const { data, error } = await (supabase as any)
+          .from('user_sessions')
+          .insert({
+            user_id: user!.id,
+            user_name: user!.name,
+            user_email: user!.email,
+            logged_in_at: new Date().toISOString(),
+            last_active_at: new Date().toISOString(),
+            page: currentPath,
+          })
+          .select('id')
+          .single()
+
+        if (error) {
+          console.error('session insert failed:', error)
+          return
+        }
+
         if (data?.id) {
           sessionStorage.setItem(SESSION_KEY, String(data.id))
+          initialized.current = true
           startHeartbeat(supabase, String(data.id))
         }
-      })
+      } catch (err) {
+        console.error('session insert failed:', err)
+      }
+    }
+
+    createSession()
 
     function startHeartbeat(sb: any, sid: string) {
       // Immediate update
       const path = typeof window !== 'undefined' ? window.location.pathname : '/'
-      ;(sb as any).from('user_sessions').update({ last_active_at: new Date().toISOString(), page: path }).eq('id', sid).then(() => {})
+      ;(sb as any).from('user_sessions').update({ last_active_at: new Date().toISOString(), page: path }).eq('id', sid)
+        .then(() => {}).catch((err: any) => console.error('heartbeat failed:', err))
 
       // Heartbeat every 60s
       intervalRef.current = setInterval(() => {
         const p = typeof window !== 'undefined' ? window.location.pathname : '/'
-        ;(sb as any).from('user_sessions').update({ last_active_at: new Date().toISOString(), page: p }).eq('id', sid).then(() => {})
+        ;(sb as any).from('user_sessions').update({ last_active_at: new Date().toISOString(), page: p }).eq('id', sid)
+          .then(() => {}).catch((err: any) => console.error('heartbeat failed:', err))
       }, 60_000)
     }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { daysAgo, fmt$, fmtDate, STAGE_LABELS, SLA_THRESHOLDS, STAGE_TASKS } from '@/lib/utils'
 import { exportProjectsCSV, ALL_EXPORT_FIELDS, DEFAULT_EXPORT_KEYS } from '@/lib/export-utils'
@@ -382,17 +382,20 @@ export default function CommandPage() {
     setLoading(false)
   }, [])
 
+  const loadDataRef = useRef(loadData)
+  loadDataRef.current = loadData
+
   useEffect(() => { loadData() }, [loadData])
 
   // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel('projects-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => loadData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_state' }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => loadDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_state' }, () => loadDataRef.current())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [loadData])
+  }, [])
 
   // Build task map: { projectId: { taskId: { status, reason, completed_date } } }
   const taskMapAll: Record<string, Record<string, TaskEntry>> = {}

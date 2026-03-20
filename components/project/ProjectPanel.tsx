@@ -737,7 +737,12 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
 
   async function setBlocker() {
     const text = blockerInput.trim()
-    await (supabase as any).from('projects').update({ blocker: text || null }).eq('id', pid)
+    const { error: blockerErr } = await (supabase as any).from('projects').update({ blocker: text || null }).eq('id', pid)
+    if (blockerErr) {
+      console.error('blocker update failed:', blockerErr)
+      showToast('Failed to update blocker')
+      return
+    }
     setProject(p => ({ ...p, blocker: text || null }))
     setShowBlockerForm(false)
     onProjectUpdated()
@@ -769,7 +774,13 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     }
 
     setEditSaving(true)
-    await (supabase as any).from('projects').update(editDraft).eq('id', pid)
+    const { error: updateErr } = await (supabase as any).from('projects').update(editDraft).eq('id', pid)
+    if (updateErr) {
+      console.error('project update failed:', updateErr)
+      showToast('Save failed')
+      setEditSaving(false)
+      return
+    }
 
     // Audit log: record each changed field
     const auditEntries = Object.entries(editDraft)
@@ -838,7 +849,13 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     }
     setAdvancing(true)
     const today = new Date().toISOString().slice(0, 10)
-    await (supabase as any).from('projects').update({ stage: nextStage, stage_date: today }).eq('id', pid)
+    const { error: stageErr } = await (supabase as any).from('projects').update({ stage: nextStage, stage_date: today }).eq('id', pid)
+    if (stageErr) {
+      console.error('stage advance failed:', stageErr)
+      showToast('Failed to advance stage')
+      setAdvancing(false)
+      return
+    }
     await (supabase as any).from('stage_history').insert({ project_id: pid, stage: nextStage, entered: today })
     const { error: auditErr3 } = await (supabase as any).from('audit_log').insert({
       project_id: pid, field: 'stage',

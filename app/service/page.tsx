@@ -52,8 +52,14 @@ export default function ServicePage() {
 
   const openProject = async (projectId: string) => {
     setLoadingProject(true)
-    const { data } = await supabase.from('projects').select('*').eq('id', projectId).single()
-    if (data) setSelected(data as Project)
+    const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single()
+    if (error || !data) {
+      console.error('Failed to load project:', error)
+      alert(`Failed to load project ${projectId}`)
+      setLoadingProject(false)
+      return
+    }
+    setSelected(data as Project)
     setLoadingProject(false)
   }
 
