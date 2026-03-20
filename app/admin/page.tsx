@@ -1196,6 +1196,56 @@ function ReleaseNotes() {
         </div>
       </div>
 
+      <div className={cardCls}>
+        <div className={titleCls}>Security & Permissions</div>
+        <div className={bodyCls}>
+          {bullet([
+            'All authenticated users can now create and edit projects (not just admins)',
+            'Feedback RLS fix — insert uses SECURITY DEFINER function to bypass RLS',
+            'Session tracking auth fallback fix — handles edge case when session not yet available',
+            'Phone/email validation on project create and edit forms',
+          ])}
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <div className={titleCls}>Platform-Wide Fixes</div>
+        <div className={bodyCls}>
+          {bullet([
+            'Pipeline Cancelled filtering — cancelled projects properly excluded from active pipeline',
+            'escapeIlike() applied to all Supabase .ilike() search queries across all pages',
+            'fmtDate() used consistently across all date displays for uniform formatting',
+            'Cycle detection added to task prerequisite graph — prevents circular dependencies',
+          ])}
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <div className={titleCls}>Audit Fixes — 6 Critical/High</div>
+        <div className={bodyCls}>
+          {bullet([
+            'Task history pm_id column bug — was silently failing all task_history inserts',
+            'Fire-and-forget DB inserts converted to awaited with error logging',
+            'Audit log inserts converted from void to awaited',
+            'Pending Resolution section excludes projects already in Critical/At Risk',
+            'Stage advance prerequisite check hardened',
+            'Cascade reset clears corresponding auto-populated project dates',
+          ])}
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <div className={titleCls}>Audit Fixes — 4 Medium</div>
+        <div className={bodyCls}>
+          {bullet([
+            'State dropdown added to new project form (defaults to TX)',
+            'Phone field uses type=tel, zip code has maxLength=5',
+            'Free-text reason input for tasks without predefined reason lists',
+            'Overlapping section membership bug fixed in Command Center',
+          ])}
+        </div>
+      </div>
+
       <div className={sectionCls}>Session 9 - March 19, 2026</div>
 
       <div className={cardCls}>

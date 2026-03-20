@@ -45,7 +45,7 @@ The Supabase client is globally mocked in `vitest.setup.ts`. Tests focus on busi
 
 All pages are in `app/*/page.tsx` as client components (`"use client"`). Each page fetches its own data via the Supabase browser client on mount and subscribes to realtime changes. Root `/` redirects to `/command`.
 
-Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered list), `/pipeline` (visual stage grid), `/analytics`, `/audit` (task compliance), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones), `/admin`, `/help`.
+Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered list), `/pipeline` (visual stage grid), `/analytics`, `/audit` (task compliance), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones), `/change-orders` (HCO/change order queue with 6-step workflow), `/admin`, `/help`.
 
 ### Data Layer
 
@@ -56,11 +56,14 @@ Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered list), `/pipeline` 
 
 ### Shared Code
 
-- `lib/utils.ts` — `cn()` (clsx+twMerge), `fmt$()`, `fmtDate()`, `daysAgo()`, `STAGE_LABELS`, `STAGE_ORDER`, `SLA_THRESHOLDS`, `STAGE_TASKS` (task definitions per stage)
+- `lib/utils.ts` — `cn()` (clsx+twMerge), `fmt$()`, `fmtDate()`, `daysAgo()`, `escapeIlike()` (sanitizes user input for Supabase `.ilike()` queries), `STAGE_LABELS`, `STAGE_ORDER`, `SLA_THRESHOLDS`, `STAGE_TASKS` (task definitions per stage)
+- `lib/tasks.ts` — single source of truth for task definitions, statuses, reasons, and cascade helper. Extracted from `lib/utils.ts` to eliminate duplication between pages and ProjectPanel. Includes `TASK_STATUSES`, `TASK_REASONS`, prerequisite graph, and `getDownstreamTasks()` for revision cascade logic. Also includes cycle detection to prevent circular prerequisite chains.
 - `lib/export-utils.ts` — CSV export with field picker (50+ fields, grouped)
 - `types/database.ts` — full TypeScript types for all Supabase tables
 - `components/Nav.tsx` — shared navigation bar with right-side slot for page controls
 - `components/project/ProjectPanel.tsx` — large modal (overview/tasks/notes/files/BOM tabs) used across multiple pages
+- `components/FeedbackButton.tsx` — floating feedback button rendered on every page (bottom-right corner). Submits to `feedback` table with type, description, user info, and current page. Uses `SECURITY DEFINER` RPC function for inserts to bypass RLS.
+- `components/SessionTracker.tsx` — automatic session tracking component. Logs user sessions to `user_sessions` table with login time, current page, and 60-second heartbeat for duration. Auth fallback handles edge cases where session is not yet available.
 
 ### Key Database Tables
 
@@ -70,6 +73,10 @@ Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered list), `/pipeline` 
 - **schedule** — crew assignments with `job_type` (survey/install/inspection/service)
 - **project_funding** — M1/M2/M3 milestone amounts, dates, CB credits
 - **stage_history** — audit trail of stage transitions
+- **change_orders** — HCO/change order records. Tracks type, reason, origin, priority, status (Open/In Progress/Waiting On Signature/Complete/Cancelled), assignment, 6-step design workflow (`step_1` through `step_6` booleans), original and new design values (panel count, panel type, system size, kWh/yr), and timestamped notes.
+- **feedback** — user-submitted feedback. Fields: `type` (Bug/Feature/Improvement/Question), `description`, `status` (Open/In Progress/Resolved/Closed), `user_name`, `user_email`, `page`, `admin_notes`. Insert uses `SECURITY DEFINER` RPC function to bypass RLS.
+- **user_sessions** — login/session tracking. Fields: `user_id`, `user_name`, `login_at`, `last_seen_at`, `current_page`, `duration_seconds`. Updated via 60-second heartbeat from `SessionTracker` component.
+- **audit_log** — change audit trail. Records all project field changes with `project_id`, `field`, `old_value`, `new_value`, `changed_by`, `changed_at`. Also logs project deletions before cascade.
 - **ahjs**, **utilities** — reference data for permit authorities and utility companies
 
 ### SLA System
@@ -79,6 +86,22 @@ SLA thresholds are centralized in `lib/utils.ts` (`SLA_THRESHOLDS`). Command Cen
 ### Task System
 
 Each pipeline stage has defined tasks in `STAGE_TASKS` (lib/utils.ts). Tasks have prerequisite chains and are tracked in the `task_state` table. "Stuck" tasks (Pending Resolution or Revision Required) surface as badges throughout the UI with their `reason` field.
+
+### Automation Engine
+
+When task statuses change in ProjectPanel, a chain of automations fires:
+
+1. **Auto-populate project dates** — 11 task-to-date mappings (e.g., "Site Survey Complete" sets `survey_date`, "Install Complete" sets `install_complete_date`, "PTO Received" sets `pto_date`). Dates are cleared on revision cascade.
+2. **Auto-advance stage** — when the last required task in a stage is marked Complete, the project automatically advances to the next pipeline stage and logs to `stage_history`.
+3. **Auto-detect blockers** — when a task enters Pending Resolution, the project `blocker` field is auto-set to the task reason (prefixed with a pause icon). Auto-clears when the stuck task is resolved (only if no other tasks remain stuck).
+4. **Funding milestone triggers** — "Install Complete" task completion sets M2 to Eligible; "PTO Received" sets M3 to Eligible. Creates funding records if they don't exist.
+5. **Task duration tracking** — `started_date` auto-set when a task moves to In Progress; duration calculated on completion.
+6. **Revision cascade** — setting a task to Revision Required resets all downstream tasks (within the same stage) to Not Ready, with confirmation dialog. Also clears corresponding auto-populated dates.
+7. **Auto-set In Service disposition** — completing the In Service task sets `disposition = 'In Service'`.
+
+### Google Drive Integration
+
+New projects auto-create a folder structure in the MicroGRID Projects shared Google Drive via a Google Apps Script webhook. The script creates 16 subfolders (01 Proposal through 20 Cases). The Drive folder URL is saved to the `project_folders` table and accessible from the Files tab in ProjectPanel.
 
 ## Style Conventions
 
@@ -100,6 +123,8 @@ Also note: the `Project` type defines a `loyalty: string | null` field, but it i
 ### Role-Based Access
 
 The `users` table has a `role` column with values: `super_admin`, `admin`, `finance`, `manager`, `user`. The `useCurrentUser()` hook returns `role`, `isAdmin`, `isSuperAdmin`, `isFinance`, `isManager` convenience booleans. RLS policies use `auth_is_admin()` and `auth_is_super_admin()` Postgres functions that check the `role` column. When adding admin-gated features, check `isAdmin` or `isSuperAdmin` from the hook on the client side; the database enforces the same via RLS.
+
+**Permission model**: All authenticated users can create and edit projects (not just admins). Project deletion is super-admin-only. Admin portal access requires `admin` or `super_admin` role. Feedback submission uses a `SECURITY DEFINER` function to allow all users to insert regardless of RLS policies.
 
 ### Crews Table Quirk
 
@@ -132,6 +157,10 @@ if (search.trim()) {
 }
 return true
 ```
+
+### Search Input Sanitization
+
+All Supabase `.ilike()` queries must use `escapeIlike()` from `lib/utils.ts` to sanitize user input. This escapes `%`, `_`, and `\` characters that have special meaning in PostgreSQL `ILIKE` patterns. Applied platform-wide across all pages with search functionality.
 
 ### cycleDays Helper
 
