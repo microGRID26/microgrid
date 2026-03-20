@@ -4,9 +4,10 @@ import { Nav } from '@/components/Nav'
 
 import { useState } from 'react'
 
-type Tab = 'pms' | 'funding' | 'leadership' | 'everyone' | 'admins'
+type Tab = 'whatsnew' | 'pms' | 'funding' | 'leadership' | 'everyone' | 'admins'
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'whatsnew',   label: "What's New"      },
   { id: 'pms',        label: 'For PMs'        },
   { id: 'funding',    label: 'For Funding'     },
   { id: 'leadership', label: 'For Leadership'  },
@@ -43,6 +44,89 @@ function Ul({ items }: { items: string[] }) {
 }
 
 // ── TAB CONTENT ───────────────────────────────────────────────────────────────
+
+function WhatsNew() {
+  return (
+    <div>
+      <SectionHeader title="March 20, 2026 — Major Release" />
+
+      <Card title="Task System Overhaul">
+        A complete rebuild of how tasks work in the project panel.
+        <Ul items={[
+          'Stage navigation pills — click any stage to view its tasks, completion fractions shown (e.g., "Design 6/12")',
+          'Table layout with color-coded rows — green (complete), red (pending resolution), amber (revision required), blue (in progress)',
+          'Inline task history — click the arrow to expand any task and see its full revision trail',
+          'Duration tracking — blue badges show how long each task took (started to completed)',
+          'Revision cascade — setting a task to "Revision Required" auto-resets downstream tasks with confirmation dialog',
+        ]} />
+      </Card>
+
+      <Card title="Automations">
+        The system now handles repetitive bookkeeping automatically.
+        <Ul items={[
+          'Auto-populate project dates — completing a task auto-fills the matching project date (11 mappings: survey_date, install_complete_date, pto_date, etc.)',
+          'Auto-advance stage — completing the last required task auto-advances to next stage',
+          'Auto-detect blockers — tasks entering Pending Resolution auto-set the project blocker',
+          'Auto-clear blockers — resolving a stuck task auto-clears the blocker (if auto-set)',
+          'Funding milestone triggers — completing Installation Complete auto-sets M2 to Eligible, completing PTO auto-sets M3 to Eligible',
+          'Task duration tracking — started_date auto-set when task moves to In Progress',
+        ]} />
+      </Card>
+
+      <Card title="Change Order Queue (New Page)">
+        Full change order management at /change-orders.
+        <Ul items={[
+          'Create change orders with auto-populated original design values from project',
+          '6-step design workflow with auto-status progression (Open to In Progress to Complete)',
+          'Design comparison table (original vs new values, green highlighting for changes)',
+          'Chronological timestamped notes',
+          'Project integration — badge in project panel links to filtered change orders',
+        ]} />
+      </Card>
+
+      <Card title="Google Drive Integration">
+        <Ul items={[
+          'New projects auto-create folder structure in MicroGRID Projects shared drive',
+          '16 subfolders (01 Proposal through 20 Cases) created automatically',
+          'Drive link saved and accessible from Files tab in project panel',
+        ]} />
+      </Card>
+
+      <Card title="Feedback System">
+        <Ul items={[
+          'Floating feedback button on every page',
+          'Submit bugs, feature requests, improvements, questions',
+          'Auto-captures your name, email, and current page',
+          'Admin portal feedback manager with type/status filters and admin notes',
+        ]} />
+      </Card>
+
+      <Card title="Audit Trail">
+        <Ul items={[
+          'Session tracking — login times, duration, current page for every user',
+          'Change log — all project field changes with old/new values, who, when',
+          'Admin portal Audit Trail module with Sessions and Changes tabs',
+        ]} />
+      </Card>
+
+      <Card title="Command Center Updates">
+        <Ul items={[
+          'New "Pending Resolution" section between Blocked and Critical',
+          'All sections start collapsed (click metric cards to expand)',
+          'Cancelled projects filtered from active pipeline',
+        ]} />
+      </Card>
+
+      <Card title="Infrastructure">
+        <Ul items={[
+          'Shared task constants extracted to lib/tasks.ts (single source of truth)',
+          'Task history logging fixed (was silently failing)',
+          'Fire-and-forget DB calls converted to awaited with error logging',
+        ]} />
+      </Card>
+    </div>
+  )
+}
 
 function ForPMs() {
   return (
@@ -402,10 +486,112 @@ function ForPMs() {
         there are active change orders. Click it to jump to the Change Orders page filtered to that project.
       </Card>
 
+      {/* ── Automations Section ──────────────────────────────────── */}
+      <SectionHeader title="Automations" />
+      <Card title="How automations work">
+        The system automates repetitive bookkeeping so you can focus on moving projects forward. Here is the automation chain:
+        <div className="mt-3 bg-gray-800/50 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-xs flex-wrap">
+            <span className="bg-green-900 text-green-300 px-2 py-1 rounded font-medium">Task Complete</span>
+            <span className="text-gray-500">→</span>
+            <span className="bg-blue-900 text-blue-300 px-2 py-1 rounded font-medium">Date Populated</span>
+            <span className="text-gray-500">→</span>
+            <span className="bg-amber-900 text-amber-300 px-2 py-1 rounded font-medium">Funding Eligible</span>
+            <span className="text-gray-500">→</span>
+            <span className="bg-green-900 text-green-300 px-2 py-1 rounded font-medium">Stage Advanced</span>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="Auto-populate project dates">
+        Completing specific tasks auto-fills the matching project date field. 11 mappings total:
+        <div className="mt-3 border border-gray-700 rounded-lg overflow-hidden text-xs">
+          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-700 bg-gray-800/50">
+            <span className="w-1/2 text-gray-500 font-medium">Task Completed</span>
+            <span className="w-1/2 text-gray-500 font-medium">Date Auto-Filled</span>
+          </div>
+          {[
+            ['Site Survey Complete', 'survey_date'],
+            ['Install Complete', 'install_complete_date'],
+            ['PTO Received', 'pto_date'],
+            ['City Inspection Pass', 'city_inspection_date'],
+            ['Utility Inspection Pass', 'utility_inspection_date'],
+            ['HOA Approval', 'hoa_approved_date'],
+            ['City Permit Approved', 'permit_approved_date'],
+            ['Utility Permit Approved', 'utility_approved_date'],
+          ].map(([task, field]) => (
+            <div key={task} className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-800/50">
+              <span className="w-1/2 text-gray-300">{task}</span>
+              <span className="w-1/2 text-green-400 font-mono text-[11px]">{field}</span>
+            </div>
+          ))}
+          <div className="px-3 py-1.5 text-gray-500 text-[11px]">+ 3 more mappings</div>
+        </div>
+      </Card>
+
+      <Card title="Auto-advance stage">
+        When the last required task in a stage is marked Complete, the project automatically advances to the
+        next pipeline stage. No manual intervention needed. The stage transition is logged in stage_history.
+      </Card>
+
+      <Card title="Auto-detect and clear blockers">
+        <div className="mt-2 space-y-2 text-xs">
+          <div className="flex items-start gap-2">
+            <span className="bg-red-900 text-red-300 px-1.5 py-0.5 rounded flex-shrink-0">Pending Resolution</span>
+            <span className="text-gray-400">When a task enters Pending Resolution, the project blocker is automatically set to the task reason.</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="bg-green-900 text-green-300 px-1.5 py-0.5 rounded flex-shrink-0">Resolved</span>
+            <span className="text-gray-400">When the stuck task is resolved, the blocker auto-clears (only if it was auto-set, not manually set).</span>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="Funding milestone triggers">
+        <div className="mt-2 space-y-2 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="bg-green-900 text-green-300 px-1.5 py-0.5 rounded">Install Complete</span>
+            <span className="text-gray-500">→</span>
+            <span className="bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded">M2 Eligible</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="bg-green-900 text-green-300 px-1.5 py-0.5 rounded">PTO Received</span>
+            <span className="text-gray-500">→</span>
+            <span className="bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded">M3 Eligible</span>
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-gray-500">These trigger automatically when the corresponding task is marked Complete. The funding team sees them immediately on the Funding page.</div>
+      </Card>
+
+      <Card title="Task duration tracking">
+        When a task moves to In Progress, its started_date is automatically set. When it reaches Complete, the
+        duration is calculated and displayed as a blue badge on the task row:
+        <div className="mt-2 flex items-center gap-2 text-xs">
+          <span className="bg-green-900 text-green-300 px-1.5 py-0.5 rounded">Complete</span>
+          <span className="bg-blue-900/50 text-blue-300 px-1.5 py-0.5 rounded text-[10px]">3d 4h</span>
+          <span className="text-gray-500">— time from In Progress to Complete</span>
+        </div>
+      </Card>
+
       <SectionHeader title="Stage Advancement" />
       <Card title="Advancing a project">
         Open the project panel. The Advance Stage button is in the header. It will tell you which required tasks
         are still incomplete if you try to advance early. Once all required tasks are done, the button turns active.
+        <div className="mt-3 space-y-2">
+          {/* Ready to advance */}
+          <div className="bg-gray-800 rounded-lg px-4 py-3 flex items-center gap-3">
+            <span className="text-sm font-medium text-white">PROJ-30245 — Johnson Residence</span>
+            <span className="ml-auto text-xs px-3 py-1.5 rounded-md bg-green-700 text-white font-medium cursor-pointer">→ Site Survey</span>
+          </div>
+          {/* Not ready */}
+          <div className="bg-gray-800 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-white">PROJ-30198 — Martinez Solar</span>
+              <span className="ml-auto text-xs px-3 py-1.5 rounded-md bg-gray-700 text-gray-500 font-medium cursor-not-allowed">→ Site Survey</span>
+            </div>
+            <div className="mt-2 text-[11px] text-amber-400">Complete required tasks first: Welcome Call, NTP Procedure</div>
+          </div>
+        </div>
       </Card>
       <Card title="Pipeline stages">
         <Ul items={[
@@ -423,17 +609,88 @@ function ForPMs() {
       <Card title="Adding notes">
         Open any project → Notes tab. Type in the box at the bottom and press Add Note. Notes are timestamped
         and show your name. Notes are visible to the whole team.
+        <div className="mt-3 bg-gray-800 rounded-lg p-3 space-y-3">
+          {/* Note input */}
+          <div className="flex gap-2">
+            <div className="flex-1 bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-xs text-gray-500">Type a note...</div>
+            <span className="px-3 py-2 bg-green-700 text-white text-xs rounded-md font-medium">Add Note</span>
+          </div>
+          {/* Example notes */}
+          <div className="space-y-2 text-xs">
+            <div className="bg-gray-900 rounded-md px-3 py-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-gray-500 text-[10px]">Mar 20, 2026 2:15 PM</span>
+                <span className="text-gray-400 text-[10px]">Greg Kelsch</span>
+              </div>
+              <div className="text-gray-300">Spoke with homeowner — confirmed install date for Thursday. Gate code is 4521.</div>
+            </div>
+            <div className="bg-gray-900 rounded-md px-3 py-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-gray-500 text-[10px]">Mar 19, 2026 10:30 AM</span>
+                <span className="text-gray-400 text-[10px]">Jen Harper</span>
+              </div>
+              <div className="text-gray-300">Engineering revision submitted. Waiting on updated stamps.</div>
+            </div>
+            <div className="bg-gray-900 rounded-md px-3 py-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-gray-500 text-[10px]">Mar 18, 2026 4:00 PM</span>
+                <span className="text-gray-400 text-[10px]">Greg Kelsch</span>
+              </div>
+              <div className="text-gray-300">MPU required per utility. Electrician scheduled for Monday.</div>
+            </div>
+          </div>
+        </div>
       </Card>
       <Card title="Setting a blocker">
-        In the project panel header, click Set Blocker. Describe what's blocking the project. Blocked projects
+        In the project panel header, click Set Blocker. Describe what&apos;s blocking the project. Blocked projects
         appear in red at the top of Command Center. Clear it when resolved.
+        <div className="mt-3 space-y-2">
+          {/* No blocker state */}
+          <div className="bg-gray-800 rounded-lg px-4 py-2.5 flex items-center gap-3 text-xs">
+            <span className="text-gray-400">No blocker set</span>
+            <span className="ml-auto px-2.5 py-1 border border-red-800 text-red-400 rounded-md cursor-pointer">Set Blocker</span>
+          </div>
+          {/* Has blocker state */}
+          <div className="bg-red-950/30 border border-red-900/50 rounded-lg px-4 py-2.5 flex items-center gap-3 text-xs">
+            <span className="text-red-400 font-medium">Blocker:</span>
+            <span className="text-red-300">Waiting on MPU inspection — utility requires panel upgrade</span>
+            <span className="ml-auto px-2.5 py-1 border border-gray-700 text-gray-400 rounded-md cursor-pointer">Clear</span>
+          </div>
+        </div>
       </Card>
 
       <SectionHeader title="Editing a Project" />
       <Card title="Edit mode">
-        Click the ✏ Edit button in any project panel header to enter edit mode. All fields in the Info tab
+        Click the Edit button in any project panel header to enter edit mode. All fields in the Info tab
         become editable — including contract amount, system size, financier, equipment, site details, and
         all milestone dates. Click Save Changes when done, or Cancel to discard.
+        <div className="mt-3 bg-gray-800 rounded-lg p-4 space-y-3">
+          {/* Button bar */}
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1.5 bg-blue-700 text-white text-xs rounded-md font-medium">Save Changes</span>
+            <span className="px-3 py-1.5 border border-gray-700 text-gray-400 text-xs rounded-md">Cancel</span>
+          </div>
+          {/* Editable fields mockup */}
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center gap-3">
+              <span className="w-28 text-gray-500">Name</span>
+              <div className="flex-1 bg-gray-900 border border-blue-700 rounded-md px-2.5 py-1.5 text-gray-200">Johnson Residence</div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-28 text-gray-500">Contract</span>
+              <div className="flex-1 bg-gray-900 border border-blue-700 rounded-md px-2.5 py-1.5 text-gray-200">$48,500.00</div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-28 text-gray-500">PM</span>
+              <div className="flex-1 bg-gray-900 border border-blue-700 rounded-md px-2.5 py-1.5 text-gray-200">Greg Kelsch</div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-28 text-gray-500">System Size</span>
+              <div className="flex-1 bg-gray-900 border border-blue-700 rounded-md px-2.5 py-1.5 text-gray-200">12.8 kW</div>
+            </div>
+          </div>
+          <div className="text-[10px] text-gray-600">Blue borders indicate editable fields. All changes are saved together when you click Save Changes.</div>
+        </div>
       </Card>
     </div>
   )
@@ -446,7 +703,65 @@ function ForFunding() {
       <Card title="Funding milestones">
         The Funding page shows M1, M2, and M3 milestones for all active projects. Each row shows the project,
         milestone amounts, current status, and days waiting.
+        {/* Milestone table mockup */}
+        <div className="mt-3 border border-gray-700 rounded-lg overflow-hidden text-xs">
+          <div className="grid grid-cols-7 gap-0 px-3 py-2 bg-gray-800/50 border-b border-gray-700">
+            <span className="col-span-2 text-gray-500 font-medium">Project</span>
+            <span className="text-gray-500 font-medium text-center">M1 Status</span>
+            <span className="text-gray-500 font-medium text-center">M1 Amt</span>
+            <span className="text-gray-500 font-medium text-center">M2 Status</span>
+            <span className="text-gray-500 font-medium text-center">M3 Status</span>
+            <span className="text-gray-500 font-medium text-center">Days</span>
+          </div>
+          <div className="grid grid-cols-7 gap-0 px-3 py-2 border-b border-gray-800/50 items-center">
+            <span className="col-span-2 text-gray-200">Johnson Residence</span>
+            <span className="text-center"><span className="bg-green-900 text-green-300 px-1.5 py-0.5 rounded text-[10px]">Funded</span></span>
+            <span className="text-gray-300 text-center">$9,700</span>
+            <span className="text-center"><span className="bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded text-[10px]">Eligible</span></span>
+            <span className="text-center"><span className="bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded text-[10px]">Not Submitted</span></span>
+            <span className="text-amber-400 text-center">12d</span>
+          </div>
+          <div className="grid grid-cols-7 gap-0 px-3 py-2 items-center">
+            <span className="col-span-2 text-gray-200">Martinez Solar</span>
+            <span className="text-center"><span className="bg-green-900 text-green-300 px-1.5 py-0.5 rounded text-[10px]">Funded</span></span>
+            <span className="text-gray-300 text-center">$12,100</span>
+            <span className="text-center"><span className="bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded text-[10px]">Submitted</span></span>
+            <span className="text-center"><span className="bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded text-[10px]">Eligible</span></span>
+            <span className="text-red-400 text-center">28d</span>
+          </div>
+        </div>
       </Card>
+
+      <Card title="Milestone status badges">
+        <div className="mt-2 space-y-1.5 text-xs">
+          <div className="flex items-center gap-2"><span className="bg-gray-700 text-gray-400 px-2 py-0.5 rounded">Not Submitted</span><span className="text-gray-400">— not yet eligible for funding</span></div>
+          <div className="flex items-center gap-2"><span className="bg-blue-900 text-blue-300 px-2 py-0.5 rounded">Eligible</span><span className="text-gray-400">— ready to submit to financier</span></div>
+          <div className="flex items-center gap-2"><span className="bg-amber-900 text-amber-300 px-2 py-0.5 rounded">Submitted</span><span className="text-gray-400">— submitted, awaiting payment</span></div>
+          <div className="flex items-center gap-2"><span className="bg-green-900 text-green-300 px-2 py-0.5 rounded">Funded</span><span className="text-gray-400">— payment received</span></div>
+        </div>
+      </Card>
+
+      <Card title="Automation callout">
+        <div className="mt-2 bg-blue-950/30 border border-blue-900/50 rounded-lg px-4 py-3 text-xs">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-blue-400 font-semibold">Automatic Triggers</span>
+          </div>
+          <div className="space-y-1.5 text-gray-300">
+            <div className="flex items-center gap-2">
+              <span className="bg-green-900 text-green-300 px-1.5 py-0.5 rounded text-[10px]">Install Complete task done</span>
+              <span className="text-gray-500">→</span>
+              <span className="bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded text-[10px]">M2 auto-sets to Eligible</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="bg-green-900 text-green-300 px-1.5 py-0.5 rounded text-[10px]">PTO task done</span>
+              <span className="text-gray-500">→</span>
+              <span className="bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded text-[10px]">M3 auto-sets to Eligible</span>
+            </div>
+          </div>
+          <div className="mt-2 text-gray-500">No manual action needed — milestones become Eligible the moment the PM completes the task.</div>
+        </div>
+      </Card>
+
       <Card title="M1 — Advance">
         Paid at or near the sale. Typically funded by the financier shortly after NTP is confirmed.
       </Card>
@@ -455,14 +770,6 @@ function ForFunding() {
       </Card>
       <Card title="M3 — Final">
         Funded after PTO and in-service. Typically 35% of contract value.
-      </Card>
-      <Card title="Milestone statuses">
-        <Ul items={[
-          'Pending — not yet eligible',
-          'Eligible — ready to submit',
-          'Submitted — submitted to financier, awaiting payment',
-          'Funded — payment received',
-        ]} />
       </Card>
       <Card title="Bulk submit">
         Use the checkboxes on the Funding page to select multiple milestones and submit them together.
@@ -527,16 +834,65 @@ function ForLeadership() {
 function ForEveryone() {
   return (
     <div>
+      {/* Getting Started guide */}
+      <SectionHeader title="Getting Started" />
+      <Card title="Your first day">
+        <div className="mt-2 bg-gray-800/50 rounded-lg p-4">
+          <div className="space-y-3 text-xs">
+            <div className="flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-green-700 text-white flex items-center justify-center font-bold flex-shrink-0">1</span>
+              <div>
+                <span className="text-white font-medium">Go to Command</span>
+                <p className="text-gray-400 mt-0.5">This is your home base. You will see all active projects grouped by urgency.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-green-700 text-white flex items-center justify-center font-bold flex-shrink-0">2</span>
+              <div>
+                <span className="text-white font-medium">Open a project</span>
+                <p className="text-gray-400 mt-0.5">Click any project row to open its detail panel. Browse the tabs: Tasks, Notes, Info, BOM, Files.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-green-700 text-white flex items-center justify-center font-bold flex-shrink-0">3</span>
+              <div>
+                <span className="text-white font-medium">Check the Tasks tab</span>
+                <p className="text-gray-400 mt-0.5">See where the project stands. Click stage pills to navigate. Update task statuses as work progresses.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-green-700 text-white flex items-center justify-center font-bold flex-shrink-0">4</span>
+              <div>
+                <span className="text-white font-medium">Use My Queue for daily work</span>
+                <p className="text-gray-400 mt-0.5">Queue shows only your projects, sorted by what needs attention first.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <SectionHeader title="SLA Colors" />
       <Card title="What the colors mean">
-        Every project shows a colored badge indicating how long it's been in its current stage:
-        <Ul items={[
-          'Green — within target days (on track)',
-          'Amber — between target and risk threshold (watch this)',
-          'Red — past risk threshold (needs attention)',
-          'Flashing red — past critical threshold (urgent)',
-        ]} />
-        SLA thresholds vary by stage — Permitting allows more time than Evaluation, for example.
+        Every project shows a colored badge indicating how long it&apos;s been in its current stage:
+        <div className="mt-3 space-y-2 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-green-900 text-green-300 font-medium">2d</span>
+            <span className="text-gray-400">Green — within target days (on track)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-amber-900 text-amber-300 font-medium">5d</span>
+            <span className="text-gray-400">Amber — between target and risk threshold (watch this)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-red-900 text-red-300 font-medium">12d</span>
+            <span className="text-gray-400">Red — past risk threshold (needs attention)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-red-900 text-red-300 font-medium animate-pulse">21d</span>
+            <span className="text-gray-400">Flashing red — past critical threshold (urgent)</span>
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-gray-500">SLA thresholds vary by stage — Permitting allows more time than Evaluation, for example.</div>
       </Card>
       <Card title="SLA thresholds by stage">
         <Ul items={[
@@ -548,6 +904,54 @@ function ForEveryone() {
           'Inspection — target 14d, risk 21d, critical 30d',
           'Complete — target 3d, risk 5d, critical 7d',
         ]} />
+      </Card>
+
+      <SectionHeader title="Command Center Sections" />
+      <Card title="Section headers">
+        Command Center groups projects by urgency. Click any metric card to expand/collapse that section.
+        <div className="mt-3 space-y-1.5 text-xs">
+          {[
+            { label: 'Overdue Tasks', color: 'bg-red-900 text-red-300', count: 3 },
+            { label: 'Blocked', color: 'bg-red-900 text-red-300', count: 8 },
+            { label: 'Pending Resolution', color: 'bg-red-900/80 text-red-300', count: 12 },
+            { label: 'Critical', color: 'bg-red-900 text-red-300', count: 15 },
+            { label: 'At Risk', color: 'bg-amber-900 text-amber-300', count: 22 },
+            { label: 'Stalled', color: 'bg-gray-700 text-gray-300', count: 7 },
+            { label: 'Aging', color: 'bg-gray-700 text-gray-300', count: 4 },
+            { label: 'On Track', color: 'bg-green-900 text-green-300', count: 187 },
+          ].map(s => (
+            <div key={s.label} className="flex items-center gap-2 bg-gray-800 rounded-md px-3 py-2">
+              <span className={`px-2 py-0.5 rounded font-medium ${s.color}`}>{s.count}</span>
+              <span className="text-gray-200">{s.label}</span>
+              <span className="text-gray-600 ml-auto">click to expand</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <SectionHeader title="Feedback" />
+      <Card title="Submitting feedback">
+        A floating feedback button appears on every page in the bottom-right corner. Click it to submit bugs,
+        feature requests, improvements, or questions. Your name, email, and current page are auto-captured.
+        <div className="mt-3 flex items-end justify-end">
+          <div className="bg-green-700 text-white px-4 py-2 rounded-full text-xs font-medium shadow-lg cursor-pointer">
+            Feedback
+          </div>
+        </div>
+        <div className="mt-3 bg-gray-800 border border-gray-700 rounded-lg p-4 max-w-xs ml-auto">
+          <div className="text-sm font-semibold text-white mb-2">Send Feedback</div>
+          <div className="space-y-2 text-xs">
+            <div className="flex gap-1.5">
+              {['Bug', 'Feature', 'Improvement', 'Question'].map(t => (
+                <span key={t} className={`px-2 py-1 rounded-md border cursor-pointer ${t === 'Bug' ? 'border-green-600 bg-green-900/30 text-green-300' : 'border-gray-700 text-gray-500'}`}>{t}</span>
+              ))}
+            </div>
+            <div className="bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-gray-500 h-16">Describe the issue...</div>
+            <div className="flex justify-end">
+              <span className="px-3 py-1.5 bg-green-700 text-white rounded-md font-medium">Submit</span>
+            </div>
+          </div>
+        </div>
       </Card>
 
       <SectionHeader title="Navigation" />
@@ -586,7 +990,7 @@ function ForAdmins() {
     <div>
       <SectionHeader title="Admin Portal" />
       <Card title="Accessing admin">
-        Click the gear icon (⚙) in the nav bar. Only Greg Kelsch and Heidi Hildreth have access. Other users
+        Click the gear icon in the nav bar. Only Greg Kelsch and Heidi Hildreth have access. Other users
         see an access denied screen.
       </Card>
       <Card title="AHJ Manager">
@@ -618,16 +1022,36 @@ function ForAdmins() {
         count. Also shows system info (stack, database, hosting, auth, repo).
       </Card>
 
+      <SectionHeader title="Audit Trail" />
+      <Card title="Session tracking">
+        Every user login is tracked with login time, duration, and current page. The admin portal Audit Trail
+        module shows a Sessions tab with all active and past sessions, filterable by user.
+      </Card>
+      <Card title="Change log">
+        All project field changes are recorded with the old value, new value, who made the change, and when.
+        The Changes tab in the Audit Trail module lets you search by project or user and see a full history
+        of every edit.
+      </Card>
+
+      <SectionHeader title="Feedback Manager" />
+      <Card title="Managing feedback">
+        The admin portal includes a Feedback Manager that shows all submitted feedback. Filter by type
+        (Bug, Feature, Improvement, Question) and status (Open, In Progress, Resolved, Closed). Add admin
+        notes to track follow-up. Each entry shows the submitter, page, timestamp, and full description.
+      </Card>
+
       <SectionHeader title="Database" />
       <Card title="Supabase tables">
         <Ul items={[
           'projects — main project table',
           'task_state — per-project task status',
+          'task_history — task change audit trail',
           'notes — project notes/chat',
           'stage_history — stage transition log',
           'project_funding — M1/M2/M3 milestones',
           'project_boms — saved BOMs',
           'project_folders — Google Drive links',
+          'change_orders — HCO/change order records',
           'service_calls — service tickets',
           'schedule — crew job assignments',
           'crews — 5 crews',
@@ -635,6 +1059,8 @@ function ForAdmins() {
           'utilities — 203 utility companies',
           'users — team members',
           'sla_thresholds — editable SLA values',
+          'feedback — user-submitted feedback',
+          'user_sessions — login/session tracking',
         ]} />
       </Card>
     </div>
@@ -645,18 +1071,7 @@ function ForAdmins() {
 // ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 
 export default function HelpPage() {
-  const [tab, setTab] = useState<Tab>('pms')
-
-  const navItems = [
-    { label: 'Command',  href: '/command'  },
-    { label: 'Queue',    href: '/queue'    },
-    { label: 'Pipeline', href: '/pipeline' },
-    { label: 'Analytics',href: '/analytics'},
-    { label: 'Audit',    href: '/audit'    },
-    { label: 'Schedule', href: '/schedule' },
-    { label: 'Service',  href: '/service'  },
-    { label: 'Funding',  href: '/funding'  },
-  ]
+  const [tab, setTab] = useState<Tab>('whatsnew')
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -687,6 +1102,7 @@ export default function HelpPage() {
 
         {/* Content */}
         <div className="max-w-3xl mx-auto px-8 py-6 pb-16">
+          {tab === 'whatsnew'   && <WhatsNew />}
           {tab === 'pms'        && <ForPMs />}
           {tab === 'funding'    && <ForFunding />}
           {tab === 'leadership' && <ForLeadership />}
