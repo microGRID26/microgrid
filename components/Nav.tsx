@@ -17,8 +17,8 @@ const NAV_LINKS = [
   { label: 'Audit',    href: '/audit'    },
   { label: 'Schedule', href: '/schedule' },
   { label: 'Service',  href: '/service'  },
-  { label: 'Change Orders', href: '/change-orders' },
   { label: 'Funding',  href: '/funding'  },
+  { label: 'Change Orders', href: '/change-orders' },
 ]
 
 const GEAR_ICON = (

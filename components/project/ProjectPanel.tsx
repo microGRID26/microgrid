@@ -958,11 +958,12 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                     if (!confirm(`DELETE ${project.name} (${project.id})? This cannot be undone.`)) return
                     if (!confirm('Are you absolutely sure? All project data will be permanently deleted.')) return
                     // Log deletion to audit trail before deleting
-                    await (supabase as any).from('audit_log').insert({
+                    const { error: delAuditErr } = await (supabase as any).from('audit_log').insert({
                       project_id: project.id, field: 'project_deleted',
                       old_value: project.name, new_value: null,
                       changed_by: currentUser?.name ?? null, changed_by_id: currentUser?.id ?? null,
                     })
+                    if (delAuditErr) console.error('audit_log delete insert failed:', delAuditErr)
                     await supabase.from('task_state').delete().eq('project_id', project.id)
                     await supabase.from('notes').delete().eq('project_id', project.id)
                     await (supabase as any).from('stage_history').delete().eq('project_id', project.id)
