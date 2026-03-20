@@ -79,11 +79,25 @@ export default function SchedulePage() {
     const [crewRes, schedRes] = await Promise.all([
       // NB: crews.active is stored as STRING 'TRUE'/'FALSE', not a boolean — see CLAUDE.md "Crews Table Quirk"
       supabase.from('crews').select('id, name, warehouse').eq('active', 'TRUE').order('name'),
-      supabase.from('schedule').select('id, crew_id, date, job_type, time, project_id, notes, status, pm, pm_id, project:projects(name, city)').gte('date', weekStartDate).lte('date', weekEndDate),
+      (supabase as any).from('schedule').select('id, crew_id, date, job_type, time, project_id, notes, status, pm, pm_id').gte('date', weekStartDate).lte('date', weekEndDate),
     ])
 
     if (crewRes.data) setCrews(crewRes.data as Crew[])
-    if (schedRes.data) setSchedule(schedRes.data as Schedule[])
+    if (schedRes.data) {
+      const jobs = schedRes.data as any[]
+      // Fetch project names for jobs
+      const pids = [...new Set(jobs.map((j: any) => j.project_id).filter(Boolean))]
+      if (pids.length > 0) {
+        const { data: projData } = await supabase.from('projects').select('id, name, city').in('id', pids)
+        const projMap: Record<string, { name: string; city: string }> = {}
+        if (projData) projData.forEach((p: any) => { projMap[p.id] = { name: p.name, city: p.city } })
+        jobs.forEach((j: any) => {
+          const proj = projMap[j.project_id]
+          if (proj) j.project = proj
+        })
+      }
+      setSchedule(jobs as Schedule[])
+    }
     setLoading(false)
   }, [weekOffset])
 
