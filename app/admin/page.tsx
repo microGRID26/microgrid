@@ -2204,10 +2204,6 @@ export default function AdminPage() {
           </nav>
 
           <div className="p-2 border-t border-gray-800 space-y-0.5">
-            <a href="/audit" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
-              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              <div><p className="text-xs font-medium">Task Audit</p><p className="text-[10px] text-gray-500">Stuck tasks</p></div>
-            </a>
             <a href="/crew" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
               <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
               <div><p className="text-xs font-medium">Crew App</p><p className="text-[10px] text-gray-500">Mobile view</p></div>
