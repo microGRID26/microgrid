@@ -112,9 +112,9 @@ const DEFAULT_EXISTING: ExistingSystem = {
   rackingType: 'EcoFasten Clickfit SmartFoot',
   roofFaceCount: 3,
   roofFaces: [
-    { panelCount: 30, azimuth: 351, tilt: 26, roofArea: 1151 },
-    { panelCount: 10, azimuth: 81, tilt: 27, roofArea: 492 },
-    { panelCount: 13, azimuth: 171, tilt: 26, roofArea: 1296 },
+    { panelCount: 30, azimuth: 351, tilt: 26, roofArea: 645 },
+    { panelCount: 10, azimuth: 81, tilt: 27, roofArea: 216 },
+    { panelCount: 13, azimuth: 171, tilt: 26, roofArea: 280 },
   ],
 }
 
@@ -464,7 +464,7 @@ export default function RedesignPage() {
                         <NumField label="Panels" value={rf.panelCount} onChange={v => updateRoofFace(i, 'panelCount', v)} step={1} />
                         <NumField label="Azimuth" value={rf.azimuth} onChange={v => updateRoofFace(i, 'azimuth', v)} unit="deg" />
                         <NumField label="Tilt" value={rf.tilt} onChange={v => updateRoofFace(i, 'tilt', v)} unit="deg" />
-                        <NumField label="Roof Area" value={rf.roofArea} onChange={v => updateRoofFace(i, 'roofArea', v)} unit="sqft" />
+                        <NumField label="Array Area" value={rf.roofArea} onChange={v => updateRoofFace(i, 'roofArea', v)} unit="sqft" />
                       </div>
                     </div>
                   ))}
