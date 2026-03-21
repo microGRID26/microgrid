@@ -383,7 +383,7 @@ export default function CrewPage() {
   }, [todayIso, saturdayIso])
 
   const loadDataRef = useRef(loadData)
-  loadDataRef.current = loadData
+  useEffect(() => { loadDataRef.current = loadData }, [loadData])
 
   useEffect(() => { loadData() }, [loadData])
 

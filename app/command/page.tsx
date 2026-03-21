@@ -357,7 +357,8 @@ export default function CommandPage() {
     stall: true, aging: true, ok: true, loyalty: true, inService: true,
   })
   const [loading, setLoading] = useState(true)
-  const [lastRefresh, setLastRefresh] = useState(Date.now())
+  const [lastRefresh, setLastRefresh] = useState(0)
+  const [minutesAgo, setMinutesAgo] = useState(0)
   const [showExport, setShowExport] = useState(false)
 
 
@@ -409,7 +410,7 @@ export default function CommandPage() {
   }, [])
 
   const loadDataRef = useRef(loadData)
-  loadDataRef.current = loadData
+  useEffect(() => { loadDataRef.current = loadData }, [loadData])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -422,6 +423,16 @@ export default function CommandPage() {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [])
+
+  // Update "minutes ago" display every 60 seconds
+  useEffect(() => {
+    if (!lastRefresh) return
+    setMinutesAgo(Math.round((Date.now() - lastRefresh) / 60000))
+    const interval = setInterval(() => {
+      setMinutesAgo(Math.round((Date.now() - lastRefresh) / 60000))
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [lastRefresh])
 
   // Build task map: { projectId: { taskId: { status, reason, completed_date } } }
   const taskMapAll = useMemo(() => {
@@ -508,7 +519,7 @@ export default function CommandPage() {
             {pms.map(pm => <option key={pm.id} value={pm.id}>{pm.name}</option>)}
           </select>
           <button onClick={loadData} className="text-xs text-gray-500 hover:text-white transition-colors">
-            ↻ {Math.round((Date.now() - lastRefresh) / 60000)}m ago
+            ↻ {minutesAgo}m ago
           </button>
           <button onClick={() => setShowExport(true)}
             className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">

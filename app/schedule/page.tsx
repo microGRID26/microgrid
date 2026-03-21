@@ -112,7 +112,7 @@ export default function SchedulePage() {
 
   // Keep a stable ref for realtime callbacks
   const loadDataRef = useRef(loadData)
-  loadDataRef.current = loadData
+  useEffect(() => { loadDataRef.current = loadData }, [loadData])
 
   useEffect(() => { loadData() }, [loadData])
 

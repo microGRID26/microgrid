@@ -157,7 +157,7 @@ function ChangeOrdersContent() {
   }, [])
 
   const loadDataRef = useRef(loadData)
-  loadDataRef.current = loadData
+  useEffect(() => { loadDataRef.current = loadData }, [loadData])
 
   useEffect(() => { loadData(); loadUsers() }, [loadData, loadUsers])
 
