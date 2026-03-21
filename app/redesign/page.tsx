@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Nav } from '@/components/Nav'
 import { cn } from '@/lib/utils'
-import { Calculator, ArrowRight, AlertTriangle, Sun, Zap, Battery, ChevronDown, ChevronUp } from 'lucide-react'
+import { Calculator, ArrowRight, AlertTriangle, Sun, Zap, Battery, ChevronDown, ChevronUp, FileDown } from 'lucide-react'
+import { generateSingleLineDxf } from '@/lib/sld-template'
 
 // ── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -1083,6 +1084,40 @@ export default function RedesignPage() {
                   className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-md px-3 py-1.5 transition-colors"
                 >
                   Download SVG
+                </button>
+                <button
+                  onClick={() => {
+                    const dxf = generateSingleLineDxf({
+                      projectName: existing.projectName,
+                      address: existing.address,
+                      panelModel: target.panelModel,
+                      panelWattage: target.panelWattage,
+                      panelCount: results.newTotalPanels,
+                      inverterModel: target.inverterModel,
+                      inverterCount: target.inverterCount,
+                      inverterAcPower: 15,
+                      maxPvPower: target.maxPvPower,
+                      mpptsPerInverter: target.mpptsPerInverter,
+                      stringsPerMppt: target.stringsPerMppt,
+                      batteryModel: target.batteryModel,
+                      batteryCount: target.batteryCount,
+                      batteryCapacity: target.batteryCapacity,
+                      batteriesPerStack: target.batteriesPerStack,
+                      strings: results.stringConfigs,
+                      systemDcKw: results.newSystemDc,
+                      totalStorageKwh: results.newTotalStorage,
+                      rackingModel: target.rackingModel,
+                    })
+                    const blob = new Blob([dxf], { type: 'application/dxf' })
+                    const a = document.createElement('a')
+                    a.href = URL.createObjectURL(blob)
+                    a.download = `SLD-${existing.projectName.replace(/\s+/g, '-')}.dxf`
+                    a.click()
+                  }}
+                  className="text-xs text-green-400 hover:text-green-300 border border-green-700 hover:border-green-500 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5"
+                >
+                  <FileDown className="w-3.5 h-3.5" />
+                  Download DXF (AutoCAD)
                 </button>
               </div>
               <div className="overflow-x-auto bg-white rounded-lg p-4">
