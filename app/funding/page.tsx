@@ -290,6 +290,9 @@ export default function FundingPage() {
       (supabase as any).from('project_funding').select('*'),
       (supabase as any).from('nonfunded_codes').select('*').order('master_code').order('code'),
     ])
+    if (projRes.error) console.error('projects load failed:', projRes.error)
+    if (fundRes.error) console.error('funding load failed:', fundRes.error)
+    if (nfRes.error) console.error('nonfunded_codes load failed:', nfRes.error)
     if (projRes.data) setProjects(projRes.data as Project[])
     if (fundRes.data) {
       const map: Record<string, ProjectFunding> = {}

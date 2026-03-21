@@ -400,13 +400,14 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const saveAhjEdit = async () => {
     if (!ahjEdit) return
     setRefSaving(true)
-    await (supabase as any).from('ahjs').update({
+    const { error } = await (supabase as any).from('ahjs').update({
       permit_phone: ahjEdit.permit_phone,
       permit_website: ahjEdit.permit_website,
       max_duration: ahjEdit.max_duration,
       electric_code: ahjEdit.electric_code,
       permit_notes: ahjEdit.permit_notes,
     }).eq('id', ahjEdit.id)
+    if (error) { showToast('Save failed'); setRefSaving(false); return }
     setRefSaving(false)
     setAhjEdit(null)
     loadAhjUtil()
@@ -421,11 +422,12 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const saveUtilEdit = async () => {
     if (!utilEdit) return
     setRefSaving(true)
-    await (supabase as any).from('utilities').update({
+    const { error } = await (supabase as any).from('utilities').update({
       phone: utilEdit.phone,
       website: utilEdit.website,
       notes: utilEdit.notes,
     }).eq('id', utilEdit.id)
+    if (error) { showToast('Save failed'); setRefSaving(false); return }
     setRefSaving(false)
     setUtilEdit(null)
     loadAhjUtil()
@@ -530,7 +532,8 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     }
     if (startedDate) upsertPayload.started_date = startedDate
 
-    await (supabase as any).from('task_state').upsert(upsertPayload, { onConflict: 'project_id,task_id' })
+    const { error: upsertErr } = await (supabase as any).from('task_state').upsert(upsertPayload, { onConflict: 'project_id,task_id' })
+    if (upsertErr) console.error('task_state upsert failed:', upsertErr)
 
     const changedBy = currentUser?.name
       ?? userEmail.split('@')[0]
@@ -555,7 +558,8 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
         completed_date: null,
         started_date: null,
       }))
-      await (supabase as any).from('task_state').upsert(resetUpdates, { onConflict: 'project_id,task_id' })
+      const { error: cascadeErr } = await (supabase as any).from('task_state').upsert(resetUpdates, { onConflict: 'project_id,task_id' })
+      if (cascadeErr) console.error('cascade reset upsert failed:', cascadeErr)
 
       // Log each reset to history
       const historyInserts = cascadeResets.map(id => ({
@@ -587,7 +591,8 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
         if (df && (project as any)[df]) dateClearUpdates[df] = null
       }
       if (Object.keys(dateClearUpdates).length > 0) {
-        await (supabase as any).from('projects').update(dateClearUpdates).eq('id', pid)
+        const { error: dateClearErr } = await (supabase as any).from('projects').update(dateClearUpdates).eq('id', pid)
+        if (dateClearErr) console.error('cascade date clear failed:', dateClearErr)
         setProject(p => ({ ...p, ...dateClearUpdates }))
       }
 
@@ -610,7 +615,8 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     if (status === 'Complete') {
       const dateField = TASK_DATE_FIELDS[taskId]
       if (dateField && !(project as any)[dateField]) {
-        await (supabase as any).from('projects').update({ [dateField]: today }).eq('id', pid)
+        const { error: dateSetErr } = await (supabase as any).from('projects').update({ [dateField]: today }).eq('id', pid)
+        if (dateSetErr) console.error('auto-populate date failed:', dateSetErr)
         setProject(p => ({ ...p, [dateField]: today }))
       }
     }
@@ -619,7 +625,8 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     if (status !== 'Complete' && !cascadeResets) {
       const dateField = TASK_DATE_FIELDS[taskId]
       if (dateField && (project as any)[dateField]) {
-        await (supabase as any).from('projects').update({ [dateField]: null }).eq('id', pid)
+        const { error: dateClearErr2 } = await (supabase as any).from('projects').update({ [dateField]: null }).eq('id', pid)
+        if (dateClearErr2) console.error('auto-clear date failed:', dateClearErr2)
         setProject(p => ({ ...p, [dateField]: null }))
       }
     }
@@ -632,7 +639,8 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
       const blockerText = `⏸ ${taskName}${reason ? ': ' + reason : ''}`
       // Only auto-set if no blocker currently exists
       if (!project.blocker) {
-        await (supabase as any).from('projects').update({ blocker: blockerText }).eq('id', pid)
+        const { error: blockerSetErr } = await (supabase as any).from('projects').update({ blocker: blockerText }).eq('id', pid)
+        if (blockerSetErr) console.error('auto-set blocker failed:', blockerSetErr)
         setProject(p => ({ ...p, blocker: blockerText }))
         setBlockerInput(blockerText)
         onProjectUpdated()
@@ -648,7 +656,8 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
           t.id !== taskId && (taskStates[t.id] === 'Pending Resolution' || taskStates[t.id] === 'Revision Required')
         )
         if (!otherStuck) {
-          await (supabase as any).from('projects').update({ blocker: null }).eq('id', pid)
+          const { error: blockerClearErr } = await (supabase as any).from('projects').update({ blocker: null }).eq('id', pid)
+          if (blockerClearErr) console.error('auto-clear blocker failed:', blockerClearErr)
           setProject(p => ({ ...p, blocker: null }))
           setBlockerInput('')
           onProjectUpdated()
@@ -685,10 +694,11 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
           .maybeSingle()
         const currentMsStatus = fundingRow?.[milestoneField]
         if (!currentMsStatus || currentMsStatus === 'Not Submitted') {
-          await (supabase as any).from('project_funding').upsert(
+          const { error: fundingErr } = await (supabase as any).from('project_funding').upsert(
             { project_id: pid, [milestoneField]: 'Eligible' },
             { onConflict: 'project_id' }
           )
+          if (fundingErr) console.error('funding milestone upsert failed:', fundingErr)
           const msLabel = taskId === 'install_done' ? 'M2' : 'M3'
           showToast(`${msLabel} milestone now Eligible`)
         }

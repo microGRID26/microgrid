@@ -218,13 +218,14 @@ export function NewProjectModal({ onClose, onCreated, existingIds, pms }: Props)
     // Initialize evaluation tasks as "Ready To Start"
     if (form.stage === 'evaluation') {
       const evalTasks = ['welcome', 'ia', 'ub', 'sched_survey', 'ntp']
-      await (supabase as any).from('task_state').insert(
+      const { error: taskErr } = await (supabase as any).from('task_state').insert(
         evalTasks.map(taskId => ({
           project_id: id,
           task_id: taskId,
           status: 'Ready To Start',
         }))
       )
+      if (taskErr) console.error('task_state insert failed:', taskErr)
     }
 
     // ── Auto-create Google Drive folder structure ────────────────────────

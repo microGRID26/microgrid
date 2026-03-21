@@ -38,6 +38,8 @@ export default function AuditPage() {
       supabase.from('projects').select('id, name, city, pm, pm_id, stage, contract, stage_date').neq('stage', 'complete').not('disposition', 'in', '("Cancelled","In Service")'),
       supabase.from('task_state').select('project_id, task_id, status'),
     ])
+    if (projRes.error) console.error('projects load failed:', projRes.error)
+    if (taskRes.error) console.error('task_state load failed:', taskRes.error)
     if (projRes.data) setProjects(projRes.data as Project[])
     if (taskRes.data) {
       const map: Record<string, Record<string, string>> = {}
