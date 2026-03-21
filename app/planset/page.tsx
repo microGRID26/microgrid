@@ -466,12 +466,12 @@ function SheetPV5() {
           <g key={`inv-${inv}`}>
             {/* Wire from JB to inverter */}
             <line x1={cx} y1={310} x2={cx} y2={invY} stroke="#111" strokeWidth="1.5" />
-            <WireLabel x={cx + 8} y={330}
+            <WireLabel x={cx + 8} y={315}
               text={'(2) #10 AWG CU THWN-2, (1) #6 AWG BARE CU EGC'} />
-            <WireLabel x={cx + 8} y={338}
+            <WireLabel x={cx + 8} y={323}
               text={'3/4" EMT TYPE CONDUIT'} />
 
-            <Disconnect x={cx} y={325} label="(N) DC DISCONNECT" />
+            <Disconnect x={cx} y={340} label="(N) DC DISCONNECT" />
 
             {/* Inverter box */}
             <rect x={cx - invW / 2} y={invY} width={invW} height={invH}
@@ -499,9 +499,9 @@ function SheetPV5() {
             <line x1={cx - invW / 2} y1={invY + invH / 2}
               x2={cx - invW / 2 - 90} y2={invY + invH / 2}
               stroke="#111" strokeWidth="1.5" />
-            <WireLabel x={cx - invW / 2 - 88} y={invY + invH / 2 - 8}
+            <WireLabel x={cx - invW / 2 - 88} y={invY + invH / 2 - 5}
               text={'(2) #4/0 AWG CU THWN-2'} />
-            <WireLabel x={cx - invW / 2 - 88} y={invY + invH / 2 + 18}
+            <WireLabel x={cx - invW / 2 - 88} y={invY + invH / 2 + 5}
               text={'2" EMT TYPE CONDUIT'} />
 
             <rect x={cx - invW / 2 - 160} y={invY - 5} width={62} height={invH + 10}
@@ -527,45 +527,47 @@ function SheetPV5() {
 
             {/* Monitoring Gateway */}
             <line x1={cx + invW / 2} y1={invY + 18}
-              x2={cx + invW / 2 + 20} y2={invY + 18}
+              x2={cx + invW / 2 + 25} y2={invY + 18}
               stroke="#111" strokeWidth="1" />
-            <rect x={cx + invW / 2 + 20} y={invY + 6} width={80} height={24}
+            <rect x={cx + invW / 2 + 25} y={invY + 6} width={80} height={24}
               fill="none" stroke="#111" strokeWidth="0.8" />
-            <text x={cx + invW / 2 + 60} y={invY + 16} textAnchor="middle" fontSize="4.5">(N) DCCGRGL</text>
-            <text x={cx + invW / 2 + 60} y={invY + 24} textAnchor="middle" fontSize="4">DURACELL MONITORING GW</text>
-            <text x={cx + invW / 2 + 60} y={invY + 32} textAnchor="middle" fontSize="3.5" fill="#666">CT CLAMPS ON MAIN SERVICE</text>
-            <text x={cx + invW / 2 + 60} y={invY + 37} textAnchor="middle" fontSize="3.5" fill="#666">ENTRANCE CONDUCTORS</text>
+            <text x={cx + invW / 2 + 65} y={invY + 16} textAnchor="middle" fontSize="4.5">(N) DCCGRGL</text>
+            <text x={cx + invW / 2 + 65} y={invY + 24} textAnchor="middle" fontSize="4">DURACELL MONITORING GW</text>
 
             {/* Wireless Bridge */}
-            <line x1={cx + invW / 2 + 60} y1={invY + 30}
-              x2={cx + invW / 2 + 60} y2={invY + 38}
+            <line x1={cx + invW / 2 + 65} y1={invY + 30}
+              x2={cx + invW / 2 + 65} y2={invY + 40}
               stroke="#111" strokeWidth="0.8" strokeDasharray="2,2" />
-            <rect x={cx + invW / 2 + 28} y={invY + 38} width={64} height={16}
+            <rect x={cx + invW / 2 + 33} y={invY + 40} width={64} height={16}
               fill="none" stroke="#111" strokeWidth="0.8" />
-            <text x={cx + invW / 2 + 60} y={invY + 48} textAnchor="middle" fontSize="4">(N) WIRELESS BRIDGE</text>
+            <text x={cx + invW / 2 + 65} y={invY + 50} textAnchor="middle" fontSize="4">(N) WIRELESS BRIDGE</text>
+
+            {/* CT Clamp text below wireless bridge */}
+            <text x={cx + invW / 2 + 65} y={invY + 64} textAnchor="middle" fontSize="3.5" fill="#666">CT CLAMPS ON MAIN SERVICE</text>
+            <text x={cx + invW / 2 + 65} y={invY + 69} textAnchor="middle" fontSize="3.5" fill="#666">ENTRANCE CONDUCTORS</text>
 
             {/* AC Output */}
-            <line x1={cx} y1={invY + invH} x2={cx} y2={invY + invH + 22}
+            <line x1={cx} y1={invY + invH} x2={cx} y2={invY + invH + 37}
               stroke="#111" strokeWidth="1.5" />
-            <WireLabel x={cx + 8} y={invY + invH + 12}
+            <WireLabel x={cx + 8} y={invY + invH + 27}
               text={'#6 AWG CU THWN-2'} />
 
-            <Disconnect x={cx} y={invY + invH + 28} label="(N) AC DISCONNECT, 200A/2P, 240V" />
+            <Disconnect x={cx} y={invY + invH + 38} label="(N) AC DISCONNECT, 200A/2P, 240V" />
 
-            <line x1={cx} y1={invY + invH + 38} x2={cx} y2={540}
+            <line x1={cx} y1={invY + invH + 48} x2={cx} y2={540}
               stroke="#111" strokeWidth="1.5" />
-            <WireLabel x={cx + 8} y={invY + invH + 52}
+            <WireLabel x={cx + 8} y={invY + invH + 62}
               text={'(2) #4 AWG CU THWN-2, (1) #8 AWG CU EGC'} />
-            <WireLabel x={cx + 8} y={invY + invH + 60}
+            <WireLabel x={cx + 8} y={invY + invH + 74}
               text={'1-1/4" EMT TYPE CONDUIT'} />
 
-            <Breaker x={cx} y={545} label={'(N) 100A BACKFEED'} amps="BREAKER" />
+            <Breaker x={cx} y={580} label={'(N) 100A BACKFEED'} amps="BREAKER" />
           </g>
         )
       })}
 
       {/* ── EXISTING HOME PANEL BUS BAR (y=565) ── */}
-      <line x1="60" y1={565} x2={W - 350} y2={565} stroke="#111" strokeWidth="3" />
+      <line x1="60" y1={565} x2={W - 380} y2={565} stroke="#111" strokeWidth="3" />
       <text x={460} y={558} textAnchor="middle" fontSize="7" fontWeight="bold">
         (E) EXISTING HOME ELECTRICAL PANEL
       </text>
@@ -585,47 +587,47 @@ function SheetPV5() {
       <text x="500" y={633} textAnchor="middle" fontSize="5" fill="#666">IQ7PLUS SYSTEM</text>
 
       {/* Generator Ready Circuit (future) */}
-      <line x1="650" y1={565} x2="650" y2={620} stroke="#111" strokeWidth="1" strokeDasharray="4,3" />
-      <rect x="620" y={620} width="60" height="24" fill="none" stroke="#111" strokeWidth="1" strokeDasharray="4,3" />
-      <text x="650" y={633} textAnchor="middle" fontSize="5" fill="#666">(FUTURE) 100A</text>
-      <text x="650" y={640} textAnchor="middle" fontSize="5" fill="#666">AC INPUT</text>
-      <text x="650" y={655} textAnchor="middle" fontSize="4.5" fill="#999">FUTURE PLUG-AND-PLAY CONNECTION</text>
-      <text x="650" y={663} textAnchor="middle" fontSize="4.5" fill="#999">FOR 22kW NATURAL GAS GENERATOR</text>
+      <line x1="650" y1={565} x2="650" y2={630} stroke="#111" strokeWidth="1" strokeDasharray="4,3" />
+      <rect x="620" y={630} width="60" height="24" fill="none" stroke="#111" strokeWidth="1" strokeDasharray="4,3" />
+      <text x="650" y={643} textAnchor="middle" fontSize="5" fill="#666">(FUTURE) 100A</text>
+      <text x="650" y={650} textAnchor="middle" fontSize="5" fill="#666">AC INPUT</text>
+      <text x="650" y={665} textAnchor="middle" fontSize="4.5" fill="#999">FUTURE PLUG-AND-PLAY CONNECTION</text>
+      <text x="650" y={673} textAnchor="middle" fontSize="4.5" fill="#999">FOR 22kW NATURAL GAS GENERATOR</text>
 
       {/* ── GENERATION DISCONNECT → RGM → METER → GRID ── */}
-      <line x1={W - 350} y1={565} x2={W - 310} y2={565} stroke="#111" strokeWidth="1.5" />
+      <line x1={W - 380} y1={565} x2={W - 340} y2={565} stroke="#111" strokeWidth="1.5" />
 
-      <rect x={W - 318} y={550} width={70} height={28} fill="none" stroke="#111" strokeWidth="1" />
-      <text x={W - 283} y={562} textAnchor="middle" fontSize="5.5">(N) GENERATION</text>
-      <text x={W - 283} y={572} textAnchor="middle" fontSize="5.5">DISCONNECT</text>
+      <rect x={W - 348} y={550} width={70} height={28} fill="none" stroke="#111" strokeWidth="1" />
+      <text x={W - 313} y={562} textAnchor="middle" fontSize="5.5">(N) GENERATION</text>
+      <text x={W - 313} y={572} textAnchor="middle" fontSize="5.5">DISCONNECT</text>
 
-      <line x1={W - 248} y1={565} x2={W - 210} y2={565} stroke="#111" strokeWidth="1.5" />
+      <line x1={W - 278} y1={565} x2={W - 240} y2={565} stroke="#111" strokeWidth="1.5" />
 
       {/* Revenue Grade Meter */}
-      <rect x={W - 215} y={551} width={60} height={26} fill="none" stroke="#111" strokeWidth="0.8" />
-      <text x={W - 185} y={562} textAnchor="middle" fontSize="4.5">(N) RGM</text>
-      <text x={W - 185} y={571} textAnchor="middle" fontSize="4">PC-PRO-RGM-W2-BA-L</text>
+      <rect x={W - 245} y={551} width={60} height={26} fill="none" stroke="#111" strokeWidth="0.8" />
+      <text x={W - 215} y={562} textAnchor="middle" fontSize="4.5">(N) RGM</text>
+      <text x={W - 215} y={571} textAnchor="middle" fontSize="4">PC-PRO-RGM-W2-BA-L</text>
 
-      <line x1={W - 155} y1={565} x2={W - 110} y2={565} stroke="#111" strokeWidth="1.5" />
+      <line x1={W - 185} y1={565} x2={W - 140} y2={565} stroke="#111" strokeWidth="1.5" />
 
       {/* Utility Meter */}
-      <circle cx={W - 85} cy={565} r="22" fill="none" stroke="#111" strokeWidth="1.5" />
-      <text x={W - 85} y={562} textAnchor="middle" fontSize="8" fontWeight="bold">M</text>
-      <text x={W - 85} y={574} textAnchor="middle" fontSize="5.5">kWh</text>
-      <text x={W - 85} y={537} textAnchor="middle" fontSize="5.5" fill="#666">(E) BIDIRECTIONAL</text>
-      <text x={W - 85} y={528} textAnchor="middle" fontSize="5.5" fill="#666">UTILITY METER</text>
+      <circle cx={W - 115} cy={565} r="22" fill="none" stroke="#111" strokeWidth="1.5" />
+      <text x={W - 115} y={562} textAnchor="middle" fontSize="8" fontWeight="bold">M</text>
+      <text x={W - 115} y={574} textAnchor="middle" fontSize="5.5">kWh</text>
+      <text x={W - 115} y={537} textAnchor="middle" fontSize="5.5" fill="#666">(E) BIDIRECTIONAL</text>
+      <text x={W - 115} y={528} textAnchor="middle" fontSize="5.5" fill="#666">UTILITY METER</text>
 
-      <line x1={W - 63} y1={565} x2={W - 35} y2={565} stroke="#111" strokeWidth="1.5" />
-      <text x={W - 25} y={558} fontSize="6" fill="#666">TO UTILITY</text>
-      <text x={W - 25} y={568} fontSize="6" fill="#666">GRID</text>
-      <text x={W - 25} y={580} fontSize="5" fill="#999">CENTERPOINT</text>
-      <text x={W - 25} y={589} fontSize="5" fill="#999">ENERGY</text>
+      <line x1={W - 93} y1={565} x2={W - 65} y2={565} stroke="#111" strokeWidth="1.5" />
+      <text x={W - 55} y={558} fontSize="6" fill="#666">TO UTILITY</text>
+      <text x={W - 55} y={568} fontSize="6" fill="#666">GRID</text>
+      <text x={W - 55} y={580} fontSize="5" fill="#999">CENTERPOINT</text>
+      <text x={W - 55} y={589} fontSize="5" fill="#999">ENERGY</text>
 
       {/* 10 FT MAX notation */}
-      <line x1={W - 340} y1={525} x2={W - 40} y2={525} stroke="#111" strokeWidth="0.5" />
-      <text x={W - 190} y={522} textAnchor="middle" fontSize="5.5" fontWeight="bold">10&apos; MAX</text>
-      <line x1={W - 340} y1={523} x2={W - 340} y2={530} stroke="#111" strokeWidth="0.5" />
-      <line x1={W - 40} y1={523} x2={W - 40} y2={530} stroke="#111" strokeWidth="0.5" />
+      <line x1={W - 370} y1={525} x2={W - 70} y2={525} stroke="#111" strokeWidth="0.5" />
+      <text x={W - 220} y={522} textAnchor="middle" fontSize="5.5" fontWeight="bold">10&apos; MAX</text>
+      <line x1={W - 370} y1={523} x2={W - 370} y2={530} stroke="#111" strokeWidth="0.5" />
+      <line x1={W - 70} y1={523} x2={W - 70} y2={530} stroke="#111" strokeWidth="0.5" />
 
       {/* ── GROUND SYSTEM ── */}
       <line x1="100" y1={565} x2="100" y2={635} stroke="#111" strokeWidth="1" />
