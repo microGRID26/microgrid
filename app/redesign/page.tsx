@@ -217,6 +217,7 @@ export default function RedesignPage() {
 
   // ── Calculate ──────────────────────────────────────────────────────────────
   function calculate() {
+    try {
     const absCoeff = Math.abs(target.vocTempCoeff / 100)
 
     // String sizing
@@ -359,6 +360,14 @@ export default function RedesignPage() {
       newTotalStorage,
       existingTotalStorage,
     })
+    // Scroll to results after render
+    setTimeout(() => {
+      document.getElementById('redesign-results')?.scrollIntoView({ behavior: 'smooth' })
+    }, 100)
+    } catch (err) {
+      console.error('Redesign calculate error:', err)
+      alert('Calculation error: ' + (err instanceof Error ? err.message : String(err)))
+    }
   }
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
@@ -567,7 +576,7 @@ export default function RedesignPage() {
 
         {/* ── Results ──────────────────────────────────────────────────────── */}
         {results && (
-          <div className="space-y-6">
+          <div id="redesign-results" className="space-y-6">
 
             {/* 4a. String Sizing */}
             <div className="bg-gray-800 rounded-lg border border-gray-700 p-5">
