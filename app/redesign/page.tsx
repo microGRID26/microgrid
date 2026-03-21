@@ -146,15 +146,11 @@ const DEFAULT_TARGET: TargetSystem = {
   vocTempCoeff: -0.28,
 }
 
-// ── SINGLE-LINE DIAGRAM ──────────────────────────────────────────────────────
+// ── SINGLE-LINE DIAGRAM (Engineering Plan Set Style) ────────────────────────
 
 function SingleLineDiagram({ existing, target, results }: {
   existing: ExistingSystem; target: TargetSystem; results: Results
 }) {
-  const inverterCount = target.inverterCount
-  const batteriesPerStack = target.batteriesPerStack
-  const batteryStacks = Math.ceil(target.batteryCount / batteriesPerStack)
-
   // Group strings by inverter
   const stringsByInverter: StringConfig[][] = []
   for (const sc of results.stringConfigs) {
@@ -162,252 +158,353 @@ function SingleLineDiagram({ existing, target, results }: {
     if (!stringsByInverter[invIdx]) stringsByInverter[invIdx] = []
     stringsByInverter[invIdx].push(sc)
   }
+  const battsPerStack = target.batteriesPerStack
+  const W = 1200
+  const H = 900
 
-  // Layout constants
-  const invWidth = 160
-  const invHeight = 80
-  const invSpacing = 420
-  const startX = 60
-  const invY = 280
-  const svgWidth = Math.max(startX + inverterCount * invSpacing + 200, 900)
-  const svgHeight = 650
+  // Wire annotation helper
+  const WireLabel = ({ x, y, text, rotate }: { x: number; y: number; text: string; rotate?: number }) => (
+    <text x={x} y={y} fontSize="5.5" fill="#444" fontStyle="italic"
+      transform={rotate ? `rotate(${rotate},${x},${y})` : undefined}>{text}</text>
+  )
 
-  // Colors
-  const c = {
-    wire: '#333', wirePv: '#d97706', wireBatt: '#059669', wireAc: '#2563eb',
-    box: '#f3f4f6', boxStroke: '#6b7280', text: '#111827', textSm: '#6b7280',
-    panel: '#fbbf24', batt: '#10b981', inv: '#3b82f6', meter: '#8b5cf6',
-    grid: '#ef4444',
-  }
+  // Breaker symbol: two angled lines meeting at contact point
+  const Breaker = ({ x, y, label, amps }: { x: number; y: number; label?: string; amps?: string }) => (
+    <g>
+      <line x1={x} y1={y - 8} x2={x} y2={y - 2} stroke="#111" strokeWidth="1.5" />
+      <line x1={x} y1={y - 2} x2={x + 5} y2={y + 6} stroke="#111" strokeWidth="1.5" />
+      <line x1={x} y1={y + 8} x2={x} y2={y + 14} stroke="#111" strokeWidth="1.5" />
+      <circle cx={x} cy={y - 2} r="1.5" fill="#111" />
+      {label && <text x={x + 10} y={y + 2} fontSize="5.5" fill="#111">{label}</text>}
+      {amps && <text x={x + 10} y={y + 9} fontSize="5" fill="#666">{amps}</text>}
+    </g>
+  )
+
+  // Disconnect symbol
+  const Disconnect = ({ x, y, label }: { x: number; y: number; label: string }) => (
+    <g>
+      <line x1={x} y1={y - 6} x2={x} y2={y} stroke="#111" strokeWidth="1.5" />
+      <line x1={x} y1={y} x2={x + 6} y2={y - 8} stroke="#111" strokeWidth="2" />
+      <circle cx={x} cy={y} r="2" fill="none" stroke="#111" strokeWidth="1" />
+      <line x1={x} y1={y + 2} x2={x} y2={y + 8} stroke="#111" strokeWidth="1.5" />
+      <text x={x + 10} y={y + 2} fontSize="5.5" fill="#111">{label}</text>
+    </g>
+  )
 
   return (
-    <svg id="sld-svg" viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full" style={{ minWidth: 800 }}>
-      {/* Title block */}
-      <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="white" />
-      <text x={svgWidth / 2} y="24" textAnchor="middle" fontSize="16" fontWeight="bold" fill={c.text}>
-        ELECTRICAL SINGLE-LINE DIAGRAM
-      </text>
-      <text x={svgWidth / 2} y="42" textAnchor="middle" fontSize="11" fill={c.textSm}>
-        {existing.projectName} — {existing.address}
-      </text>
-      <text x={svgWidth / 2} y="56" textAnchor="middle" fontSize="10" fill={c.textSm}>
-        {results.newTotalPanels} x {target.panelModel} ({target.panelWattage}W) = {results.newSystemDc} kW DC | {inverterCount} x {target.inverterModel}
-      </text>
+    <svg id="sld-svg" viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 900, fontFamily: 'Arial, Helvetica, sans-serif' }}>
+      <rect width={W} height={H} fill="white" />
 
-      {/* Per-inverter sections */}
-      {Array.from({ length: inverterCount }, (_, inv) => {
-        const cx = startX + inv * invSpacing + invSpacing / 2
+      {/* ── DRAWING BORDER ── */}
+      <rect x="4" y="4" width={W - 8} height={H - 8} fill="none" stroke="#111" strokeWidth="2" />
+      <rect x="8" y="8" width={W - 16} height={H - 16} fill="none" stroke="#111" strokeWidth="0.5" />
+
+      {/* ── TITLE BLOCK (bottom right) ── */}
+      <rect x={W - 300} y={H - 100} width={290} height={90} fill="none" stroke="#111" strokeWidth="1" />
+      <line x1={W - 300} y1={H - 80} x2={W - 10} y2={H - 80} stroke="#111" strokeWidth="0.5" />
+      <line x1={W - 300} y1={H - 60} x2={W - 10} y2={H - 60} stroke="#111" strokeWidth="0.5" />
+      <line x1={W - 300} y1={H - 40} x2={W - 10} y2={H - 40} stroke="#111" strokeWidth="0.5" />
+      <text x={W - 155} y={H - 85} textAnchor="middle" fontSize="10" fontWeight="bold">ELECTRICAL SINGLE LINE DIAGRAM</text>
+      <text x={W - 280} y={H - 67} fontSize="6" fill="#666">PROJECT:</text>
+      <text x={W - 240} y={H - 67} fontSize="7" fontWeight="bold">{existing.projectName.toUpperCase()}</text>
+      <text x={W - 280} y={H - 48} fontSize="6" fill="#666">ADDRESS:</text>
+      <text x={W - 240} y={H - 48} fontSize="7">{existing.address.toUpperCase()}</text>
+      <text x={W - 280} y={H - 28} fontSize="6" fill="#666">SYSTEM:</text>
+      <text x={W - 240} y={H - 28} fontSize="6">{results.newTotalPanels} x {target.panelWattage}W = {results.newSystemDc} kW DC / {target.inverterCount} x 15kW INV / {results.newTotalStorage} kWh BESS</text>
+      <text x={W - 280} y={H - 15} fontSize="5" fill="#999">GENERATED BY NOVA CRM — FOR PE REVIEW ONLY — NOT FOR CONSTRUCTION</text>
+
+      {/* ── STC BOX (top left) ── */}
+      <rect x="20" y="16" width="200" height="45" fill="none" stroke="#111" strokeWidth="1" />
+      <text x="30" y="30" fontSize="7" fontWeight="bold">STC</text>
+      <text x="30" y="41" fontSize="6">MODULES: {results.newTotalPanels} x {target.panelWattage} = {results.newSystemDc} kW DC</text>
+      <text x="30" y="51" fontSize="6">INVERTER(S): {target.inverterCount} x 15000 = {target.inverterCount * 15}.000 kW AC</text>
+
+      {/* ── METER / ESID BOX (top center) ── */}
+      <rect x="240" y="16" width="220" height="35" fill="none" stroke="#111" strokeWidth="1" />
+      <text x="250" y="30" fontSize="6">METER NUMBER: 88 353 523</text>
+      <text x="250" y="42" fontSize="6">ESID NUMBER: 1008901020901254810117</text>
+
+      {/* ── PV ARRAYS (top, y=80-200) ── */}
+      {Array.from({ length: target.inverterCount }, (_, inv) => {
         const strings = stringsByInverter[inv] ?? []
-        const stackIdx = inv < batteryStacks ? inv : -1
-        const battsInStack = stackIdx >= 0 ? Math.min(batteriesPerStack, target.batteryCount - stackIdx * batteriesPerStack) : 0
+        const baseX = inv === 0 ? 40 : 620
+        const moduleW = 8
+        const moduleH = 14
 
         return (
-          <g key={inv}>
-            {/* Section label */}
-            <text x={cx} y="78" textAnchor="middle" fontSize="12" fontWeight="bold" fill={c.text}>
-              INVERTER {inv + 1}
-            </text>
-
-            {/* PV Array strings */}
+          <g key={`arr-${inv}`}>
             {strings.map((sc, si) => {
-              const sx = cx - ((strings.length - 1) * 50) / 2 + si * 50
-              const panelY = 100
-              const panelH = 30
-              const panelW = 40
+              const sy = 90 + si * 55
+              const roofLabel = sc.roofFaceIndex >= 0 ? `ROOF #${sc.roofFaceIndex + 1}` : ''
+
               return (
                 <g key={si}>
-                  {/* Panel box */}
-                  <rect x={sx - panelW / 2} y={panelY} width={panelW} height={panelH} rx="3"
-                    fill="none" stroke={c.panel} strokeWidth="2" />
-                  <text x={sx} y={panelY + 12} textAnchor="middle" fontSize="7" fontWeight="bold" fill={c.panel}>PV</text>
-                  <text x={sx} y={panelY + 22} textAnchor="middle" fontSize="6" fill={c.text}>{sc.modules}x</text>
+                  {/* Module array - individual panel rectangles */}
+                  {Array.from({ length: Math.min(sc.modules, 14) }, (_, mi) => (
+                    <rect key={mi} x={baseX + mi * (moduleW + 1)} y={sy}
+                      width={moduleW} height={moduleH} fill="none" stroke="#111" strokeWidth="0.7" />
+                  ))}
+                  {/* Series connection line through panels */}
+                  <line x1={baseX} y1={sy + moduleH / 2}
+                    x2={baseX + Math.min(sc.modules, 14) * (moduleW + 1) - 1} y2={sy + moduleH / 2}
+                    stroke="#111" strokeWidth="0.3" strokeDasharray="1,2" />
+
                   {/* String label */}
-                  <text x={sx} y={panelY - 4} textAnchor="middle" fontSize="6" fill={c.textSm}>
-                    S{si + 1}
+                  <text x={baseX} y={sy - 4} fontSize="6" fontWeight="bold">
+                    STRING {si + 1}: ({sc.modules}) {target.panelModel.toUpperCase()}
                   </text>
-                  {/* Wire down to RSD */}
-                  <line x1={sx} y1={panelY + panelH} x2={sx} y2={panelY + panelH + 20}
-                    stroke={c.wirePv} strokeWidth="1.5" />
-                  {/* RSD box */}
-                  <rect x={sx - 12} y={panelY + panelH + 20} width={24} height={16} rx="2"
-                    fill="none" stroke={c.wirePv} strokeWidth="1" />
-                  <text x={sx} y={panelY + panelH + 31} textAnchor="middle" fontSize="5.5" fill={c.text}>RSD</text>
-                  {/* Wire from RSD to combiner line */}
-                  <line x1={sx} y1={panelY + panelH + 36} x2={sx} y2={invY - 60}
-                    stroke={c.wirePv} strokeWidth="1.5" />
-                  {/* Voltage label */}
-                  <text x={sx + 22} y={panelY + panelH + 55} fontSize="5" fill={c.textSm}>
-                    {sc.vocCold}V
+                  <text x={baseX + 200} y={sy - 4} fontSize="5.5" fill="#666">
+                    {roofLabel}
                   </text>
+
+                  {/* RSD label */}
+                  <text x={baseX} y={sy + moduleH + 10} fontSize="5" fill="#444">
+                    (N) RSD-D-20 ROOFTOP MODULE LEVEL RAPID SHUTDOWN DEVICE
+                  </text>
+
+                  {/* Wire from string down */}
+                  <line x1={baseX + Math.min(sc.modules, 14) * (moduleW + 1) + 10} y1={sy + moduleH / 2}
+                    x2={baseX + Math.min(sc.modules, 14) * (moduleW + 1) + 30} y2={sy + moduleH / 2}
+                    stroke="#111" strokeWidth="1" />
+
+                  {/* Voltage/current annotation */}
+                  <text x={baseX + Math.min(sc.modules, 14) * (moduleW + 1) + 35} y={sy + moduleH / 2 - 2}
+                    fontSize="5" fill="#444">{sc.vocCold}V</text>
+                  <text x={baseX + Math.min(sc.modules, 14) * (moduleW + 1) + 35} y={sy + moduleH / 2 + 6}
+                    fontSize="5" fill="#444">{sc.current}A</text>
                 </g>
               )
             })}
 
-            {/* DC bus / combiner line */}
-            {strings.length > 0 && (
-              <>
-                <line
-                  x1={cx - ((strings.length - 1) * 50) / 2}
-                  y1={invY - 60}
-                  x2={cx + ((strings.length - 1) * 50) / 2}
-                  y2={invY - 60}
-                  stroke={c.wirePv} strokeWidth="2"
-                />
-                <text x={cx} y={invY - 65} textAnchor="middle" fontSize="7" fill={c.wirePv}>
-                  DC BUS
-                </text>
-                {/* Wire from bus to inverter */}
-                <line x1={cx} y1={invY - 60} x2={cx} y2={invY} stroke={c.wirePv} strokeWidth="2" />
-              </>
-            )}
-
-            {/* DC Disconnect */}
-            <rect x={cx - 20} y={invY - 30} width={40} height={16} rx="2"
-              fill="none" stroke={c.boxStroke} strokeWidth="1.5" />
-            <text x={cx} y={invY - 19} textAnchor="middle" fontSize="6" fill={c.text}>DC DISC</text>
-
-            {/* Inverter box */}
-            <rect x={cx - invWidth / 2} y={invY} width={invWidth} height={invHeight} rx="6"
-              fill="none" stroke={c.inv} strokeWidth="2.5" />
-            <text x={cx} y={invY + 20} textAnchor="middle" fontSize="9" fontWeight="bold" fill={c.inv}>
-              {target.inverterModel.split(' ').slice(0, 3).join(' ')}
-            </text>
-            <text x={cx} y={invY + 33} textAnchor="middle" fontSize="8" fill={c.text}>
-              15kW / {target.mpptsPerInverter} MPPT
-            </text>
-            <text x={cx} y={invY + 46} textAnchor="middle" fontSize="7" fill={c.textSm}>
-              {strings.reduce((s, sc2) => s + sc2.modules, 0)} modules / {(strings.reduce((s, sc2) => s + sc2.modules, 0) * target.panelWattage / 1000).toFixed(1)} kW
-            </text>
-            <text x={cx} y={invY + 58} textAnchor="middle" fontSize="7" fill={c.textSm}>
-              200A Backup / 96.5% CEC
+            {/* Roof array wiring label */}
+            <text x={baseX} y={90 + strings.length * 55 + 5} fontSize="5.5" fill="#444" fontStyle="italic">
+              ROOF ARRAY WIRING
             </text>
 
-            {/* Battery stack (left side of inverter) */}
-            {stackIdx >= 0 && (
-              <g>
-                <line x1={cx - invWidth / 2} y1={invY + invHeight / 2}
-                  x2={cx - invWidth / 2 - 60} y2={invY + invHeight / 2}
-                  stroke={c.wireBatt} strokeWidth="2" />
-                {/* Battery stack */}
-                <rect x={cx - invWidth / 2 - 120} y={invY + 5} width={55} height={invHeight - 10} rx="4"
-                  fill="none" stroke={c.batt} strokeWidth="2" />
-                <text x={cx - invWidth / 2 - 92} y={invY + 28} textAnchor="middle" fontSize="8" fontWeight="bold" fill={c.batt}>
-                  BATT
-                </text>
-                <text x={cx - invWidth / 2 - 92} y={invY + 40} textAnchor="middle" fontSize="7" fill={c.text}>
-                  {battsInStack}x {target.batteryCapacity}kWh
-                </text>
-                <text x={cx - invWidth / 2 - 92} y={invY + 52} textAnchor="middle" fontSize="7" fill={c.textSm}>
-                  {battsInStack * target.batteryCapacity}kWh
-                </text>
-                <text x={cx - invWidth / 2 - 92} y={invY + 63} textAnchor="middle" fontSize="6" fill={c.textSm}>
-                  Stack of {battsInStack}
-                </text>
-              </g>
-            )}
-
-            {/* AC output (below inverter) */}
-            <line x1={cx} y1={invY + invHeight} x2={cx} y2={invY + invHeight + 30}
-              stroke={c.wireAc} strokeWidth="2" />
-            {/* AC Disconnect */}
-            <rect x={cx - 22} y={invY + invHeight + 30} width={44} height={16} rx="2"
-              fill="none" stroke={c.boxStroke} strokeWidth="1.5" />
-            <text x={cx} y={invY + invHeight + 41} textAnchor="middle" fontSize="6" fill={c.text}>AC DISC</text>
-
-            {/* Wire to smart panel bus */}
-            <line x1={cx} y1={invY + invHeight + 46} x2={cx} y2={invY + invHeight + 90}
-              stroke={c.wireAc} strokeWidth="2" />
-            <text x={cx + 25} y={invY + invHeight + 65} fontSize="6" fill={c.wireAc}>
-              240V / 125A
+            {/* Junction box */}
+            <rect x={baseX + 180} y={90 + strings.length * 55 + 12} width={55} height={22}
+              fill="none" stroke="#111" strokeWidth="1" />
+            <text x={baseX + 207} y={90 + strings.length * 55 + 25} textAnchor="middle" fontSize="5.5">
+              (N) JUNCTION BOX
             </text>
+            <text x={baseX + 207} y={90 + strings.length * 55 + 32} textAnchor="middle" fontSize="5" fill="#666">
+              600V, NEMA 3
+            </text>
+
+            {/* Wire gauge callout from array to JB */}
+            <WireLabel x={baseX + 60} y={90 + strings.length * 55 + 10}
+              text="#10 AWG CU PV WIRE, 3/4&quot; EMT TYPE CONDUIT" />
           </g>
         )
       })}
 
-      {/* Smart Panel / Main Bus */}
-      {(() => {
-        const busY = invY + invHeight + 90
-        const busLeft = startX + invSpacing / 2 - 40
-        const busRight = startX + (inverterCount - 1) * invSpacing + invSpacing / 2 + 40
-        const busMid = (busLeft + busRight) / 2
+      {/* ── INVERTERS (center, y=350-440) ── */}
+      {Array.from({ length: target.inverterCount }, (_, inv) => {
+        const cx = inv === 0 ? 200 : 820
+        const strings = stringsByInverter[inv] ?? []
+        const invY = 370
+        const invW = 180
+        const invH = 70
 
         return (
-          <g>
-            {/* Bus bar */}
-            <line x1={busLeft} y1={busY} x2={busRight} y2={busY}
-              stroke={c.wireAc} strokeWidth="3" />
-            <text x={busMid} y={busY - 6} textAnchor="middle" fontSize="9" fontWeight="bold" fill={c.wireAc}>
-              SMART ELECTRICAL PANEL — 260A RATED, 240V
+          <g key={`inv-${inv}`}>
+            {/* Wire from JB to inverter */}
+            <line x1={cx} y1={320} x2={cx} y2={invY} stroke="#111" strokeWidth="1.5" />
+            <WireLabel x={cx + 8} y={345}
+              text={`(2) #10 AWG CU THWN-2, (1) #6 AWG BARE CU EGC`} />
+            <WireLabel x={cx + 8} y={352}
+              text={`3/4" EMT TYPE CONDUIT`} />
+
+            {/* DC Disconnect */}
+            <Disconnect x={cx} y={340} label="(N) DC DISCONNECT" />
+
+            {/* Inverter box */}
+            <rect x={cx - invW / 2} y={invY} width={invW} height={invH}
+              fill="none" stroke="#111" strokeWidth="2" />
+            <text x={cx} y={invY + 14} textAnchor="middle" fontSize="7" fontWeight="bold">
+              (N) {target.inverterModel.toUpperCase().slice(0, 30)}
+            </text>
+            <text x={cx} y={invY + 24} textAnchor="middle" fontSize="6">
+              INVERTER {inv + 1}, 15KW AC OUTPUT, {(target.maxPvPower / 1000).toFixed(0)}KW DC INPUT,
+            </text>
+            <text x={cx} y={invY + 33} textAnchor="middle" fontSize="6">
+              100A RATED, 240V, NEMA 3R
+            </text>
+            <text x={cx} y={invY + 43} textAnchor="middle" fontSize="5.5" fill="#666">
+              {strings.reduce((s, sc) => s + sc.modules, 0)} MODULES = {(strings.reduce((s, sc) => s + sc.modules, 0) * target.panelWattage / 1000).toFixed(2)} kW DC
+            </text>
+            <text x={cx} y={invY + 52} textAnchor="middle" fontSize="5.5" fill="#666">
+              {target.mpptsPerInverter} MPPT, {target.stringsPerMppt} STRINGS/MPPT, MAX {target.maxCurrentPerMppt}A/MPPT
+            </text>
+            <text x={cx} y={invY + 62} textAnchor="middle" fontSize="5" fill="#999">
+              CEC EFFICIENCY: 96.5% | PEAK: 97.5%
             </text>
 
-            {/* Main breaker (left) */}
-            <line x1={busLeft - 20} y1={busY} x2={busLeft - 20} y2={busY + 50}
-              stroke={c.wireAc} strokeWidth="2" />
-            <rect x={busLeft - 44} y={busY + 50} width={48} height={20} rx="3"
-              fill="none" stroke={c.boxStroke} strokeWidth="1.5" />
-            <text x={busLeft - 20} y={busY + 63} textAnchor="middle" fontSize="7" fill={c.text}>
-              MAIN 125A
+            {/* Battery stack (below-left of inverter) */}
+            <line x1={cx - invW / 2} y1={invY + invH / 2}
+              x2={cx - invW / 2 - 80} y2={invY + invH / 2}
+              stroke="#111" strokeWidth="1.5" />
+            <WireLabel x={cx - invW / 2 - 78} y={invY + invH / 2 - 5}
+              text={`(2) #8 AWG CU THWN-2`} />
+            <WireLabel x={cx - invW / 2 - 78} y={invY + invH / 2 + 16}
+              text={`1" EMT TYPE CONDUIT`} />
+
+            {/* Individual battery cells */}
+            {Array.from({ length: battsPerStack }, (_, bi) => (
+              <g key={bi}>
+                <rect x={cx - invW / 2 - 80 - 35 * (bi < 4 ? 1 : 0) - (bi >= 4 ? 35 : 0)}
+                  y={invY + (bi < 4 ? bi * 18 : (bi - 4) * 18)}
+                  width={30} height={15} fill="none" stroke="#111" strokeWidth="0.8" rx="1" />
+              </g>
+            ))}
+            {/* Simplified: draw as single stack */}
+            <rect x={cx - invW / 2 - 150} y={invY - 5} width={60} height={invH + 10}
+              fill="none" stroke="#111" strokeWidth="1.5" />
+            <text x={cx - invW / 2 - 120} y={invY + 15} textAnchor="middle" fontSize="6" fontWeight="bold">
+              (N)({battsPerStack})
+            </text>
+            <text x={cx - invW / 2 - 120} y={invY + 25} textAnchor="middle" fontSize="5.5">
+              {target.batteryModel.toUpperCase()}
+            </text>
+            <text x={cx - invW / 2 - 120} y={invY + 35} textAnchor="middle" fontSize="5.5">
+              {target.batteryCapacity}KWH, 380VDC
+            </text>
+            <text x={cx - invW / 2 - 120} y={invY + 45} textAnchor="middle" fontSize="5.5">
+              IP67, NEMA 3R
+            </text>
+            <text x={cx - invW / 2 - 120} y={invY + 55} textAnchor="middle" fontSize="5" fill="#666">
+              STACK OF {battsPerStack}
+            </text>
+            <text x={cx - invW / 2 - 120} y={invY + 65} textAnchor="middle" fontSize="5" fill="#666">
+              {battsPerStack * target.batteryCapacity} kWh TOTAL
             </text>
 
-            {/* Utility meter + grid (right) */}
-            <line x1={busRight + 20} y1={busY} x2={busRight + 20} y2={busY + 30}
-              stroke={c.wireAc} strokeWidth="2" />
-            {/* Gen disconnect */}
-            <rect x={busRight - 2} y={busY + 30} width={44} height={16} rx="2"
-              fill="none" stroke={c.boxStroke} strokeWidth="1.5" />
-            <text x={busRight + 20} y={busY + 41} textAnchor="middle" fontSize="6" fill={c.text}>GEN DISC</text>
-            <line x1={busRight + 20} y1={busY + 46} x2={busRight + 20} y2={busY + 70}
-              stroke={c.wireAc} strokeWidth="2" />
-            {/* Utility meter */}
-            <circle cx={busRight + 20} cy={busY + 82} r="14"
-              fill="none" stroke={c.meter} strokeWidth="2" />
-            <text x={busRight + 20} y={busY + 85} textAnchor="middle" fontSize="7" fontWeight="bold" fill={c.meter}>
-              METER
-            </text>
-            <line x1={busRight + 20} y1={busY + 96} x2={busRight + 20} y2={busY + 116}
-              stroke={c.grid} strokeWidth="2" />
-            {/* Grid */}
-            <text x={busRight + 20} y={busY + 128} textAnchor="middle" fontSize="8" fontWeight="bold" fill={c.grid}>
-              UTILITY GRID
-            </text>
-            <text x={busRight + 20} y={busY + 140} textAnchor="middle" fontSize="6" fill={c.textSm}>
-              CenterPoint Energy
-            </text>
+            {/* AC Output from inverter */}
+            <line x1={cx} y1={invY + invH} x2={cx} y2={invY + invH + 20}
+              stroke="#111" strokeWidth="1.5" />
+            <WireLabel x={cx + 8} y={invY + invH + 10}
+              text={`#6 AWG CU THWN-2`} />
 
-            {/* Existing system (if applicable) */}
-            <line x1={busMid + 60} y1={busY} x2={busMid + 60} y2={busY + 40}
-              stroke={c.textSm} strokeWidth="1.5" strokeDasharray="4,3" />
-            <rect x={busMid + 32} y={busY + 40} width={56} height={30} rx="3"
-              fill="none" stroke={c.textSm} strokeWidth="1" strokeDasharray="3,2" />
-            <text x={busMid + 60} y={busY + 55} textAnchor="middle" fontSize="6" fill={c.textSm}>
-              (E) EXISTING
-            </text>
-            <text x={busMid + 60} y={busY + 65} textAnchor="middle" fontSize="5" fill={c.textSm}>
-              Enphase/Silfab
-            </text>
+            {/* AC Disconnect */}
+            <Disconnect x={cx} y={invY + invH + 25} label="(N) AC DISCONNECT, 200A/2P, 240V" />
+
+            {/* Wire down to bus */}
+            <line x1={cx} y1={invY + invH + 35} x2={cx} y2={540}
+              stroke="#111" strokeWidth="1.5" />
+            <WireLabel x={cx + 8} y={invY + invH + 50}
+              text={`(2) #4 AWG CU THWN-2, (1) #8 AWG CU EGC`} />
+            <WireLabel x={cx + 8} y={invY + invH + 57}
+              text={`1-1/4" EMT TYPE CONDUIT`} />
+
+            {/* PV Breaker on bus */}
+            <Breaker x={cx} y={545} label={`(N) 125A PV`} amps="BREAKER" />
           </g>
         )
-      })()}
+      })}
 
-      {/* Border */}
-      <rect x="1" y="1" width={svgWidth - 2} height={svgHeight - 2}
-        fill="none" stroke={c.boxStroke} strokeWidth="1" />
+      {/* ── SMART PANEL BUS BAR (y=560) ── */}
+      <line x1="80" y1={565} x2={W - 200} y2={565} stroke="#111" strokeWidth="3" />
+      <text x={(W - 120) / 2} y={558} textAnchor="middle" fontSize="7" fontWeight="bold">
+        (N) SMART ELECTRICAL PANEL, BUSBAR RATING: 260A
+      </text>
+      <text x={(W - 120) / 2} y={578} textAnchor="middle" fontSize="6" fill="#666">
+        260A RATED, 240V, NEMA 3R (EXTERIOR MOUNTED)
+      </text>
 
-      {/* Title block bottom right */}
-      <rect x={svgWidth - 220} y={svgHeight - 60} width={218} height={58}
-        fill="none" stroke={c.boxStroke} strokeWidth="1" />
-      <text x={svgWidth - 110} y={svgHeight - 42} textAnchor="middle" fontSize="8" fontWeight="bold" fill={c.text}>
-        {existing.projectName}
+      {/* Main breaker (left end of bus) */}
+      <line x1="60" y1={565} x2="60" y2={610} stroke="#111" strokeWidth="1.5" />
+      <Breaker x={60} y={590} label="(N) MAIN" amps="125A" />
+      <text x="60" y={630} textAnchor="middle" fontSize="5.5">TO LOADS</text>
+
+      {/* Existing PV breaker */}
+      <line x1="500" y1={565} x2="500" y2={610} stroke="#111" strokeWidth="1" strokeDasharray="4,3" />
+      <Breaker x={500} y={590} label="(E) 40A PV" amps="BREAKER" />
+      <text x="500" y={630} textAnchor="middle" fontSize="5" fill="#666">(E) EXISTING ENPHASE</text>
+      <text x="500" y={638} textAnchor="middle" fontSize="5" fill="#666">IQ7PLUS SYSTEM</text>
+
+      {/* ── GENERATION DISCONNECT → METER → GRID (right side) ── */}
+      <line x1={W - 200} y1={565} x2={W - 150} y2={565} stroke="#111" strokeWidth="1.5" />
+
+      {/* Generation Disconnect */}
+      <rect x={W - 160} y={550} width={60} height={28} fill="none" stroke="#111" strokeWidth="1" />
+      <text x={W - 130} y={562} textAnchor="middle" fontSize="5.5">(N) GENERATION</text>
+      <text x={W - 130} y={570} textAnchor="middle" fontSize="5.5">DISCONNECT</text>
+
+      {/* Wire to utility meter */}
+      <line x1={W - 100} y1={565} x2={W - 60} y2={565} stroke="#111" strokeWidth="1.5" />
+
+      {/* Utility Meter circle */}
+      <circle cx={W - 45} cy={565} r="18" fill="none" stroke="#111" strokeWidth="1.5" />
+      <text x={W - 45} y={562} textAnchor="middle" fontSize="6" fontWeight="bold">M</text>
+      <text x={W - 45} y={570} textAnchor="middle" fontSize="5">kWh</text>
+
+      {/* Labels for meter */}
+      <text x={W - 45} y={545} textAnchor="middle" fontSize="5.5" fill="#666">
+        (E) BIDIRECTIONAL
       </text>
-      <text x={svgWidth - 110} y={svgHeight - 30} textAnchor="middle" fontSize="7" fill={c.textSm}>
-        {existing.address}
+      <text x={W - 45} y={538} textAnchor="middle" fontSize="5.5" fill="#666">
+        UTILITY METER
       </text>
-      <text x={svgWidth - 110} y={svgHeight - 18} textAnchor="middle" fontSize="6" fill={c.textSm}>
-        REDESIGN — {target.panelModel} / {target.inverterModel.split(' ').slice(0, 3).join(' ')}
-      </text>
-      <text x={svgWidth - 110} y={svgHeight - 8} textAnchor="middle" fontSize="6" fill={c.textSm}>
-        GENERATED {new Date().toLocaleDateString('en-US')} — FOR PE REVIEW ONLY
-      </text>
+
+      {/* Wire to grid */}
+      <line x1={W - 27} y1={565} x2={W - 15} y2={565} stroke="#111" strokeWidth="1.5" />
+      <text x={W - 12} y={562} fontSize="6" fill="#666">TO UTILITY</text>
+      <text x={W - 12} y={570} fontSize="6" fill="#666">GRID</text>
+      <text x={W - 12} y={580} fontSize="5" fill="#999">CENTERPOINT</text>
+      <text x={W - 12} y={588} fontSize="5" fill="#999">ENERGY</text>
+
+      {/* 10 FT MAX notation */}
+      <line x1={W - 180} y1={530} x2={W - 30} y2={530} stroke="#111" strokeWidth="0.5" />
+      <text x={W - 105} y={527} textAnchor="middle" fontSize="6" fontWeight="bold">10&apos; MAX</text>
+      <line x1={W - 180} y1={528} x2={W - 180} y2={535} stroke="#111" strokeWidth="0.5" />
+      <line x1={W - 30} y1={528} x2={W - 30} y2={535} stroke="#111" strokeWidth="0.5" />
+
+      {/* ── GROUND SYSTEM ── */}
+      <line x1="120" y1={565} x2="120" y2={640} stroke="#111" strokeWidth="1" />
+      <line x1="112" y1={640} x2="128" y2={640} stroke="#111" strokeWidth="1.5" />
+      <line x1="114" y1={644} x2="126" y2={644} stroke="#111" strokeWidth="1.5" />
+      <line x1="116" y1={648} x2="124" y2={648} stroke="#111" strokeWidth="1.5" />
+      <text x="135" y={640} fontSize="5.5">EXISTING GROUNDING</text>
+      <text x="135" y={648} fontSize="5.5">ELECTRODE SYSTEM</text>
+      <text x="135" y={656} fontSize="5" fill="#666">NEC 250.50, 250.52(A)</text>
+
+      {/* ── NOTES SECTION (bottom left) ── */}
+      <rect x="20" y={H - 190} width={W - 340} height={178} fill="none" stroke="#111" strokeWidth="0.5" />
+      <text x="30" y={H - 175} fontSize="7" fontWeight="bold">NOTES:</text>
+      {[
+        '1. ALL ELECTRICAL MATERIALS SHALL BE NEW AND LISTED BY RECOGNIZED TESTING LABORATORY.',
+        '2. OUTDOOR EQUIPMENT SHALL BE AT LEAST NEMA 3R RATED.',
+        '3. ALL METALLIC EQUIPMENT SHALL BE GROUNDED.',
+        '4. ALL SPECIFIC WIRING IS BASED ON THE USE OF COPPER.',
+        `5. PV SYSTEM SIZE: ${results.newSystemDc} kW DC / ${target.inverterCount * 15} kW AC.`,
+        '6. INVERTER IS EQUIPPED W/ INTEGRATED GFDI, PROVIDING GROUND FAULT PROTECTION.',
+        '7. ALL CONDUITS SHALL BE COPPER AND 90 DEG RATED.',
+        `8. BATTERY SYSTEM: (${target.batteryCount}) ${target.batteryModel.toUpperCase()}, ${results.newTotalStorage} kWh TOTAL.`,
+        '9. REQUIRES AC SOFT STARTER KITS.',
+        '10. REQUIRES RIGID RACK FOR BATTERY MOUNTING.',
+        `11. RACKING: ${target.rackingModel.toUpperCase()}`,
+        '12. ALL WORK SHALL BE IN ACCORD WITH THE 2020 NEC WITH SPECIAL EMPHASIS ON ARTICLE 690.',
+        'NOTE: PCS CONTROLLED CURRENT SETTING: 200A.',
+        'NOTE: STRING CALCULATIONS REQUIRE PE REVIEW BEFORE PERMITTING.',
+      ].map((note, i) => (
+        <text key={i} x="30" y={H - 163 + i * 11} fontSize="5.5" fill="#333">{note}</text>
+      ))}
+
+      {/* ── BATTERY SCOPE BOX (top right) ── */}
+      <rect x={W - 280} y="16" width="265" height="55" fill="none" stroke="#111" strokeWidth="1" />
+      <text x={W - 270} y="29" fontSize="6" fontWeight="bold">BATTERY SCOPE</text>
+      <text x={W - 270} y="39" fontSize="5.5">(N)({target.batteryCount}) {target.batteryModel.toUpperCase()}</text>
+      <text x={W - 270} y="49" fontSize="5.5">{target.batteryCapacity}KWH, 380VDC, IP67, NEMA 3R</text>
+      <text x={W - 270} y="59" fontSize="5.5">TOTAL STORAGE: {results.newTotalStorage} kWh | STACKS: {Math.ceil(target.batteryCount / battsPerStack)} x {battsPerStack}</text>
+
+      {/* ── EXISTING SYSTEM NOTE ── */}
+      <rect x="480" y={660} width="180" height="30" fill="none" stroke="#111" strokeWidth="0.5" strokeDasharray="4,3" />
+      <text x="490" y={674} fontSize="5.5" fill="#666">(E)(20) SILFAB SOLAR SIL-370 HC (370W)</text>
+      <text x="490" y={683} fontSize="5.5" fill="#666">(E)(20) ENPHASE IQ7PLUS-72-2-US (240V)</text>
+
+      {/* ── SHEET INFO ── */}
+      <text x={W - 30} y={H - 105} textAnchor="end" fontSize="6" fill="#666">SHEET PV-5</text>
+      <text x={W - 30} y={H - 96} textAnchor="end" fontSize="5" fill="#999">SCALE: NTS</text>
     </svg>
   )
 }
