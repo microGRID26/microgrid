@@ -1113,8 +1113,9 @@ export default function PlanSetPage() {
             <button
               onClick={handlePrintAll}
               className="px-5 py-2 text-sm font-medium rounded-md bg-green-700 hover:bg-green-600 text-white transition-colors">
-              Print All Sheets
+              Download as PDF
             </button>
+            <span className="text-xs text-gray-500">Select &quot;Save as PDF&quot; in the print dialog</span>
           </div>
         </div>
 
