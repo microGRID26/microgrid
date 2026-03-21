@@ -119,12 +119,12 @@ const DEFAULT_EXISTING: ExistingSystem = {
 }
 
 const DEFAULT_TARGET: TargetSystem = {
-  panelModel: 'AMP 405W Domestic',
-  panelWattage: 405,
-  panelVoc: 37.2,
-  panelVmp: 31.1,
-  panelIsc: 13.9,
-  panelImp: 13.0,
+  panelModel: 'AMP 410W Domestic',
+  panelWattage: 410,
+  panelVoc: 37.4,
+  panelVmp: 31.3,
+  panelIsc: 14.0,
+  panelImp: 13.1,
   panelLengthMm: 1722,
   panelWidthMm: 1134,
   inverterModel: 'Duracell Power Center Max Hybrid 15kW',
