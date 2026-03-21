@@ -78,7 +78,7 @@ function today(): string {
 
 // ── SHARED SVG COMPONENTS ───────────────────────────────────────────────────
 
-const SHEET_W = 1300
+const SHEET_W = 1500
 const SHEET_H = 950
 
 function DrawingBorder() {
@@ -457,7 +457,7 @@ function SheetPV5() {
 
       {/* ── INVERTERS ── */}
       {stringGroups.map((strings, inv) => {
-        const cx = inv === 0 ? 300 : 900
+        const cx = inv === 0 ? 320 : 950
         const invY = 380
         const invW = 200
         const invH = 80
@@ -574,10 +574,10 @@ function SheetPV5() {
         return (
           <>
             <line x1="60" y1={busY} x2={W - 380} y2={busY} stroke="#111" strokeWidth="3" />
-            <text x={460} y={busY - 8} textAnchor="middle" fontSize="7" fontWeight="bold">
+            <text x={460} y={busY - 10} textAnchor="middle" fontSize="7" fontWeight="bold">
               (E) EXISTING HOME ELECTRICAL PANEL
             </text>
-            <text x={460} y={busY + 14} textAnchor="middle" fontSize="6" fill="#666">
+            <text x={460} y={busY + 18} textAnchor="middle" fontSize="5.5" fill="#666">
               200A RATED, 240V, SINGLE PHASE
             </text>
 
