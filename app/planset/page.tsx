@@ -53,11 +53,12 @@ const PROJECT = {
   existingInverterCount: 20,
   // String configurations: 5 strings (3x11, 2x10)
   strings: [
-    { id: 1, mppt: 1, modules: 11, roofFace: 1 },
-    { id: 2, mppt: 2, modules: 11, roofFace: 1 },
-    { id: 3, mppt: 3, modules: 11, roofFace: 2 },
-    { id: 4, mppt: 4, modules: 10, roofFace: 2 },
-    { id: 5, mppt: 5, modules: 10, roofFace: 3 },
+    { id: 1, mppt: 1, modules: 9, roofFace: 1 },
+    { id: 2, mppt: 2, modules: 9, roofFace: 1 },
+    { id: 3, mppt: 3, modules: 9, roofFace: 1 },
+    { id: 4, mppt: 4, modules: 9, roofFace: 2 },
+    { id: 5, mppt: 5, modules: 9, roofFace: 2 },
+    { id: 6, mppt: 6, modules: 8, roofFace: 3 },
   ],
 }
 
@@ -335,8 +336,8 @@ function SheetPV1() {
 
 function SheetPV5() {
   // String grouping: 3 strings on INV-1, 2 strings on INV-2
-  const inv1Strings = PROJECT.strings.slice(0, 3) // strings 1-3
-  const inv2Strings = PROJECT.strings.slice(3)    // strings 4-5
+  const inv1Strings = PROJECT.strings.slice(0, 3) // strings 1-3 (27 modules)
+  const inv2Strings = PROJECT.strings.slice(3)    // strings 4-6 (26 modules)
   const stringGroups = [inv1Strings, inv2Strings]
   const battsPerStack = PROJECT.batteryCount / PROJECT.inverterCount
 
@@ -394,7 +395,7 @@ function SheetPV5() {
 
       {/* ── PV ARRAYS ── */}
       {stringGroups.map((strings, inv) => {
-        const baseX = inv === 0 ? 30 : 650
+        const baseX = inv === 0 ? 100 : 700
         const moduleW = 8
         const moduleH = 14
 
@@ -456,7 +457,7 @@ function SheetPV5() {
 
       {/* ── INVERTERS ── */}
       {stringGroups.map((strings, inv) => {
-        const cx = inv === 0 ? 220 : 850
+        const cx = inv === 0 ? 300 : 900
         const invY = 370
         const invW = 180
         const invH = 70
@@ -618,10 +619,10 @@ function SheetPV5() {
       <text x={W - 115} y={528} textAnchor="middle" fontSize="5.5" fill="#666">UTILITY METER</text>
 
       <line x1={W - 93} y1={565} x2={W - 65} y2={565} stroke="#111" strokeWidth="1.5" />
-      <text x={W - 55} y={558} fontSize="6" fill="#666">TO UTILITY</text>
-      <text x={W - 55} y={568} fontSize="6" fill="#666">GRID</text>
-      <text x={W - 55} y={580} fontSize="5" fill="#999">CENTERPOINT</text>
-      <text x={W - 55} y={589} fontSize="5" fill="#999">ENERGY</text>
+      <text x={W - 70} y={558} fontSize="6" fill="#666">TO UTILITY</text>
+      <text x={W - 70} y={568} fontSize="6" fill="#666">GRID</text>
+      <text x={W - 70} y={580} fontSize="5" fill="#999">CENTERPOINT</text>
+      <text x={W - 70} y={589} fontSize="5" fill="#999">ENERGY</text>
 
       {/* 10 FT MAX notation */}
       <line x1={W - 370} y1={525} x2={W - 70} y2={525} stroke="#111" strokeWidth="0.5" />
@@ -671,8 +672,8 @@ function SheetPV51() {
   // Per-string Voc calculations
   const string11Voc = (11 * PROJECT.panelVoc).toFixed(1)
   const string10Voc = (10 * PROJECT.panelVoc).toFixed(1)
-  const string11VocCold = (11 * VOC_COLD).toFixed(1)
-  const string10VocCold = (10 * VOC_COLD).toFixed(1)
+  const string9VocCold = (9 * VOC_COLD).toFixed(1)
+  const string8VocCold = (8 * VOC_COLD).toFixed(1)
   const maxStringVoc = Math.max(...STRING_VOCS).toFixed(1)
   const totalAcAmps = (PROJECT.inverterAcPower * 1000 / 240).toFixed(1)
 
@@ -728,7 +729,7 @@ function SheetPV51() {
         '',
         `MAXIMUM SYSTEM VOLTAGE (Voc @ -5°C): ${maxStringVoc}V DC`,
         `MAXIMUM DC CURRENT: ${(PROJECT.panelIsc * 1.25).toFixed(1)}A (125% Isc)`,
-        `STRINGS: 3x 11-MODULE (Voc=${string11VocCold}V) + 2x 10-MODULE (Voc=${string10VocCold}V)`,
+        `STRINGS: 5x 9-MODULE (Voc=${string9VocCold}V) + 1x 8-MODULE (Voc=${string8VocCold}V)`,
         'CONDUCTOR: #10 AWG CU PV WIRE',
         'CONDUIT: 3/4" EMT',
         'WARNING: SHOCK HAZARD — DC CIRCUITS MAY BE ENERGIZED WHEN MODULES ARE EXPOSED TO LIGHT',
@@ -1113,7 +1114,7 @@ function SheetPV7() {
         `RATED OUTPUT: ${PROJECT.systemDcKw.toFixed(2)} kW DC`,
         '',
         `MODULES: (${PROJECT.panelCount}) ${PROJECT.panelModel}`,
-        `STRINGS: 3×11 + 2×10 MODULES`,
+        `STRINGS: 5×9 + 1×8 MODULES`,
         `Voc PER MODULE: ${PROJECT.panelVoc}V`,
       ],
     },
@@ -1298,7 +1299,7 @@ function SheetPV71() {
         ['Vmp', `${PROJECT.panelVmp}V`],
         ['Isc', `${PROJECT.panelIsc}A`],
         ['Imp', `${PROJECT.panelImp}A`],
-        ['CONFIGURATION', '3 STRINGS × 11 + 2 STRINGS × 10'],
+        ['CONFIGURATION', '5 STRINGS × 9 + 1 STRING × 8'],
         ['LISTING', 'UL 61730 / IEC 61215'],
         ['RACKING', PROJECT.rackingModel],
       ],
