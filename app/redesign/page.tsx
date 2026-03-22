@@ -1273,6 +1273,14 @@ export default function RedesignPage() {
                   <FileDown className="w-3.5 h-3.5" />
                   View Full Plan Set (6 Sheets)
                 </a>
+                <a
+                  href="/batch"
+                  target="_blank"
+                  className="text-xs text-purple-400 hover:text-purple-300 border border-purple-700 hover:border-purple-500 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 font-medium"
+                >
+                  <FileDown className="w-3.5 h-3.5" />
+                  Batch Processor
+                </a>
               </div>
               <div className="overflow-x-auto bg-white rounded-lg p-4">
                 <SingleLineDiagram
