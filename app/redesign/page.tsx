@@ -778,9 +778,16 @@ export default function RedesignPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <Sun className="w-6 h-6 text-green-400" />
-          <h1 className="text-xl font-bold">Solar System Redesign Tool</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Sun className="w-6 h-6 text-green-400" />
+            <h1 className="text-xl font-bold">Solar System Redesign Tool</h1>
+          </div>
+          <a href="/batch"
+            className="flex items-center gap-2 bg-purple-700 hover:bg-purple-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            <Calculator className="w-4 h-4" />
+            Batch Processor — Multiple Projects
+          </a>
         </div>
 
         {/* Input Columns */}
