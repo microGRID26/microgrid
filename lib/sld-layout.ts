@@ -126,11 +126,11 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
     `${config.batteriesPerStack * config.batteryCapacity} kWh TOTAL`,
   ]
   const battStackSize = sizeBox(battStackLines, 5, { x: PAD, y: PAD })
-  battStackSize.w = Math.max(battStackSize.w, 75)
+  battStackSize.w = Math.max(battStackSize.w, 90)
 
   // Monitoring gateway box
   const gwSize = sizeBox(['(N) DCCGRGL', 'DURACELL MONITORING GW'], 4.5, { x: PAD, y: PAD })
-  gwSize.w = Math.max(gwSize.w, 95)
+  gwSize.w = Math.max(gwSize.w, 110)
 
   // Wireless bridge box
   const wbSize = sizeBox(['(N) WIRELESS BRIDGE'], 4, { x: PAD, y: PAD })
@@ -141,9 +141,9 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
   // Total width: need room for 2 inverter columns + batteries + gateway on each side
   const invColWidth = battStackSize.w + 60 + invSize.w + 30 + gwSize.w
   const totalInvWidth = invColWidth * config.inverterCount + COL_GAP
-  // Sheet width must accommodate inverter columns + utility chain (350px for bus-to-grid)
-  const utilChainWidth = 400 // gen disconnect + RGM + meter + grid text
-  const sheetWidth = Math.max(totalInvWidth + utilChainWidth + 150, 1500)
+  // Utility chain: wire(30) + genDisc(80) + wire(25) + RGM(70) + wire(25) + meter(44dia) + wire(50) + gridText(80) + margin(30)
+  const utilChainWidth = 30 + 80 + 25 + 70 + 25 + 44 + 50 + 80 + 30 // = 434
+  const sheetWidth = Math.max(totalInvWidth + 100 + utilChainWidth + 50, 1600)
 
   // String arrays section
   const stringRowH = 40 // height per string row
@@ -344,10 +344,10 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
 
   // ── Bus bar ──
   const busLeft = 50
-  const busRight = sheetWidth - 350
+  const busRight = sheetWidth - utilChainWidth - 20 // leave full chain width + margin
   elements.push({ type: 'line', x1: busLeft, y1: busY, x2: busRight, y2: busY, strokeWidth: 3 })
   elements.push({ type: 'text', x: (busLeft + busRight) / 2, y: busY - 12, text: '(E) EXISTING HOME ELECTRICAL PANEL', fontSize: 7, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: (busLeft + busRight) / 2, y: busY + 18, text: '200A RATED, 240V, SINGLE PHASE', fontSize: 5.5, anchor: 'middle', fill: '#666' })
+  elements.push({ type: 'text', x: (busLeft + busRight) / 2, y: busY + 22, text: '200A RATED, 240V, SINGLE PHASE', fontSize: 5, anchor: 'middle', fill: '#666' })
 
   // Main breaker
   elements.push({ type: 'line', x1: busLeft - 10, y1: busY, x2: busLeft - 10, y2: busY + 30, strokeWidth: 1.5 })
