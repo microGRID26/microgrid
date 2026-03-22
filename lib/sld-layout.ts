@@ -143,7 +143,7 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
   const totalInvWidth = invColWidth * config.inverterCount + COL_GAP
   // Sheet width must accommodate inverter columns + utility chain (350px for bus-to-grid)
   const utilChainWidth = 400 // gen disconnect + RGM + meter + grid text
-  const sheetWidth = Math.max(totalInvWidth + 100, totalColumnsWidth + utilChainWidth + 150, 1500)
+  const sheetWidth = Math.max(totalInvWidth + utilChainWidth + 150, 1500)
 
   // String arrays section
   const stringRowH = 40 // height per string row
