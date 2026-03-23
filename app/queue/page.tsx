@@ -98,7 +98,11 @@ export default function QueuePage() {
       ;(projRes.data as any[]).forEach((p: any) => { if (p.pm_id && p.pm) pmMap.set(p.pm_id, p.pm) })
       setAvailablePms([...pmMap.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)))
     }
-    if (taskRes.data) setTaskStates(taskRes.data as TaskStateRow[])
+    if (taskRes.data) {
+      setTaskStates(taskRes.data as TaskStateRow[])
+      const withFollowUp = (taskRes.data as any[]).filter((t: any) => t.follow_up_date)
+      console.log('[QUEUE DEBUG] task_state rows loaded:', taskRes.data.length, 'with follow_up_date:', withFollowUp.length, withFollowUp.slice(0, 3))
+    }
     setLoading(false)
   }, [userPm])
 
