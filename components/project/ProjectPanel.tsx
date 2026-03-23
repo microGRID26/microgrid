@@ -797,12 +797,13 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
       if (date) next[taskId] = date; else delete next[taskId]
       return next
     })
-    await (supabase as any).from('task_state').upsert({
+    const { error } = await (supabase as any).from('task_state').upsert({
       project_id: pid,
       task_id: taskId,
       status: taskStates[taskId] ?? 'Not Ready',
       follow_up_date: date,
     }, { onConflict: 'project_id,task_id' })
+    if (error) showToast('Failed to save follow-up date')
   }
 
   function isLocked(task: { pre: string[] }): boolean {
