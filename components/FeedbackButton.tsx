@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,8 @@ export function FeedbackButton() {
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [toast, setToast] = useState('')
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
 
   // Lock background scroll when feedback modal is open
   useEffect(() => {
@@ -51,7 +53,8 @@ export function FeedbackButton() {
       reset()
       setOpen(false)
     }
-    setTimeout(() => setToast(''), 3000)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(''), 3000)
   }
 
   return (

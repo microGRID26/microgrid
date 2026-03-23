@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Project } from '@/types/database'
 
@@ -101,6 +101,8 @@ export function BomTab({ project }: Props) {
   const [inputs, setInputs] = useState<BomInputs>({ arrayCount: 1, rowCount: 1, attachmentCount: 0, overrides: {} })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current) }, [])
   const [version, setVersion] = useState<number | null>(null)
 
   // Load saved BOM
@@ -148,7 +150,8 @@ export function BomTab({ project }: Props) {
     setVersion(newVersion)
     setSaving(false)
     setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    if (savedTimer.current) clearTimeout(savedTimer.current)
+    savedTimer.current = setTimeout(() => setSaved(false), 2000)
   }
 
   const inputCls = "bg-gray-800 text-white text-xs rounded px-2 py-1 border border-gray-700 focus:border-green-500 focus:outline-none w-16 text-center"

@@ -330,10 +330,13 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const stageIdx = STAGE_ORDER.indexOf(project.stage)
   const nextStage = STAGE_ORDER[stageIdx + 1] ?? null
 
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   function showToast(msg: string) {
     setToast(msg)
-    setTimeout(() => setToast(null), 3000)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 3000)
   }
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
 
   const loadTasks = useCallback(async () => {
     const { data } = await supabase.from('task_state').select('task_id, status, reason, completed_date, started_date').eq('project_id', pid)

@@ -786,7 +786,7 @@ function CrewsManager() {
   const save = async () => {
     if (!editing) return
     setSaving(true)
-    await (supabase as any).from('crews').update({
+    const { error } = await (supabase as any).from('crews').update({
       name: draft.name,
       warehouse: draft.warehouse,
       active: draft.active,
@@ -802,6 +802,7 @@ function CrewsManager() {
       mpu_electrician: draft.mpu_electrician || null,
     }).eq('id', editing.id)
     setSaving(false)
+    if (error) { setToast('Save failed: ' + error.message); setTimeout(() => setToast(''), 3000); return }
     setEditing(null)
     setToast('Crew saved')
     setTimeout(() => setToast(''), 2500)
@@ -967,12 +968,13 @@ INSERT INTO sla_thresholds (stage, target, risk, crit) VALUES
       return
     }
     for (const t of thresholds) {
-      await (supabase as any).from('sla_thresholds').upsert({
+      const { error } = await (supabase as any).from('sla_thresholds').upsert({
         stage: t.stage,
         target: t.target,
         risk: t.risk,
         crit: t.crit,
       }, { onConflict: 'stage' })
+      if (error) { setSaving(false); setToast('Save failed: ' + error.message); setTimeout(() => setToast(''), 3000); return }
     }
     setSaving(false)
     setToast('SLA thresholds saved')
@@ -1612,7 +1614,7 @@ function FeedbackManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const [allEntries, setAllEntries] = useState<FeedbackEntry[]>([])
 
   const load = useCallback(async () => {
-    const { data } = await (supabase as any).from('feedback').select('*').order('created_at', { ascending: false })
+    const { data } = await (supabase as any).from('feedback').select('*').order('created_at', { ascending: false }).limit(500)
     setAllEntries(data ?? [])
   }, [])
 

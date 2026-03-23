@@ -420,14 +420,19 @@ export default function CommandPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  // Realtime subscription
+  // Realtime subscription — debounced to avoid hammering DB at 900+ projects
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    const debouncedLoad = () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => loadDataRef.current(), 2000)
+    }
     const channel = supabase
       .channel('projects-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => loadDataRef.current())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_state' }, () => loadDataRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_state' }, debouncedLoad)
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    return () => { if (debounceTimer) clearTimeout(debounceTimer); supabase.removeChannel(channel) }
   }, [])
 
   // Update "minutes ago" display every 60 seconds

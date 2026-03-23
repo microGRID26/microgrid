@@ -307,9 +307,11 @@ export default function FundingPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2000) }
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showToast = (msg: string) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2000) }
 
   const saveFundingField = async (projectId: string, field: string, value: string | number | null) => {
+    if (!canEditFunding) return
     const update: Record<string, any> = { [field]: value }
     const { error } = await (supabase as any).from('project_funding').upsert(
       { project_id: projectId, ...update },
