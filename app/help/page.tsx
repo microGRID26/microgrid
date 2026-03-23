@@ -56,9 +56,19 @@ function ForPMs() {
         Resolution, amber for Revision Required) appear inline below each project row.
       </Card>
       <Card title="My Queue">
-        Shows only your active projects with tasks that need action. Each card shows the next incomplete task,
-        any stuck tasks (Pending/Revision), and SLA status. Work top to bottom — blocked projects appear first,
-        then critical, then at-risk.
+        Your daily worklist, organized into collapsible task-based sections. Select your name from the PM dropdown (top right) to see only your projects. Sections include:
+        <Ul items={[
+          'Follow-ups Today — projects with task follow-up dates due today or overdue',
+          'City Permit Ready — projects where City Permit Approval is Ready To Start',
+          'City Permit Submitted — permits in progress, waiting for approval',
+          'Utility Permit Submitted — utility permits in progress',
+          'Utility Inspection Ready — ready to schedule utility inspection',
+          'Utility Inspection Submitted — inspections in progress',
+          'Blocked — projects with a blocker set',
+          'Active — everything else',
+          'Complete — finished projects',
+        ]} />
+        <div className="mt-2">Click any section header to expand/collapse. All sections start collapsed except Follow-ups Today.</div>
       </Card>
       <Card title="Opening a project panel">
         Click any project row to open its detail panel. The panel loads task state, notes, and all project data
@@ -175,7 +185,7 @@ function ForPMs() {
 
       <Card title="How tasks unlock (prerequisites)">
         Tasks with a lock icon are waiting on prerequisite tasks to be completed first. You cannot change a
-        locked task. When all prerequisites are Complete, the task automatically unlocks. The prerequisite
+        locked task. When all prerequisites are Complete, the task automatically unlocks and is set to <span className="bg-gray-700 text-gray-200 px-1 py-0.5 rounded text-[10px]">Ready To Start</span>. The prerequisite
         chain flows within and across stages — for example, Engineering Approval requires Build Engineering,
         which requires Scope of Work.
       </Card>
@@ -273,6 +283,33 @@ function ForPMs() {
         Toggle from Stage View to Full History at the top of the Tasks tab. Shows a chronological log of all
         task changes across all stages, most recent first. Each entry shows stage label, task name, status badge,
         reason, who changed it, and when.
+      </Card>
+
+      <SectionHeader title="Task Notes & Follow-ups" />
+      <Card title="Per-task notes">
+        Each task has its own notes section — separate from the main project notes. Click the
+        <span className="inline-flex items-center mx-1 text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span>
+        icon next to any task name to expand the notes panel. Notes are timestamped with the author name, so you
+        can see who said what and when — just like project-level notes but organized by task. The icon turns green
+        when a task has notes, with a count badge.
+      </Card>
+      <Card title="Task follow-up dates">
+        Inside the task notes panel, you can set a <span className="text-white font-medium">follow-up date</span> for
+        any task. This date appears in the Queue page under &quot;Follow-ups Today&quot; when it&apos;s due. Use this to
+        remind yourself to check on a permit status, call a customer back, or follow up with an inspector.
+        When a follow-up is overdue, it shows a yellow indicator on the task row even when the notes panel is collapsed.
+      </Card>
+
+      <SectionHeader title="Disposition Workflow" />
+      <Card title="Sale → Loyalty → Cancelled">
+        Projects follow a controlled disposition flow to ensure retention is attempted before cancellation:
+        <Ul items={[
+          'Sale — active project (default)',
+          'Loyalty — customer is at risk of cancelling, retention efforts underway',
+          'Cancelled — customer has been lost (only available after Loyalty)',
+          'In Service — project is live and operational',
+        ]} />
+        <div className="mt-2">You <span className="text-white font-medium">cannot skip from Sale directly to Cancelled</span>. The project must go through Loyalty first so the team has a chance to retain the customer. A confirmation dialog appears when cancelling.</div>
       </Card>
 
       <SectionHeader title="Change Orders" />
