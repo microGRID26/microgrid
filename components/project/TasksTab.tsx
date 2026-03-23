@@ -33,18 +33,27 @@ function slaColor(stage: string, days: number): string {
 }
 
 // ── PROPS ────────────────────────────────────────────────────────────────────
+interface TaskNote {
+  id: string
+  text: string
+  time: string
+  pm: string | null
+}
+
 interface TasksTabProps {
   project: Project
   taskStates: Record<string, string>
   taskReasons: Record<string, string>
-  taskNotes: Record<string, string>
-  taskStatesRaw: { task_id: string; status: string; reason?: string; completed_date?: string | null; started_date?: string | null; notes?: string | null }[]
+  taskNotes: Record<string, TaskNote[]>
+  taskFollowUps: Record<string, string>
+  taskStatesRaw: { task_id: string; status: string; reason?: string; completed_date?: string | null; started_date?: string | null; notes?: string | null; follow_up_date?: string | null }[]
   taskHistory: any[]
   taskHistoryLoaded: boolean
   stageHistory: any[]
   updateTaskStatus: (taskId: string, status: string) => void
   updateTaskReason: (taskId: string, reason: string) => void
-  updateTaskNotes: (taskId: string, notes: string) => void
+  addTaskNote: (taskId: string, text: string) => void
+  updateTaskFollowUp: (taskId: string, date: string | null) => void
   onScheduleTask?: (jobType: string) => void
 }
 
@@ -56,39 +65,32 @@ const SCHEDULABLE_TASKS: Record<string, string> = {
   sched_util: 'inspection',
 }
 
-// ── Inline note editor ──────────────────────────────────────────────────────
-function TaskNoteEditor({ taskId, value, onSave }: { taskId: string; value: string; onSave: (taskId: string, notes: string) => void }) {
-  const [draft, setDraft] = useState(value)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
-
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
-
-  function handleSave() {
-    if (draft.trim() !== value) {
-      onSave(taskId, draft)
-    }
-  }
-
+// ── Task note input (add new note) ──────────────────────────────────────────
+function TaskNoteInput({ taskId, onAdd }: { taskId: string; onAdd: (taskId: string, text: string) => void }) {
+  const [draft, setDraft] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { inputRef.current?.focus() }, [])
+  const submit = () => { if (draft.trim()) { onAdd(taskId, draft.trim()); setDraft('') } }
   return (
-    <div className="flex items-start gap-2 px-3 py-1.5 border-b border-gray-800/60 pl-10 bg-gray-800/30">
-      <span className="text-[10px] text-gray-500 flex-shrink-0 pt-1">Note</span>
-      <textarea
+    <div className="px-3 py-1.5 pl-10 border-b border-gray-800/60 bg-gray-800/30 flex gap-2">
+      <input
         ref={inputRef}
         value={draft}
         onChange={e => setDraft(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={e => {
-          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); (e.target as HTMLTextAreaElement).blur() }
-          if (e.key === 'Escape') { setDraft(value); (e.target as HTMLTextAreaElement).blur() }
-        }}
+        onKeyDown={e => { if (e.key === 'Enter') submit() }}
+        className="flex-1 bg-gray-700 text-gray-200 text-[11px] rounded px-2 py-1.5 border-0 focus:outline-none focus:ring-1 focus:ring-green-500/50"
         placeholder="Add a note for this task..."
-        rows={1}
-        className="text-xs rounded px-2 py-1 border-0 flex-1 bg-gray-700 text-gray-200 placeholder:text-gray-600 resize-none focus:outline-none focus:ring-1 focus:ring-green-500/50"
       />
+      <button onClick={submit} disabled={!draft.trim()} className="text-[10px] bg-green-900 text-green-400 px-2 py-1 rounded hover:bg-green-800 transition-colors disabled:opacity-30">Add</button>
     </div>
   )
+}
+
+// ── Format relative time ────────────────────────────────────────────────────
+function fmtNoteTime(t: string) {
+  const d = new Date(t)
+  if (isNaN(d.getTime())) return t
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
 // ── COMPONENT ────────────────────────────────────────────────────────────────
@@ -97,13 +99,15 @@ export function TasksTab({
   taskStates,
   taskReasons,
   taskNotes,
+  taskFollowUps,
   taskStatesRaw,
   taskHistory,
   taskHistoryLoaded,
   stageHistory,
   updateTaskStatus,
   updateTaskReason,
-  updateTaskNotes,
+  addTaskNote,
+  updateTaskFollowUp,
   onScheduleTask,
 }: TasksTabProps) {
   const [viewStage, setViewStage] = useState<string>(project.stage)
@@ -270,7 +274,8 @@ export function TasksTab({
                 {viewedTasks.map(task => {
                   const status = taskStates[task.id] ?? 'Not Ready'
                   const reason = taskReasons[task.id] ?? ''
-                  const taskNote = taskNotes[task.id] ?? ''
+                  const tNotes = taskNotes[task.id] ?? []
+                  const followUp = taskFollowUps[task.id] ?? null
                   const locked = isLocked(task, taskStates)
                   const rawEntry = taskStatesRaw.find(t => t.task_id === task.id)
                   const completedDate = rawEntry?.completed_date ?? null
@@ -320,12 +325,13 @@ export function TasksTab({
                           </span>
                           <button
                             onClick={(e) => { e.stopPropagation(); setEditingNoteTask(isEditingNote ? null : task.id) }}
-                            className={`flex-shrink-0 transition-colors ${
-                              taskNote ? 'text-green-500 hover:text-green-400' : 'text-gray-600 hover:text-gray-400'
+                            className={`flex-shrink-0 transition-colors flex items-center gap-0.5 ${
+                              tNotes.length ? 'text-green-500 hover:text-green-400' : 'text-gray-600 hover:text-gray-400'
                             }`}
-                            title={taskNote || 'Add note'}
+                            title={tNotes.length ? `${tNotes.length} note(s)` : 'Add note'}
                           >
                             <MessageSquare size={12} />
+                            {tNotes.length > 0 && <span className="text-[9px]">{tNotes.length}</span>}
                           </button>
                         </span>
 
@@ -396,26 +402,50 @@ export function TasksTab({
                         </select>
                       </div>
 
-                      {/* Task note display — shown below task row when note exists and not editing */}
-                      {taskNote && !isEditingNote && (
-                        <div
-                          className="px-3 py-1 pl-10 border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/20"
-                          onClick={() => setEditingNoteTask(task.id)}
-                        >
-                          <span className="text-[11px] text-gray-500 italic">{taskNote}</span>
+                      {/* Task notes + follow-up — expandable section */}
+                      {isEditingNote && (
+                        <div className="border-b border-gray-800/60 bg-gray-900/30">
+                          {/* Follow-up date */}
+                          <div className="px-3 py-1.5 pl-10 flex items-center gap-2 border-b border-gray-800/40">
+                            <span className="text-[10px] text-gray-500">Follow-up:</span>
+                            <input
+                              type="date"
+                              value={followUp ?? ''}
+                              onChange={e => updateTaskFollowUp(task.id, e.target.value || null)}
+                              className="text-[11px] bg-gray-800 text-gray-300 border border-gray-700 rounded px-1.5 py-0.5 focus:outline-none focus:border-green-500"
+                            />
+                            {followUp && (
+                              <button onClick={() => updateTaskFollowUp(task.id, null)} className="text-[10px] text-red-400 hover:text-red-300">clear</button>
+                            )}
+                            {followUp && followUp <= new Date().toISOString().split('T')[0] && (
+                              <span className="text-[10px] text-amber-400 font-medium">
+                                {followUp === new Date().toISOString().split('T')[0] ? 'Due today' : 'Overdue'}
+                              </span>
+                            )}
+                          </div>
+                          {/* Existing notes */}
+                          {tNotes.map(n => (
+                            <div key={n.id} className="px-3 py-1 pl-10 border-b border-gray-800/40">
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-[10px] text-green-500 font-medium">{n.pm ?? 'Unknown'}</span>
+                                <span className="text-[9px] text-gray-600">{fmtNoteTime(n.time)}</span>
+                              </div>
+                              <div className="text-[11px] text-gray-400">{n.text}</div>
+                            </div>
+                          ))}
+                          {tNotes.length === 0 && (
+                            <div className="px-3 py-1 pl-10 text-[10px] text-gray-600 italic">No notes yet</div>
+                          )}
+                          {/* Add new note */}
+                          <TaskNoteInput taskId={task.id} onAdd={addTaskNote} />
                         </div>
                       )}
 
-                      {/* Task note editor — inline */}
-                      {isEditingNote && (
-                        <TaskNoteEditor
-                          taskId={task.id}
-                          value={taskNote}
-                          onSave={(id, notes) => {
-                            updateTaskNotes(id, notes)
-                            setEditingNoteTask(null)
-                          }}
-                        />
+                      {/* Follow-up indicator (when section is collapsed) */}
+                      {!isEditingNote && followUp && followUp <= new Date().toISOString().split('T')[0] && (
+                        <div className="px-3 py-0.5 pl-10 border-b border-gray-800/40 bg-amber-950/10 cursor-pointer" onClick={() => setEditingNoteTask(task.id)}>
+                          <span className="text-[10px] text-amber-400">📅 Follow-up {followUp === new Date().toISOString().split('T')[0] ? 'due today' : 'overdue'}</span>
+                        </div>
                       )}
 
                       {/* Reason row — shown below when Pending/Revision */}

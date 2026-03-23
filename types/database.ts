@@ -71,6 +71,7 @@ export interface Project {
 export interface Note {
   id: string
   project_id: string
+  task_id: string | null
   text: string
   time: string
   pm: string | null
@@ -84,6 +85,7 @@ export interface TaskState {
   reason: string | null
   completed_date: string | null
   notes: string | null
+  follow_up_date: string | null
 }
 
 export interface StageHistory {

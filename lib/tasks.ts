@@ -61,6 +61,7 @@ export const TASKS: Record<string, { id: string; name: string; pre: string[]; re
 // ── AHJ-CONDITIONAL REQUIREMENTS ─────────────────────────────────────────────
 // Tasks that are normally optional but required for specific AHJs
 export const AHJ_REQUIRED_TASKS: Record<string, string[]> = {
+  'wp1': ['Corpus Christi', 'Texas City'],
   'wpi28': ['Corpus Christi', 'Texas City'],
 }
 

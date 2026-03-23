@@ -282,8 +282,9 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files'>('tasks')
   const [taskStates, setTaskStates] = useState<Record<string, string>>({})
   const [taskReasons, setTaskReasons] = useState<Record<string, string>>({})
-  const [taskNotes, setTaskNotes] = useState<Record<string, string>>({})
-  const [taskStatesRaw, setTaskStatesRaw] = useState<{task_id: string; status: string; reason?: string; completed_date?: string | null; started_date?: string | null; notes?: string | null}[]>([])
+  const [taskNotes, setTaskNotes] = useState<Record<string, { id: string; text: string; time: string; pm: string | null }[]>>({})
+  const [taskFollowUps, setTaskFollowUps] = useState<Record<string, string>>({})
+  const [taskStatesRaw, setTaskStatesRaw] = useState<{task_id: string; status: string; reason?: string; completed_date?: string | null; started_date?: string | null; notes?: string | null; follow_up_date?: string | null}[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [newNote, setNewNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -340,25 +341,36 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
 
   const loadTasks = useCallback(async () => {
-    const { data } = await supabase.from('task_state').select('task_id, status, reason, completed_date, started_date, notes').eq('project_id', pid)
-    if (data) {
+    const [taskRes, noteRes] = await Promise.all([
+      supabase.from('task_state').select('task_id, status, reason, completed_date, started_date, follow_up_date').eq('project_id', pid),
+      supabase.from('notes').select('id, task_id, text, time, pm').eq('project_id', pid).not('task_id', 'is', null).order('time', { ascending: true }),
+    ])
+    if (taskRes.data) {
       const statusMap: Record<string, string> = {}
       const reasonMap: Record<string, string> = {}
-      const notesMap: Record<string, string> = {}
-      data.forEach((t: any) => {
+      const followUpMap: Record<string, string> = {}
+      taskRes.data.forEach((t: any) => {
         statusMap[t.task_id] = t.status
         if (t.reason) reasonMap[t.task_id] = t.reason
-        if (t.notes) notesMap[t.task_id] = t.notes
+        if (t.follow_up_date) followUpMap[t.task_id] = t.follow_up_date
       })
       setTaskStates(statusMap)
       setTaskReasons(reasonMap)
+      setTaskFollowUps(followUpMap)
+      setTaskStatesRaw(taskRes.data)
+    }
+    if (noteRes.data) {
+      const notesMap: Record<string, { id: string; text: string; time: string; pm: string | null }[]> = {}
+      noteRes.data.forEach((n: any) => {
+        if (!notesMap[n.task_id]) notesMap[n.task_id] = []
+        notesMap[n.task_id].push({ id: n.id, text: n.text, time: n.time, pm: n.pm })
+      })
       setTaskNotes(notesMap)
-      setTaskStatesRaw(data)
     }
   }, [pid])
 
   const loadNotes = useCallback(async () => {
-    const { data } = await supabase.from('notes').select('*').eq('project_id', pid).order('time', { ascending: false })
+    const { data } = await supabase.from('notes').select('*').eq('project_id', pid).is('task_id', null).order('time', { ascending: false })
     if (data) setNotes(data as Note[])
   }, [pid])
 
@@ -759,18 +771,37 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     setTaskHistoryLoaded(false)
   }
 
-  async function updateTaskNotes(taskId: string, notes: string) {
-    const val = notes.trim() || null
-    setTaskNotes(prev => {
+  async function addTaskNote(taskId: string, text: string) {
+    const note = {
+      project_id: pid,
+      task_id: taskId,
+      text,
+      time: new Date().toISOString(),
+      pm: currentUser?.name ?? null,
+      pm_id: currentUser?.id ?? null,
+    }
+    const { data } = await (supabase as any).from('notes').insert(note).select('id, task_id, text, time, pm').single()
+    if (data) {
+      setTaskNotes(prev => {
+        const next = { ...prev }
+        if (!next[taskId]) next[taskId] = []
+        next[taskId] = [...next[taskId], { id: data.id, text: data.text, time: data.time, pm: data.pm }]
+        return next
+      })
+    }
+  }
+
+  async function updateTaskFollowUp(taskId: string, date: string | null) {
+    setTaskFollowUps(prev => {
       const next = { ...prev }
-      if (val) next[taskId] = val; else delete next[taskId]
+      if (date) next[taskId] = date; else delete next[taskId]
       return next
     })
     await (supabase as any).from('task_state').upsert({
       project_id: pid,
       task_id: taskId,
       status: taskStates[taskId] ?? 'Not Ready',
-      notes: val,
+      follow_up_date: date,
     }, { onConflict: 'project_id,task_id' })
   }
 
@@ -1140,13 +1171,15 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
               taskStates={taskStates}
               taskReasons={taskReasons}
               taskNotes={taskNotes}
+              taskFollowUps={taskFollowUps}
               taskStatesRaw={taskStatesRaw}
               taskHistory={taskHistory}
               taskHistoryLoaded={taskHistoryLoaded}
               stageHistory={stageHistory}
               updateTaskStatus={updateTaskStatus}
               updateTaskReason={updateTaskReason}
-              updateTaskNotes={updateTaskNotes}
+              addTaskNote={addTaskNote}
+              updateTaskFollowUp={updateTaskFollowUp}
               onScheduleTask={async (jobType) => {
                 const { data } = await supabase.from('crews').select('id, name, warehouse').eq('active', 'TRUE').order('name')
                 setScheduleModal({ jobType, crews: data ?? [] })
