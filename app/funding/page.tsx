@@ -279,6 +279,8 @@ export default function FundingPage() {
   const [statusFilter, setStatusFilter] = useState<FundingFilter>('all')
   const [financierFilter, setFinancierFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [sortCol, setSortCol] = useState<string>('financier')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [showGuide, setShowGuide] = useState(() => {
     if (typeof window === 'undefined') return true
     return localStorage.getItem('mg_funding_guide_v3') !== 'dismissed'
@@ -323,6 +325,12 @@ export default function FundingPage() {
   const nfField = (slot: number) => `nonfunded_code_${slot}`
   const financiers = useMemo(() => [...new Set(projects.map(p => p.financier).filter(Boolean))].sort() as string[], [projects])
 
+  const toggleSort = (col: string) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('asc') }
+  }
+  const sortIcon = (col: string) => sortCol === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''
+
   // Build one row per project
   const rows = useMemo(() => {
     const result: FundingRow[] = []
@@ -347,9 +355,29 @@ export default function FundingPage() {
       result.push({ project: p, funding: f, m1, m2, m3, nf1: f?.nonfunded_code_1 ?? null, nf2: f?.nonfunded_code_2 ?? null, nf3: f?.nonfunded_code_3 ?? null })
     })
 
-    result.sort((a, b) => (a.project.financier ?? '').localeCompare(b.project.financier ?? ''))
+    const dir = sortDir === 'asc' ? 1 : -1
+    result.sort((a, b) => {
+      let av: string | number | null = null
+      let bv: string | number | null = null
+      switch (sortCol) {
+        case 'name': av = a.project.name; bv = b.project.name; break
+        case 'financier': av = a.project.financier; bv = b.project.financier; break
+        case 'ahj': av = a.project.ahj; bv = b.project.ahj; break
+        case 'install': av = a.project.install_complete_date; bv = b.project.install_complete_date; break
+        case 'pto': av = a.project.pto_date; bv = b.project.pto_date; break
+        case 'contract': av = a.project.contract; bv = b.project.contract; break
+        case 'm2_amount': av = a.m2.amount; bv = b.m2.amount; break
+        case 'm2_funded': av = a.m2.funded_date; bv = b.m2.funded_date; break
+        default: av = a.project.financier; bv = b.project.financier
+      }
+      if (av == null && bv == null) return 0
+      if (av == null) return 1 * dir
+      if (bv == null) return -1 * dir
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir
+      return String(av).localeCompare(String(bv)) * dir
+    })
     return result
-  }, [projects, funding, financierFilter, search, statusFilter])
+  }, [projects, funding, financierFilter, search, statusFilter, sortCol, sortDir])
 
   // Stats
   const { totalEligible, totalFunded, totalAmount, pendingAmount, totalSubmitted, totalRejected } = useMemo(() => {
@@ -403,15 +431,16 @@ export default function FundingPage() {
                 <div>
                   <div className="font-semibold text-white mb-1">Status & NF codes</div>
                   <div className="text-indigo-300 space-y-1">
-                    <div>Each milestone has its own <span className="text-white font-medium">Status</span> dropdown: Not Submitted, Submitted, Funded, Rejected, Complete.</div>
+                    <div>Each milestone has its own <span className="text-white font-medium">Status</span> dropdown: Submitted, Funded, Rejected.</div>
                     <div>Click <span className="text-white font-medium">+</span> in the NF Codes column to search and assign nonfunded codes.</div>
                     <div>Click <span className="text-red-300 font-medium">x</span> next to a code to remove it.</div>
                   </div>
                 </div>
                 <div>
-                  <div className="font-semibold text-white mb-1">Layout</div>
+                  <div className="font-semibold text-white mb-1">Layout & Sorting</div>
                   <div className="space-y-1 text-indigo-300">
                     <div>Each row is one project with <span className="text-white font-medium">M1, M2, M3</span> payment columns side by side.</div>
+                    <div>Click any <span className="text-white font-medium">column header</span> to sort. Click again to reverse.</div>
                     <div><span className="bg-amber-900 text-amber-300 px-1 py-0.5 rounded text-[10px] font-bold">M1</span> Eligible <span className="bg-blue-900 text-blue-300 px-1 py-0.5 rounded text-[10px] font-bold">M2</span> Submitted <span className="bg-green-900 text-green-300 px-1 py-0.5 rounded text-[10px] font-bold">M3</span> Funded <span className="bg-red-900 text-red-300 px-1 py-0.5 rounded text-[10px] font-bold">M1</span> Rejected</div>
                   </div>
                 </div>
@@ -457,12 +486,12 @@ export default function FundingPage() {
             </tr>
             {/* Column headers */}
             <tr>
-              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap">Project</th>
-              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap">Financier</th>
-              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap">AHJ</th>
-              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap">Install</th>
-              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap">PTO</th>
-              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap">Contract</th>
+              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap cursor-pointer hover:text-white select-none" onClick={() => toggleSort('name')}>Project{sortIcon('name')}</th>
+              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap cursor-pointer hover:text-white select-none" onClick={() => toggleSort('financier')}>Financier{sortIcon('financier')}</th>
+              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap cursor-pointer hover:text-white select-none" onClick={() => toggleSort('ahj')}>AHJ{sortIcon('ahj')}</th>
+              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap cursor-pointer hover:text-white select-none" onClick={() => toggleSort('install')}>Install{sortIcon('install')}</th>
+              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap cursor-pointer hover:text-white select-none" onClick={() => toggleSort('pto')}>PTO{sortIcon('pto')}</th>
+              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 whitespace-nowrap cursor-pointer hover:text-white select-none" onClick={() => toggleSort('contract')}>Contract{sortIcon('contract')}</th>
               {/* M1 */}
               <th className="text-center text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800 border-l border-gray-700"></th>
               <th className="text-left text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800">Amt Due</th>
@@ -470,8 +499,8 @@ export default function FundingPage() {
               <th className="text-left text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800">Status</th>
               {/* M2 */}
               <th className="text-center text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800 border-l border-gray-700"></th>
-              <th className="text-left text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800">Amt Due</th>
-              <th className="text-left text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800">Funded</th>
+              <th className="text-left text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('m2_amount')}>Amt Due{sortIcon('m2_amount')}</th>
+              <th className="text-left text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('m2_funded')}>Funded{sortIcon('m2_funded')}</th>
               <th className="text-left text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800">Status</th>
               {/* M3 */}
               <th className="text-center text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800 border-l border-gray-700"></th>
