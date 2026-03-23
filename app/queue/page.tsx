@@ -151,8 +151,8 @@ export default function QueuePage() {
       if (t.follow_up_date && t.follow_up_date <= today) {
         const existing = taskFollowUpMap[t.project_id]
         if (!existing || t.follow_up_date < existing.date) {
-          const taskDef = ALL_TASKS_MAP[t.task_id]
-          taskFollowUpMap[t.project_id] = { date: t.follow_up_date, taskName: taskDef?.name ?? t.task_id }
+          const taskName = ALL_TASKS_MAP[t.task_id] ?? t.task_id
+          taskFollowUpMap[t.project_id] = { date: t.follow_up_date, taskName }
         }
       }
     }

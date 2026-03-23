@@ -83,6 +83,48 @@ function SelectEditRow({ label, field, value, draft, editing, onChange, options 
   )
 }
 
+function PmSelectRow({ value, pmId, draft, editing, onChange }: {
+  value: string | null
+  pmId: string | null
+  draft: Record<string, any>
+  editing: boolean
+  onChange: (d: any) => void
+}) {
+  const supabase = createClient()
+  const [pms, setPms] = useState<{ id: string; name: string }[]>([])
+  const currentId = 'pm_id' in draft ? draft.pm_id : pmId
+
+  useEffect(() => {
+    if (!editing) return
+    ;(supabase as any).from('users').select('id, name').eq('active', true).order('name')
+      .then(({ data }: any) => { if (data) setPms(data) })
+  }, [editing])
+
+  if (!editing) return (
+    <div className="flex items-baseline gap-2 py-1">
+      <span className="text-gray-500 text-xs w-28 flex-shrink-0">PM</span>
+      <span className="text-gray-200 text-xs">{value ?? '—'}</span>
+    </div>
+  )
+
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <span className="text-gray-500 text-xs w-28 flex-shrink-0">PM</span>
+      <select
+        value={currentId ?? ''}
+        onChange={e => {
+          const selected = pms.find(p => p.id === e.target.value)
+          onChange((d: any) => ({ ...d, pm_id: e.target.value || null, pm: selected?.name ?? null }))
+        }}
+        className="flex-1 bg-gray-700 text-white text-xs rounded px-2 py-1 border border-gray-600 focus:border-green-500 focus:outline-none"
+      >
+        <option value="">Select PM...</option>
+        {pms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </select>
+    </div>
+  )
+}
+
 function AutocompleteRow({ label, field, value, draft, editing, onChange, table, searchCol = 'name', onClickValue }: {
   label: string
   field: string
@@ -365,7 +407,7 @@ export function InfoTab({ project, editMode, editDraft, setEditDraft, ahjInfo, u
         </div>
         <div>
           <Section title="Team">
-            <EditRow label="PM" field="pm" value={project.pm} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+            <PmSelectRow value={project.pm} pmId={project.pm_id} draft={editDraft} editing={editMode} onChange={setEditDraft} />
             <EditRow label="Advisor" field="advisor" value={project.advisor} draft={editDraft} editing={editMode} onChange={setEditDraft} />
             <EditRow label="Consultant" field="consultant" value={project.consultant} draft={editDraft} editing={editMode} onChange={setEditDraft} />
             <EditRow label="Consultant email" field="consultant_email" value={project.consultant_email} draft={editDraft} editing={editMode} onChange={setEditDraft} small />
