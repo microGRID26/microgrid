@@ -685,13 +685,37 @@ function ForFunding() {
         </div>
       </Card>
 
-      <Card title="Milestone status badges">
+      <Card title="Milestone statuses">
+        Each milestone has a status dropdown with three options:
         <div className="mt-2 space-y-1.5 text-xs">
-          <div className="flex items-center gap-2"><span className="bg-gray-700 text-gray-400 px-2 py-0.5 rounded">Not Submitted</span><span className="text-gray-400">— not yet eligible for funding</span></div>
-          <div className="flex items-center gap-2"><span className="bg-blue-900 text-blue-300 px-2 py-0.5 rounded">Eligible</span><span className="text-gray-400">— ready to submit to financier</span></div>
-          <div className="flex items-center gap-2"><span className="bg-amber-900 text-amber-300 px-2 py-0.5 rounded">Submitted</span><span className="text-gray-400">— submitted, awaiting payment</span></div>
-          <div className="flex items-center gap-2"><span className="bg-green-900 text-green-300 px-2 py-0.5 rounded">Funded</span><span className="text-gray-400">— payment received</span></div>
+          <div className="flex items-center gap-2"><span className="bg-blue-900 text-blue-300 px-2 py-0.5 rounded">Sub</span><span className="text-gray-400">— Submitted to financier, awaiting payment</span></div>
+          <div className="flex items-center gap-2"><span className="bg-green-900 text-green-300 px-2 py-0.5 rounded">Fun</span><span className="text-gray-400">— Funded, payment received</span></div>
+          <div className="flex items-center gap-2"><span className="bg-red-900 text-red-300 px-2 py-0.5 rounded">Rej</span><span className="text-gray-400">— Rejected by financier</span></div>
         </div>
+        <div className="mt-2 text-gray-500">The badge colors on the M1/M2/M3 labels indicate eligibility: amber = eligible, green = funded, gray = not yet eligible.</div>
+      </Card>
+
+      <Card title="Sorting & filtering">
+        Click any column header to sort the table. Click again to reverse the sort direction. An arrow (▲/▼) shows
+        the active sort. Empty values always sort to the bottom regardless of direction.
+        <Ul items={[
+          'Project, Financier, AHJ — alphabetical sort',
+          'Install, PTO — date sort (newest/oldest)',
+          'Contract — amount sort (highest/lowest)',
+          'M2 Amt Due, M2 Funded — sortable for quick review',
+        ]} />
+        <div className="mt-2">Use the Financier dropdown and search bar to filter by specific financier or project.</div>
+      </Card>
+
+      <Card title="Inline editing">
+        Click any <span className="text-white font-medium">Amount Due</span>, <span className="text-white font-medium">Funded Date</span>, or <span className="text-white font-medium">Notes</span> cell to edit it directly.
+        Press Enter to save, Escape to cancel. Changes save immediately to the database. Only users with the Finance role or above can edit funding data.
+      </Card>
+
+      <Card title="NF (Nonfunded) codes">
+        Click the <span className="text-white font-medium">+</span> buttons in the NF Codes column to search and assign nonfunded codes. These track reasons
+        why a milestone hasn&apos;t been funded yet (e.g., FIN-PTO, RMA). Click <span className="text-red-300 font-medium">x</span> next to a code to remove it.
+        Up to 3 codes per project.
       </Card>
 
       <Card title="Automation callout">
@@ -724,13 +748,10 @@ function ForFunding() {
       <Card title="M3 — Final">
         Funded after PTO and in-service. Typically 35% of contract value.
       </Card>
-      <Card title="Bulk submit">
-        Use the checkboxes on the Funding page to select multiple milestones and submit them together.
-        This updates all selected milestones to Submitted status at once.
-      </Card>
-      <Card title="Days waiting">
-        The Days Waiting column shows how long a milestone has been in Eligible or Submitted status.
-        High numbers here indicate follow-up is needed with the financier.
+      <Card title="Stats bar">
+        The top of the page shows key metrics: Eligible (milestones ready to submit), Funded (total funded count),
+        Total Funded (dollar amount), and Submitted/Rejected counts when applicable. These update in real-time as you
+        change statuses.
       </Card>
     </div>
   )
