@@ -98,6 +98,7 @@ function ChangeOrdersContent() {
       .from('change_orders')
       .select('*, project:projects(name, city, pm, pm_id)')
       .order('created_at', { ascending: false })
+      .limit(2000)
     if (error) console.error('change_orders load failed:', error)
     if (data) setOrders(data as ChangeOrder[])
     setLoading(false)

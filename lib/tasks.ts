@@ -58,6 +58,19 @@ export const TASKS: Record<string, { id: string; name: string; pre: string[]; re
   ],
 }
 
+// ── AHJ-CONDITIONAL REQUIREMENTS ─────────────────────────────────────────────
+// Tasks that are normally optional but required for specific AHJs
+export const AHJ_REQUIRED_TASKS: Record<string, string[]> = {
+  'wpi28': ['Corpus Christi', 'Texas City'],
+}
+
+export function isTaskRequired(task: { id: string; req: boolean }, ahj: string | null): boolean {
+  if (task.req) return true
+  const ahjs = AHJ_REQUIRED_TASKS[task.id]
+  if (!ahjs || !ahj) return false
+  return ahjs.some(a => ahj.toLowerCase().includes(a.toLowerCase()))
+}
+
 // ── TASK STATUSES ─────────────────────────────────────────────────────────────
 export const TASK_STATUSES = ['Not Ready','Ready To Start','In Progress','Scheduled','Pending Resolution','Revision Required','Complete'] as const
 
@@ -212,7 +225,7 @@ export const PENDING_REASONS: Record<string, string[]> = {
     'Awaiting City Reply','Escalated to Customer Service',
     'Inspection Report Requested','Pending Install','Pending Utility Approval First',
   ],
-  util_insp: ['Escalated to Customer Service','Pending Customer Signature','Pending Install','Pending Meter Set'],
+  util_insp: ['Escalated to Customer Service','Pending Customer Signature','Pending Host Availability','Pending Install','Pending Meter Set'],
   city_upd: [
     'Licensing/Compliance','Need City Registration','Need Customer Signature',
     'Need Deed/Proof of Ownership','Need Engineer Stamped Plans','Need Engineering Revision',

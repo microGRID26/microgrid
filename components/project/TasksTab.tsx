@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { STAGE_LABELS, STAGE_ORDER, SLA_THRESHOLDS, daysAgo } from '@/lib/utils'
-import { TASKS, TASK_STATUSES, STATUS_STYLE, PENDING_REASONS, REVISION_REASONS, ALL_TASKS_MAP, TASK_TO_STAGE } from '@/lib/tasks'
+import { TASKS, TASK_STATUSES, STATUS_STYLE, PENDING_REASONS, REVISION_REASONS, ALL_TASKS_MAP, TASK_TO_STAGE, isTaskRequired } from '@/lib/tasks'
 import type { Project } from '@/types/database'
+import { MessageSquare } from 'lucide-react'
 
 // ── isLocked helper ──────────────────────────────────────────────────────────
 function isLocked(task: { pre: string[] }, taskStates: Record<string, string>): boolean {
@@ -36,12 +37,14 @@ interface TasksTabProps {
   project: Project
   taskStates: Record<string, string>
   taskReasons: Record<string, string>
-  taskStatesRaw: { task_id: string; status: string; reason?: string; completed_date?: string | null; started_date?: string | null }[]
+  taskNotes: Record<string, string>
+  taskStatesRaw: { task_id: string; status: string; reason?: string; completed_date?: string | null; started_date?: string | null; notes?: string | null }[]
   taskHistory: any[]
   taskHistoryLoaded: boolean
   stageHistory: any[]
   updateTaskStatus: (taskId: string, status: string) => void
   updateTaskReason: (taskId: string, reason: string) => void
+  updateTaskNotes: (taskId: string, notes: string) => void
   onScheduleTask?: (jobType: string) => void
 }
 
@@ -53,22 +56,60 @@ const SCHEDULABLE_TASKS: Record<string, string> = {
   sched_util: 'inspection',
 }
 
+// ── Inline note editor ──────────────────────────────────────────────────────
+function TaskNoteEditor({ taskId, value, onSave }: { taskId: string; value: string; onSave: (taskId: string, notes: string) => void }) {
+  const [draft, setDraft] = useState(value)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  function handleSave() {
+    if (draft.trim() !== value) {
+      onSave(taskId, draft)
+    }
+  }
+
+  return (
+    <div className="flex items-start gap-2 px-3 py-1.5 border-b border-gray-800/60 pl-10 bg-gray-800/30">
+      <span className="text-[10px] text-gray-500 flex-shrink-0 pt-1">Note</span>
+      <textarea
+        ref={inputRef}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={e => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); (e.target as HTMLTextAreaElement).blur() }
+          if (e.key === 'Escape') { setDraft(value); (e.target as HTMLTextAreaElement).blur() }
+        }}
+        placeholder="Add a note for this task..."
+        rows={1}
+        className="text-xs rounded px-2 py-1 border-0 flex-1 bg-gray-700 text-gray-200 placeholder:text-gray-600 resize-none focus:outline-none focus:ring-1 focus:ring-green-500/50"
+      />
+    </div>
+  )
+}
+
 // ── COMPONENT ────────────────────────────────────────────────────────────────
 export function TasksTab({
   project,
   taskStates,
   taskReasons,
+  taskNotes,
   taskStatesRaw,
   taskHistory,
   taskHistoryLoaded,
   stageHistory,
   updateTaskStatus,
   updateTaskReason,
+  updateTaskNotes,
   onScheduleTask,
 }: TasksTabProps) {
   const [viewStage, setViewStage] = useState<string>(project.stage)
   const [expandedTask, setExpandedTask] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'stages' | 'history'>('stages')
+  const [editingNoteTask, setEditingNoteTask] = useState<string | null>(null)
 
   // ── Computed: stage completion counts ──────────────────────────────────────
   const stageCounts = useMemo(() => {
@@ -229,6 +270,7 @@ export function TasksTab({
                 {viewedTasks.map(task => {
                   const status = taskStates[task.id] ?? 'Not Ready'
                   const reason = taskReasons[task.id] ?? ''
+                  const taskNote = taskNotes[task.id] ?? ''
                   const locked = isLocked(task, taskStates)
                   const rawEntry = taskStatesRaw.find(t => t.task_id === task.id)
                   const completedDate = rawEntry?.completed_date ?? null
@@ -240,6 +282,7 @@ export function TasksTab({
                   const pendingReasons = PENDING_REASONS[task.id] ?? []
                   const revisionReasonsList = REVISION_REASONS[viewStage] ?? []
                   const reasonOptions = status === 'Pending Resolution' ? pendingReasons : revisionReasonsList
+                  const isEditingNote = editingNoteTask === task.id
 
                   return (
                     <div key={task.id}>
@@ -251,7 +294,7 @@ export function TasksTab({
                       >
                         {/* Required indicator */}
                         <div className="w-3 flex-shrink-0 text-center">
-                          {task.req && <span className="text-green-500 text-xs font-bold">*</span>}
+                          {isTaskRequired(task, project.ahj) && <span className="text-green-500 text-xs font-bold">*</span>}
                         </div>
 
                         {/* Expand chevron */}
@@ -266,13 +309,24 @@ export function TasksTab({
                           ) : null}
                         </div>
 
-                        {/* Task name */}
-                        <span className={`flex-1 text-xs truncate min-w-0 ${
+                        {/* Task name + note icon */}
+                        <span className={`flex-1 text-xs truncate min-w-0 flex items-center gap-1 ${
                           locked ? 'text-gray-600' :
-                          task.req ? 'text-gray-100' : 'text-gray-400'
+                          isTaskRequired(task, project.ahj) ? 'text-gray-100' : 'text-gray-400'
                         }`}>
-                          {locked && '🔒 '}{task.name}
-                          {!task.req && <span className="text-gray-600 ml-1">(opt)</span>}
+                          <span className="truncate">
+                            {locked && '🔒 '}{task.name}
+                            {!isTaskRequired(task, project.ahj) && <span className="text-gray-600 ml-1">(opt)</span>}
+                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEditingNoteTask(isEditingNote ? null : task.id) }}
+                            className={`flex-shrink-0 transition-colors ${
+                              taskNote ? 'text-green-500 hover:text-green-400' : 'text-gray-600 hover:text-gray-400'
+                            }`}
+                            title={taskNote || 'Add note'}
+                          >
+                            <MessageSquare size={12} />
+                          </button>
                         </span>
 
                         {/* Revision count badge */}
@@ -341,6 +395,28 @@ export function TasksTab({
                           {TASK_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
+
+                      {/* Task note display — shown below task row when note exists and not editing */}
+                      {taskNote && !isEditingNote && (
+                        <div
+                          className="px-3 py-1 pl-10 border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/20"
+                          onClick={() => setEditingNoteTask(task.id)}
+                        >
+                          <span className="text-[11px] text-gray-500 italic">{taskNote}</span>
+                        </div>
+                      )}
+
+                      {/* Task note editor — inline */}
+                      {isEditingNote && (
+                        <TaskNoteEditor
+                          taskId={task.id}
+                          value={taskNote}
+                          onSave={(id, notes) => {
+                            updateTaskNotes(id, notes)
+                            setEditingNoteTask(null)
+                          }}
+                        />
+                      )}
 
                       {/* Reason row — shown below when Pending/Revision */}
                       {showReason && (

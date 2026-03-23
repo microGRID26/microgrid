@@ -35,8 +35,8 @@ export default function AuditPage() {
 
   const loadData = useCallback(async () => {
     const [projRes, taskRes] = await Promise.all([
-      supabase.from('projects').select('id, name, city, pm, pm_id, stage, contract, stage_date').neq('stage', 'complete').not('disposition', 'in', '("Cancelled","In Service")'),
-      supabase.from('task_state').select('project_id, task_id, status'),
+      supabase.from('projects').select('id, name, city, pm, pm_id, stage, contract, stage_date').neq('stage', 'complete').not('disposition', 'in', '("Cancelled","In Service")').limit(2000),
+      supabase.from('task_state').select('project_id, task_id, status').limit(10000),
     ])
     if (projRes.error) console.error('projects load failed:', projRes.error)
     if (taskRes.error) console.error('task_state load failed:', taskRes.error)

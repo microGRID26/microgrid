@@ -77,8 +77,8 @@ export default function AnalyticsPage() {
 
   const loadData = useCallback(async () => {
     const [projRes, fundRes] = await Promise.all([
-      supabase.from('projects').select('id, name, stage, contract, install_complete_date, stage_date, sale_date, pm, pm_id, blocker, financier, disposition').not('disposition', 'in', '("In Service","Loyalty","Cancelled")'),
-      (supabase as any).from('project_funding').select('project_id, m2_funded_date, m3_funded_date, m2_amount, m3_amount'),
+      supabase.from('projects').select('id, name, stage, contract, install_complete_date, stage_date, sale_date, pm, pm_id, blocker, financier, disposition').not('disposition', 'in', '("In Service","Loyalty","Cancelled")').limit(2000),
+      (supabase as any).from('project_funding').select('project_id, m2_funded_date, m3_funded_date, m2_amount, m3_amount').limit(2000),
     ])
     if (projRes.error) console.error('projects load failed:', projRes.error)
     if (fundRes.error) console.error('funding load failed:', fundRes.error)

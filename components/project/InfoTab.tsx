@@ -175,6 +175,93 @@ function AutocompleteRow({ label, field, value, draft, editing, onChange, table,
   )
 }
 
+function DispositionEditRow({ value, draft, editing, onChange }: {
+  value?: string | null
+  draft: Record<string, any>
+  editing: boolean
+  onChange: (d: any) => void
+}) {
+  const current = ('disposition' in draft ? draft.disposition : value) as string | null
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+
+  // Determine allowed options based on current disposition
+  const getOptions = () => {
+    const disp = current ?? 'Sale'
+    switch (disp) {
+      case 'Sale':
+        return ['Sale', 'Loyalty']
+      case 'Loyalty':
+        return ['Sale', 'Loyalty', 'Cancelled']
+      case 'In Service':
+        return ['Sale', 'In Service']
+      case 'Cancelled':
+        return ['Loyalty', 'Cancelled']
+      default:
+        return ['Sale', 'Loyalty']
+    }
+  }
+
+  if (!editing) {
+    if (!value) return null
+    return (
+      <div className="flex gap-2 py-0.5">
+        <span className="text-gray-500 text-xs w-28 flex-shrink-0">Disposition</span>
+        <span className="text-gray-200 text-xs">{value}</span>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="flex gap-2 py-0.5 items-center">
+        <span className="text-gray-500 text-xs w-28 flex-shrink-0">Disposition</span>
+        <select
+          value={current ?? ''}
+          onChange={e => {
+            const newVal = e.target.value || null
+            if (newVal === 'Cancelled') {
+              setShowCancelConfirm(true)
+            } else {
+              onChange((d: any) => ({ ...d, disposition: newVal }))
+            }
+          }}
+          className="flex-1 bg-gray-700 text-white text-xs rounded px-2 py-1 border border-gray-600 focus:border-green-500 focus:outline-none"
+        >
+          <option value="">Select...</option>
+          {getOptions().map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </div>
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60">
+          <div className="bg-gray-800 border border-gray-600 rounded-lg p-6 max-w-md shadow-xl">
+            <h3 className="text-white text-sm font-semibold mb-2">Cancel this project?</h3>
+            <p className="text-gray-400 text-xs mb-4">
+              Are you sure? This project will be marked as Cancelled. The customer should have been in Loyalty status first for retention attempts.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowCancelConfirm(false)}
+                className="px-3 py-1.5 text-xs text-gray-300 bg-gray-700 rounded hover:bg-gray-600"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={() => {
+                  onChange((d: any) => ({ ...d, disposition: 'Cancelled' }))
+                  setShowCancelConfirm(false)
+                }}
+                className="px-3 py-1.5 text-xs text-white bg-red-600 rounded hover:bg-red-500"
+              >
+                Yes, Cancel Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-4">
@@ -204,6 +291,9 @@ export function InfoTab({ project, editMode, editDraft, setEditDraft, ahjInfo, u
     <div className="flex-1 overflow-y-auto p-6">
       <div className="grid grid-cols-2 gap-6 max-w-3xl">
         <div>
+          <Section title="Follow-up">
+            <EditRow label="Follow-up date" field="follow_up_date" value={project.follow_up_date} draft={editDraft} editing={editMode} onChange={setEditDraft} type="date" />
+          </Section>
           <Section title="Customer">
             <EditRow label="Name" field="name" value={project.name} draft={editDraft} editing={editMode} onChange={setEditDraft} />
             {editMode ? (
@@ -228,8 +318,7 @@ export function InfoTab({ project, editMode, editDraft, setEditDraft, ahjInfo, u
             <EditRow label="Email" field="email" value={project.email} draft={editDraft} editing={editMode} onChange={setEditDraft} small />
           </Section>
           <Section title="Project">
-            <SelectEditRow label="Disposition" field="disposition" value={project.disposition} draft={editDraft} editing={editMode} onChange={setEditDraft}
-              options={['Sale','Loyalty','Cancelled','In Service']} />
+            <DispositionEditRow value={project.disposition} draft={editDraft} editing={editMode} onChange={setEditDraft} />
             <EditRow label="Contract" field="contract" value={project.contract?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="currency" />
             <EditRow label="System kW" field="systemkw" value={project.systemkw?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="number" />
             <SelectEditRow label="Financier" field="financier" value={project.financier} draft={editDraft} editing={editMode} onChange={setEditDraft}
@@ -304,6 +393,7 @@ export function InfoTab({ project, editMode, editDraft, setEditDraft, ahjInfo, u
             <EditRow label="Permit #" field="permit_number" value={project.permit_number} draft={editDraft} editing={editMode} onChange={setEditDraft} />
             <EditRow label="Utility app #" field="utility_app_number" value={project.utility_app_number} draft={editDraft} editing={editMode} onChange={setEditDraft} />
             <EditRow label="Permit fee" field="permit_fee" value={project.permit_fee?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="currency" />
+            <EditRow label="Re-inspection fee" field="reinspection_fee" value={project.reinspection_fee?.toString()} draft={editDraft} editing={editMode} onChange={setEditDraft} type="currency" />
             <EditRow label="City permit" field="city_permit_date" value={project.city_permit_date} draft={editDraft} editing={editMode} onChange={setEditDraft} type="date" />
             <EditRow label="Utility permit" field="utility_permit_date" value={project.utility_permit_date} draft={editDraft} editing={editMode} onChange={setEditDraft} type="date" />
           </Section>

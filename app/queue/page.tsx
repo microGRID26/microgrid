@@ -82,9 +82,9 @@ export default function QueuePage() {
     const [projRes, taskRes] = await Promise.all([
       // When no PM selected, load ALL projects so user can see everything
       pm
-        ? supabase.from('projects').select('id, name, city, pm, pm_id, stage, stage_date, sale_date, contract, blocker, financier, disposition').eq('pm_id', pm)
-        : supabase.from('projects').select('id, name, city, pm, pm_id, stage, stage_date, sale_date, contract, blocker, financier, disposition'),
-      supabase.from('task_state').select('project_id, task_id, status, reason'),
+        ? supabase.from('projects').select('id, name, city, pm, pm_id, stage, stage_date, sale_date, contract, blocker, financier, disposition, follow_up_date').eq('pm_id', pm).limit(2000)
+        : supabase.from('projects').select('id, name, city, pm, pm_id, stage, stage_date, sale_date, contract, blocker, financier, disposition, follow_up_date').limit(2000),
+      supabase.from('task_state').select('project_id, task_id, status, reason').limit(10000),
     ])
 
     if (projRes.error) console.error('projects load failed:', projRes.error)
@@ -138,6 +138,13 @@ export default function QueuePage() {
   const blocked = useMemo(() => sorted.filter(p => p.blocker), [sorted])
   const active = useMemo(() => sorted.filter(p => !p.blocker && p.stage !== 'complete'), [sorted])
   const complete = useMemo(() => sorted.filter(p => p.stage === 'complete'), [sorted])
+
+  // Follow-ups: projects with follow_up_date today or overdue
+  const followUps = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0]
+    return sorted.filter(p => p.follow_up_date && p.follow_up_date <= today)
+      .sort((a, b) => (a.follow_up_date ?? '').localeCompare(b.follow_up_date ?? ''))
+  }, [sorted])
 
   if (loading) {
     return (
@@ -194,6 +201,41 @@ export default function QueuePage() {
 
       {/* Queue list */}
       <div className="flex-1 overflow-y-auto max-w-4xl mx-auto w-full px-4 py-4">
+
+        {followUps.length > 0 && (
+          <div className="mb-6 bg-amber-950/30 border border-amber-900/50 rounded-xl p-4">
+            <div className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+              Follow-ups Due ({followUps.length})
+            </div>
+            {followUps.map(p => (
+              <div
+                key={p.id}
+                onClick={() => setSelectedProject(p)}
+                className="bg-gray-800/80 hover:bg-gray-700 border border-gray-700 rounded-lg p-3 mb-2 cursor-pointer transition-colors flex items-center gap-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-white text-sm">{p.name}</span>
+                    <span className="text-xs text-gray-500">{p.id}</span>
+                    <span className="text-xs text-gray-500">·</span>
+                    <span className="text-xs text-green-400">{STAGE_LABELS[p.stage]}</span>
+                  </div>
+                  {p.city && <div className="text-xs text-gray-400 mt-0.5">{p.city}</div>}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className={`text-xs font-medium ${
+                    p.follow_up_date === new Date().toISOString().split('T')[0] ? 'text-amber-400' : 'text-red-400'
+                  }`}>
+                    {p.follow_up_date === new Date().toISOString().split('T')[0]
+                      ? 'Today'
+                      : `${daysAgo(p.follow_up_date)}d overdue`}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {blocked.length > 0 && (
           <div className="mb-6">

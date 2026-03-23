@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { fmt$, fmtDate, daysAgo, STAGE_LABELS, STAGE_ORDER, escapeIlike } from '@/lib/utils'
-import { TASKS, TASK_STATUSES, STATUS_STYLE, PENDING_REASONS, REVISION_REASONS, ALL_TASKS_MAP, ALL_TASKS_FLAT, TASK_TO_STAGE, TASK_DATE_FIELDS, getSameStageDownstream } from '@/lib/tasks'
+import { TASKS, TASK_STATUSES, STATUS_STYLE, PENDING_REASONS, REVISION_REASONS, ALL_TASKS_MAP, ALL_TASKS_FLAT, TASK_TO_STAGE, TASK_DATE_FIELDS, getSameStageDownstream, isTaskRequired } from '@/lib/tasks'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import type { Project, Note } from '@/types/database'
 import { BomTab } from './BomTab'
@@ -262,8 +262,8 @@ function TaskRow({ task, status, reason, pendingReasons, revisionReasons, locked
 }
 
 // ── STAGE ADVANCE LOGIC ───────────────────────────────────────────────────────
-function canAdvance(stage: string, taskStates: Record<string, string>): { ok: boolean; missing: string[] } {
-  const tasks = (TASKS[stage] ?? []).filter(t => t.req)
+function canAdvance(stage: string, taskStates: Record<string, string>, ahj?: string | null): { ok: boolean; missing: string[] } {
+  const tasks = (TASKS[stage] ?? []).filter(t => isTaskRequired(t, ahj ?? null))
   const missing = tasks.filter(t => taskStates[t.id] !== 'Complete').map(t => t.name)
   return { ok: missing.length === 0, missing }
 }
@@ -282,7 +282,8 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files'>('tasks')
   const [taskStates, setTaskStates] = useState<Record<string, string>>({})
   const [taskReasons, setTaskReasons] = useState<Record<string, string>>({})
-  const [taskStatesRaw, setTaskStatesRaw] = useState<{task_id: string; status: string; reason?: string; completed_date?: string | null; started_date?: string | null}[]>([])
+  const [taskNotes, setTaskNotes] = useState<Record<string, string>>({})
+  const [taskStatesRaw, setTaskStatesRaw] = useState<{task_id: string; status: string; reason?: string; completed_date?: string | null; started_date?: string | null; notes?: string | null}[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [newNote, setNewNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -339,16 +340,19 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
 
   const loadTasks = useCallback(async () => {
-    const { data } = await supabase.from('task_state').select('task_id, status, reason, completed_date, started_date').eq('project_id', pid)
+    const { data } = await supabase.from('task_state').select('task_id, status, reason, completed_date, started_date, notes').eq('project_id', pid)
     if (data) {
       const statusMap: Record<string, string> = {}
       const reasonMap: Record<string, string> = {}
+      const notesMap: Record<string, string> = {}
       data.forEach((t: any) => {
         statusMap[t.task_id] = t.status
         if (t.reason) reasonMap[t.task_id] = t.reason
+        if (t.notes) notesMap[t.task_id] = t.notes
       })
       setTaskStates(statusMap)
       setTaskReasons(reasonMap)
+      setTaskNotes(notesMap)
       setTaskStatesRaw(data)
     }
   }, [pid])
@@ -713,7 +717,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     // ── Auto-advance stage when all required tasks are Complete ───────────
     if (status === 'Complete' && !cascadeResets) {
       const updatedStates = { ...taskStates, [taskId]: status }
-      const { ok } = canAdvance(project.stage, updatedStates)
+      const { ok } = canAdvance(project.stage, updatedStates, project.ahj)
       if (ok && nextStage) {
         const { error: advErr } = await (supabase as any).from('projects').update({ stage: nextStage, stage_date: today }).eq('id', pid)
         if (advErr) { console.error('auto stage advance failed:', advErr); showToast('Failed to auto-advance stage'); return }
@@ -753,6 +757,21 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     })
     if (histError2) console.error('task_history reason insert failed:', histError2)
     setTaskHistoryLoaded(false)
+  }
+
+  async function updateTaskNotes(taskId: string, notes: string) {
+    const val = notes.trim() || null
+    setTaskNotes(prev => {
+      const next = { ...prev }
+      if (val) next[taskId] = val; else delete next[taskId]
+      return next
+    })
+    await (supabase as any).from('task_state').upsert({
+      project_id: pid,
+      task_id: taskId,
+      status: taskStates[taskId] ?? 'Not Ready',
+      notes: val,
+    }, { onConflict: 'project_id,task_id' })
   }
 
   function isLocked(task: { pre: string[] }): boolean {
@@ -875,6 +894,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
       install_scheduled_date: project.install_scheduled_date, install_complete_date: project.install_complete_date,
       city_inspection_date: project.city_inspection_date, utility_inspection_date: project.utility_inspection_date,
       pto_date: project.pto_date, in_service_date: project.in_service_date,
+      follow_up_date: project.follow_up_date,
     })
     setEditMode(true)
     setTab('info')
@@ -882,7 +902,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
 
   async function advanceStage() {
     if (!nextStage) return
-    const { ok, missing } = canAdvance(project.stage, taskStates)
+    const { ok, missing } = canAdvance(project.stage, taskStates, project.ahj)
     if (!ok) {
       showToast(`Complete required tasks first: ${missing.slice(0,2).join(', ')}${missing.length > 2 ? '...' : ''}`)
       return
@@ -917,7 +937,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
 
   const days = daysAgo(project.stage_date)
   const cycle = daysAgo(project.sale_date) || days
-  const advance = canAdvance(project.stage, taskStates)
+  const advance = canAdvance(project.stage, taskStates, project.ahj)
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -942,6 +962,19 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                 <span>·</span><span>{days}d in stage</span>
                 <span>·</span><span>{cycle}d total</span>
                 <span>·</span><span>{project.pm}</span>
+                {project.follow_up_date && (() => {
+                  const today = new Date().toISOString().split('T')[0]
+                  const isOverdueOrToday = project.follow_up_date! <= today
+                  return (
+                    <>
+                      <span>·</span>
+                      <span className={`flex items-center gap-1 ${isOverdueOrToday ? 'text-amber-400' : 'text-gray-500'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                        Follow-up {new Date(project.follow_up_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </>
+                  )
+                })()}
                 {changeOrderCount > 0 && (
                   <>
                     <span>·</span>
@@ -1106,12 +1139,14 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
               project={project}
               taskStates={taskStates}
               taskReasons={taskReasons}
+              taskNotes={taskNotes}
               taskStatesRaw={taskStatesRaw}
               taskHistory={taskHistory}
               taskHistoryLoaded={taskHistoryLoaded}
               stageHistory={stageHistory}
               updateTaskStatus={updateTaskStatus}
               updateTaskReason={updateTaskReason}
+              updateTaskNotes={updateTaskNotes}
               onScheduleTask={async (jobType) => {
                 const { data } = await supabase.from('crews').select('id, name, warehouse').eq('active', 'TRUE').order('name')
                 setScheduleModal({ jobType, crews: data ?? [] })

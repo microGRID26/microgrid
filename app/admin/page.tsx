@@ -1485,7 +1485,7 @@ function CRMInfo() {
         (supabase as any).from('users').select('*', { count: 'exact', head: true }),
         (supabase as any).from('crews').select('*', { count: 'exact', head: true }),
         (supabase as any).from('service_calls').select('*', { count: 'exact', head: true }),
-        (supabase as any).from('projects').select('stage'),
+        (supabase as any).from('projects').select('stage').limit(2000),
       ])
       setStats({ projects: projects ?? 0, ahjs: ahjs ?? 0, utilities: utilities ?? 0, users: users ?? 0, crews: crews ?? 0, serviceCalls: serviceCalls ?? 0 })
       const breakdown: Record<string, number> = {}

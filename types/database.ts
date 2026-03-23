@@ -49,6 +49,7 @@ export interface Project {
   permit_number: string | null
   utility_app_number: string | null
   permit_fee: number | null
+  reinspection_fee: number | null
   city_permit_date: string | null
   utility_permit_date: string | null
   ntp_date: string | null
@@ -63,6 +64,7 @@ export interface Project {
   site_surveyor: string | null
   consultant_email: string | null
   dealer: string | null
+  follow_up_date: string | null
   created_at: string
 }
 
@@ -81,6 +83,7 @@ export interface TaskState {
   status: string
   reason: string | null
   completed_date: string | null
+  notes: string | null
 }
 
 export interface StageHistory {
