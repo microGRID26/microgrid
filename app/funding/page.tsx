@@ -396,13 +396,22 @@ export default function FundingPage() {
   // Stats
   const stats = useMemo(() => {
     const allMs = rows.flatMap(r => [r.m2, r.m3])
+    const rts = allMs.filter(d => d.status === 'Ready To Start')
+    const sub = allMs.filter(d => d.status === 'Submitted')
+    const pnd = allMs.filter(d => d.status === 'Pending Resolution')
+    const rev = allMs.filter(d => d.status === 'Revision Required')
+    const fun = allMs.filter(d => d.status === 'Funded')
     return {
-      readyToStart: allMs.filter(d => d.status === 'Ready To Start').length,
-      submitted: allMs.filter(d => d.status === 'Submitted').length,
-      pendingResolution: allMs.filter(d => d.status === 'Pending Resolution').length,
-      revisionRequired: allMs.filter(d => d.status === 'Revision Required').length,
-      funded: allMs.filter(d => d.status === 'Funded').length,
-      fundedAmount: allMs.filter(d => d.status === 'Funded').reduce((s, d) => s + (Number(d.amount) || 0), 0),
+      readyToStart: rts.length,
+      readyAmount: rts.reduce((s, d) => s + (Number(d.amount) || 0), 0),
+      submitted: sub.length,
+      submittedAmount: sub.reduce((s, d) => s + (Number(d.amount) || 0), 0),
+      pendingResolution: pnd.length,
+      revisionRequired: rev.length,
+      needsAttention: pnd.length + rev.length,
+      funded: fun.length,
+      fundedAmount: fun.reduce((s, d) => s + (Number(d.amount) || 0), 0),
+      outstanding: rts.reduce((s, d) => s + (Number(d.amount) || 0), 0) + sub.reduce((s, d) => s + (Number(d.amount) || 0), 0),
     }
   }, [rows])
 
@@ -418,12 +427,29 @@ export default function FundingPage() {
 
       {/* Stats bar */}
       <div className="bg-gray-900 border-b border-gray-800 flex items-center gap-6 px-6 py-3 flex-shrink-0 flex-wrap">
-        {stats.readyToStart > 0 && <div><div className="text-xs text-gray-500">Ready to Submit</div><div className="text-xl font-bold text-amber-400 font-mono">{stats.readyToStart}</div></div>}
-        {stats.submitted > 0 && <div><div className="text-xs text-gray-500">Submitted</div><div className="text-xl font-bold text-blue-400 font-mono">{stats.submitted}</div></div>}
-        {stats.pendingResolution > 0 && <div><div className="text-xs text-gray-500">Pending</div><div className="text-xl font-bold text-red-400 font-mono">{stats.pendingResolution}</div></div>}
-        {stats.revisionRequired > 0 && <div><div className="text-xs text-gray-500">Revision Req</div><div className="text-xl font-bold text-amber-400 font-mono">{stats.revisionRequired}</div></div>}
-        <div><div className="text-xs text-gray-500">Funded</div><div className="text-xl font-bold text-green-400 font-mono">{stats.funded}</div></div>
-        <div><div className="text-xs text-gray-500">Total Funded</div><div className="text-xl font-bold text-white font-mono">{fmt$(stats.fundedAmount)}</div></div>
+        <div>
+          <div className="text-xs text-gray-500">Ready to Submit</div>
+          <div className="text-xl font-bold text-amber-400 font-mono">{stats.readyToStart}</div>
+          {stats.readyAmount > 0 && <div className="text-[10px] text-gray-500 font-mono">{fmt$(stats.readyAmount)}</div>}
+        </div>
+        <div>
+          <div className="text-xs text-gray-500">Submitted</div>
+          <div className="text-xl font-bold text-blue-400 font-mono">{stats.submitted}</div>
+          {stats.submittedAmount > 0 && <div className="text-[10px] text-gray-500 font-mono">{fmt$(stats.submittedAmount)}</div>}
+        </div>
+        {stats.needsAttention > 0 && <div>
+          <div className="text-xs text-gray-500">Needs Attention</div>
+          <div className="text-xl font-bold text-red-400 font-mono">{stats.needsAttention}</div>
+        </div>}
+        <div className="border-l border-gray-700 pl-6">
+          <div className="text-xs text-gray-500">Funded</div>
+          <div className="text-xl font-bold text-green-400 font-mono">{stats.funded}</div>
+          <div className="text-[10px] text-gray-500 font-mono">{fmt$(stats.fundedAmount)}</div>
+        </div>
+        {stats.outstanding > 0 && <div>
+          <div className="text-xs text-gray-500">Outstanding</div>
+          <div className="text-xl font-bold text-white font-mono">{fmt$(stats.outstanding)}</div>
+        </div>}
         <span className="ml-auto text-xs text-gray-500">{rows.length} projects</span>
       </div>
 
