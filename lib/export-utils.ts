@@ -48,10 +48,6 @@ export const ALL_EXPORT_FIELDS: ExportField[] = [
   { key: 'battery',                label: 'Battery',           getValue: p => p.battery },
   { key: 'battery_qty',            label: 'Battery Qty',       getValue: p => p.battery_qty },
   { key: 'hoa',                    label: 'HOA',               getValue: p => p.hoa },
-  { key: 'hoa_contact',            label: 'HOA Contact',       getValue: p => (p as any).hoa_contact },
-  { key: 'hoa_phone',              label: 'HOA Phone',         getValue: p => (p as any).hoa_phone },
-  { key: 'hoa_email',              label: 'HOA Email',         getValue: p => (p as any).hoa_email },
-  { key: 'hoa_notes',              label: 'HOA Notes',         getValue: p => (p as any).hoa_notes },
   { key: 'esid',                   label: 'ESID',              getValue: p => p.esid },
   { key: 'blocker',                label: 'Blocker',           getValue: p => p.blocker },
 ]

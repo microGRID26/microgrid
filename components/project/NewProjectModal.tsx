@@ -230,7 +230,8 @@ export function NewProjectModal({ onClose, onCreated, existingIds, pms }: Props)
 
     // ── Auto-create Google Drive folder structure ────────────────────────
     try {
-      const driveRes = await fetch('https://script.google.com/macros/s/AKfycbzQY8s4U51KatxMY-y0aXfpYIBDWL4IqhpiAMHm3dWvH94OlrdCN2UovgQz_zO1qknV/exec', {
+      const driveWebhookUrl = process.env.NEXT_PUBLIC_DRIVE_WEBHOOK_URL || 'https://script.google.com/macros/s/AKfycbzQY8s4U51KatxMY-y0aXfpYIBDWL4IqhpiAMHm3dWvH94OlrdCN2UovgQz_zO1qknV/exec'
+      const driveRes = await fetch(driveWebhookUrl, {
         method: 'POST',
         body: JSON.stringify({ project_id: id, customer_name: form.name.trim() }),
         redirect: 'follow',
@@ -364,13 +365,25 @@ export function NewProjectModal({ onClose, onCreated, existingIds, pms }: Props)
                 <select className={inputCls} value={form.dealer} onChange={e => set('dealer', e.target.value)}>
                   <option value="">Select Dealer...</option>
                   <option>MicroGRID</option>
+                  <option>TriSMART Solar</option>
+                  <option>Other</option>
                 </select>
               </div>
               <div>
                 <label className={labelCls}>Financier <span className={reqCls}>*</span></label>
                 <select className={inputCls} value={form.financier} onChange={e => set('financier', e.target.value)}>
                   <option value="">Select Financier...</option>
+                  <option>Cash</option>
                   <option>EDGE</option>
+                  <option>Mosaic</option>
+                  <option>Sungage</option>
+                  <option>GoodLeap</option>
+                  <option>Dividend</option>
+                  <option>Sunrun</option>
+                  <option>Tesla</option>
+                  <option>Sunnova</option>
+                  <option>Loanpal</option>
+                  <option>Other</option>
                 </select>
               </div>
               <div>
