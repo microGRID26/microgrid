@@ -69,7 +69,8 @@ export function isTaskRequired(task: { id: string; req: boolean }, ahj: string |
   if (task.req) return true
   const ahjs = AHJ_REQUIRED_TASKS[task.id]
   if (!ahjs || !ahj) return false
-  return ahjs.some(a => ahj.toLowerCase().includes(a.toLowerCase()))
+  const ahjLower = ahj.toLowerCase()
+  return ahjs.some(a => ahjLower === a.toLowerCase() || ahjLower.startsWith(a.toLowerCase() + ' '))
 }
 
 // ── TASK STATUSES ─────────────────────────────────────────────────────────────

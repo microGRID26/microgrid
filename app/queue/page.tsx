@@ -143,9 +143,6 @@ export default function QueuePage() {
   const blocked = useMemo(() => sorted.filter(p => p.blocker), [sorted])
   const complete = useMemo(() => sorted.filter(p => p.stage === 'complete'), [sorted])
 
-  // Project IDs in special buckets (to exclude from Active)
-  const specialIds = useMemo(() => new Set<string>(), [])
-
   // Follow-ups: projects with task-level or project-level follow_up_date today or overdue
   const followUps = useMemo(() => {
     const today = new Date().toISOString().split('T')[0]
