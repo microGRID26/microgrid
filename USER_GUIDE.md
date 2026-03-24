@@ -142,7 +142,9 @@ Every project row shows an SLA badge indicating how many days the project has be
 | Amber/Orange | At risk -- past risk threshold |
 | Red | Critical -- past critical SLA threshold |
 
-The SLA thresholds vary by stage:
+**Note: SLA indicators are currently paused.** All thresholds are temporarily set to 999 days, so all projects appear as "On Track" for SLA purposes. The original threshold values are preserved and will be re-enabled in a future update.
+
+The original SLA thresholds by stage (currently paused):
 
 | Stage | Target | Risk | Critical |
 |-------|--------|------|----------|
@@ -361,6 +363,7 @@ The Overview tab displays all project information organized into sections:
 
 - **Team** -- PM, advisor, consultant, consultant email, site surveyor
 - **Permitting** -- AHJ (with inline phone, website, turnaround time, and notes), utility company (with inline phone, website, and notes), permit number, utility application number, permit fee, city permit date, utility permit date
+- **Adders** -- Project adders/extras (e.g., EV charger, critter guard, ground mount) with name, quantity, and price. In edit mode, you can add new adders and delete existing ones.
 - **Milestones** -- Sale date, NTP, survey scheduled, survey complete, install scheduled, install complete, city inspection, utility inspection, PTO, in service
 - **Stage History** -- Timeline of stage transitions with dates
 - **Service Calls** -- Any associated service calls with status badges
@@ -377,6 +380,7 @@ The Tasks tab is the core workflow interface. See the [Task System](#task-system
 - Each note shows the author name, date/time, and content
 - **Add a note:** Type in the text area at the bottom and click Add Note
 - Notes are visible to all team members
+- **File links:** Filenames referenced in notes appear as blue clickable links. Clicking a filename searches for it in the project's Google Drive folder. Inline images are excluded from link detection.
 
 #### 4. Files Tab
 
@@ -800,7 +804,7 @@ Change orders can track before/after values for:
 
 **URL:** `/service`
 
-The Service page tracks post-installation service calls for projects that need field attention.
+The Service page tracks post-installation service calls for projects that need field attention. 922 service cases have been imported from NetSuite.
 
 ### Service Call Statuses
 

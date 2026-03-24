@@ -612,6 +612,27 @@ function ForPMs() {
         </div>
       </Card>
 
+      <SectionHeader title="Adders" />
+      <Card title="Project adders">
+        The Info tab includes an Adders section showing extras added to the project (e.g., EV charger, critter guard, ground mount).
+        Each adder shows the name, quantity, and price. In edit mode you can add new adders and delete existing ones.
+      </Card>
+
+      <SectionHeader title="Notes — File Links" />
+      <Card title="Clickable file references">
+        Filenames mentioned in project notes appear as blue clickable links. Click any filename to search for it
+        in the project&apos;s Google Drive folder. This makes it easy to find uploaded documents referenced in
+        conversation history. Inline images are excluded from link detection.
+      </Card>
+
+      <SectionHeader title="SLA Status" />
+      <Card title="SLA indicators currently paused">
+        SLA color indicators (green/amber/red badges showing days in stage) are temporarily paused. All thresholds
+        are set to 999 days, so all projects will show as &quot;On Track.&quot; The original threshold values are
+        preserved and will be re-enabled in a future update. The Command Center sections (Overdue, Blocked, etc.)
+        still function based on blocker status and task states.
+      </Card>
+
       <SectionHeader title="Editing a Project" />
       <Card title="Edit mode">
         Click the Edit button in any project panel header to enter edit mode. All fields in the Info tab
