@@ -5,6 +5,18 @@ import { STAGE_LABELS, STAGE_ORDER, SLA_THRESHOLDS, daysAgo } from '@/lib/utils'
 import { TASKS, TASK_STATUSES, STATUS_STYLE, PENDING_REASONS, REVISION_REASONS, ALL_TASKS_MAP, TASK_TO_STAGE, isTaskRequired } from '@/lib/tasks'
 import type { Project } from '@/types/database'
 import { MessageSquare } from 'lucide-react'
+import React from 'react'
+
+const FILE_REGEX = /(\S+\.(?:pdf|png|jpg|jpeg|gif|dwg|xlsx|xls|csv|doc|docx|zip|heic|mp4|mov))/gi
+function LinkedText({ text, folderUrl }: { text: string; folderUrl: string | null }) {
+  if (!folderUrl) return <>{text}</>
+  const parts = text.split(FILE_REGEX)
+  if (parts.length === 1) return <>{text}</>
+  return <>{parts.map((part, i) => FILE_REGEX.test(part)
+    ? <a key={i} href={folderUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline" title={`Open Drive: ${part}`}>{part}</a>
+    : <React.Fragment key={i}>{part}</React.Fragment>
+  )}</>
+}
 
 // ── isLocked helper ──────────────────────────────────────────────────────────
 function isLocked(task: { pre: string[] }, taskStates: Record<string, string>): boolean {
@@ -55,6 +67,7 @@ interface TasksTabProps {
   addTaskNote: (taskId: string, text: string) => void
   updateTaskFollowUp: (taskId: string, date: string | null) => void
   onScheduleTask?: (jobType: string) => void
+  folderUrl?: string | null
 }
 
 // Tasks that can be scheduled — maps task_id to schedule job_type
@@ -109,6 +122,7 @@ export function TasksTab({
   addTaskNote,
   updateTaskFollowUp,
   onScheduleTask,
+  folderUrl,
 }: TasksTabProps) {
   const [viewStage, setViewStage] = useState<string>(project.stage)
   const [expandedTask, setExpandedTask] = useState<string | null>(null)
@@ -430,7 +444,7 @@ export function TasksTab({
                                 <span className="text-[10px] text-green-500 font-medium">{n.pm ?? 'Unknown'}</span>
                                 <span className="text-[9px] text-gray-600">{fmtNoteTime(n.time)}</span>
                               </div>
-                              <div className="text-[11px] text-gray-400">{n.text}</div>
+                              <div className="text-[11px] text-gray-400"><LinkedText text={n.text} folderUrl={folderUrl ?? null} /></div>
                             </div>
                           ))}
                           {tNotes.length === 0 && (

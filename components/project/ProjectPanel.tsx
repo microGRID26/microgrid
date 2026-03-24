@@ -1213,13 +1213,14 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                 const { data } = await supabase.from('crews').select('id, name, warehouse').eq('active', 'TRUE').order('name')
                 setScheduleModal({ jobType, crews: data ?? [] })
               }}
+              folderUrl={folderUrl}
             />
           )}
 
 
           {/* NOTES */}
           {tab === 'notes' && (
-            <NotesTab notes={notes} newNote={newNote} setNewNote={setNewNote} addNote={addNote} saving={saving} />
+            <NotesTab notes={notes} newNote={newNote} setNewNote={setNewNote} addNote={addNote} saving={saving} folderUrl={folderUrl} />
           )}
 
           {/* INFO */}
