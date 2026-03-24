@@ -97,7 +97,7 @@ export function useNotifications() {
           id: `mention-${m.id}`,
           type: 'milestone' as const,
           title: `@Mentioned by ${m.mentioned_by}`,
-          message: m.message?.slice(0, 100) ?? '',
+          message: `${m.project_id}: ${m.message?.slice(0, 80) ?? ''}`,
           projectId: m.project_id,
           projectName: m.project_id,
           timestamp: m.created_at,
