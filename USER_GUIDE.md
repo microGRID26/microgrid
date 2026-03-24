@@ -849,33 +849,68 @@ Choose the time period for metrics using the dropdown:
 
 ### Tabs
 
+The Analytics page has 6 tabs:
+
 #### Leadership Tab
 
-High-level metrics for management:
+High-level executive metrics for the selected time period:
 
-- Total active projects and pipeline value
-- Projects completed in period
-- Revenue funded
-- Stage distribution with mini bar charts
-- Blocked and at-risk counts
+- Sales count and contract value
+- Install completions count and value
+- M2 and M3 funded counts and dollar amounts
+- Portfolio overview: active projects, forecast at 30/60/90 days
+- Monthly install trend: 6-month bar chart showing install count and value per month
+- Active projects by financier: bar chart with count and portfolio value
 
-#### Pipeline Tab
+#### Pipeline Health Tab
 
-Stage-by-stage breakdown:
+Stage-by-stage breakdown of the active portfolio:
 
-- Project count per stage
-- Contract value per stage
-- SLA compliance rates
-- Average days in each stage
+- Stage distribution: bar chart showing project count and contract value per stage
+- 90-day forecast: projects expected to complete within 30, 31-60, and 61-90 days
+- SLA health: count of projects in Critical, At Risk, and On Track status
+- Blocked/Aging: count of blocked projects and projects with 90+ or 120+ day cycle times
 
-#### PM Tab
+#### By PM Tab
 
-Per-PM performance metrics:
+Per-PM performance table:
 
-- Project count and value by PM
-- Completion rates
-- SLA compliance
-- Blocked project counts
+- Active project count per PM
+- Blocked project count (highlighted in red when > 0)
+- Portfolio value
+- Installs completed in the selected period
+- Sorted by active project count (highest first)
+
+#### Funding Tab
+
+Funding analytics across the portfolio:
+
+- Total outstanding amount (ready to submit + submitted)
+- M2 funded count with percentage and unfunded remainder
+- M3 funded count with percentage and unfunded remainder
+- Average days from install completion to M2 funding
+- Average days from PTO to M3 funding
+- Funded amount by financier: bar chart ranked by total amount
+- Nonfunded code frequency: top 15 most common NF codes with counts
+
+#### Cycle Times Tab
+
+Time-based performance metrics:
+
+- Average days in each pipeline stage (bar chart)
+- Median sale-to-install cycle time (completed projects only)
+- Median sale-to-PTO cycle time (completed projects only)
+- Cycle time histogram: active projects bucketed by age (0-60, 61-90, 91-120, 120+ days)
+- Top 10 longest active projects (by cycle days since sale)
+- Where projects get stuck: blocked count by stage
+
+#### Dealers Tab
+
+Dealer and sales team performance:
+
+- Projects by dealer: count, total portfolio value, and average system kW
+- Projects by consultant: count with bar chart
+- Projects by advisor: count with bar chart
 
 ### Metric Cards
 

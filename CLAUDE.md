@@ -47,7 +47,7 @@ The Supabase client is globally mocked in `vitest.setup.ts`. Tests focus on busi
 
 All pages are in `app/*/page.tsx` as client components (`"use client"`). Each page fetches its own data via the Supabase browser client on mount and subscribes to realtime changes. Root `/` redirects to `/command`.
 
-Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual stage grid), `/analytics`, `/audit` (task compliance), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns), `/change-orders` (HCO/change order queue with 6-step workflow), `/admin`, `/help`.
+Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual stage grid), `/analytics` (6 tabs: Leadership, Pipeline Health, By PM, Funding, Cycle Times, Dealers), `/audit` (task compliance), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns, powered by `funding_dashboard` Postgres view), `/change-orders` (HCO/change order queue with 6-step workflow), `/admin`, `/help`.
 
 ### API Layer
 
@@ -297,6 +297,38 @@ daysAgo(p.sale_date) ?? daysAgo(p.stage_date)
 // RIGHT — || falls through when daysAgo returns 0
 daysAgo(p.sale_date) || daysAgo(p.stage_date)
 ```
+
+### Scale Optimization (Migration 016)
+
+Added in `supabase/016-scale-optimization.sql`:
+
+- **Database indexes** — `task_state` (project_id, status, project+status composite, follow_up_date), `projects` (pm_id, stage+disposition, blocker, stage_date), `project_funding` (m2_status), trigram index on `projects.name` for ILIKE performance
+- **Helper functions** — `days_ago(date)`, `cycle_days(sale_date, stage_date)`, `sla_status(stage, stage_date)` (uses `sla_thresholds` table)
+- **`funding_dashboard` view** — joins `projects` and `project_funding` with disposition filter (excludes In Service, Loyalty, Cancelled). Used by the Funding page to eliminate client-side join.
+- **Page-level query optimization**:
+  - Pipeline uses server-side filtering (PM, financier, AHJ, search pushed to database)
+  - Queue loads only queue-relevant task_state rows (8 specific task IDs + non-null follow_up_date)
+  - Command loads only stuck/complete task_state rows (Pending Resolution, Revision Required, Complete)
+  - Audit loads only non-Complete task_state rows
+
+### SubHub Webhook
+
+API endpoint at `/api/webhooks/subhub` (route: `app/api/webhooks/subhub/route.ts`). Receives POST from SubHub when a contract is signed. Creates the project, initial task states, stage history, funding record, Google Drive folder, and adders in NOVA.
+
+- **Disabled by default** — requires `SUBHUB_WEBHOOK_ENABLED=true` in environment variables
+- **Authentication** — optional `SUBHUB_WEBHOOK_SECRET` verified via `Authorization` or `X-Webhook-Secret` header
+- **GET endpoint** — health check returning enabled/disabled status
+
+### Analytics Page Tabs
+
+The Analytics page (`/analytics`) has 6 sub-tabs:
+
+1. **Leadership** — period-selectable metrics: sales, installs, M2/M3 funded counts and values, portfolio overview, 90-day forecast, monthly install trend (6-month bar chart), active by financier
+2. **Pipeline Health** — stage distribution bar chart, 90-day forecast breakdown, SLA health (critical/at risk/on track counts), blocked/aging counts
+3. **By PM** — table of PM performance: active project count, blocked count, portfolio value, installs in period
+4. **Funding** — funding overview metrics (total outstanding, M2/M3 funded counts and percentages, avg days install-to-M2 and PTO-to-M3), funded amount by financier, nonfunded code frequency
+5. **Cycle Times** — avg days per stage, median sale-to-install and sale-to-PTO, cycle time buckets (0-60/61-90/91-120/120+ days), top 10 longest active projects, blocked count by stage
+6. **Dealers** — projects by dealer (count, value, avg kW), projects by consultant, projects by advisor
 
 ## Known Bugs
 

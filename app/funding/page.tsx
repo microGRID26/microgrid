@@ -300,19 +300,63 @@ export default function FundingPage() {
   const toggleBucket = (key: string) => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
 
   const loadData = useCallback(async () => {
-    const [projRes, fundRes, nfRes] = await Promise.all([
-      supabase.from('projects').select('id, name, city, address, financier, ahj, install_complete_date, pto_date, contract, sale_date, stage, disposition').not('disposition', 'in', '("In Service","Loyalty","Cancelled")').limit(2000),
-      supabase.from('project_funding').select('*').limit(2000),
+    // Single query to funding_dashboard view (joins projects + project_funding server-side, with disposition filter)
+    const [dashRes, nfRes] = await Promise.all([
+      (supabase as any).from('funding_dashboard').select('*').limit(2000),
       supabase.from('nonfunded_codes').select('*').order('master_code').order('code'),
     ])
-    if (projRes.error) console.error('projects load failed:', projRes.error)
-    if (fundRes.error) console.error('funding load failed:', fundRes.error)
+    if (dashRes.error) console.error('funding_dashboard load failed:', dashRes.error)
     if (nfRes.error) console.error('nonfunded_codes load failed:', nfRes.error)
-    if (projRes.data) setProjects(projRes.data as Project[])
-    if (fundRes.data) {
-      const map: Record<string, ProjectFunding> = {}
-      fundRes.data.forEach((f: any) => { map[f.project_id] = f })
-      setFunding(map)
+    if (dashRes.data) {
+      const projList: Project[] = []
+      const fundMap: Record<string, ProjectFunding> = {}
+      dashRes.data.forEach((row: any) => {
+        // Extract project fields
+        projList.push({
+          id: row.id,
+          name: row.name,
+          city: row.city,
+          address: row.address,
+          financier: row.financier,
+          ahj: row.ahj,
+          install_complete_date: row.install_complete_date,
+          pto_date: row.pto_date,
+          contract: row.contract,
+          sale_date: row.sale_date,
+          stage: row.stage,
+          disposition: row.disposition,
+        } as Project)
+        // Extract funding fields (may be null from LEFT JOIN)
+        if (row.m1_amount != null || row.m2_amount != null || row.m3_amount != null ||
+            row.m1_status != null || row.m2_status != null || row.m3_status != null ||
+            row.m1_funded_date != null || row.m2_funded_date != null || row.m3_funded_date != null) {
+          fundMap[row.id] = {
+            project_id: row.id,
+            m1_amount: row.m1_amount,
+            m1_funded_date: row.m1_funded_date,
+            m1_status: row.m1_status,
+            m1_notes: row.m1_notes,
+            m1_cb: row.m1_cb,
+            m1_cb_credit: row.m1_cb_credit,
+            m2_amount: row.m2_amount,
+            m2_funded_date: row.m2_funded_date,
+            m2_status: row.m2_status,
+            m2_notes: row.m2_notes,
+            m2_cb: row.m2_cb,
+            m2_cb_credit: row.m2_cb_credit,
+            m3_amount: row.m3_amount,
+            m3_funded_date: row.m3_funded_date,
+            m3_status: row.m3_status,
+            m3_notes: row.m3_notes,
+            m3_projected: row.m3_projected,
+            nonfunded_code_1: row.nonfunded_code_1,
+            nonfunded_code_2: row.nonfunded_code_2,
+            nonfunded_code_3: row.nonfunded_code_3,
+          } as ProjectFunding
+        }
+      })
+      setProjects(projList)
+      setFunding(fundMap)
     }
     if (nfRes.data) setNfCodes(nfRes.data as NonfundedCode[])
     setLoading(false)

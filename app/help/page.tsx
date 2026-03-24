@@ -833,13 +833,36 @@ function ForLeadership() {
         count for the selected period.
       </Card>
 
-      <SectionHeader title="Portfolio Overview" />
-      <Card title="Pipeline Health tab">
-        Shows stage distribution, average days per stage, and bottleneck identification across all active projects.
+      <SectionHeader title="Analytics Tabs" />
+      <Card title="Leadership tab">
+        High-level executive metrics. Shows sales, installs, M2/M3 funded counts and dollar values for
+        the selected time period. Includes portfolio overview (active projects, forecast at 30/60/90 days),
+        a 6-month install trend bar chart, and active projects by financier.
       </Card>
-      <Card title="SLA performance">
-        The Analytics page tracks what percentage of projects are within SLA target, at risk, and critical
-        across all stages.
+      <Card title="Pipeline Health tab">
+        Stage distribution bar chart showing project count and contract value per stage. Includes a 90-day
+        forecast breakdown, SLA health summary (critical / at risk / on track counts), and blocked/aging
+        project counts (90+ and 120+ day cycles).
+      </Card>
+      <Card title="By PM tab">
+        Table of each PM with their active project count, blocked count, portfolio value, and installs
+        completed in the selected period. Sorted by active project count. Use this to balance workloads
+        and identify PMs who need support.
+      </Card>
+      <Card title="Funding tab">
+        Funding analytics across the portfolio. Shows total outstanding amount, M2/M3 funded counts with
+        percentages, average days from install to M2 funding and PTO to M3 funding. Includes funded amount
+        by financier bar chart and nonfunded code frequency (top 15 codes).
+      </Card>
+      <Card title="Cycle Times tab">
+        Tracks how long projects spend in each stage (average days), median sale-to-install and
+        sale-to-PTO cycle times, and a histogram of active projects by age bucket (0-60, 61-90, 91-120,
+        120+ days). Lists the top 10 longest active projects and shows where projects get stuck (blocked
+        count by stage).
+      </Card>
+      <Card title="Dealers tab">
+        Dealer performance metrics. Shows projects by dealer with count, portfolio value, and average
+        system kW. Also breaks down projects by sales consultant and advisor with bar charts.
       </Card>
     </div>
   )
