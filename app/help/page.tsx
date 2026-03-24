@@ -625,6 +625,17 @@ function ForPMs() {
         conversation history. Inline images are excluded from link detection.
       </Card>
 
+      <SectionHeader title="@Mentions & Notifications" />
+      <Card title="Tagging team members with @mentions">
+        Type <span className="text-green-400 font-medium">@</span> in any note to tag a team member. An autocomplete dropdown appears with active users — select a name to insert the mention. Mentions render as <span className="bg-green-900/40 text-green-300 px-1 py-0.5 rounded">green highlighted names</span> in the note text.
+        <Ul items={[
+          'Tagged users receive a notification via the bell icon in the nav bar',
+          'Click the bell to see all your unread mentions with the project and note context',
+          'Notifications are marked as read when you view them',
+          'Use @mentions to loop in other PMs, leadership, or the design team on specific projects',
+        ]} />
+      </Card>
+
       <SectionHeader title="SLA Status" />
       <Card title="SLA indicators currently paused">
         SLA color indicators (green/amber/red badges showing days in stage) are temporarily paused. All thresholds
@@ -999,6 +1010,10 @@ function ForAdmins() {
         Search and edit all 203 utility company records. Fields: name, phone, website, notes.
         Clicking a website link opens it in a new tab without opening the edit modal.
       </Card>
+      <Card title="HOA Manager">
+        Search and manage all 421 HOA records. HOA data is referenced during the permitting stage to determine
+        approval requirements for projects with homeowner associations.
+      </Card>
       <Card title="Users">
         Full CRUD for team members. Fields: name, email, department, position, admin access, active status,
         avatar color. Use the Add User button to create new accounts. Admin checkbox grants access to this portal.
@@ -1058,6 +1073,8 @@ function ForAdmins() {
           'sla_thresholds — editable SLA values',
           'feedback — user-submitted feedback',
           'user_sessions — login/session tracking',
+          'mention_notifications — @mention notification records',
+          'hoas — 421 HOA records',
         ]} />
       </Card>
     </div>

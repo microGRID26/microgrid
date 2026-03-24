@@ -22,7 +22,8 @@ A comprehensive guide for Project Managers and team members at MicroGRID Energy 
 14. [Admin Portal](#admin-portal)
 15. [Redesign Tool](#redesign-tool)
 16. [Help Center](#help-center)
-17. [Tips and Best Practices](#tips-and-best-practices)
+17. [@Mentions and Notifications](#mentions-and-notifications)
+18. [Tips and Best Practices](#tips-and-best-practices)
 
 ---
 
@@ -1096,6 +1097,44 @@ A floating feedback button appears in the bottom-right corner of every page. Cli
 3. Click Submit
 
 Your name, email, and current page are automatically captured. The admin team reviews all feedback through the Admin portal.
+
+---
+
+## @Mentions and Notifications
+
+NOVA includes an @mention system for tagging team members in project notes. This makes it easy to loop in other PMs, leadership, or the design team on specific projects.
+
+### How to Mention Someone
+
+1. Open the Project Panel and go to the Notes tab (or a per-task notes area)
+2. Type `@` in the note input
+3. An autocomplete dropdown appears showing active team members
+4. Select a name from the dropdown to insert the mention
+5. Submit the note as usual
+
+### How Mentions Appear
+
+Mentioned names render as green highlighted text in the note, making them easy to spot at a glance.
+
+### Notifications
+
+When you are mentioned in a note:
+
+- A notification appears on the **bell icon** in the top navigation bar
+- The bell shows an unread count badge when you have new mentions
+- Click the bell to see all your notifications with the project name and note context
+- Notifications are marked as read when you view them
+
+### When to Use @Mentions
+
+- Loop in another PM when a project needs their input
+- Tag leadership to flag an issue or escalation
+- Notify the design team about a change order or revision
+- Alert the funding team when a milestone needs attention
+
+### Database
+
+Mention notifications are stored in the `mention_notifications` table. Migration: `supabase/015-mentions.sql`. Each notification records the note, the mentioned user, who made the mention, and the project.
 
 ---
 

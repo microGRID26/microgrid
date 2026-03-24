@@ -1,3 +1,5 @@
+Built and maintained by Atlas (AI assistant) for MicroGRID Energy / EDGE.
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -277,3 +279,19 @@ daysAgo(p.sale_date) || daysAgo(p.stage_date)
 - The `loyalty` field on `projects` is unused — all loyalty logic checks `disposition === 'Loyalty'` instead. The column should eventually be dropped or reconciled.
 - RLS policies are enforced but still evolving. `auth_is_admin()` and `auth_is_super_admin()` Postgres functions gate write access based on the `role` column. Some tables may still have permissive policies that need tightening.
 - The `active` field on `crews` is a string instead of a boolean, leading to defensive dual-case checking throughout the codebase.
+
+## @Mention System
+
+Notes support @mentions for tagging team members. Type `@` in any note input to trigger an autocomplete dropdown of active users. Mentions render as green highlighted names in note text. When a user is mentioned, a notification is created in the `mention_notifications` table and surfaces via the bell icon in the nav bar. Migration: `supabase/015-mentions.sql`.
+
+### mention_notifications Table
+
+- **mention_notifications** — notification records for @mentions. Fields: `id`, `note_id`, `mentioned_user_id`, `mentioner_user_id`, `project_id`, `read`, `created_at`. Migration: `supabase/015-mentions.sql`. RLS scoped so users can only read their own notifications.
+
+## HOA Manager
+
+The Admin portal includes an HOA Manager for managing 421 HOA records. HOA data is referenced during the permitting stage to determine HOA approval requirements for projects.
+
+## Permit Drop Off Notification
+
+An automation that notifies PMs when permit-related tasks have been idle. Helps ensure permits do not stall without follow-up after submission.
