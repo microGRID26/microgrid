@@ -85,11 +85,25 @@ export default function QueuePage() {
 
   const loadData = useCallback(async () => {
     const pm = userPm
-    const [projRes, taskRes] = await Promise.all([
-      pm
-        ? supabase.from('projects').select('id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, financier, disposition, follow_up_date').eq('pm_id', pm).limit(2000)
-        : supabase.from('projects').select('id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, financier, disposition, follow_up_date').limit(2000),
-      supabase.from('task_state').select('project_id, task_id, status, reason, follow_up_date').limit(50000),
+
+    // Server-side: push PM and disposition filters to database
+    let projQuery = supabase.from('projects')
+      .select('id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, financier, disposition, follow_up_date')
+      .limit(2000)
+    if (pm) projQuery = projQuery.eq('pm_id', pm)
+
+    // Only load task_state for queue-relevant tasks + follow-ups (not all 25K+ rows)
+    const QUEUE_TASKS = ['city_permit', 'util_permit', 'util_insp', 'welcome', 'ia', 'ub', 'sched_survey', 'ntp']
+    const [projRes, taskRes, followUpRes] = await Promise.all([
+      projQuery,
+      supabase.from('task_state')
+        .select('project_id, task_id, status, reason')
+        .in('task_id', QUEUE_TASKS)
+        .limit(50000),
+      supabase.from('task_state')
+        .select('project_id, task_id, follow_up_date')
+        .not('follow_up_date', 'is', null)
+        .limit(5000),
     ])
 
     if (projRes.error) console.error('projects load failed:', projRes.error)
@@ -101,7 +115,20 @@ export default function QueuePage() {
       ;(projRes.data as Project[]).forEach(p => { if (p.pm_id && p.pm) pmMap.set(p.pm_id, p.pm) })
       setAvailablePms([...pmMap.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)))
     }
-    if (taskRes.data) setTaskStates(taskRes.data as TaskStateRow[])
+
+    // Merge task data and follow-up data
+    const allTasks: TaskStateRow[] = [...(taskRes.data ?? []) as TaskStateRow[]]
+    if (followUpRes.data) {
+      for (const fu of followUpRes.data as any[]) {
+        const existing = allTasks.find(t => t.project_id === fu.project_id && t.task_id === fu.task_id)
+        if (existing) {
+          existing.follow_up_date = fu.follow_up_date
+        } else {
+          allTasks.push({ project_id: fu.project_id, task_id: fu.task_id, status: '', follow_up_date: fu.follow_up_date })
+        }
+      }
+    }
+    setTaskStates(allTasks)
     setLoading(false)
   }, [userPm])
 
