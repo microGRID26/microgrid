@@ -298,7 +298,7 @@ export default function FundingPage() {
 
   const loadData = useCallback(async () => {
     const [projRes, fundRes, nfRes] = await Promise.all([
-      supabase.from('projects').select('id, name, city, financier, ahj, install_complete_date, pto_date, contract, sale_date, stage, disposition').not('disposition', 'in', '("In Service","Loyalty","Cancelled")').limit(2000),
+      supabase.from('projects').select('id, name, city, address, financier, ahj, install_complete_date, pto_date, contract, sale_date, stage, disposition').not('disposition', 'in', '("In Service","Loyalty","Cancelled")').limit(2000),
       (supabase as any).from('project_funding').select('*').limit(2000),
       (supabase as any).from('nonfunded_codes').select('*').order('master_code').order('code'),
     ])
@@ -350,7 +350,7 @@ export default function FundingPage() {
       if (financierFilter !== 'all' && p.financier !== financierFilter) return
       if (search.trim()) {
         const q = search.toLowerCase()
-        if (!p.name?.toLowerCase().includes(q) && !p.id?.toLowerCase().includes(q) && !p.city?.toLowerCase().includes(q)) return
+        if (!p.name?.toLowerCase().includes(q) && !p.id?.toLowerCase().includes(q) && !p.city?.toLowerCase().includes(q) && !p.address?.toLowerCase().includes(q)) return
       }
       const f = funding[p.id] ?? null
       const m1 = getMsData(f, p, 'm1')

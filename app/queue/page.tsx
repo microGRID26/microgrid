@@ -79,7 +79,7 @@ export default function QueuePage() {
   const [loading, setLoading] = useState(true)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => ({
     followups: false, cityPermitReady: true, cityPermitSub: true, utilPermitSub: true,
-    utilInsp: true, utilInspSub: true, blocked: true, active: true, complete: true,
+    utilInsp: true, utilInspSub: true, blocked: true, active: true, loyalty: true, complete: true,
   }))
   const toggleBucket = (key: string) => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
 
@@ -87,8 +87,8 @@ export default function QueuePage() {
     const pm = userPm
     const [projRes, taskRes] = await Promise.all([
       pm
-        ? supabase.from('projects').select('id, name, city, pm, pm_id, stage, stage_date, sale_date, contract, blocker, financier, disposition, follow_up_date').eq('pm_id', pm).limit(2000)
-        : supabase.from('projects').select('id, name, city, pm, pm_id, stage, stage_date, sale_date, contract, blocker, financier, disposition, follow_up_date').limit(2000),
+        ? supabase.from('projects').select('id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, financier, disposition, follow_up_date').eq('pm_id', pm).limit(2000)
+        : supabase.from('projects').select('id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, financier, disposition, follow_up_date').limit(2000),
       supabase.from('task_state').select('project_id, task_id, status, reason, follow_up_date').limit(50000),
     ])
 
@@ -125,9 +125,10 @@ export default function QueuePage() {
     return map
   }, [taskStates])
 
-  // In Service and Cancelled projects excluded — PMs are done with them
-  // Loyalty projects remain per CLAUDE.md (PMs still actively manage them)
-  const live = useMemo(() => projects.filter(p => p.disposition !== 'In Service' && p.disposition !== 'Cancelled'), [projects])
+  // In Service, Cancelled, and Loyalty projects excluded from main sections
+  // Loyalty gets its own collapsible section below
+  const live = useMemo(() => projects.filter(p => p.disposition !== 'In Service' && p.disposition !== 'Cancelled' && p.disposition !== 'Loyalty'), [projects])
+  const loyaltyProjects = useMemo(() => projects.filter(p => p.disposition === 'Loyalty'), [projects])
 
   // Apply search filter
   const searched = useMemo(() => search.trim()
@@ -135,9 +136,21 @@ export default function QueuePage() {
         const q = search.toLowerCase()
         return p.name?.toLowerCase().includes(q) ||
           p.id?.toLowerCase().includes(q) ||
-          p.city?.toLowerCase().includes(q)
+          p.city?.toLowerCase().includes(q) ||
+          p.address?.toLowerCase().includes(q)
       })
     : live, [live, search])
+
+  // Apply search filter to loyalty projects too
+  const searchedLoyalty = useMemo(() => search.trim()
+    ? loyaltyProjects.filter(p => {
+        const q = search.toLowerCase()
+        return p.name?.toLowerCase().includes(q) ||
+          p.id?.toLowerCase().includes(q) ||
+          p.city?.toLowerCase().includes(q) ||
+          p.address?.toLowerCase().includes(q)
+      })
+    : loyaltyProjects, [loyaltyProjects, search])
 
   const sorted = useMemo(() => [...searched].sort((a, b) => priority(a) - priority(b)), [searched])
   const blocked = useMemo(() => sorted.filter(p => p.blocker), [sorted])
@@ -365,6 +378,16 @@ export default function QueuePage() {
               Active ({active.length})
             </button>
             {!collapsed.active && active.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} />)}
+          </div>
+        )}
+
+        {searchedLoyalty.length > 0 && (
+          <div className="mb-6">
+            <button onClick={() => toggleBucket('loyalty')} className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-2 w-full text-left hover:text-purple-300 transition-colors">
+              <span className="text-[10px]">{collapsed.loyalty ? '▸' : '▾'}</span>
+              💜 Loyalty ({searchedLoyalty.length})
+            </button>
+            {!collapsed.loyalty && searchedLoyalty.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} />)}
           </div>
         )}
 

@@ -97,7 +97,7 @@ function PmSelectRow({ value, pmId, draft, editing, onChange }: {
 
   useEffect(() => {
     if (!editing) return
-    ;(supabase as any).from('users').select('id, name').eq('active', true).order('name')
+    ;(supabase as any).from('users').select('id, name').eq('active', true).like('email', '%@gomicrogridenergy.com').order('name')
       .then(({ data }: any) => { if (data) setPms(data) })
   }, [editing])
 
@@ -452,9 +452,6 @@ export function InfoTab({ project, editMode, editDraft, setEditDraft, ahjInfo, u
     <div className="flex-1 overflow-y-auto p-6">
       <div className="grid grid-cols-2 gap-6 max-w-3xl">
         <div>
-          <Section title="Follow-up">
-            <EditRow label="Follow-up date" field="follow_up_date" value={project.follow_up_date} draft={editDraft} editing={editMode} onChange={setEditDraft} type="date" />
-          </Section>
           <Section title="Customer">
             <EditRow label="Name" field="name" value={project.name} draft={editDraft} editing={editMode} onChange={setEditDraft} />
             {editMode ? (

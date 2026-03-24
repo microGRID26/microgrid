@@ -40,7 +40,7 @@ export default function PipelinePage() {
   const [sort, setSort] = useState<'name' | 'sla' | 'contract' | 'cycle'>('sla')
 
   const loadData = useCallback(async () => {
-    const { data, error } = await supabase.from('projects').select('id, name, city, pm, pm_id, stage, stage_date, sale_date, contract, blocker, systemkw, financier, ahj, disposition').limit(2000)
+    const { data, error } = await supabase.from('projects').select('id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, systemkw, financier, ahj, disposition').limit(2000)
     if (error) console.error('projects load failed:', error)
     if (data) setProjects(data as Project[])
     setLoading(false)
@@ -65,7 +65,7 @@ export default function PipelinePage() {
     if (ahjFilter !== 'all' && p.ahj !== ahjFilter) return false
     if (search.trim()) {
       const q = search.toLowerCase()
-      if (!p.name?.toLowerCase().includes(q) && !p.id?.toLowerCase().includes(q) && !p.city?.toLowerCase().includes(q)) return false
+      if (!p.name?.toLowerCase().includes(q) && !p.id?.toLowerCase().includes(q) && !p.city?.toLowerCase().includes(q) && !p.address?.toLowerCase().includes(q)) return false
     }
     return true
   }), [projects, pmFilter, financierFilter, ahjFilter, search])
