@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Nav } from '@/components/Nav'
-import { daysAgo, fmt$, STAGE_LABELS, STAGE_ORDER, SLA_THRESHOLDS } from '@/lib/utils'
+import { daysAgo, fmt$, STAGE_LABELS, STAGE_ORDER, SLA_THRESHOLDS, escapeIlike } from '@/lib/utils'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { NewProjectModal } from '@/components/project/NewProjectModal'
 import type { Project } from '@/types/database'
@@ -40,11 +40,24 @@ export default function PipelinePage() {
   const [sort, setSort] = useState<'name' | 'sla' | 'contract' | 'cycle'>('sla')
 
   const loadData = useCallback(async () => {
-    const { data, error } = await supabase.from('projects').select('id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, systemkw, financier, ahj, disposition').limit(2000)
+    // Server-side filtering: push disposition, PM, financier, AHJ, search to database
+    let query = supabase.from('projects')
+      .select('id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, systemkw, financier, ahj, disposition')
+      .not('disposition', 'in', '("In Service","Loyalty","Cancelled")')
+
+    if (pmFilter !== 'all') query = query.eq('pm_id', pmFilter)
+    if (financierFilter !== 'all') query = query.eq('financier', financierFilter)
+    if (ahjFilter !== 'all') query = query.eq('ahj', ahjFilter)
+    if (search.trim()) {
+      const q = escapeIlike(search.trim())
+      query = query.or(`name.ilike.%${q}%,id.ilike.%${q}%,city.ilike.%${q}%,address.ilike.%${q}%`)
+    }
+
+    const { data, error } = await query.limit(2000)
     if (error) console.error('projects load failed:', error)
     if (data) setProjects(data as Project[])
     setLoading(false)
-  }, [])
+  }, [pmFilter, financierFilter, ahjFilter, search])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -72,18 +85,8 @@ export default function PipelinePage() {
   const financiers = useMemo(() => [...new Set(projects.map(p => p.financier).filter(Boolean))].sort() as string[], [projects])
   const ahjs = useMemo(() => [...new Set(projects.map(p => p.ahj).filter(Boolean))].sort() as string[], [projects])
 
-  // Apply filters — exclude In Service, Loyalty, and Cancelled from active pipeline view
-  const filtered = useMemo(() => projects.filter(p => {
-    if (p.disposition === 'In Service' || p.disposition === 'Loyalty' || p.disposition === 'Cancelled') return false
-    if (pmFilter !== 'all' && p.pm_id !== pmFilter) return false
-    if (financierFilter !== 'all' && p.financier !== financierFilter) return false
-    if (ahjFilter !== 'all' && p.ahj !== ahjFilter) return false
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      if (!p.name?.toLowerCase().includes(q) && !p.id?.toLowerCase().includes(q) && !p.city?.toLowerCase().includes(q) && !p.address?.toLowerCase().includes(q)) return false
-    }
-    return true
-  }), [projects, pmFilter, financierFilter, ahjFilter, search])
+  // Filtering now done server-side in loadData query
+  const filtered = projects
 
   // Sort within each column
   function sortedCards(cards: Project[]) {

@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     // Map SubHub fields to NOVA project
     const project: Record<string, any> = {
       id: projectId,
-      name: payload.name ?? `${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim() || 'Unknown',
+      name: payload.name ?? (`${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim() || 'Unknown'),
       email: payload.email ?? null,
       phone: payload.phone ?? null,
       address: payload.street ?? null,
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       utility: payload.utility_company ?? null,
       hoa: payload.hoa_name ?? null,
       advisor: payload.sales_representative_name ?? payload.sales_rep_first_name ?? null,
-      consultant: payload.sales_representative_name ?? `${payload.sales_rep_first_name ?? ''} ${payload.sales_rep_last_name ?? ''}`.trim() || null,
+      consultant: payload.sales_representative_name ?? (`${payload.sales_rep_first_name ?? ''} ${payload.sales_rep_last_name ?? ''}`.trim() || null),
       consultant_email: payload.sales_representative_email ?? payload.owner_email ?? null,
       disposition: 'Sale',
       down_payment: payload.downpayment ?? null,
