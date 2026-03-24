@@ -281,6 +281,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const { user: currentUser } = useCurrentUser()
   const [project, setProject] = useState<Project>(initialProject)
   const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files'>(initialTab ?? 'tasks')
+  useEffect(() => { if (initialTab) setTab(initialTab) }, [initialTab])
   const [taskStates, setTaskStates] = useState<Record<string, string>>({})
   const [taskReasons, setTaskReasons] = useState<Record<string, string>>({})
   const [taskNotes, setTaskNotes] = useState<Record<string, { id: string; text: string; time: string; pm: string | null }[]>>({})
