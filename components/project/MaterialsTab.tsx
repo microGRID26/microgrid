@@ -105,7 +105,7 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
 
   // ── Add material ─────────────────────────────────────────────────────────
   async function handleAdd() {
-    if (!addName.trim()) return
+    if (!addName.trim() || addQty <= 0) return
     setAddSaving(true)
     const result = await addProjectMaterial({
       project_id: project.id,
@@ -251,6 +251,7 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
       }
     } catch (err) {
       console.error('[handleCreatePO]', err)
+      showToastMsg('Failed to create purchase order')
     }
     setPOCreating(false)
   }
@@ -369,8 +370,9 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
             ))}
           </div>
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Vendor *</label>
+            <label htmlFor="mat-po-vendor" className="text-xs text-gray-400 block mb-1">Vendor *</label>
             <input
+              id="mat-po-vendor"
               value={poVendor}
               onChange={e => setPOVendor(e.target.value)}
               placeholder="e.g., CED Greentech"
@@ -406,8 +408,9 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label className="text-xs text-gray-400 block mb-1">Item Name *</label>
+              <label htmlFor="mat-add-name" className="text-xs text-gray-400 block mb-1">Item Name *</label>
               <input
+                id="mat-add-name"
                 value={addName}
                 onChange={e => setAddName(e.target.value)}
                 placeholder="e.g., MC4 Connectors"
@@ -415,8 +418,9 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
               />
             </div>
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Category</label>
+              <label htmlFor="mat-add-category" className="text-xs text-gray-400 block mb-1">Category</label>
               <select
+                id="mat-add-category"
                 value={addCategory}
                 onChange={e => setAddCategory(e.target.value)}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white"
@@ -428,18 +432,20 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
             </div>
             <div className="flex gap-2">
               <div className="flex-1">
-                <label className="text-xs text-gray-400 block mb-1">Qty</label>
+                <label htmlFor="mat-add-qty" className="text-xs text-gray-400 block mb-1">Qty</label>
                 <input
+                  id="mat-add-qty"
                   type="number"
                   min={1}
                   value={addQty}
-                  onChange={e => setAddQty(parseInt(e.target.value) || 1)}
+                  onChange={e => setAddQty(Math.max(1, parseInt(e.target.value) || 1))}
                   className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white"
                 />
               </div>
               <div className="flex-1">
-                <label className="text-xs text-gray-400 block mb-1">Unit</label>
+                <label htmlFor="mat-add-unit" className="text-xs text-gray-400 block mb-1">Unit</label>
                 <select
+                  id="mat-add-unit"
                   value={addUnit}
                   onChange={e => setAddUnit(e.target.value)}
                   className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white"
@@ -452,8 +458,9 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Source</label>
+              <label htmlFor="mat-add-source" className="text-xs text-gray-400 block mb-1">Source</label>
               <select
+                id="mat-add-source"
                 value={addSource}
                 onChange={e => setAddSource(e.target.value)}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white"
@@ -464,8 +471,9 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Vendor</label>
+              <label htmlFor="mat-add-vendor" className="text-xs text-gray-400 block mb-1">Vendor</label>
               <input
+                id="mat-add-vendor"
                 value={addVendor}
                 onChange={e => setAddVendor(e.target.value)}
                 placeholder="Optional"
@@ -576,24 +584,27 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
                 <div className="bg-gray-800 border border-gray-700 border-t-0 rounded-b-lg p-4 space-y-3 -mt-1">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-gray-400 block mb-1">Vendor</label>
+                      <label htmlFor="mat-edit-vendor" className="text-xs text-gray-400 block mb-1">Vendor</label>
                       <input
+                        id="mat-edit-vendor"
                         value={editDraft.vendor ?? ''}
                         onChange={e => setEditDraft(d => ({ ...d, vendor: e.target.value || null }))}
                         className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white"
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-400 block mb-1">PO Number</label>
+                      <label htmlFor="mat-edit-po" className="text-xs text-gray-400 block mb-1">PO Number</label>
                       <input
+                        id="mat-edit-po"
                         value={editDraft.po_number ?? ''}
                         onChange={e => setEditDraft(d => ({ ...d, po_number: e.target.value || null }))}
                         className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white"
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-400 block mb-1">Expected Date</label>
+                      <label htmlFor="mat-edit-expected" className="text-xs text-gray-400 block mb-1">Expected Date</label>
                       <input
+                        id="mat-edit-expected"
                         type="date"
                         value={editDraft.expected_date ?? ''}
                         onChange={e => setEditDraft(d => ({ ...d, expected_date: e.target.value || null }))}
@@ -601,8 +612,9 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-400 block mb-1">Delivered Date</label>
+                      <label htmlFor="mat-edit-delivered" className="text-xs text-gray-400 block mb-1">Delivered Date</label>
                       <input
+                        id="mat-edit-delivered"
                         type="date"
                         value={editDraft.delivered_date ?? ''}
                         onChange={e => setEditDraft(d => ({ ...d, delivered_date: e.target.value || null }))}
@@ -610,8 +622,9 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="text-xs text-gray-400 block mb-1">Notes</label>
+                      <label htmlFor="mat-edit-notes" className="text-xs text-gray-400 block mb-1">Notes</label>
                       <textarea
+                        id="mat-edit-notes"
                         value={editDraft.notes ?? ''}
                         onChange={e => setEditDraft(d => ({ ...d, notes: e.target.value || null }))}
                         rows={2}

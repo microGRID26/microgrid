@@ -1035,6 +1035,23 @@ function ForEveryone() {
         ]} />
       </Card>
 
+      <SectionHeader title="Inventory Management" />
+      <Card title="Inventory Management">
+        Track project materials from &quot;needed&quot; through &quot;installed&quot; and manage purchase orders.
+        The Materials tab in each project panel shows the per-project material list.
+        The dedicated Inventory page (/inventory) provides a cross-project view.
+        <Ul items={[
+          'Materials tab in Project Panel — view, add, and track materials per project',
+          'Auto-generate materials from project equipment (module, inverter, battery, optimizer)',
+          'Click status badges to cycle: needed → ordered → shipped → delivered → installed',
+          'Select materials and create purchase orders with auto-generated PO numbers',
+          'PO lifecycle: draft → submitted → confirmed → shipped → delivered (or cancelled)',
+          'Delivering a PO auto-updates all linked materials to "delivered" status',
+          '/inventory page — 3 tabs: Project Materials (cross-project view), Purchase Orders, Warehouse (coming Phase 3)',
+          'Filters, search, sortable columns, and pagination on all inventory views',
+        ]} />
+      </Card>
+
       <SectionHeader title="Document Management" />
       <Card title="Document Management">
         View project files synced from Google Drive. The document checklist tracks required documents per pipeline
@@ -1075,6 +1092,7 @@ function ForEveryone() {
           'Analytics — charts, leadership dashboard, PM stats',
           'Schedule — weekly crew job grid with Job Brief panel',
           'Service — service call tickets',
+          'Inventory — project materials and purchase order tracking',
           'Funding — M1/M2/M3 milestone tracker',
           'Change Orders — HCO/change order queue with workflow tracking',
           'Documents — file browser hub and missing docs report',

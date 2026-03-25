@@ -40,7 +40,7 @@ const PAGE_SIZE = 50
 
 export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState<'materials' | 'warehouse' | 'purchase-orders'>('materials')
-  const [materials, setMaterials] = useState<(ProjectMaterial & { project_name?: string })[]>([])
+  const [materials, setMaterials] = useState<(ProjectMaterial & { project_name: string | null })[]>([])
   const [warehouseStock, setWarehouseStock] = useState<WarehouseStock[]>([])
   const [projects, setProjects] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -122,8 +122,10 @@ export default function InventoryPage() {
     if (ok) {
       setPurchaseOrders(prev => prev.map(p => p.id === poId ? { ...p, status: newStatus, updated_at: new Date().toISOString() } : p))
       setToast(`PO updated to ${newStatus}`)
-      setTimeout(() => setToast(null), 3000)
+    } else {
+      setToast('Failed to update PO status')
     }
+    setTimeout(() => setToast(null), 3000)
   }
 
   // Save PO field edits
@@ -169,8 +171,8 @@ export default function InventoryPage() {
     // Sort
     list = [...list].sort((a, b) => {
       const dir = sort.dir === 'asc' ? 1 : -1
-      const av = (a as any)[sort.field] ?? ''
-      const bv = (b as any)[sort.field] ?? ''
+      const av = (a as unknown as Record<string, unknown>)[sort.field] ?? ''
+      const bv = (b as unknown as Record<string, unknown>)[sort.field] ?? ''
       if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir
       return String(av).localeCompare(String(bv)) * dir
     })
@@ -348,24 +350,24 @@ export default function InventoryPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gray-700 text-gray-400 text-xs">
-                          <th className="text-left px-3 py-2 cursor-pointer hover:text-white" onClick={() => toggleSort('project_id')}>
+                          <th className="text-left px-3 py-2 cursor-pointer hover:text-white" role="button" tabIndex={0} onClick={() => toggleSort('project_id')} onKeyDown={e => e.key === 'Enter' && toggleSort('project_id')}>
                             Project{sortIcon('project_id')}
                           </th>
-                          <th className="text-left px-3 py-2 cursor-pointer hover:text-white" onClick={() => toggleSort('name')}>
+                          <th className="text-left px-3 py-2 cursor-pointer hover:text-white" role="button" tabIndex={0} onClick={() => toggleSort('name')} onKeyDown={e => e.key === 'Enter' && toggleSort('name')}>
                             Item{sortIcon('name')}
                           </th>
-                          <th className="text-left px-3 py-2 cursor-pointer hover:text-white" onClick={() => toggleSort('category')}>
+                          <th className="text-left px-3 py-2 cursor-pointer hover:text-white" role="button" tabIndex={0} onClick={() => toggleSort('category')} onKeyDown={e => e.key === 'Enter' && toggleSort('category')}>
                             Category{sortIcon('category')}
                           </th>
-                          <th className="text-center px-3 py-2 cursor-pointer hover:text-white" onClick={() => toggleSort('quantity')}>
+                          <th className="text-center px-3 py-2 cursor-pointer hover:text-white" role="button" tabIndex={0} onClick={() => toggleSort('quantity')} onKeyDown={e => e.key === 'Enter' && toggleSort('quantity')}>
                             Qty{sortIcon('quantity')}
                           </th>
                           <th className="text-left px-3 py-2">Source</th>
                           <th className="text-left px-3 py-2">Vendor</th>
-                          <th className="text-left px-3 py-2 cursor-pointer hover:text-white" onClick={() => toggleSort('status')}>
+                          <th className="text-left px-3 py-2 cursor-pointer hover:text-white" role="button" tabIndex={0} onClick={() => toggleSort('status')} onKeyDown={e => e.key === 'Enter' && toggleSort('status')}>
                             Status{sortIcon('status')}
                           </th>
-                          <th className="text-left px-3 py-2 cursor-pointer hover:text-white" onClick={() => toggleSort('expected_date')}>
+                          <th className="text-left px-3 py-2 cursor-pointer hover:text-white" role="button" tabIndex={0} onClick={() => toggleSort('expected_date')} onKeyDown={e => e.key === 'Enter' && toggleSort('expected_date')}>
                             Expected{sortIcon('expected_date')}
                           </th>
                         </tr>
@@ -515,7 +517,7 @@ export default function InventoryPage() {
                   {pagedPOs.map(po => {
                     const isExpanded = expandedPO === po.id
                     const items = poLineItems[po.id] ?? []
-                    const statusIdx = PO_STATUSES.indexOf(po.status as any)
+                    const statusIdx = (PO_STATUSES as readonly string[]).indexOf(po.status)
                     const nextStatus = statusIdx >= 0 && statusIdx < PO_STATUSES.length - 2
                       ? PO_STATUSES[statusIdx + 1]
                       : null
@@ -553,7 +555,7 @@ export default function InventoryPage() {
                             {/* Status timeline */}
                             <div className="flex items-center gap-1">
                               {PO_STATUSES.filter(s => s !== 'cancelled').map((s, i) => {
-                                const currentIdx = PO_STATUSES.indexOf(po.status as any)
+                                const currentIdx = (PO_STATUSES as readonly string[]).indexOf(po.status)
                                 const thisIdx = PO_STATUSES.indexOf(s)
                                 const isActive = thisIdx <= currentIdx && po.status !== 'cancelled'
                                 const isCurrent = s === po.status

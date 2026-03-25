@@ -24,17 +24,18 @@ A comprehensive guide for Project Managers and team members at MicroGRID Energy 
 16. [Admin Portal](#admin-portal)
 17. [Document Management](#document-management)
 18. [Equipment Catalog](#equipment-catalog)
-19. [Redesign Tool](#redesign-tool)
-20. [Batch Design](#batch-design)
-21. [Crew Mobile View](#crew-mobile-view)
-22. [Crew Performance Dashboard](#crew-performance-dashboard)
-23. [Planset (Duracell SLD)](#planset-duracell-sld)
-24. [Atlas (AI Reports)](#atlas-ai-reports)
-25. [Legacy Projects](#legacy-projects)
-26. [Help Center](#help-center)
-27. [@Mentions and Notifications](#mentions-and-notifications)
-28. [Pagination](#pagination)
-29. [Tips and Best Practices](#tips-and-best-practices)
+19. [Inventory Management](#inventory-management)
+20. [Redesign Tool](#redesign-tool)
+21. [Batch Design](#batch-design)
+22. [Crew Mobile View](#crew-mobile-view)
+23. [Crew Performance Dashboard](#crew-performance-dashboard)
+24. [Planset (Duracell SLD)](#planset-duracell-sld)
+25. [Atlas (AI Reports)](#atlas-ai-reports)
+26. [Legacy Projects](#legacy-projects)
+27. [Help Center](#help-center)
+28. [@Mentions and Notifications](#mentions-and-notifications)
+29. [Pagination](#pagination)
+30. [Tips and Best Practices](#tips-and-best-practices)
 
 ---
 
@@ -76,6 +77,7 @@ The navigation bar runs across the top of every page with a two-tier layout:
 - **Pipeline** -- Visual stage grid
 - **Schedule** -- Weekly crew calendar
 - **Funding** -- Milestone payment tracking
+- **Inventory** -- Project materials and purchase orders
 - **Analytics** -- Performance metrics and charts
 
 **More dropdown** (click "More" to expand):
@@ -365,7 +367,7 @@ The header shows:
 
 ### Tab Navigation
 
-Five tabs are available across the top of the panel:
+Six tabs are available across the top of the panel:
 
 #### 1. Overview (Info Tab)
 
@@ -414,6 +416,15 @@ The Tasks tab is the core workflow interface. See the [Task System](#task-system
 - Displays the bill of materials for the project
 - Shows equipment counts and specifications
 - Useful for inventory planning and verification
+
+#### 6. Materials Tab
+
+- Lists all materials required for the project with status tracking (needed, ordered, shipped, delivered, installed)
+- **Auto-generate** materials from the project's equipment fields (module, inverter, battery, optimizer)
+- **Add items** manually for BOS materials, electrical components, and other supplies
+- **Click status badges** to advance materials through the lifecycle
+- **Create purchase orders** by selecting materials and entering a vendor name
+- See [Inventory Management](#inventory-management) for full details
 
 ---
 
@@ -1282,6 +1293,124 @@ If a project uses equipment not in the catalog, an admin should add it through t
 3. Save the new item -- it immediately becomes available in autocomplete dropdowns across all projects
 
 The equipment table is stored in Supabase with the schema defined in migration `024-equipment.sql`. Import scripts (`scripts/import-equipment.ts`, `scripts/upload-equipment.ts`) were used to seed the initial 2,517 items from manufacturer data.
+
+---
+
+## Inventory Management
+
+**URL:** `/inventory`
+
+The Inventory system tracks project materials and purchase orders across the full lifecycle from "needed" through "installed." It consists of a Materials tab in each project panel and a dedicated Inventory page for cross-project visibility.
+
+### Materials Tab (Project Panel)
+
+The Materials tab appears in the Project Panel alongside Tasks, Notes, Info, BOM, and Files. It shows all materials required for a specific project.
+
+#### Auto-Generate Materials
+
+Click the **Auto-generate** button to create material entries from the project's equipment fields (module, inverter, battery, optimizer). The system:
+
+1. Reads the project's equipment model names and quantities
+2. Checks for existing materials to avoid duplicates (matched by category + name)
+3. Creates new material entries with status "needed" and default source (dropship for modules/inverters/batteries, TBD for optimizers)
+4. Links entries to the equipment catalog when a matching item exists
+
+#### Adding Materials Manually
+
+Click **Add Item** to open the add form. Fields include:
+
+- **Item Name** (required) -- e.g., "MC4 Connectors", "Conduit 1-inch"
+- **Category** -- module, inverter, battery, optimizer, racking, electrical, or other
+- **Quantity** and **Unit** (each, ft, box, roll)
+- **Source** -- dropship, warehouse, or TBD
+- **Vendor** (optional)
+
+New items are created with status "needed."
+
+#### Status Tracking
+
+Each material has a status that progresses through five stages:
+
+| Status | Badge Color | Meaning |
+|--------|-------------|---------|
+| needed | Gray | Material identified but not yet ordered |
+| ordered | Blue | Purchase order placed |
+| shipped | Amber | In transit from vendor |
+| delivered | Green | Received on site or at warehouse |
+| installed | Emerald | Physically installed on the project |
+
+**Click any status badge** to advance to the next status in the cycle. When a material reaches "delivered," today's date is automatically set as the delivered date.
+
+#### Expanded Detail View
+
+Click any material row to expand its detail panel. From here you can edit:
+
+- Vendor
+- PO Number
+- Expected Date
+- Delivered Date
+- Notes
+
+Click **Save** to persist changes, or **Remove** to delete the material.
+
+#### Creating Purchase Orders from Materials
+
+1. Use the checkboxes on the left side of each material row to select items
+2. A **Create PO** button appears showing the count of selected items
+3. Click it to open the PO creation form
+4. Enter the vendor name (required)
+5. Click **Create PO** -- a PO number is auto-generated (format: PO-YYYYMMDD-NNN)
+6. All selected materials are automatically updated with the PO number and set to "ordered" status
+
+### Inventory Page
+
+The `/inventory` page provides a cross-project view with three tabs:
+
+#### 1. Project Materials Tab
+
+A table showing all materials across all projects with:
+
+- **Summary cards** at the top showing counts per status (needed, ordered, shipped, delivered)
+- **Filters**: status dropdown, category dropdown, source dropdown
+- **Search**: by project name/ID, item name, or vendor
+- **Sortable columns**: click Project, Item, Category, Qty, Status, or Expected headers to sort
+- **Pagination**: 50 items per page
+
+Each row shows the project ID and name, material item, category badge, quantity, source, vendor, status badge, and expected date.
+
+#### 2. Purchase Orders Tab
+
+A list of all purchase orders with:
+
+- **Summary cards** showing counts per PO status (draft, submitted, confirmed, shipped, delivered)
+- **Filters**: status dropdown, search by PO number/vendor/project
+- **Expandable detail**: click any PO row to see:
+  - **Status timeline** showing progression through draft, submitted, confirmed, shipped, delivered
+  - Dates: created, submitted, tracking number, expected delivery
+  - **Line items table**: item name, quantity, unit price, total price, notes
+  - **Notes** field
+  - **Action buttons**: "Advance to [next status]" and "Cancel PO"
+
+**PO Status Lifecycle:**
+
+| Status | Badge Color | Meaning |
+|--------|-------------|---------|
+| draft | Gray | Created, not yet sent to vendor |
+| submitted | Blue | Sent to vendor |
+| confirmed | Indigo | Vendor acknowledged, order confirmed |
+| shipped | Amber | Items shipped, may include tracking number |
+| delivered | Green | All items received |
+| cancelled | Red | PO cancelled |
+
+When a PO is advanced to "delivered," all linked project materials are automatically updated to "delivered" status with today's date.
+
+#### 3. Warehouse Tab
+
+Placeholder for Phase 3 warehouse stock management. Will track BOS materials, reorder points, and bin locations for the warehouse team.
+
+### Navigation
+
+Inventory is accessible from the **primary navigation bar** (alongside Command, Queue, Pipeline, etc.).
 
 ---
 

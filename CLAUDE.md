@@ -47,7 +47,7 @@ The Supabase client is globally mocked in `vitest.setup.ts`. Tests focus on busi
 
 All pages are in `app/*/page.tsx` as client components (`"use client"`). Each page fetches its own data via the Supabase browser client on mount and subscribes to realtime changes. Root `/` redirects to `/command`.
 
-Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual stage grid), `/analytics` (6 tabs: Leadership, Pipeline Health, By PM, Funding, Cycle Times, Dealers), `/audit` (task compliance), `/audit-trail` (admin-only change log with sortable columns, filters, pagination at 50/page, and ProjectPanel integration), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns, powered by `funding_dashboard` Postgres view), `/change-orders` (HCO/change order queue with 6-step workflow), `/documents` (file browser hub + `/documents/missing` missing docs report), `/reports` (AI-powered natural language query interface), `/legacy` (read-only lookup of 14,705 In Service legacy TriSMART projects), `/batch` (SLD batch design — upload or manually enter multiple project redesigns, configure target equipment, process string calculations and panel-fit estimates in bulk, download results), `/crew` (mobile-optimized daily crew view — shows scheduled jobs for the current week grouped by date, with job type badges, status dots, customer/address/equipment details, Google Maps links, and call/email buttons; uses `useSupabaseQuery` for projects/crews and realtime subscriptions), `/dashboard` (PM performance dashboard — shows the logged-in PM's portfolio metrics: active/blocked/critical counts, portfolio value, upcoming schedule, SLA health, and task breakdown; uses `useSupabaseQuery` for projects/tasks/crews), `/planset` (Duracell SLD planset generator — hardcoded reference design for PROJ-29857 with full equipment specs, string configurations, and SVG-rendered single-line diagram sheets), `/redesign` (system redesign calculator — enter existing and target system specs, calculates string sizing, voltage/current compatibility, panel-fit estimates per roof face, and generates downloadable DXF single-line diagrams), `/admin`, `/help`.
+Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual stage grid), `/analytics` (6 tabs: Leadership, Pipeline Health, By PM, Funding, Cycle Times, Dealers), `/audit` (task compliance), `/audit-trail` (admin-only change log with sortable columns, filters, pagination at 50/page, and ProjectPanel integration), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns, powered by `funding_dashboard` Postgres view), `/inventory` (3-tab inventory hub: Project Materials, Purchase Orders, Warehouse — with filters, sorting, pagination, and PO status advancement), `/change-orders` (HCO/change order queue with 6-step workflow), `/documents` (file browser hub + `/documents/missing` missing docs report), `/reports` (AI-powered natural language query interface), `/legacy` (read-only lookup of 14,705 In Service legacy TriSMART projects), `/batch` (SLD batch design — upload or manually enter multiple project redesigns, configure target equipment, process string calculations and panel-fit estimates in bulk, download results), `/crew` (mobile-optimized daily crew view — shows scheduled jobs for the current week grouped by date, with job type badges, status dots, customer/address/equipment details, Google Maps links, and call/email buttons; uses `useSupabaseQuery` for projects/crews and realtime subscriptions), `/dashboard` (PM performance dashboard — shows the logged-in PM's portfolio metrics: active/blocked/critical counts, portfolio value, upcoming schedule, SLA health, and task breakdown; uses `useSupabaseQuery` for projects/tasks/crews), `/planset` (Duracell SLD planset generator — hardcoded reference design for PROJ-29857 with full equipment specs, string configurations, and SVG-rendered single-line diagram sheets), `/redesign` (system redesign calculator — enter existing and target system specs, calculates string sizing, voltage/current compatibility, panel-fit estimates per roof face, and generates downloadable DXF single-line diagrams), `/admin`, `/help`.
 
 ### API Layer
 
@@ -61,6 +61,7 @@ Centralized data access functions live in `lib/api/`:
 - `lib/api/crews.ts` — `loadCrewsByIds`, `loadActiveCrews`
 - `lib/api/documents.ts` — `loadProjectFiles`, `searchProjectFiles`, `searchAllProjectFiles`, `loadAllProjectFiles`, `loadDocumentRequirements`, `loadProjectDocuments`, `updateDocumentStatus`
 - `lib/api/equipment.ts` — `loadEquipment`, `searchEquipment`, `loadAllEquipment`, `EQUIPMENT_CATEGORIES`
+- `lib/api/inventory.ts` — `loadProjectMaterials`, `addProjectMaterial`, `updateProjectMaterial`, `deleteProjectMaterial`, `autoGenerateMaterials`, `loadWarehouseStock`, `loadAllProjectMaterials`, `generatePONumber`, `loadPurchaseOrders`, `loadPurchaseOrder`, `createPurchaseOrder`, `updatePurchaseOrderStatus`, `updatePurchaseOrder`, `loadPOLineItems`. Constants: `MATERIAL_STATUSES`, `MATERIAL_SOURCES`, `MATERIAL_CATEGORIES`, `PO_STATUSES`, `PO_STATUS_COLORS`
 - `lib/api/index.ts` — barrel export for all of the above
 
 Pages should import from `@/lib/api` instead of querying Supabase directly. The API layer handles error logging, type casting, and consistent return shapes.
@@ -84,7 +85,7 @@ Pages should import from `@/lib/api` instead of querying Supabase directly. The 
 - `lib/export-utils.ts` — CSV export with field picker (50+ fields, grouped)
 - `types/database.ts` — full TypeScript types for all Supabase tables
 - `components/Nav.tsx` — two-tier navigation bar. 6 primary links always visible (Command, Queue, Pipeline, Schedule, Funding, Analytics) + "More" dropdown for secondary pages (Service, Change Orders, Documents, Atlas, Redesign, Legacy). Audit Trail link in More dropdown for admins. Right-side slot for page controls.
-- `components/project/ProjectPanel.tsx` — large modal (overview/tasks/notes/files/BOM tabs) used across multiple pages
+- `components/project/ProjectPanel.tsx` — large modal (overview/tasks/notes/files/BOM/materials tabs) used across multiple pages
 - `components/project/FilesTab.tsx` — extracted Files tab component for ProjectPanel (Google Drive link or "no folder" state)
 - `components/BulkActionBar.tsx` — bulk operations toolbar (see [Bulk Operations](#bulk-operations) section below)
 - `components/Pagination.tsx` — reusable pagination control (see [Pagination](#pagination) section below)
@@ -185,6 +186,10 @@ Standalone page at `/audit-trail` (admin-only, guarded by `useCurrentUser().isAd
 - **user_sessions** — login/session tracking. Fields: `user_id`, `user_name`, `user_email`, `logged_in_at`, `last_active_at`, `page`. Updated via 60-second heartbeat from `SessionTracker` component. Duration computed client-side.
 - **audit_log** — change audit trail. Records all project field changes with `project_id`, `field`, `old_value`, `new_value`, `changed_by`, `changed_by_id`, `changed_at`. Also logs project deletions (`field = 'project_deleted'`) before cascade.
 - **equipment** — equipment catalog with 2,517 items. Fields: `id` (UUID PK), `category` (panel/inverter/battery/optimizer), `manufacturer`, `model`, `wattage` (NUMERIC), `description`, `active` (BOOLEAN). Used for autocomplete in project Info tab equipment fields. Admin CRUD via EquipmentManager.
+- **project_materials** — per-project material list. Fields: `id` (UUID PK), `project_id` (TEXT), `equipment_id` (UUID FK → equipment), `name`, `category` (module/inverter/battery/optimizer/racking/electrical/other), `quantity`, `unit` (each/ft/box/roll), `source` (dropship/warehouse/tbd), `vendor`, `status` (needed/ordered/shipped/delivered/installed), `po_number`, `expected_date`, `delivered_date`, `notes`, `created_at`, `updated_at`. RLS open to all authenticated users. Migration: `supabase/025-inventory.sql`.
+- **warehouse_stock** — BOS warehouse stock levels. Fields: `id` (UUID PK), `equipment_id` (UUID FK → equipment), `name`, `category`, `quantity_on_hand`, `reorder_point`, `unit`, `location` (shelf/bin), `last_counted_at`, `updated_at`. RLS: SELECT/INSERT/UPDATE for authenticated users. Migration: `supabase/025-inventory.sql`.
+- **purchase_orders** — purchase order tracking. Fields: `id` (UUID PK), `po_number` (TEXT UNIQUE, format `PO-YYYYMMDD-NNN`), `vendor`, `project_id` (optional TEXT), `status` (draft/submitted/confirmed/shipped/delivered/cancelled), `total_amount`, `notes`, `created_by`, `created_at`, `updated_at`, `submitted_at`, `confirmed_at`, `shipped_at`, `delivered_at`, `tracking_number`, `expected_delivery`. RLS: SELECT/INSERT/UPDATE for authenticated users. Migration: `supabase/026-purchase-orders.sql`.
+- **po_line_items** — line items for purchase orders. Fields: `id` (UUID PK), `po_id` (UUID FK → purchase_orders ON DELETE CASCADE), `material_id` (UUID FK → project_materials), `equipment_id` (UUID FK → equipment), `name`, `quantity`, `unit_price`, `total_price`, `notes`. RLS: SELECT/INSERT/UPDATE/DELETE for authenticated users. Migration: `supabase/026-purchase-orders.sql`.
 - **ahjs**, **utilities** — reference data for permit authorities and utility companies
 - **project_adders** — project adders/extras (e.g., EV charger, critter guard, ground mount). Fields: `id`, `project_id`, `name`, `price`, `quantity`, `created_at`. RLS open to all authenticated users. Migration: `supabase/013-adders.sql`. Contains 4,185 records imported from NetSuite.
 
@@ -233,6 +238,33 @@ The `equipment` table stores 2,517 equipment items (panels, inverters, batteries
 - **Migration 024** (`supabase/024-equipment.sql`) — `equipment` table with fields: `id` (UUID PK), `category` (panel/inverter/battery/optimizer), `manufacturer`, `model`, `wattage` (NUMERIC), `description`, `active` (BOOLEAN DEFAULT true), `created_at`
 - **Import scripts**: `scripts/import-equipment.ts` (parses equipment data), `scripts/upload-equipment.ts` (uploads to Supabase in batches)
 - 9 UI improvements applied: debounced autocomplete, dropdown positioning, click-outside dismiss, selected item display, clear button, keyboard navigation
+
+### Inventory Management
+
+Two-phase inventory system for tracking project materials and purchase orders.
+
+**Phase 1 — Project Materials & Warehouse Stock** (migration 025):
+- `project_materials` table tracks what each project needs: equipment items with category, quantity, source (dropship/warehouse/tbd), vendor, and status (needed → ordered → shipped → delivered → installed)
+- `warehouse_stock` table for BOS items with quantity-on-hand, reorder points, and bin locations (Phase 3 — UI placeholder only)
+- **MaterialsTab** (`components/project/MaterialsTab.tsx`) — new tab in ProjectPanel showing per-project material list with:
+  - **Auto-generate** from project equipment fields (module, inverter, battery, optimizer) with dedup
+  - **Add Item** form for manual material entry (name, category, qty, unit, source, vendor)
+  - **Status cycling** — click a status badge to advance: needed → ordered → shipped → delivered → installed
+  - **Expandable detail rows** — inline editing for vendor, PO number, expected/delivered dates, notes
+  - **Status summary bar** showing counts per status
+  - **PO creation** — select materials via checkboxes, enter vendor, creates a purchase order with line items linked to materials
+
+**Phase 2 — Purchase Orders** (migration 026):
+- `purchase_orders` table with lifecycle timestamps (submitted_at, confirmed_at, shipped_at, delivered_at) and tracking number
+- `po_line_items` table with FK links to both `project_materials` and `equipment`
+- PO numbers auto-generated as `PO-YYYYMMDD-NNN`
+- Creating a PO auto-sets linked materials to `ordered` status with the PO number
+- Delivering a PO auto-sets all linked materials to `delivered` with today's date
+
+**Inventory Page** (`/inventory`) — 3-tab hub on primary nav:
+1. **Project Materials** — cross-project view of all materials with filters (status, category, source), search (project, item, vendor), sortable columns, pagination (50/page), and summary cards (needed/ordered/shipped/delivered counts)
+2. **Purchase Orders** — PO list with filters (status, search), expandable detail with status timeline, line items table, status advancement buttons (draft → submitted → confirmed → shipped → delivered), cancel button, and confirmation dialogs. When a PO is delivered, all linked materials auto-update.
+3. **Warehouse** — placeholder for Phase 3 warehouse stock management
 
 ### File References in Notes
 
@@ -471,6 +503,8 @@ All in `supabase/`:
 - `022-legacy-projects.sql` — Legacy projects and legacy notes tables (retroactive — tables were created directly in production Supabase, migration file added for documentation). `legacy_projects` stores 14,705 In Service TriSMART projects; `legacy_notes` stores 150,633 BluChat messages for 8,299 legacy projects.
 - `023-document-management.sql` — Document management tables: `project_files` (Drive file inventory), `document_requirements` (admin-configurable required docs per stage), `project_documents` (per-project document status tracking)
 - `024-equipment.sql` — Equipment catalog table (2,517 items: panels, inverters, batteries, optimizers)
+- `025-inventory.sql` — Inventory Phase 1: `project_materials` table (per-project material lists with status tracking) and `warehouse_stock` table (BOS warehouse stock levels with reorder points). Indexes on project_id, status, equipment_id, category.
+- `026-purchase-orders.sql` — Inventory Phase 2: `purchase_orders` table (PO tracking with lifecycle timestamps) and `po_line_items` table (line items linked to materials and equipment). Indexes on status, vendor, project_id, po_id.
 - `seed-document-requirements.sql` — Seeds 23 document requirements across all 7 pipeline stages
 
 ### Legacy Projects

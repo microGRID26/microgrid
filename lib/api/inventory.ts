@@ -1,5 +1,6 @@
 // lib/api/inventory.ts — Project materials, warehouse stock, and purchase order data access
 import { db } from '@/lib/db'
+import { escapeIlike } from '@/lib/utils'
 import type { PurchaseOrder, POLineItem } from '@/types/database'
 
 export type { PurchaseOrder, POLineItem }
@@ -211,7 +212,7 @@ export async function loadAllProjectMaterials(filters?: {
   status?: string
   category?: string
   source?: string
-}): Promise<(ProjectMaterial & { project_name?: string })[]> {
+}): Promise<(ProjectMaterial & { project_name: string | null })[]> {
   const supabase = db()
   let q = supabase
     .from('project_materials')
@@ -235,13 +236,15 @@ export async function loadAllProjectMaterials(filters?: {
     if (filters?.source) q2 = q2.eq('source', filters.source)
     const { data: d2, error: e2 } = await q2
     if (e2) console.error('[loadAllProjectMaterials]', e2.message)
-    return (d2 ?? []) as ProjectMaterial[]
+    return (d2 ?? []).map((r: unknown) => ({ ...(r as ProjectMaterial), project_name: null as string | null }))
   }
-  return (data ?? []).map((row: any) => ({
-    ...row,
-    project_name: row.projects?.name ?? null,
-    projects: undefined,
-  })) as (ProjectMaterial & { project_name?: string })[]
+  return (data ?? []).map((row: Record<string, unknown>) => {
+    const { projects: projectJoin, ...rest } = row
+    return {
+      ...rest,
+      project_name: (projectJoin as { name?: string } | null)?.name ?? null,
+    }
+  }) as (ProjectMaterial & { project_name: string | null })[]
 }
 
 // ── Purchase Order constants ──────────────────────────────────────────────────
@@ -270,15 +273,15 @@ export async function generatePONumber(): Promise<string> {
   const { data } = await supabase
     .from('purchase_orders')
     .select('po_number')
-    .like('po_number', `${prefix}%`)
+    .like('po_number', `${escapeIlike(prefix)}%`)
     .order('po_number', { ascending: false })
     .limit(1)
 
   let seq = 1
   if (data && data.length > 0) {
-    const last = (data[0] as any).po_number as string
-    const lastSeq = parseInt(last.replace(prefix, ''), 10)
-    if (!isNaN(lastSeq)) seq = lastSeq + 1
+    const row = data[0] as { po_number: string }
+    const lastSeq = Number(row.po_number.replace(prefix, ''))
+    if (Number.isFinite(lastSeq) && lastSeq > 0) seq = lastSeq + 1
   }
 
   return `${prefix}${String(seq).padStart(3, '0')}`
@@ -352,17 +355,27 @@ export async function createPurchaseOrder(
   if (items.length > 0) {
     const rows = items.map(item => ({ ...item, po_id: createdPO.id }))
     const { error: itemsErr } = await supabase.from('po_line_items').insert(rows)
-    if (itemsErr) console.error('[createPurchaseOrder items]', itemsErr.message)
+    if (itemsErr) {
+      console.error('[createPurchaseOrder items]', itemsErr.message)
+      return null
+    }
   }
 
   // Update linked project_materials with the PO number
+  const materialErrors: string[] = []
   for (const item of items) {
     if (item.material_id) {
-      await supabase
+      const { error: matErr } = await supabase
         .from('project_materials')
         .update({ po_number: createdPO.po_number, status: 'ordered', updated_at: new Date().toISOString() })
         .eq('id', item.material_id)
+      if (matErr) {
+        materialErrors.push(`material ${item.material_id}: ${matErr.message}`)
+      }
     }
+  }
+  if (materialErrors.length > 0) {
+    console.error('[createPurchaseOrder] material update errors:', materialErrors.join('; '))
   }
 
   return createdPO
@@ -373,6 +386,11 @@ export async function createPurchaseOrder(
  * When status is 'delivered', auto-update linked project_materials.
  */
 export async function updatePurchaseOrderStatus(id: string, status: string): Promise<boolean> {
+  if (!(PO_STATUSES as readonly string[]).includes(status)) {
+    console.error('[updatePurchaseOrderStatus] invalid status:', status)
+    return false
+  }
+
   const supabase = db()
 
   // Build timestamp updates based on status
@@ -399,13 +417,21 @@ export async function updatePurchaseOrderStatus(id: string, status: string): Pro
       .select('material_id')
       .eq('po_id', id)
     const today = new Date().toISOString().split('T')[0]
+    const deliveryErrors: string[] = []
     for (const item of (lineItems ?? []) as { material_id: string | null }[]) {
       if (item.material_id) {
-        await supabase
+        const { error: matErr } = await supabase
           .from('project_materials')
           .update({ status: 'delivered', delivered_date: today, updated_at: now })
           .eq('id', item.material_id)
+        if (matErr) {
+          deliveryErrors.push(`material ${item.material_id}: ${matErr.message}`)
+        }
       }
+    }
+    if (deliveryErrors.length > 0) {
+      console.error('[updatePurchaseOrderStatus] delivery update errors:', deliveryErrors.join('; '))
+      return false
     }
   }
 
@@ -415,7 +441,7 @@ export async function updatePurchaseOrderStatus(id: string, status: string): Pro
 /**
  * Update purchase order fields (notes, tracking_number, expected_delivery, etc.).
  */
-export async function updatePurchaseOrder(id: string, updates: Partial<PurchaseOrder>): Promise<boolean> {
+export async function updatePurchaseOrder(id: string, updates: Omit<Partial<PurchaseOrder>, 'id' | 'created_at'>): Promise<boolean> {
   const supabase = db()
   const { error } = await supabase
     .from('purchase_orders')
