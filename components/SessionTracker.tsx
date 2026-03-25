@@ -15,40 +15,57 @@ export function SessionTracker() {
   const initialized = useRef(false)
 
   useEffect(() => {
-    if (loading || initialized.current) return
+    if (loading) return
+    if (initialized.current) return
 
-    // Use user from hook, or fall back to auth session directly
     const supabase = db()
 
     async function init() {
+      // Try user from hook first
       let userId = user?.id
       let userName = user?.name
       let userEmail = user?.email
 
       // If useCurrentUser didn't find a users table row, get info from auth directly
       if (!userId) {
-        const { data: authData } = await supabase.auth.getUser()
-        if (!authData.user) return // Not logged in
-        userId = authData.user.id
-        userEmail = authData.user.email ?? ''
-        userName = authData.user.user_metadata?.full_name ?? userEmail?.split('@')[0] ?? 'Unknown'
+        try {
+          const { data: authData } = await supabase.auth.getUser()
+          if (!authData?.user) return // Not logged in
+          userId = authData.user.id
+          userEmail = authData.user.email ?? ''
+          userName = authData.user.user_metadata?.full_name ?? userEmail?.split('@')[0] ?? 'Unknown'
+        } catch {
+          return // Auth not ready
+        }
       }
+
+      if (!userId) return // Still no user — bail
 
       const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
 
       // Check if we already have a session (sessionStorage for this tab, localStorage as fallback)
       const existingSessionId = sessionStorage.getItem(SESSION_KEY)
       if (existingSessionId) {
-        initialized.current = true
-        startHeartbeat(supabase, existingSessionId)
-        return
+        // Verify session still exists in DB before reusing
+        const { data: existing } = await supabase
+          .from('user_sessions')
+          .select('id')
+          .eq('id', existingSessionId)
+          .single()
+        if (existing) {
+          initialized.current = true
+          startHeartbeat(supabase, existingSessionId)
+          return
+        }
+        // Session was deleted or expired — clear stale references
+        sessionStorage.removeItem(SESSION_KEY)
+        localStorage.removeItem(SESSION_KEY)
       }
 
       // Check localStorage — prevent duplicate sessions from mobile Safari re-loading
       const lastSessionId = localStorage.getItem(SESSION_KEY)
       const lastSessionTs = localStorage.getItem(SESSION_TS_KEY)
       if (lastSessionId && lastSessionTs && Date.now() - Number(lastSessionTs) < SESSION_TTL) {
-        // Recent session exists — reuse it
         sessionStorage.setItem(SESSION_KEY, lastSessionId)
         initialized.current = true
         startHeartbeat(supabase, lastSessionId)
