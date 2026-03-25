@@ -47,7 +47,7 @@ The Supabase client is globally mocked in `vitest.setup.ts`. Tests focus on busi
 
 All pages are in `app/*/page.tsx` as client components (`"use client"`). Each page fetches its own data via the Supabase browser client on mount and subscribes to realtime changes. Root `/` redirects to `/command`.
 
-Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual stage grid), `/analytics` (6 tabs: Leadership, Pipeline Health, By PM, Funding, Cycle Times, Dealers), `/audit` (task compliance), `/audit-trail` (admin-only change log with sortable columns, filters, pagination at 50/page, and ProjectPanel integration), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns, powered by `funding_dashboard` Postgres view), `/change-orders` (HCO/change order queue with 6-step workflow), `/legacy` (read-only lookup of 14,705 In Service legacy TriSMART projects), `/admin`, `/help`.
+Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual stage grid), `/analytics` (6 tabs: Leadership, Pipeline Health, By PM, Funding, Cycle Times, Dealers), `/audit` (task compliance), `/audit-trail` (admin-only change log with sortable columns, filters, pagination at 50/page, and ProjectPanel integration), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns, powered by `funding_dashboard` Postgres view), `/change-orders` (HCO/change order queue with 6-step workflow), `/documents` (file browser hub + `/documents/missing` missing docs report), `/legacy` (read-only lookup of 14,705 In Service legacy TriSMART projects), `/admin`, `/help`.
 
 ### API Layer
 
@@ -81,7 +81,7 @@ Pages should import from `@/lib/api` instead of querying Supabase directly. The 
 - `lib/hooks/` — reusable hook infrastructure (see [Hook Infrastructure](#hook-infrastructure) section below)
 - `lib/export-utils.ts` — CSV export with field picker (50+ fields, grouped)
 - `types/database.ts` — full TypeScript types for all Supabase tables
-- `components/Nav.tsx` — shared navigation bar with right-side slot for page controls
+- `components/Nav.tsx` — two-tier navigation bar. 6 primary links always visible (Command, Queue, Pipeline, Schedule, Funding, Analytics) + "More" dropdown for secondary pages (Service, Change Orders, Documents, Redesign, Legacy). Audit Trail link in More dropdown for admins. Right-side slot for page controls.
 - `components/project/ProjectPanel.tsx` — large modal (overview/tasks/notes/files/BOM tabs) used across multiple pages
 - `components/project/FilesTab.tsx` — extracted Files tab component for ProjectPanel (Google Drive link or "no folder" state)
 - `components/BulkActionBar.tsx` — bulk operations toolbar (see [Bulk Operations](#bulk-operations) section below)
@@ -187,7 +187,7 @@ Standalone page at `/audit-trail` (admin-only, guarded by `useCurrentUser().isAd
 
 ### Data Inventory
 
-As of March 2026: 938 active projects, 14,705 legacy In Service projects (imported from TriSMART/NetSuite), 150,633 legacy BluChat notes (for 8,299 legacy projects), 53K+ notes (49,517 project-level + 3,660 task-level), 67K+ task history entries, 4,185 adders, 922 service cases, 12,054 funding records (937 active + ~11,117 legacy M2/M3), 4,500+ files in Google Drive across 937 project folders. NetSuite is potentially permanently unavailable.
+As of March 2026: 938 active projects, 14,705 legacy In Service projects (imported from TriSMART/NetSuite), ~330K total notes (53K original project/task notes + 127,207 NetSuite action comments imported as task-level notes with [NS] prefix + 150,633 legacy BluChat notes for 8,299 legacy projects), 67K+ task history entries, 4,185 adders, 922 service cases, 12,054 funding records (937 active + ~11,117 legacy M2/M3), 4,500+ files in Google Drive across 937 project folders. NetSuite is potentially permanently unavailable.
 
 ### SLA System
 
@@ -385,7 +385,7 @@ Added in `supabase/016-scale-optimization.sql`:
 - **Helper functions** — `days_ago(date)`, `cycle_days(sale_date, stage_date)`, `sla_status(stage, stage_date)` (uses `sla_thresholds` table)
 - **`funding_dashboard` view** — joins `projects` and `project_funding` with disposition filter (excludes In Service, Loyalty, Cancelled). Used by the Funding page to eliminate client-side join.
 - **Page-level query optimization**:
-  - Pipeline uses server-side filtering for dropdowns (PM, financier, AHJ) but client-side search with 350ms debounce (no server re-fetch on keystrokes)
+  - Pipeline uses server-side filtering for dropdowns (PM, financier, AHJ, utility — AHJ and Utility are multi-select) but client-side search with 350ms debounce (no server re-fetch on keystrokes)
   - Queue loads only queue-relevant task_state rows (8 specific task IDs + non-null follow_up_date)
   - Command loads only stuck/complete task_state rows (Pending Resolution, Revision Required, Complete)
   - Audit loads only non-Complete task_state rows
@@ -442,6 +442,8 @@ All in `supabase/`:
 - `021-user-preferences.sql` — Per-user UI preferences
 - `022-legacy-projects.sql` — Legacy projects table for 14,705 In Service TriSMART projects
 - `legacy_notes` table — created directly in production (no numbered migration file). 150,633 BluChat messages for 8,299 legacy projects.
+- `023-document-management.sql` — Document management tables: `project_files` (Drive file inventory), `document_requirements` (admin-configurable required docs per stage), `project_documents` (per-project document status tracking)
+- `seed-document-requirements.sql` — Seeds 23 document requirements across all 7 pipeline stages
 
 ### Legacy Projects
 
@@ -473,6 +475,17 @@ Playwright is installed for end-to-end testing. Three smoke test specs live in `
 - Basic navigation and page load verification
 - Run with `npx playwright test`
 
+### Import / Sync Scripts
+
+All in `scripts/`:
+- `import-legacy-projects.ts` — parses NetSuite JSON export into legacy project records
+- `upload-legacy-projects.ts` — uploads parsed legacy projects to Supabase in batches
+- `upload-legacy-notes.ts` — uploads 150K BluChat messages to `legacy_notes` table
+- `import-action-comments.ts` — parses NetSuite stage CSV exports into task-level note records
+- `upload-action-comments.ts` — uploads 127K action comments to `notes` table with `[NS]` prefix and `task_id`
+- `sync-drive-files.py` — Python script to scan Google Drive shared drive and export file metadata as JSON
+- `upload-drive-files.ts` — uploads Drive file metadata JSON to `project_files` table
+
 ### File Consolidation (Complete)
 
 All three planned consolidation targets from Session 15 have been completed in Session 16:
@@ -490,7 +503,7 @@ All three planned consolidation targets from Session 15 have been completed in S
 
 ### Code Quality
 
-**Current rating: 9.5/10** (up from 9/10 after Session 16). Session 17 improvements: comprehensive audit fixed 40 issues across 24 files, dead `loyalty` column dropped, permission matrix updated to reflect actual RLS, Cancel/Reactivate gated to Admin+, legacy projects page and import pipeline (14,705 projects + 150K notes), API layer expanded (6 new functions, 4 pages migrated), construction banner removed, security headers added. **391 tests passing with 0 failures, 12 skipped** (SLA tests remain skipped while thresholds are paused). **E2E tests:** Playwright installed with 3 smoke test specs in `e2e/`. Remaining debt: some untyped tables still accessed via `as any` casts (~43 remaining).
+**Current rating: 9.5/10** (up from 9/10 after Session 16). Session 17 improvements: comprehensive audit fixed 40 issues across 24 files, dead `loyalty` column dropped, permission matrix updated to reflect actual RLS, Cancel/Reactivate gated to Admin+, legacy projects page and import pipeline (14,705 projects + 150K notes), API layer expanded (6 new functions, 4 pages migrated), document management system (3 tables, file browser, missing docs report, admin CRUD), 127K NetSuite action comments imported, nav redesigned to two-tier, pipeline utility filter + multi-select AHJ/Utility, construction banner removed, security headers added. **447 tests passing with 0 failures, 12 skipped** (SLA tests remain skipped while thresholds are paused). **E2E tests:** Playwright installed with 3 smoke test specs in `e2e/`. Remaining debt: some untyped tables still accessed via `as any` casts (~43 remaining).
 
 ## Known Bugs
 
@@ -547,6 +560,40 @@ Follow-up dates exist only on tasks (`task_state.follow_up_date`) and at the pro
 ## Loyalty Queue Section
 
 On the Queue page, Loyalty projects are separated into their own collapsible section (purple-themed) and excluded from all other queue sections. This ensures Loyalty projects are visible but do not clutter the active workflow sections.
+
+## Document Management
+
+Three database tables power the document management system (migration `023-document-management.sql`):
+
+- **`project_files`** — file inventory synced from Google Drive. Fields: `project_id`, `folder_name`, `file_name`, `file_id` (Drive ID), `file_url`, `mime_type`, `file_size`, `synced_at`. Unique on `(project_id, file_id)`. Trigram index on `file_name` for search.
+- **`document_requirements`** — admin-configurable required documents per stage. Fields: `stage`, `task_id`, `document_type`, `folder_name`, `filename_pattern`, `required`, `description`, `sort_order`, `active`. 23 requirements seeded across all 7 stages (e.g., "Signed Contract" in Evaluation, "Permit Application" in Permitting). Admin-only write access.
+- **`project_documents`** — tracks present/missing/pending/verified status per project per requirement. Fields: `project_id`, `requirement_id`, `file_id`, `status` (present/missing/pending/verified), `verified_by`, `verified_at`, `notes`.
+
+**Pages:**
+- `/documents` — file browser hub. Search across all project files, paginated at 50/page, with file type icons and size formatting.
+- `/documents/missing` — missing documents report. Shows projects with incomplete required documents, filterable by stage.
+
+**Components:**
+- `components/project/FilesTab.tsx` — includes a `DocumentChecklist` showing required documents for the project's current stage with present/missing status indicators.
+- `components/admin/DocumentRequirementsManager.tsx` — admin CRUD for document requirements (add/edit/delete/reorder/toggle active).
+
+**API:** `lib/api/documents.ts` — `loadAllProjectFiles`, `searchAllProjectFiles`, `loadProjectFiles`, `loadDocumentRequirements`, `loadProjectDocuments`, `upsertProjectDocument`.
+
+**Scripts:**
+- `scripts/sync-drive-files.py` — Python script to scan Google Drive and export file metadata as JSON for upload.
+- `scripts/upload-drive-files.ts` — TypeScript script to upload Drive file metadata to `project_files` table.
+
+## NetSuite Action Comments
+
+127,207 NetSuite action comments were imported as task-level notes with an `[NS]` prefix. These are historical workflow comments from NetSuite actions (e.g., task status changes, permit submissions, inspection results) that provide context for project history.
+
+**Data source:** 7 stage-specific CSV files exported from NetSuite, each containing action comments with timestamps, authors, and task mappings.
+
+**Import pipeline:**
+- `scripts/import-action-comments.ts` — parses NetSuite CSV exports, maps actions to NOVA task IDs, formats as note records.
+- `scripts/upload-action-comments.ts` — uploads parsed comments to the `notes` table with `task_id` set and `[NS]` prefix on each message.
+
+**Display:** Action comments appear in per-task note panels in ProjectPanel's Tasks tab, interleaved with regular notes. The `[NS]` prefix distinguishes imported historical comments from user-created notes.
 
 ## Co-Author Convention
 

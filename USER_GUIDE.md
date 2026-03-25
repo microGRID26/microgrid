@@ -22,12 +22,13 @@ A comprehensive guide for Project Managers and team members at MicroGRID Energy 
 14. [Audit](#audit)
 15. [Audit Trail](#audit-trail)
 16. [Admin Portal](#admin-portal)
-17. [Redesign Tool](#redesign-tool)
-18. [Legacy Projects](#legacy-projects)
-19. [Help Center](#help-center)
-20. [@Mentions and Notifications](#mentions-and-notifications)
-21. [Pagination](#pagination)
-22. [Tips and Best Practices](#tips-and-best-practices)
+17. [Document Management](#document-management)
+18. [Redesign Tool](#redesign-tool)
+19. [Legacy Projects](#legacy-projects)
+20. [Help Center](#help-center)
+21. [@Mentions and Notifications](#mentions-and-notifications)
+22. [Pagination](#pagination)
+23. [Tips and Best Practices](#tips-and-best-practices)
 
 ---
 
@@ -61,20 +62,25 @@ Your account has a role assigned by an administrator:
 
 ## Navigation
 
-The navigation bar runs across the top of every page. It includes links to all major sections:
+The navigation bar runs across the top of every page with a two-tier layout:
 
+**Primary links** (always visible):
 - **Command** -- SLA dashboard (your home base)
 - **Queue** -- PM-filtered project list
 - **Pipeline** -- Visual stage grid
-- **Analytics** -- Performance metrics and charts
 - **Schedule** -- Weekly crew calendar
-- **Service** -- Service call tracking
 - **Funding** -- Milestone payment tracking
+- **Analytics** -- Performance metrics and charts
+
+**More dropdown** (click "More" to expand):
+- **Service** -- Service call tracking
 - **Change Orders** -- HCO/change order workflow
+- **Documents** -- Document hub and file browser
 - **Redesign** -- Equipment calculator and SLD generator
+- **Legacy** -- Historical TriSMART project lookup
+- **Audit Trail** -- Change log (Admin/Super Admin only)
 
-Additional links in the navigation:
-
+**Additional links** in the navigation:
 - **Admin** (gear icon) -- Visible to Admin and Super Admin roles only
 - **Help** (question mark icon) -- In-app help documentation
 - **Notification Bell** -- Alerts for items requiring attention
@@ -308,8 +314,9 @@ Use the filter bar at the top to narrow results:
 
 - **PM** -- Filter by project manager
 - **Financier** -- Filter by financing company
-- **AHJ** -- Filter by Authority Having Jurisdiction
-- **Search** -- Text search by name, ID, or city
+- **AHJ** -- Filter by Authority Having Jurisdiction (multi-select: pick one or more AHJs)
+- **Utility** -- Filter by utility company (multi-select: pick one or more utilities)
+- **Search** -- Text search by name, ID, city, or address
 
 ### Sorting
 
@@ -393,6 +400,7 @@ The Tasks tab is the core workflow interface. See the [Task System](#task-system
 - Click the link to open the project folder in Google Drive
 - The folder structure contains 16 subfolders (01 Proposal through 20 Cases)
 - Folders are automatically created when a new project is created
+- **Document Checklist** -- Shows required documents for the project's current stage with present/missing status indicators (see [Document Management](#document-management) for details)
 
 #### 5. BOM Tab (Bill of Materials)
 
@@ -1177,6 +1185,45 @@ View active and recent user sessions:
 - Computed session duration
 
 Sessions are tracked automatically with a 60-second heartbeat.
+
+---
+
+## Document Management
+
+**URL:** `/documents`
+
+The Document Management system tracks project files synced from Google Drive and monitors document completeness across the portfolio.
+
+### Documents Hub
+
+The main `/documents` page is a file browser that lets you search across all project files stored in Google Drive:
+
+- **Search** -- Type a filename, project ID, or folder name to find files across all projects
+- **File details** -- Each result shows the filename, project ID, folder, file type, size, and date
+- **Click to open** -- Click the file link to open it directly in Google Drive
+- **Pagination** -- Results are paginated at 50 files per page
+
+### Document Checklist (Files Tab)
+
+In the Project Panel's Files tab, a **Document Checklist** shows the required documents for the project's current pipeline stage:
+
+- Each document requirement shows a status indicator: present (green check), missing (red X), pending, or verified
+- Requirements are configured per stage by administrators (e.g., "Signed Contract" in Evaluation, "Permit Application" in Permitting)
+- 23 document requirements are defined across all 7 pipeline stages
+
+### Missing Documents Report
+
+**URL:** `/documents/missing`
+
+The Missing Documents report identifies projects that are lacking required documents for their current stage:
+
+- Filter by pipeline stage to focus on specific stages
+- Each row shows the project, its stage, and which required documents are missing
+- Useful for quality control and ensuring projects have all necessary paperwork before advancing
+
+### NetSuite Historical Comments
+
+Task notes may include historical comments imported from NetSuite, identified by an `[NS]` prefix. Over 127,000 action comments were imported from NetSuite workflow records, providing historical context for project activities such as permit submissions, inspection results, and status changes. These comments appear alongside regular notes in per-task note panels on the Tasks tab.
 
 ---
 
