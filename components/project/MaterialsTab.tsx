@@ -100,6 +100,8 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
     const ok = await updateProjectMaterial(material.id, updates)
     if (ok) {
       setMaterials(prev => prev.map(m => m.id === material.id ? { ...m, ...updates } : m))
+    } else {
+      showToastMsg('Failed to update status')
     }
   }
 
@@ -132,6 +134,8 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
       setAddSource('tbd')
       setAddVendor('')
       showToastMsg('Material added')
+    } else {
+      showToastMsg('Failed to add material')
     }
     setAddSaving(false)
   }
@@ -166,6 +170,8 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
       setMaterials(prev => prev.filter(m => m.id !== id))
       if (expandedId === id) setExpandedId(null)
       showToastMsg('Material removed')
+    } else {
+      showToastMsg('Failed to remove material')
     }
   }
 
@@ -176,6 +182,8 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
     if (ok) {
       setMaterials(prev => prev.map(m => m.id === id ? { ...m, ...editDraft } : m))
       showToastMsg('Updated')
+    } else {
+      showToastMsg('Failed to update')
     }
     setEditSaving(false)
   }
@@ -247,7 +255,14 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
         setSelectedForPO(new Set())
         setShowPOForm(false)
         setPOVendor('')
-        showToastMsg(`Created ${result.po_number} with ${lineItems.length} item${lineItems.length !== 1 ? 's' : ''}`)
+        const warning = (result as any)._materialWarning
+        if (warning) {
+          showToastMsg(`Created ${result.po_number} — warning: ${warning}`)
+        } else {
+          showToastMsg(`Created ${result.po_number} with ${lineItems.length} item${lineItems.length !== 1 ? 's' : ''}`)
+        }
+      } else {
+        showToastMsg('Failed to create purchase order')
       }
     } catch (err) {
       console.error('[handleCreatePO]', err)

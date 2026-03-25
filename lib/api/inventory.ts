@@ -376,6 +376,8 @@ export async function createPurchaseOrder(
   }
   if (materialErrors.length > 0) {
     console.error('[createPurchaseOrder] material update errors:', materialErrors.join('; '))
+    // PO created but some materials failed to link — attach warning
+    ;(createdPO as any)._materialWarning = `${materialErrors.length} material(s) failed to link to PO`
   }
 
   return createdPO
