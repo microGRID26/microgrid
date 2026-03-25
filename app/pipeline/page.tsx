@@ -541,7 +541,7 @@ export default function PipelinePage() {
           project={selected}
           onClose={() => { setSelected(null); setInitialTab(null) }}
           onProjectUpdated={refresh}
-          initialTab={initialTab as any}
+          initialTab={(initialTab as 'tasks' | 'notes' | 'info' | 'bom' | 'files') ?? undefined}
         />
       )}
       {showNewProject && (

@@ -76,6 +76,7 @@ export default function LegacyPage() {
   const [sortCol, setSortCol] = useState<SortCol>('name')
   const [sortAsc, setSortAsc] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [selected, setSelected] = useState<LegacyProject | null>(null)
 
   // Debounce search input
@@ -112,9 +113,11 @@ export default function LegacyPage() {
 
     if (error) {
       console.error('Legacy query error:', error)
+      setError('Failed to load legacy projects. Please try again.')
       setResults([])
       setTotalCount(0)
     } else {
+      setError('')
       setResults((data ?? []) as LegacyProject[])
       setTotalCount(count ?? 0)
     }
@@ -173,6 +176,13 @@ export default function LegacyPage() {
             </button>
           )}
         </div>
+
+        {/* Error message */}
+        {error && (
+          <div className="mt-3 bg-red-900/30 border border-red-800/50 rounded-lg px-4 py-2 text-xs text-red-400">
+            {error}
+          </div>
+        )}
 
         {/* Result count + pagination */}
         <div className="flex items-center justify-between mt-3">
@@ -237,7 +247,7 @@ export default function LegacyPage() {
               ) : results.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-gray-500">
-                    {debouncedSearch ? 'No projects match your search' : 'Enter a search term to find legacy projects'}
+                    {debouncedSearch ? 'No projects match your search' : 'No legacy projects found'}
                   </td>
                 </tr>
               ) : (

@@ -226,7 +226,7 @@ export default function DocumentsPage() {
         <ProjectPanel
           project={selectedProject}
           onClose={() => setSelectedProject(null)}
-          onProjectUpdated={() => {}}
+          onProjectUpdated={() => { fetchFiles() }}
           initialTab="files"
         />
       )}

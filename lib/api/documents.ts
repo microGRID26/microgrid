@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { escapeIlike } from '@/lib/utils'
 
 export interface ProjectFile {
   id: string
@@ -54,7 +55,7 @@ export async function searchProjectFiles(projectId: string, query: string): Prom
     .from('project_files')
     .select('*')
     .eq('project_id', projectId)
-    .ilike('file_name', `%${query}%`)
+    .ilike('file_name', `%${escapeIlike(query)}%`)
     .order('file_name')
     .limit(50)
   if (error) { console.error('searchProjectFiles error:', error); return [] }
@@ -71,7 +72,7 @@ export async function searchAllProjectFiles(
   const { data, error, count } = await db()
     .from('project_files')
     .select('*', { count: 'exact' })
-    .ilike('file_name', `%${query}%`)
+    .ilike('file_name', `%${escapeIlike(query)}%`)
     .order('project_id')
     .order('file_name')
     .range(from, to)

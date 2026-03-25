@@ -18,7 +18,7 @@ export function DocumentRequirementsManager({ isSuperAdmin }: { isSuperAdmin: bo
   const [showNew, setShowNew] = useState(false)
 
   const load = useCallback(async () => {
-    let q = (supabase as any).from('document_requirements').select('*').order('stage').order('sort_order')
+    let q = supabase.from('document_requirements').select('*').order('stage').order('sort_order')
     if (stageFilter) q = q.eq('stage', stageFilter)
     const { data } = await q
     let items = (data ?? []) as DocumentRequirement[]
@@ -42,8 +42,24 @@ export function DocumentRequirementsManager({ isSuperAdmin }: { isSuperAdmin: bo
 
   const save = async () => {
     if (!editing) return
+    if (!draft.stage?.trim()) {
+      setToast('Stage is required')
+      setTimeout(() => setToast(''), 2500)
+      return
+    }
+    if (!draft.document_type?.trim()) {
+      setToast('Document type is required')
+      setTimeout(() => setToast(''), 2500)
+      return
+    }
+    const sortOrder = Number(draft.sort_order)
+    if (isNaN(sortOrder)) {
+      setToast('Sort order must be a valid number')
+      setTimeout(() => setToast(''), 2500)
+      return
+    }
     setSaving(true)
-    const { error } = await (supabase as any).from('document_requirements').update({
+    const { error } = await supabase.from('document_requirements').update({
       stage: draft.stage,
       task_id: draft.task_id || null,
       document_type: draft.document_type,
@@ -68,9 +84,24 @@ export function DocumentRequirementsManager({ isSuperAdmin }: { isSuperAdmin: bo
   }
 
   const createNew = async () => {
-    if (!draft.document_type?.trim() || !draft.stage?.trim()) return
+    if (!draft.stage?.trim()) {
+      setToast('Stage is required')
+      setTimeout(() => setToast(''), 2500)
+      return
+    }
+    if (!draft.document_type?.trim()) {
+      setToast('Document type is required')
+      setTimeout(() => setToast(''), 2500)
+      return
+    }
+    const sortOrder = Number(draft.sort_order)
+    if (isNaN(sortOrder)) {
+      setToast('Sort order must be a valid number')
+      setTimeout(() => setToast(''), 2500)
+      return
+    }
     setSaving(true)
-    const { error } = await (supabase as any).from('document_requirements').insert({
+    const { error } = await supabase.from('document_requirements').insert({
       stage: draft.stage,
       task_id: draft.task_id || null,
       document_type: draft.document_type,
@@ -96,7 +127,7 @@ export function DocumentRequirementsManager({ isSuperAdmin }: { isSuperAdmin: bo
   }
 
   const toggleActive = async (r: DocumentRequirement) => {
-    await (supabase as any).from('document_requirements').update({ active: !r.active }).eq('id', r.id)
+    await supabase.from('document_requirements').update({ active: !r.active }).eq('id', r.id)
     load()
   }
 
@@ -284,7 +315,7 @@ export function DocumentRequirementsManager({ isSuperAdmin }: { isSuperAdmin: bo
               <button
                 onClick={async () => {
                   if (!confirm(`DELETE requirement "${editing.document_type}"?`)) return
-                  await (supabase as any).from('document_requirements').delete().eq('id', editing.id)
+                  await supabase.from('document_requirements').delete().eq('id', editing.id)
                   setEditing(null)
                   setToast('Requirement deleted')
                   setTimeout(() => setToast(''), 2500)

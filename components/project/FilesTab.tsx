@@ -113,10 +113,11 @@ export function FilesTab({ folderUrl, projectId, currentStage }: FilesTabProps) 
             </div>
             <button
               onClick={handleSync}
-              className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-md px-3 py-1.5 text-xs text-gray-300 transition-colors"
+              className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-md px-3 py-1.5 text-xs text-gray-500 transition-colors cursor-help"
+              title="Google Drive sync will be available in Phase 2"
             >
               <RefreshCw size={12} />
-              Sync from Drive
+              Sync (Coming Soon)
             </button>
           </div>
         )}

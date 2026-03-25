@@ -57,7 +57,7 @@ export function DocumentChecklist({ projectId, currentStage }: DocumentChecklist
     })
 
     return () => { cancelled = true }
-  }, [projectId])
+  }, [projectId, currentStage])
 
   // Filter requirements to current stage and all prior stages
   const relevantRequirements = useMemo(() => {
