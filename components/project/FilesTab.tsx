@@ -4,10 +4,12 @@ import { useState, useEffect, useMemo } from 'react'
 import { loadProjectFiles } from '@/lib/api/documents'
 import type { ProjectFile } from '@/lib/api/documents'
 import { FileText, Image, File, Search, RefreshCw, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
+import { DocumentChecklist } from './DocumentChecklist'
 
 interface FilesTabProps {
   folderUrl: string | null
   projectId: string
+  currentStage?: string
 }
 
 function formatFileSize(bytes: number | null): string {
@@ -33,7 +35,7 @@ function formatDate(dateStr: string | null): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export function FilesTab({ folderUrl, projectId }: FilesTabProps) {
+export function FilesTab({ folderUrl, projectId, currentStage }: FilesTabProps) {
   const [files, setFiles] = useState<ProjectFile[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -134,6 +136,13 @@ export function FilesTab({ folderUrl, projectId }: FilesTabProps) {
       {syncToast && (
         <div className="mx-1 mt-2 bg-gray-800 border border-green-700 rounded-md px-3 py-2 text-xs text-green-400 flex-shrink-0">
           Sync coming soon -- Google Drive sync will be available in Phase 2.
+        </div>
+      )}
+
+      {/* Document Checklist */}
+      {currentStage && (
+        <div className="mt-2 flex-shrink-0">
+          <DocumentChecklist projectId={projectId} currentStage={currentStage} />
         </div>
       )}
 

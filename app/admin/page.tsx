@@ -19,6 +19,7 @@ import { NotificationRulesManager } from '@/components/admin/NotificationRulesMa
 import { QueueConfigManager } from '@/components/admin/QueueConfigManager'
 import { AuditTrailManager } from '@/components/admin/AuditTrailManager'
 import { ReasonsManager } from '@/components/admin/ReasonsManager'
+import { DocumentRequirementsManager } from '@/components/admin/DocumentRequirementsManager'
 
 export default function AdminPage() {
   const { user: authUser, loading } = useCurrentUser()
@@ -131,6 +132,7 @@ export default function AdminPage() {
             {activeModule === 'queue_config' && <QueueConfigManager />}
             {activeModule === 'audit'    && <AuditTrailManager />}
             {activeModule === 'reasons'  && <ReasonsManager isSuperAdmin={isSuperAdmin} />}
+            {activeModule === 'doc_requirements' && <DocumentRequirementsManager isSuperAdmin={isSuperAdmin} />}
           </div>
         </main>
       </div>

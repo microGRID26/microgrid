@@ -1113,7 +1113,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
           {tab === 'bom' && <BomTab project={project} />}
 
           {/* FILES */}
-          {tab === 'files' && <FilesTab folderUrl={folderUrl} projectId={pid} />}
+          {tab === 'files' && <FilesTab folderUrl={folderUrl} projectId={pid} currentStage={project.stage} />}
         </div>
       </div>
 
