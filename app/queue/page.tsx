@@ -8,6 +8,8 @@ import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { NewProjectModal } from '@/components/project/NewProjectModal'
 import { usePreferences } from '@/lib/usePreferences'
 import { useSupabaseQuery, useServerFilter } from '@/lib/hooks'
+import { useCurrentUser } from '@/lib/useCurrentUser'
+import { BulkActionBar, useBulkSelect, SelectCheckbox } from '@/components/BulkActionBar'
 import type { Project } from '@/types/database'
 
 const CARD_FIELD_OPTIONS: { key: string; label: string }[] = [
@@ -198,6 +200,19 @@ export default function QueuePage() {
     refreshFollowUps()
   }, [refreshProjects, refreshTasks, refreshFollowUps])
 
+  const { user: currentUser } = useCurrentUser()
+
+  // ── Bulk selection ────────────────────────────────────────────────────
+  const {
+    selectMode, setSelectMode, selectedIds, selectedProjects,
+    toggleSelect, selectAll, deselectAll, exitSelectMode,
+  } = useBulkSelect(projects)
+
+  const handleBulkComplete = useCallback(() => {
+    exitSelectMode()
+    refreshAll()
+  }, [exitSelectMode, refreshAll])
+
   function selectPm(pm: string) {
     setUserPm(pm)
     localStorage.setItem('mg_pm', pm)
@@ -336,6 +351,19 @@ export default function QueuePage() {
             {availablePms.map(pm => <option key={pm.id} value={pm.id}>{pm.name}</option>)}
           </select>
           <span className="text-xs text-gray-500">{projects.length} projects</span>
+          <button
+            onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)}
+            className={`text-xs px-3 py-1.5 rounded-md transition-colors font-medium ${
+              selectMode
+                ? 'bg-green-700 text-white hover:bg-green-600'
+                : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+            }`}
+          >
+            {selectMode ? 'Exit Select' : 'Select'}
+          </button>
+          {selectMode && selectedIds.size > 0 && (
+            <span className="text-xs text-green-400 font-medium">{selectedIds.size} selected</span>
+          )}
           <button onClick={() => setShowCardConfig(true)} className="text-gray-400 hover:text-white transition-colors p-1" title="Card fields">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
@@ -367,23 +395,42 @@ export default function QueuePage() {
       </div>
 
       {/* Queue list */}
-      <div className="flex-1 overflow-y-auto max-w-4xl mx-auto w-full px-4 py-4">
+      <div className={`flex-1 overflow-y-auto max-w-4xl mx-auto w-full px-4 py-4 ${selectMode && selectedIds.size > 0 ? 'pb-20' : ''}`}>
 
         <div className="mb-6 bg-amber-950/30 border border-amber-900/50 rounded-xl p-4">
-            <button onClick={() => toggleBucket('followups')} className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-2 w-full text-left hover:text-amber-300 transition-colors">
-              <span className="text-[10px]">{collapsed.followups ? '▸' : '▾'}</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-              Follow-ups Today ({followUps.length})
-            </button>
+            <div className="flex items-center gap-2 mb-3">
+              <button onClick={() => toggleBucket('followups')} className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-amber-300 transition-colors flex-1">
+                <span className="text-[10px]">{collapsed.followups ? '▸' : '▾'}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                Follow-ups Today ({followUps.length})
+              </button>
+              {selectMode && followUps.length > 0 && (
+                <button
+                  onClick={() => selectAll(followUps.map(p => p.id))}
+                  className="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-400 hover:text-white border border-gray-700"
+                >
+                  Select All
+                </button>
+              )}
+            </div>
             {!collapsed.followups && followUps.length === 0 && (
               <div className="text-xs text-gray-600 italic pl-6">No follow-ups due today. Set follow-up dates on tasks in the project panel.</div>
             )}
             {!collapsed.followups && followUps.map(p => (
               <div
                 key={p.id}
-                onClick={() => setSelectedProject(p)}
-                className="bg-gray-800/80 hover:bg-gray-700 border border-gray-700 rounded-lg p-3 mb-2 cursor-pointer transition-colors flex items-center gap-3"
+                onClick={() => {
+                  if (selectMode) {
+                    toggleSelect(p.id)
+                  } else {
+                    setSelectedProject(p)
+                  }
+                }}
+                className={`bg-gray-800/80 hover:bg-gray-700 border rounded-lg p-3 mb-2 cursor-pointer transition-colors flex items-center gap-3 relative ${
+                  selectedIds.has(p.id) ? 'border-green-500 ring-1 ring-green-500/30' : 'border-gray-700'
+                }`}
               >
+                {selectMode && <SelectCheckbox selected={selectedIds.has(p.id)} />}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-white text-sm">{p.name}</span>
@@ -411,51 +458,101 @@ export default function QueuePage() {
 
         {dynamicSections.map(sec => sec.items.length > 0 && (
           <div key={sec.id} className="mb-6">
-            <button onClick={() => toggleBucket(sec.id)} className={`text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2 w-full text-left transition-colors ${COLOR_MAP[sec.color] ?? 'text-gray-400'} ${COLOR_HOVER[sec.color] ?? 'hover:text-gray-300'}`}>
-              <span className="text-[10px]">{collapsed[sec.id] ? '▸' : '▾'}</span>
-              {sec.icon} {sec.label} ({sec.items.length})
-            </button>
-            {!collapsed[sec.id] && sec.items.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} cardFields={cardFields} />)}
+            <div className="flex items-center gap-2 mb-2">
+              <button onClick={() => toggleBucket(sec.id)} className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-left transition-colors flex-1 ${COLOR_MAP[sec.color] ?? 'text-gray-400'} ${COLOR_HOVER[sec.color] ?? 'hover:text-gray-300'}`}>
+                <span className="text-[10px]">{collapsed[sec.id] ? '▸' : '▾'}</span>
+                {sec.icon} {sec.label} ({sec.items.length})
+              </button>
+              {selectMode && (
+                <button
+                  onClick={() => selectAll(sec.items.map(p => p.id))}
+                  className="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-400 hover:text-white border border-gray-700"
+                >
+                  Select All
+                </button>
+              )}
+            </div>
+            {!collapsed[sec.id] && sec.items.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} cardFields={cardFields} selectMode={selectMode} isSelected={selectedIds.has(p.id)} onToggleSelect={toggleSelect} />)}
           </div>
         ))}
 
         {blocked.length > 0 && (
           <div className="mb-6">
-            <button onClick={() => toggleBucket('blocked')} className="text-xs font-bold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-2 w-full text-left hover:text-red-300 transition-colors">
-              <span className="text-[10px]">{collapsed.blocked ? '▸' : '▾'}</span>
-              🚫 Blocked ({blocked.length})
-            </button>
-            {!collapsed.blocked && blocked.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} cardFields={cardFields} />)}
+            <div className="flex items-center gap-2 mb-2">
+              <button onClick={() => toggleBucket('blocked')} className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-red-300 transition-colors flex-1">
+                <span className="text-[10px]">{collapsed.blocked ? '▸' : '▾'}</span>
+                🚫 Blocked ({blocked.length})
+              </button>
+              {selectMode && (
+                <button
+                  onClick={() => selectAll(blocked.map(p => p.id))}
+                  className="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-400 hover:text-white border border-gray-700"
+                >
+                  Select All
+                </button>
+              )}
+            </div>
+            {!collapsed.blocked && blocked.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} cardFields={cardFields} selectMode={selectMode} isSelected={selectedIds.has(p.id)} onToggleSelect={toggleSelect} />)}
           </div>
         )}
 
         {active.length > 0 && (
           <div className="mb-6">
-            <button onClick={() => toggleBucket('active')} className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2 w-full text-left hover:text-gray-300 transition-colors">
-              <span className="text-[10px]">{collapsed.active ? '▸' : '▾'}</span>
-              Active ({active.length})
-            </button>
-            {!collapsed.active && active.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} cardFields={cardFields} />)}
+            <div className="flex items-center gap-2 mb-2">
+              <button onClick={() => toggleBucket('active')} className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-gray-300 transition-colors flex-1">
+                <span className="text-[10px]">{collapsed.active ? '▸' : '▾'}</span>
+                Active ({active.length})
+              </button>
+              {selectMode && (
+                <button
+                  onClick={() => selectAll(active.map(p => p.id))}
+                  className="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-400 hover:text-white border border-gray-700"
+                >
+                  Select All
+                </button>
+              )}
+            </div>
+            {!collapsed.active && active.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} cardFields={cardFields} selectMode={selectMode} isSelected={selectedIds.has(p.id)} onToggleSelect={toggleSelect} />)}
           </div>
         )}
 
         {searchedLoyalty.length > 0 && (
           <div className="mb-6">
-            <button onClick={() => toggleBucket('loyalty')} className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-2 w-full text-left hover:text-purple-300 transition-colors">
-              <span className="text-[10px]">{collapsed.loyalty ? '▸' : '▾'}</span>
-              💜 Loyalty ({searchedLoyalty.length})
-            </button>
-            {!collapsed.loyalty && searchedLoyalty.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} cardFields={cardFields} />)}
+            <div className="flex items-center gap-2 mb-2">
+              <button onClick={() => toggleBucket('loyalty')} className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-purple-300 transition-colors flex-1">
+                <span className="text-[10px]">{collapsed.loyalty ? '▸' : '▾'}</span>
+                💜 Loyalty ({searchedLoyalty.length})
+              </button>
+              {selectMode && (
+                <button
+                  onClick={() => selectAll(searchedLoyalty.map(p => p.id))}
+                  className="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-400 hover:text-white border border-gray-700"
+                >
+                  Select All
+                </button>
+              )}
+            </div>
+            {!collapsed.loyalty && searchedLoyalty.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} cardFields={cardFields} selectMode={selectMode} isSelected={selectedIds.has(p.id)} onToggleSelect={toggleSelect} />)}
           </div>
         )}
 
         {complete.length > 0 && (
           <div className="mb-6">
-            <button onClick={() => toggleBucket('complete')} className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2 flex items-center gap-2 w-full text-left hover:text-gray-500 transition-colors">
-              <span className="text-[10px]">{collapsed.complete ? '▸' : '▾'}</span>
-              Complete ({complete.length})
-            </button>
-            {!collapsed.complete && complete.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} cardFields={cardFields} />)}
+            <div className="flex items-center gap-2 mb-2">
+              <button onClick={() => toggleBucket('complete')} className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-2 text-left hover:text-gray-500 transition-colors flex-1">
+                <span className="text-[10px]">{collapsed.complete ? '▸' : '▾'}</span>
+                Complete ({complete.length})
+              </button>
+              {selectMode && (
+                <button
+                  onClick={() => selectAll(complete.map(p => p.id))}
+                  className="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-400 hover:text-white border border-gray-700"
+                >
+                  Select All
+                </button>
+              )}
+            </div>
+            {!collapsed.complete && complete.map(p => <QueueCard key={p.id} p={p} taskMap={taskMap[p.id] ?? {}} onOpen={setSelectedProject} cardFields={cardFields} selectMode={selectMode} isSelected={selectedIds.has(p.id)} onToggleSelect={toggleSelect} />)}
           </div>
         )}
 
@@ -467,7 +564,19 @@ export default function QueuePage() {
         )}
       </div>
 
-      {selectedProject && (
+      {/* ── Bulk Action Bar ─────────────────────────────────────────── */}
+      {selectMode && selectedIds.size > 0 && (
+        <BulkActionBar
+          selectedIds={selectedIds}
+          selectedProjects={selectedProjects}
+          currentUser={currentUser}
+          onComplete={handleBulkComplete}
+          onExit={exitSelectMode}
+          actions={['reassign', 'blocker', 'disposition', 'followup']}
+        />
+      )}
+
+      {selectedProject && !selectMode && (
         <ProjectPanel
           project={selectedProject}
           onClose={() => setSelectedProject(null)}
@@ -509,11 +618,14 @@ function renderCardField(key: string, p: Project) {
   }
 }
 
-function QueueCard({ p, taskMap, onOpen, cardFields }: {
+function QueueCard({ p, taskMap, onOpen, cardFields, selectMode, isSelected, onToggleSelect }: {
   p: Project
   taskMap: Record<string, TaskEntry>
   onOpen: (p: Project) => void
   cardFields: string[]
+  selectMode?: boolean
+  isSelected?: boolean
+  onToggleSelect?: (id: string) => void
 }) {
   const sla = getSLA(p)
   const nextTask = getNextTask(p, taskMap)
@@ -525,9 +637,20 @@ function QueueCard({ p, taskMap, onOpen, cardFields }: {
 
   return (
     <div
-      onClick={() => onOpen(p)}
-      className="bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl p-4 mb-3 cursor-pointer transition-colors"
+      onClick={() => {
+        if (selectMode && onToggleSelect) {
+          onToggleSelect(p.id)
+        } else {
+          onOpen(p)
+        }
+      }}
+      className={`bg-gray-800 hover:bg-gray-700 border rounded-xl p-4 mb-3 cursor-pointer transition-colors relative ${
+        isSelected ? 'border-green-500 ring-1 ring-green-500/30' : 'border-gray-700'
+      }`}
     >
+      {selectMode && (
+        <SelectCheckbox selected={!!isSelected} />
+      )}
       <div className="flex items-start gap-3">
         {/* Priority dot */}
         <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${

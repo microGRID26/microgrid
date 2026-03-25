@@ -1,12 +1,17 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Nav } from '@/components/Nav'
 import { daysAgo, fmt$, STAGE_LABELS, STAGE_ORDER, SLA_THRESHOLDS } from '@/lib/utils'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { NewProjectModal } from '@/components/project/NewProjectModal'
-import { useSupabaseQuery, useServerFilter } from '@/lib/hooks'
-import type { Project } from '@/types/database'
+import { useSupabaseQuery, useServerFilter, clearQueryCache } from '@/lib/hooks'
+import { createClient } from '@/lib/supabase/client'
+import { updateProject } from '@/lib/api/projects'
+import { useCurrentUser } from '@/lib/useCurrentUser'
+import { BulkActionBar, useBulkSelect, SelectCheckbox } from '@/components/BulkActionBar'
+import { ArrowRight, Loader2 } from 'lucide-react'
+import type { Project, Stage } from '@/types/database'
 
 const PROJECT_COLUMNS = 'id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, systemkw, financier, ahj, disposition'
 
@@ -35,10 +40,17 @@ const AGE_COLOR: Record<string, string> = {
   ok:   '#22c55e',
 }
 
+
 export default function PipelinePage() {
   const [selected, setSelected] = useState<Project | null>(null)
   const [showNewProject, setShowNewProject] = useState(false)
   const [sort, setSort] = useState<'name' | 'sla' | 'contract' | 'cycle'>('sla')
+
+  const { user: currentUser } = useCurrentUser()
+
+  // Advance stage progress (Pipeline-specific)
+  const [advanceProgress, setAdvanceProgress] = useState<{ current: number; total: number } | null>(null)
+  const [advanceConfirm, setAdvanceConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
   // Server filter hook — manages filter state, dropdowns, and query building
   const {
@@ -46,7 +58,6 @@ export default function PipelinePage() {
     setFilter,
     search,
     setSearch,
-    dropdowns,
     buildQueryFilters,
     buildSearchOr,
   } = useServerFilter([] as Record<string, unknown>[], {
@@ -73,9 +84,6 @@ export default function PipelinePage() {
   })
 
   // Feed loaded data back into useServerFilter for dropdown extraction
-  // Note: useServerFilter was initialized with [] — we need to re-create with actual data
-  // Hook gap: useServerFilter takes data at init but we need it reactive.
-  // Workaround: use a second instance that receives the data for dropdown extraction only.
   const {
     dropdowns: extractedDropdowns,
   } = useServerFilter(projects as unknown as Record<string, unknown>[], {
@@ -117,6 +125,63 @@ export default function PipelinePage() {
 
   const totalContract = useMemo(() => filtered.reduce((s, p) => s + (Number(p.contract) || 0), 0), [filtered])
 
+  // ── Bulk selection (shared hook) ────────────────────────────────────────
+  const {
+    selectMode, setSelectMode, selectedIds, selectedProjects,
+    toggleSelect, selectAll, deselectAll, exitSelectMode,
+  } = useBulkSelect(filtered)
+
+  const handleBulkComplete = useCallback(() => {
+    exitSelectMode()
+    refresh()
+  }, [exitSelectMode, refresh])
+
+  // ── Bulk Advance Stage (Pipeline-specific) ────────────────────────────
+  const allSameStage = useMemo(() => {
+    if (selectedProjects.length === 0) return false
+    const stages = new Set(selectedProjects.map(p => p.stage))
+    return stages.size === 1
+  }, [selectedProjects])
+
+  const canAdvance = useMemo(() => {
+    if (!allSameStage || selectedProjects.length === 0) return false
+    const stage = selectedProjects[0].stage
+    const idx = STAGE_ORDER.indexOf(stage)
+    return idx >= 0 && idx < STAGE_ORDER.length - 1
+  }, [allSameStage, selectedProjects])
+
+  const executeBulkAdvance = useCallback(async () => {
+    if (!canAdvance || selectedProjects.length === 0) return
+
+    const currentStage = selectedProjects[0].stage
+    const nextStageIdx = STAGE_ORDER.indexOf(currentStage) + 1
+    const nextStage = STAGE_ORDER[nextStageIdx]
+    const today = new Date().toISOString().split('T')[0]
+
+    setAdvanceProgress({ current: 0, total: selectedProjects.length })
+
+    const supabase = createClient()
+
+    for (let i = 0; i < selectedProjects.length; i++) {
+      const proj = selectedProjects[i]
+      setAdvanceProgress({ current: i + 1, total: selectedProjects.length })
+
+      await updateProject(proj.id, { stage: nextStage, stage_date: today })
+      await (supabase as any).from('audit_log').insert({
+        project_id: proj.id, field: 'stage',
+        old_value: proj.stage, new_value: nextStage,
+        changed_by: currentUser?.name ?? null, changed_by_id: currentUser?.id ?? null,
+      })
+      await (supabase as any).from('stage_history').insert({
+        project_id: proj.id, stage: nextStage, entered: today,
+      })
+    }
+
+    setAdvanceProgress(null)
+    clearQueryCache()
+    handleBulkComplete()
+  }, [canAdvance, selectedProjects, currentUser, handleBulkComplete])
+
   if (loading) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
       <div className="text-green-400 text-sm animate-pulse">Loading pipeline...</div>
@@ -153,6 +218,36 @@ export default function PipelinePage() {
           <option value="all">All AHJs</option>
           {ahjs.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
         </select>
+
+        {/* Select mode toggle */}
+        <button
+          onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)}
+          className={`text-xs px-3 py-1.5 rounded-md transition-colors font-medium ${
+            selectMode
+              ? 'bg-green-700 text-white hover:bg-green-600'
+              : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+          }`}
+        >
+          {selectMode ? 'Exit Select' : 'Select'}
+        </button>
+
+        {/* Select all / deselect all (visible in select mode) */}
+        {selectMode && (
+          <>
+            <button onClick={() => selectAll(filtered.map(p => p.id))}
+              className="text-xs px-2 py-1.5 rounded-md text-gray-400 hover:text-white bg-gray-800 border border-gray-700">
+              Select All
+            </button>
+            <button onClick={deselectAll}
+              className="text-xs px-2 py-1.5 rounded-md text-gray-400 hover:text-white bg-gray-800 border border-gray-700">
+              Deselect All
+            </button>
+            {selectedIds.size > 0 && (
+              <span className="text-xs text-green-400 font-medium">{selectedIds.size} selected</span>
+            )}
+          </>
+        )}
+
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-gray-500">Sort:</span>
           {(['sla','name','contract','cycle'] as const).map(s => (
@@ -165,7 +260,7 @@ export default function PipelinePage() {
       </div>
 
       {/* Kanban board */}
-      <div className="flex-1 overflow-x-auto">
+      <div className={`flex-1 overflow-x-auto ${selectedIds.size > 0 ? 'pb-20' : ''}`}>
         <div className="flex gap-0 h-full w-full">
           {STAGE_ORDER.map(stageId => {
             const cards = sortedCards(filtered.filter(p => p.stage === stageId))
@@ -194,19 +289,29 @@ export default function PipelinePage() {
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                   {cards.map(p => {
                     const sla = getSLA(p)
+                    const isSelected = selectedIds.has(p.id)
                     return (
                       <div
                         key={p.id}
-                        onClick={() => setSelected(p)}
-                        className={`bg-gray-800 rounded-lg p-2.5 cursor-pointer hover:bg-gray-700 border transition-colors ${
+                        onClick={() => {
+                          if (selectMode) {
+                            toggleSelect(p.id)
+                          } else {
+                            setSelected(p)
+                          }
+                        }}
+                        className={`bg-gray-800 rounded-lg p-2.5 cursor-pointer hover:bg-gray-700 border transition-colors relative ${
+                          isSelected ? 'border-green-500 ring-1 ring-green-500/30' :
                           p.blocker ? 'border-l-2 border-l-red-500 border-gray-700' :
                           sla.status === 'crit' ? 'border-l-2 border-l-red-500 border-gray-700' :
                           sla.status === 'risk' ? 'border-l-2 border-l-amber-500 border-gray-700' :
                           selected?.id === p.id ? 'border-green-600' : 'border-gray-700'
                         }`}
                       >
+                        {/* Checkbox overlay in select mode */}
+                        {selectMode && <SelectCheckbox selected={isSelected} />}
                         {/* Name */}
-                        <div className="text-xs font-medium text-white truncate mb-0.5">{p.name}</div>
+                        <div className={`text-xs font-medium text-white truncate mb-0.5 ${selectMode ? 'pr-5' : ''}`}>{p.name}</div>
                         {/* ID */}
                         <div className="text-xs text-gray-500 mb-1">{p.id}</div>
                         {/* kW + contract */}
@@ -235,7 +340,7 @@ export default function PipelinePage() {
                         </div>
                         {/* Blocker */}
                         {p.blocker && (
-                          <div className="mt-1.5 text-xs text-red-400 truncate">🚫 {p.blocker}</div>
+                          <div className="mt-1.5 text-xs text-red-400 truncate">&#x1F6AB; {p.blocker}</div>
                         )}
                       </div>
                     )
@@ -250,8 +355,90 @@ export default function PipelinePage() {
         </div>
       </div>
 
+      {/* ── Shared Bulk Action Bar ─────────────────────────────────── */}
+      {selectMode && selectedIds.size > 0 && (
+        <BulkActionBar
+          selectedIds={selectedIds}
+          selectedProjects={selectedProjects}
+          currentUser={currentUser}
+          onComplete={handleBulkComplete}
+          onExit={exitSelectMode}
+          actions={['reassign', 'blocker', 'disposition']}
+          customActions={
+            <div className="relative">
+              <button
+                onClick={() => {
+                  if (!canAdvance) return
+                  const stage = selectedProjects[0].stage
+                  const nextIdx = STAGE_ORDER.indexOf(stage) + 1
+                  const nextStage = STAGE_LABELS[STAGE_ORDER[nextIdx]] ?? STAGE_ORDER[nextIdx]
+                  setAdvanceConfirm({
+                    message: `Advance ${selectedIds.size} project${selectedIds.size !== 1 ? 's' : ''} from ${STAGE_LABELS[stage] ?? stage} to ${nextStage}?`,
+                    onConfirm: executeBulkAdvance,
+                  })
+                }}
+                disabled={!canAdvance}
+                title={!allSameStage ? 'All selected projects must be in the same stage' : !canAdvance ? 'Cannot advance past Complete' : undefined}
+                className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-md transition-colors ${
+                  canAdvance
+                    ? 'bg-gray-800 text-gray-300 hover:text-white border border-gray-700'
+                    : 'bg-gray-800/50 text-gray-600 border border-gray-800 cursor-not-allowed'
+                }`}
+              >
+                <ArrowRight className="w-3.5 h-3.5" /> Advance Stage
+              </button>
+            </div>
+          }
+        />
+      )}
+
+      {/* ── Advance Stage Progress Overlay ────────────────────────────── */}
+      {advanceProgress && (
+        <div className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 shadow-2xl text-center min-w-[300px]">
+            <Loader2 className="w-8 h-8 text-green-400 animate-spin mx-auto mb-3" />
+            <div className="text-sm text-white font-medium mb-1">Advancing stage</div>
+            <div className="text-xs text-gray-400">
+              Updating {advanceProgress.current} of {advanceProgress.total}...
+            </div>
+            <div className="mt-3 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 rounded-full transition-all"
+                style={{ width: `${Math.round((advanceProgress.current / advanceProgress.total) * 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Advance Stage Confirmation ────────────────────────────────── */}
+      {advanceConfirm && (
+        <div className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 shadow-2xl max-w-sm">
+            <div className="text-sm text-white mb-4">{advanceConfirm.message}</div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setAdvanceConfirm(null)}
+                className="text-xs px-4 py-2 rounded-md bg-gray-800 text-gray-300 hover:text-white border border-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  advanceConfirm.onConfirm()
+                  setAdvanceConfirm(null)
+                }}
+                className="text-xs px-4 py-2 rounded-md bg-green-700 text-white hover:bg-green-600 font-medium"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Project Panel */}
-      {selected && (
+      {selected && !selectMode && (
         <ProjectPanel
           project={selected}
           onClose={() => { setSelected(null); setInitialTab(null) }}
