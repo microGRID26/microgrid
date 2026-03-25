@@ -12,3 +12,5 @@ export { upsertTaskState, loadTaskHistory, insertTaskHistory, loadProjectAdders,
 export { loadScheduleByDateRange } from './schedules'
 export { loadChangeOrders } from './change-orders'
 export { loadCrewsByIds, loadActiveCrews } from './crews'
+export { loadProjectFiles, searchProjectFiles, searchAllProjectFiles, loadAllProjectFiles, loadDocumentRequirements, loadProjectDocuments, updateDocumentStatus } from './documents'
+export type { ProjectFile, DocumentRequirement, ProjectDocument } from './documents'

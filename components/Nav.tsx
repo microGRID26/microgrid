@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { label: 'Service',  href: '/service'  },
   { label: 'Funding',  href: '/funding'  },
   { label: 'Change Orders', href: '/change-orders' },
+  { label: 'Documents', href: '/documents' },
   { label: 'Redesign', href: '/redesign' },
   { label: 'Legacy',   href: '/legacy'   },
 ]
