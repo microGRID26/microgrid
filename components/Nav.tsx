@@ -22,6 +22,7 @@ const PRIMARY_LINKS = [
 const MORE_LINKS = [
   { label: 'Service',       href: '/service'  },
   { label: 'Change Orders', href: '/change-orders' },
+  { label: 'Reports',       href: '/reports'  },
   { label: 'Documents',     href: '/documents' },
   { label: 'Redesign',      href: '/redesign' },
   { label: 'Legacy',        href: '/legacy'   },
