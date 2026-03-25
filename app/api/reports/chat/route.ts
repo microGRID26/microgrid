@@ -49,9 +49,13 @@ const ALLOWED_TABLES = [
 const MAX_RESULTS = 500
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX = 10
+const DAILY_LIMIT = 25
+const DAY_MS = 86_400_000
 
-// Simple in-memory rate limiter
+// Simple in-memory rate limiter (per-minute)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+// Daily usage tracker
+const dailyUsageMap = new Map<string, { count: number; resetAt: number }>()
 
 function checkRateLimit(userId: string): boolean {
   const now = Date.now()
@@ -63,6 +67,18 @@ function checkRateLimit(userId: string): boolean {
   if (entry.count >= RATE_LIMIT_MAX) return false
   entry.count++
   return true
+}
+
+function checkDailyLimit(userId: string): { allowed: boolean; remaining: number } {
+  const now = Date.now()
+  const entry = dailyUsageMap.get(userId)
+  if (!entry || now > entry.resetAt) {
+    dailyUsageMap.set(userId, { count: 1, resetAt: now + DAY_MS })
+    return { allowed: true, remaining: DAILY_LIMIT - 1 }
+  }
+  if (entry.count >= DAILY_LIMIT) return { allowed: false, remaining: 0 }
+  entry.count++
+  return { allowed: true, remaining: DAILY_LIMIT - entry.count }
 }
 
 // ── System Prompt ────────────────────────────────────────────────────────────
@@ -392,6 +408,15 @@ export async function POST(request: NextRequest) {
   if (!checkRateLimit(userId)) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please wait a minute before trying again.' },
+      { status: 429 }
+    )
+  }
+
+  // Daily usage limit (25/day per user)
+  const daily = checkDailyLimit(userId)
+  if (!daily.allowed) {
+    return NextResponse.json(
+      { error: 'Daily query limit reached (25 per day). Try again tomorrow.' },
       { status: 429 }
     )
   }

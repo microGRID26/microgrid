@@ -287,13 +287,28 @@ function AssistantMessage({
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const user = useCurrentUser()
+  const { user: currentUser, loading: userLoading } = useCurrentUser()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Role gate: Manager+ only (Manager, Finance, Admin, Super Admin)
+  if (!userLoading && currentUser && !currentUser.isManager) {
+    return (
+      <>
+        <Nav active="Reports" />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <p className="text-lg text-gray-400">Access Restricted</p>
+            <p className="text-sm text-gray-500 mt-2">AI Reports is available to Managers and above.</p>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
