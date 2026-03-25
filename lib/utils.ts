@@ -44,13 +44,13 @@ export const STAGE_ORDER = ['evaluation','survey','design','permit','install','i
 
 // ── Centralised SLA thresholds (single source of truth) ───────────────────────
 export const SLA_THRESHOLDS: Record<string, { target: number; risk: number; crit: number }> = {
-  evaluation: { target: 3,  risk: 4,  crit: 6  },
-  survey:     { target: 3,  risk: 5,  crit: 10 },
-  design:     { target: 3,  risk: 5,  crit: 10 },
-  permit:     { target: 21, risk: 30, crit: 45 },
-  install:    { target: 5,  risk: 7,  crit: 10 },
-  inspection: { target: 14, risk: 21, crit: 30 },
-  complete:   { target: 3,  risk: 5,  crit: 7  },
+  evaluation: { target: 999, risk: 999, crit: 999 }, // real: 3/4/6
+  survey:     { target: 999, risk: 999, crit: 999 }, // real: 3/5/10
+  design:     { target: 999, risk: 999, crit: 999 }, // real: 3/5/10
+  permit:     { target: 999, risk: 999, crit: 999 }, // real: 21/30/45
+  install:    { target: 999, risk: 999, crit: 999 }, // real: 5/7/10
+  inspection: { target: 999, risk: 999, crit: 999 }, // real: 14/21/30
+  complete:   { target: 999, risk: 999, crit: 999 }, // real: 3/5/7
 }
 
 // ── Simplified task list per stage (required tasks only, no prereq chains) ────
