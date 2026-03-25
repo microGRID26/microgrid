@@ -44,7 +44,8 @@ export default function ServicePage() {
     setLoadingProject(false)
   }
 
-  const filtered = (calls as unknown as ServiceCall[]).filter(c => {
+  const typedCalls = calls as unknown as ServiceCall[]
+  const filtered = typedCalls.filter(c => {
     if (statusFilter !== 'all' && c.status !== statusFilter) return false
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -54,7 +55,7 @@ export default function ServicePage() {
   })
 
   const counts: Record<string, number> = { all: calls.length }
-  ;(calls as unknown as ServiceCall[]).forEach(c => { counts[c.status] = (counts[c.status] || 0) + 1 })
+  typedCalls.forEach(c => { counts[c.status] = (counts[c.status] || 0) + 1 })
 
   if (loading) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">

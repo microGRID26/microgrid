@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/types/database'
 
@@ -39,23 +39,32 @@ let cached: CurrentUser | null = null
 export function useCurrentUser() {
   const [user, setUser] = useState<CurrentUser | null>(cached)
   const [loading, setLoading] = useState(!cached)
+  const mountedRef = useRef(true)
 
   useEffect(() => {
+    mountedRef.current = true
     const supabase = createClient()
 
-    // Clear cache on sign out
+    // Always set up auth listener so signout is detected even when cached
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         cached = null
-        setUser(null)
+        if (mountedRef.current) setUser(null)
       }
     })
 
-    if (cached) return () => subscription.unsubscribe()
+    if (cached) {
+      return () => {
+        mountedRef.current = false
+        subscription.unsubscribe()
+      }
+    }
 
     supabase.auth.getUser().then(async ({ data }) => {
+      if (!mountedRef.current) return
       const email = data.user?.email
-      if (!email) { setLoading(false); return }
+      if (!email) { if (mountedRef.current) setLoading(false); return }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: u } = await (supabase as any)
         .from('users').select('id, name, email, role')
         .eq('email', email).single()
@@ -63,14 +72,19 @@ export function useCurrentUser() {
         ? buildUser(u.id, u.email, u.name, u.role ?? 'user')
         : buildUser('', email, email.split('@')[0], 'user')
       cached = resolved
-      setUser(resolved)
-      setLoading(false)
+      if (mountedRef.current) {
+        setUser(resolved)
+        setLoading(false)
+      }
     }).catch((err) => {
       console.error('useCurrentUser: failed to load user', err)
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mountedRef.current = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   return { user, loading }

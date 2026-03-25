@@ -111,13 +111,19 @@ export function usePreferences() {
     }
     if (!cachedUserId) return
 
-    await (supabase as any)
-      .from('user_preferences')
-      .upsert({
-        user_id: cachedUserId,
-        [key]: value,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' })
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from('user_preferences')
+        .upsert({
+          user_id: cachedUserId,
+          [key]: value,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' })
+      if (error) console.error('usePreferences: DB upsert failed:', error)
+    } catch (err) {
+      console.error('usePreferences: DB upsert error:', err)
+    }
   }, [prefs])
 
   return { prefs, updatePref, loaded }

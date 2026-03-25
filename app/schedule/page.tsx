@@ -142,7 +142,7 @@ export default function SchedulePage() {
       if (!map[key]) map[key] = []
       map[key].push(s)
     })
-    Object.values(map).forEach(arr => arr.sort((a, b) => (a.time ?? '99:99') > (b.time ?? '99:99') ? 1 : -1))
+    Object.keys(map).forEach(key => { map[key] = [...map[key]].sort((a, b) => (a.time ?? '99:99') > (b.time ?? '99:99') ? 1 : -1) })
     return map
   }, [schedule])
 
@@ -160,7 +160,7 @@ export default function SchedulePage() {
     if (search.trim()) {
       const q = search.toLowerCase().trim()
       filtered = filtered.filter(j => {
-        const proj = (j as any).project
+        const proj = (j as ScheduleWithProject).project
         const projName = (proj?.name ?? '').toLowerCase()
         const projId = (j.project_id ?? '').toLowerCase()
         return projName.includes(q) || projId.includes(q)

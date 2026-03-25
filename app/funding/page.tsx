@@ -10,6 +10,42 @@ import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { useSupabaseQuery } from '@/lib/hooks'
 import type { Project, ProjectFunding, NonfundedCode } from '@/types/database'
 
+/** Row shape returned by the funding_dashboard Postgres view */
+interface FundingDashboardRow {
+  id: string
+  name: string
+  city: string | null
+  address: string | null
+  financier: string | null
+  ahj: string | null
+  install_complete_date: string | null
+  pto_date: string | null
+  contract: number | null
+  sale_date: string | null
+  stage: string
+  disposition: string | null
+  m1_amount: number | null
+  m1_funded_date: string | null
+  m1_status: string | null
+  m1_notes: string | null
+  m1_cb: string | null
+  m1_cb_credit: number | null
+  m2_amount: number | null
+  m2_funded_date: string | null
+  m2_status: string | null
+  m2_notes: string | null
+  m2_cb: string | null
+  m2_cb_credit: number | null
+  m3_amount: number | null
+  m3_funded_date: string | null
+  m3_status: string | null
+  m3_notes: string | null
+  m3_projected: number | null
+  nonfunded_code_1: string | null
+  nonfunded_code_2: string | null
+  nonfunded_code_3: string | null
+}
+
 type MilestoneKey = 'm1' | 'm2' | 'm3'
 type FundingFilter = 'all' | 'ready' | 'submitted' | 'pending' | 'revision' | 'funded' | 'nonfunded'
 type FundingStatus = 'Ready To Start' | 'Submitted' | 'Pending Resolution' | 'Revision Required' | 'Funded'
@@ -314,8 +350,8 @@ export default function FundingPage() {
     if (data) {
       const projList: Project[] = []
       const fundMap: Record<string, ProjectFunding> = {}
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data.forEach((row: any) => {
+      const rows = data as unknown as FundingDashboardRow[]
+      rows.forEach((row) => {
         // Extract project fields
         projList.push({
           id: row.id,
@@ -440,9 +476,9 @@ export default function FundingPage() {
         case 'm2_funded': av = a.m2.funded_date; bv = b.m2.funded_date; break
         default: av = a.project.financier; bv = b.project.financier
       }
-      if (av == null && bv == null) return 0
-      if (av == null) return 1
-      if (bv == null) return -1
+      if (av === null && bv === null) return 0
+      if (av === null) return 1
+      if (bv === null) return -1
       if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir
       return String(av).localeCompare(String(bv)) * dir
     })

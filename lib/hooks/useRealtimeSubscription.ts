@@ -46,7 +46,7 @@ export function useRealtimeSubscription(table: TableName, options: RealtimeOptio
 
     const supabase = createClient()
     // Stable channel name based on table + event + filter to avoid duplicate subscriptions
-    const channelName = `realtime-${table}-${event}-${filter ?? 'all'}`
+    const channelName = `realtime::${table}::${event}::${filter ?? 'all'}`
 
     // Clean up any existing channel before creating a new one
     if (channelRef.current) {

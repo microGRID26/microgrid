@@ -27,7 +27,9 @@ export async function loadProjects(opts: ProjectQuery = {}) {
   }
 
   if (opts.excludeDispositions?.length) {
-    query = query.not('disposition', 'in', `(${opts.excludeDispositions.map(d => `"${d}"`).join(',')})`)
+    // Sanitize disposition values to prevent injection via the raw filter string
+    const safeList = opts.excludeDispositions.map(d => d.replace(/[^a-zA-Z_ ]/g, '')).join(',')
+    query = query.not('disposition', 'in', `(${safeList})`)
   }
 
   const { data, error } = await query

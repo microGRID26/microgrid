@@ -27,6 +27,9 @@ export function NotificationRulesManager() {
 
   const save = async () => {
     if (!draft.task_id || !draft.trigger_status || !draft.action_message) return
+    if (!ALL_TASKS_MAP[draft.task_id]) {
+      setToast('Invalid task ID'); setTimeout(() => setToast(''), 2500); return
+    }
     setSaving(true)
     if (editing) {
       const { error } = await (supabase as any).from('notification_rules').update({

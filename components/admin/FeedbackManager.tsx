@@ -46,7 +46,16 @@ export function FeedbackManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     return true
   })
 
+  const EDITABLE_FIELDS = ['status', 'admin_notes'] as const
+  type EditableField = typeof EDITABLE_FIELDS[number]
+
   const updateField = async (id: number, field: string, value: string) => {
+    if (!EDITABLE_FIELDS.includes(field as EditableField)) {
+      console.error(`feedback update blocked: "${field}" is not an editable field`)
+      setToast('Update blocked: invalid field')
+      setTimeout(() => setToast(''), 2000)
+      return
+    }
     const { error } = await supabase.from('feedback').update({ [field]: value }).eq('id', id)
     if (error) {
       console.error('feedback update failed:', error)

@@ -7,6 +7,7 @@ import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { useSupabaseQuery } from '@/lib/hooks'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { cn, fmtDate, escapeIlike } from '@/lib/utils'
+import { loadProjectById } from '@/lib/api'
 import { createClient } from '@/lib/supabase/client'
 import type { Project, AuditLog } from '@/types/database'
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
@@ -134,13 +135,8 @@ export default function AuditTrailPage() {
 
   // Open project in ProjectPanel
   const handleOpenProject = useCallback(async (projectId: string) => {
-    const supabase = createClient()
-    const { data } = await (supabase as any)
-      .from('projects')
-      .select('*')
-      .eq('id', projectId)
-      .single()
-    if (data) setSelectedProject(data)
+    const project = await loadProjectById(projectId)
+    if (project) setSelectedProject(project)
   }, [])
 
   // Sort icon helper

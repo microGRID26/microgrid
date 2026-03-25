@@ -30,7 +30,7 @@ describe('useRealtimeSubscription', () => {
       })
     )
 
-    expect(channelFn).toHaveBeenCalledWith('realtime-projects-*-all')
+    expect(channelFn).toHaveBeenCalledWith('realtime::projects::*::all')
     expect(onFn).toHaveBeenCalledWith(
       'postgres_changes',
       expect.objectContaining({ event: '*', schema: 'public', table: 'projects' }),
@@ -167,7 +167,7 @@ describe('useRealtimeSubscription', () => {
     )
 
     const firstChannelName = channelFn.mock.calls[0][0]
-    expect(firstChannelName).toBe('realtime-task_state-UPDATE-project_id=eq.PROJ-001')
+    expect(firstChannelName).toBe('realtime::task_state::UPDATE::project_id=eq.PROJ-001')
 
     // Re-render with same props should produce the same channel name
     rerender()

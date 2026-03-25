@@ -235,8 +235,12 @@ export function useSupabaseQuery<T extends TableName>(
           } else if ('in' in value) {
             query = query.in(field, value.in)
           } else if ('not_in' in value) {
-            // Supabase doesn't have a direct not_in, use .not + .in
-            const vals = value.not_in.map(v => typeof v === 'string' ? `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : v).join(',')
+            // Supabase PostgREST not_in: values are comma-separated in parens.
+            // Strings are double-quoted; we escape backslashes, double-quotes, commas, and parens
+            // to prevent injection via crafted filter values.
+            const escapeNotInValue = (v: string): string =>
+              v.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/,/g, '\\,').replace(/[()]/g, '\\$&')
+            const vals = value.not_in.map(v => typeof v === 'string' ? `"${escapeNotInValue(v)}"` : v).join(',')
             query = query.not(field, 'in', `(${vals})`)
           } else if ('ilike' in value) {
             query = query.ilike(field, value.ilike)

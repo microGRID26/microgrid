@@ -57,7 +57,7 @@ export const DEFAULT_EXPORT_KEYS = ALL_EXPORT_FIELDS.map(f => f.key)
 
 function escapeCell(val: string | number | null | undefined): string {
   const s = val == null ? '' : String(val)
-  return s.includes(',') || s.includes('"') || s.includes('\n')
+  return s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')
     ? `"${s.replace(/"/g, '""')}"`
     : s
 }

@@ -740,10 +740,10 @@ function NewChangeOrderModal({ users, currentUser, onClose, onCreated }: {
       original_panel_count: p.module_qty ?? null,
       original_panel_type: p.module ?? null,
       original_system_size: p.systemkw ?? null,
-      original_plan_type: (p as any).financing_type ?? null,
-      original_lease_ppa_escalator: (p as any).tpo_escalator ?? null,
-      original_adv_pmt_schedule: (p as any).financier_adv_pmt ?? null,
-      original_loan_amount: (p as any).down_payment ?? null,
+      original_plan_type: p.financing_type ?? null,
+      original_lease_ppa_escalator: p.tpo_escalator ?? null,
+      original_adv_pmt_schedule: p.financier_adv_pmt ?? null,
+      original_loan_amount: p.down_payment ?? null,
     }
     const { data, error } = await db().from('change_orders').insert(payload).select('*, project:projects(name, city, pm, pm_id)').single()
     setSaving(false)

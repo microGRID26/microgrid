@@ -21,6 +21,7 @@ export async function GET(request: Request) {
       })
       if (provisionError) {
         console.error('Failed to provision user:', provisionError)
+        return NextResponse.redirect(`${origin}/login?error=provision_failed`)
       }
     }
   }

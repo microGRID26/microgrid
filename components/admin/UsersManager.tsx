@@ -31,6 +31,11 @@ export function UsersManager({ currentUserRole }: { currentUserRole: UserRole })
   }
 
   const save = async () => {
+    if (draft.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email)) {
+      setToast('Invalid email format')
+      setTimeout(() => setToast(''), 2500)
+      return
+    }
     setSaving(true)
     if (creating) {
       const { error } = await supabase.from('users').insert({

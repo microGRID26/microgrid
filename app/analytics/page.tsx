@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
   // Build funding map from rows
   const funding = useMemo(() => {
     const map: Record<string, ProjectFunding> = {}
-    fundingRows.forEach((f) => { map[(f as any).project_id] = f as unknown as ProjectFunding })
+    fundingRows.forEach((f) => { map[f.project_id] = f })
     return map
   }, [fundingRows])
 

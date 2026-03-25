@@ -7,10 +7,16 @@ import { ALL_TASKS_MAP } from '@/lib/tasks'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { NewProjectModal } from '@/components/project/NewProjectModal'
 import { usePreferences } from '@/lib/usePreferences'
-import { useSupabaseQuery, useServerFilter } from '@/lib/hooks'
+import { useSupabaseQuery } from '@/lib/hooks'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { BulkActionBar, useBulkSelect, SelectCheckbox } from '@/components/BulkActionBar'
 import type { Project } from '@/types/database'
+
+/** Project with computed follow-up fields attached in the followUps memo */
+interface ProjectWithFollowUp extends Project {
+  _taskFollowUp: { date: string; taskName: string } | null
+  _followUpDate: string | null
+}
 
 const CARD_FIELD_OPTIONS: { key: string; label: string }[] = [
   { key: 'name', label: 'Name' },
@@ -105,6 +111,8 @@ export default function QueuePage() {
   // ── Queue sections from DB (with hardcoded fallback) ───────────────────
   const [queueSections, setQueueSections] = useState<QueueSectionConfig[]>(HARDCODED_SECTIONS)
 
+  // queue_sections is an admin-configurable table not in Database types — cast required
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: queueSectionsData } = useSupabaseQuery('queue_sections' as any, {
     select: 'id, label, task_id, match_status, color, icon, sort_order',
     filters: { active: true },
@@ -291,7 +299,7 @@ export default function QueuePage() {
     }
     return sorted
       .filter(p => (p.follow_up_date && p.follow_up_date <= today) || taskFollowUpMap[p.id])
-      .map(p => ({ ...p, _taskFollowUp: taskFollowUpMap[p.id] ?? null, _followUpDate: taskFollowUpMap[p.id]?.date ?? p.follow_up_date }))
+      .map((p): ProjectWithFollowUp => ({ ...p, _taskFollowUp: taskFollowUpMap[p.id] ?? null, _followUpDate: taskFollowUpMap[p.id]?.date ?? p.follow_up_date ?? null }))
       .sort((a, b) => (a._followUpDate ?? '').localeCompare(b._followUpDate ?? ''))
   }, [sorted, taskStates])
 
@@ -448,15 +456,15 @@ export default function QueuePage() {
                   {p.city && <div className="text-xs text-gray-400 mt-0.5">{p.city}</div>}
                 </div>
                 <div className="text-right flex-shrink-0">
-                  {(p as any)._taskFollowUp && (
-                    <div className="text-[10px] text-gray-400 mb-0.5">{(p as any)._taskFollowUp.taskName}</div>
+                  {p._taskFollowUp && (
+                    <div className="text-[10px] text-gray-400 mb-0.5">{p._taskFollowUp.taskName}</div>
                   )}
                   <div className={`text-xs font-medium ${
-                    (p as any)._followUpDate === todayStr ? 'text-amber-400' : 'text-red-400'
+                    p._followUpDate === todayStr ? 'text-amber-400' : 'text-red-400'
                   }`}>
-                    {(p as any)._followUpDate === todayStr
+                    {p._followUpDate === todayStr
                       ? 'Today'
-                      : `${daysAgo((p as any)._followUpDate)}d overdue`}
+                      : `${daysAgo(p._followUpDate)}d overdue`}
                   </div>
                 </div>
               </div>

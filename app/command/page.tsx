@@ -7,7 +7,7 @@ import { loadCrewsByIds } from '@/lib/api'
 import { daysAgo, fmt$, fmtDate, STAGE_LABELS } from '@/lib/utils'
 import { exportProjectsCSV, ALL_EXPORT_FIELDS, DEFAULT_EXPORT_KEYS } from '@/lib/export-utils'
 import { classify, cycleDays, getSLA, getStuckTasks } from '@/lib/classify'
-import type { Section, Classified, TaskEntry, StuckTask } from '@/lib/classify'
+import type { Section, TaskEntry, StuckTask } from '@/lib/classify'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { NewProjectModal } from '@/components/project/NewProjectModal'
 import { Nav } from '@/components/Nav'
@@ -359,13 +359,13 @@ export default function CommandPage() {
   // Optimized: only load stuck tasks (Pending Resolution / Revision Required / Complete)
   // instead of all 25K+ task_state rows
   const taskQuery = useSupabaseQuery('task_state', {
-    select: 'project_id, task_id, status, reason, completed_date',
+    select: 'project_id, task_id, status, reason, completed_date, follow_up_date',
     filters: { status: { in: ['Pending Resolution', 'Revision Required', 'Complete'] } },
     limit: 50000,
   })
 
-  const projects = projectsQuery.data as unknown as Project[]
-  const taskStates = taskQuery.data as unknown as TaskStateRow[]
+  const projects = (projectsQuery.data ?? []) as unknown as Project[]
+  const taskStates = (taskQuery.data ?? []) as unknown as TaskStateRow[]
   const loading = projectsQuery.loading || taskQuery.loading
 
   // ── Schedule (manual — requires enrichment with project/crew names) ──────
@@ -505,7 +505,9 @@ export default function CommandPage() {
     const overdue = new Set<string>()
     const pending = new Set<string>()
     for (const t of taskStates) {
-      if (t.status !== 'Complete' && t.completed_date && daysAgo(t.completed_date) > 0) {
+      // Overdue: task is stuck (Pending Resolution or Revision Required) with a follow_up_date in the past
+      if ((t.status === 'Pending Resolution' || t.status === 'Revision Required') &&
+          (t as any).follow_up_date && daysAgo((t as any).follow_up_date) > 0) {
         overdue.add(t.project_id)
       }
       if (t.status === 'Pending Resolution') {

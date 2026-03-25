@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { db } from '@/lib/db'
 import { escapeIlike } from '@/lib/utils'
+import { ALL_TASKS_MAP } from '@/lib/tasks'
 import { Input, Modal, SaveBtn, SearchBar, Badge } from './shared'
 
 export function ReasonsManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
@@ -32,6 +33,9 @@ export function ReasonsManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
 
   const save = async () => {
     if (!editing) return
+    if (draft.task_id && !ALL_TASKS_MAP[draft.task_id]) {
+      setToast('Invalid task ID'); setTimeout(() => setToast(''), 2500); return
+    }
     setSaving(true)
     const { error } = await (supabase as any).from('task_reasons').update({
       task_id: draft.task_id, reason_type: draft.reason_type, reason: draft.reason,
@@ -43,6 +47,9 @@ export function ReasonsManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
 
   const createNew = async () => {
     if (!draft.task_id?.trim() || !draft.reason?.trim() || !draft.reason_type) return
+    if (!ALL_TASKS_MAP[draft.task_id]) {
+      setToast('Invalid task ID'); setTimeout(() => setToast(''), 2500); return
+    }
     setSaving(true)
     const { error } = await (supabase as any).from('task_reasons').insert({
       task_id: draft.task_id, reason_type: draft.reason_type, reason: draft.reason,

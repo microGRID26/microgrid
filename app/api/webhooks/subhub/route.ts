@@ -12,8 +12,8 @@ import { TASKS } from '@/lib/tasks'
 // DISABLED by default — set SUBHUB_WEBHOOK_ENABLED=true in .env.local to activate
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_SECRET = process.env.SUPABASE_SECRET_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const WEBHOOK_SECRET = process.env.SUBHUB_WEBHOOK_SECRET ?? ''
+const SUPABASE_SECRET = process.env.SUPABASE_SECRET_KEY || ''
+const WEBHOOK_SECRET = process.env.SUBHUB_WEBHOOK_SECRET || ''
 const WEBHOOK_ENABLED = process.env.SUBHUB_WEBHOOK_ENABLED === 'true'
 const DRIVE_WEBHOOK_URL = process.env.NEXT_PUBLIC_DRIVE_WEBHOOK_URL ?? ''
 
@@ -48,9 +48,23 @@ export async function POST(request: NextRequest) {
     const payload = await request.json()
     const db = supabase()
 
-    // Check for duplicate (by subhub_uuid or matching name+address)
-    if (payload.subhub_uuid) {
-      // TODO: add subhub_uuid column to projects for dedup
+    // Idempotency: check for duplicate by matching name + address
+    const customerName = payload.name ?? (`${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim() || 'Unknown')
+    const customerAddress = payload.street ?? null
+    if (customerName && customerAddress) {
+      const { data: existing } = await db.from('projects')
+        .select('id')
+        .eq('name', customerName)
+        .eq('address', customerAddress)
+        .limit(1)
+      if (existing && existing.length > 0) {
+        return NextResponse.json({
+          success: true,
+          project_id: existing[0].id,
+          message: `Project already exists for ${customerName} at ${customerAddress}`,
+          duplicate: true,
+        }, { status: 200 })
+      }
     }
 
     // Generate project ID

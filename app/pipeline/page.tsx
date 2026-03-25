@@ -11,7 +11,7 @@ import { updateProject } from '@/lib/api/projects'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { BulkActionBar, useBulkSelect, SelectCheckbox } from '@/components/BulkActionBar'
 import { ArrowRight, Loader2 } from 'lucide-react'
-import type { Project, Stage } from '@/types/database'
+import type { Project } from '@/types/database'
 
 const PROJECT_COLUMNS = 'id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, systemkw, financier, ahj, disposition'
 
