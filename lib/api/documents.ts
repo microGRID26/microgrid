@@ -32,7 +32,7 @@ export interface ProjectDocument {
   project_id: string
   requirement_id: string
   file_id: string | null
-  status: 'present' | 'missing' | 'pending' | 'verified'
+  doc_status: 'present' | 'missing' | 'pending' | 'verified'
   verified_by: string | null
   verified_at: string | null
   notes: string | null
@@ -118,7 +118,7 @@ export async function updateDocumentStatus(
   status: 'present' | 'missing' | 'pending' | 'verified',
   verifiedBy?: string
 ): Promise<boolean> {
-  const update: Record<string, unknown> = { status }
+  const update: Record<string, unknown> = { doc_status: status }
   if (status === 'verified' && verifiedBy) {
     update.verified_by = verifiedBy
     update.verified_at = new Date().toISOString()
