@@ -1771,15 +1771,32 @@ New notes can be added by any team member: type in the note field at the top of 
 
 **URL:** `/help`
 
-The in-app Help Center provides documentation organized by role:
+The Help Center is a topic-based knowledge base with 52 topics organized across 12 categories:
 
-- **For PMs** -- Daily workflow, task system details, stage navigation, status meanings
-- **For Funding** -- Milestone management, eligibility rules, NF codes
-- **For Leadership** -- Analytics interpretation, SLA overview, portfolio health
-- **For Everyone** -- General navigation, project panel usage, common workflows
-- **For Admins** -- User management, system configuration, data management
+- **Getting Started** -- Login, navigation, project overview, roles
+- **Daily Workflow** -- Command Center, Queue, Pipeline, task management, bulk operations
+- **Project Management** -- Project panel, tasks, stages, dispositions, adders, equipment, follow-ups, project creation
+- **Notes & Communication** -- Project notes, task notes, @mentions, file references
+- **Financial** -- Funding milestones, NF codes, permit fees, change order costs
+- **Inventory & Materials** -- Materials tab, purchase orders, warehouse stock, equipment catalog
+- **Schedule & Crews** -- Crew calendar, job assignments, crew management
+- **Change Orders** -- HCO workflow, 6-step design process, change order management
+- **Reports & Analytics** -- Analytics tabs, Atlas AI reports, audit page
+- **Administration** -- User management, system configuration, AHJ/utilities, notification rules
+- **System Features** -- Search, CSV export, feedback, session tracking, error handling
+- **Design Tools** -- Redesign calculator, SLD generator, batch processing
 
-The Help Center includes interactive mockups showing exactly what each UI element looks like and what it means.
+### Layout and Navigation
+
+The Help Center uses a sidebar + content layout:
+
+- **Search bar** at the top filters topics by title, description, and keywords (debounced 200ms)
+- **Sidebar** lists all 12 categories with topic counts; click to scroll to a category section. Collapsible on mobile.
+- **"What's New" section** in the sidebar highlights recently added features (Inventory, Atlas, Equipment Catalog, Legacy Projects, Document Management)
+- **Accordion topics** expand/collapse on click, showing detailed content with step-by-step instructions
+- **"Try it" links** on topics navigate directly to the relevant page
+- **Related topics** at the bottom of each expanded topic link to cross-referenced content
+- **Deep linking** via URL hash (e.g., `/help#materials-tab`) scrolls to and opens a specific topic on page load
 
 ### Feedback Button
 

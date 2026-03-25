@@ -78,7 +78,7 @@ export const analyticsTopics: HelpTopicData[] = [
     description: 'Natural language queries with CSV export',
     category: 'Reports & Analytics',
     keywords: ['atlas', 'ai', 'natural language', 'query', 'report', 'csv', 'export', 'sql'],
-    tryItLink: '/atlas',
+    tryItLink: '/reports',
     relatedTopics: ['analytics-overview'],
     content: AtlasReports,
   },

@@ -28,6 +28,7 @@ export function HelpSearch({ query, onChange }: HelpSearchProps) {
         defaultValue={query}
         onChange={e => handleChange(e.target.value)}
         placeholder="Search help topics..."
+        aria-label="Search help topics"
         className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-12 pr-4 py-3 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600"
       />
     </div>

@@ -21,6 +21,8 @@ export function HelpSidebar({ categories, activeCategory, onSelect, topicCounts,
       {/* What's New */}
       <button
         onClick={() => setWhatsNewOpen(!whatsNewOpen)}
+        aria-expanded={whatsNewOpen}
+        aria-controls="whats-new-menu"
         className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-amber-400 hover:bg-gray-800 transition-colors"
       >
         <Sparkles className="w-4 h-4" />
@@ -28,7 +30,7 @@ export function HelpSidebar({ categories, activeCategory, onSelect, topicCounts,
         {whatsNewOpen ? <ChevronDown className="w-3.5 h-3.5 ml-auto" /> : <ChevronRight className="w-3.5 h-3.5 ml-auto" />}
       </button>
       {whatsNewOpen && (
-        <div className="ml-4 pl-3 border-l border-amber-900/50 space-y-1 pb-2">
+        <div id="whats-new-menu" className="ml-4 pl-3 border-l border-amber-900/50 space-y-1 pb-2">
           {WHATS_NEW.map(item => (
             <button
               key={item.topicId}
@@ -71,6 +73,8 @@ export function HelpSidebar({ categories, activeCategory, onSelect, topicCounts,
       <div className="lg:hidden mb-4">
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label="Toggle categories menu"
+          aria-expanded={mobileOpen}
           className="flex items-center gap-2 px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-300 w-full"
         >
           <span>{activeCategory || 'Browse Categories'}</span>
