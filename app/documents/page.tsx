@@ -189,7 +189,7 @@ export default function DocumentsPage() {
                     <td className="px-4 py-2">
                       {file.file_url ? (
                         <a
-                          href={file.file_url}
+                          href={file.file_url?.startsWith('http') ? file.file_url : '#'}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-white hover:text-green-400 transition-colors"

@@ -52,9 +52,13 @@ const RATE_LIMIT_MAX = 10
 const DAILY_LIMIT = 25
 const DAY_MS = 86_400_000
 
-// Simple in-memory rate limiter (per-minute)
+// Simple in-memory rate limiter (per-minute).
+// On Vercel serverless, each invocation is short-lived — memory does not persist
+// across requests, so these Maps only work within a single instance lifetime.
+// This is acceptable: it provides burst protection within a warm instance without
+// needing an external store. For true cross-instance rate limiting, use Redis/Upstash.
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-// Daily usage tracker
+// Daily usage tracker (same serverless caveat as above)
 const dailyUsageMap = new Map<string, { count: number; resetAt: number }>()
 
 function checkRateLimit(userId: string): boolean {
@@ -434,7 +438,7 @@ export async function POST(request: NextRequest) {
     // Call Claude to generate query plan
     const anthropic = new Anthropic({ apiKey })
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-4-6', // claude-sonnet-4-6 — fast model for query generation
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
       messages,

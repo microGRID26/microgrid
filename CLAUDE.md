@@ -47,7 +47,7 @@ The Supabase client is globally mocked in `vitest.setup.ts`. Tests focus on busi
 
 All pages are in `app/*/page.tsx` as client components (`"use client"`). Each page fetches its own data via the Supabase browser client on mount and subscribes to realtime changes. Root `/` redirects to `/command`.
 
-Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual stage grid), `/analytics` (6 tabs: Leadership, Pipeline Health, By PM, Funding, Cycle Times, Dealers), `/audit` (task compliance), `/audit-trail` (admin-only change log with sortable columns, filters, pagination at 50/page, and ProjectPanel integration), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns, powered by `funding_dashboard` Postgres view), `/change-orders` (HCO/change order queue with 6-step workflow), `/documents` (file browser hub + `/documents/missing` missing docs report), `/legacy` (read-only lookup of 14,705 In Service legacy TriSMART projects), `/admin`, `/help`.
+Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual stage grid), `/analytics` (6 tabs: Leadership, Pipeline Health, By PM, Funding, Cycle Times, Dealers), `/audit` (task compliance), `/audit-trail` (admin-only change log with sortable columns, filters, pagination at 50/page, and ProjectPanel integration), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns, powered by `funding_dashboard` Postgres view), `/change-orders` (HCO/change order queue with 6-step workflow), `/documents` (file browser hub + `/documents/missing` missing docs report), `/reports` (AI-powered natural language query interface), `/legacy` (read-only lookup of 14,705 In Service legacy TriSMART projects), `/admin`, `/help`.
 
 ### API Layer
 
@@ -81,7 +81,7 @@ Pages should import from `@/lib/api` instead of querying Supabase directly. The 
 - `lib/hooks/` — reusable hook infrastructure (see [Hook Infrastructure](#hook-infrastructure) section below)
 - `lib/export-utils.ts` — CSV export with field picker (50+ fields, grouped)
 - `types/database.ts` — full TypeScript types for all Supabase tables
-- `components/Nav.tsx` — two-tier navigation bar. 6 primary links always visible (Command, Queue, Pipeline, Schedule, Funding, Analytics) + "More" dropdown for secondary pages (Service, Change Orders, Documents, Redesign, Legacy). Audit Trail link in More dropdown for admins. Right-side slot for page controls.
+- `components/Nav.tsx` — two-tier navigation bar. 6 primary links always visible (Command, Queue, Pipeline, Schedule, Funding, Analytics) + "More" dropdown for secondary pages (Service, Change Orders, Documents, Reports, Redesign, Legacy). Audit Trail link in More dropdown for admins. Right-side slot for page controls.
 - `components/project/ProjectPanel.tsx` — large modal (overview/tasks/notes/files/BOM tabs) used across multiple pages
 - `components/project/FilesTab.tsx` — extracted Files tab component for ProjectPanel (Google Drive link or "no folder" state)
 - `components/BulkActionBar.tsx` — bulk operations toolbar (see [Bulk Operations](#bulk-operations) section below)
@@ -399,6 +399,20 @@ API endpoint at `/api/webhooks/subhub` (route: `app/api/webhooks/subhub/route.ts
 - **Requires `SUPABASE_SECRET_KEY`** — uses service role key for database writes (no anon key fallback). Will return 500 if not configured.
 - **Idempotency** — checks for existing project by ID before creating to prevent duplicates
 - **GET endpoint** — health check returning enabled/disabled status
+
+### AI Reports
+
+Natural language query interface at `/reports` (page: `app/reports/page.tsx`, API: `app/api/reports/chat/route.ts`). Users type questions about project data in plain English, and Claude generates a Supabase query plan, executes it, and returns results in a sortable table.
+
+- **Access**: Manager+ role required (`isManager` check from `useCurrentUser`)
+- **AI model**: Claude Sonnet (`claude-sonnet-4-6`) for fast query generation
+- **Rate limiting**: 10 requests/minute + 25 requests/day per user (in-memory, per Vercel instance)
+- **Allowed tables**: projects, project_funding, task_state, notes, schedule, service_calls, change_orders
+- **Max results**: 500 rows per query
+- **Features**: sortable results table, CSV export, follow-up suggestions, conversation history, clickable project IDs (opens ProjectPanel), starter prompts
+- **Client-side filters**: `daysAgo_gt` and `daysAgo_lt` for date-relative queries (e.g., "projects stuck more than 30 days")
+- **Security**: query plan validated before execution; only whitelisted tables/ops allowed; service role key used for read-only queries
+- **Requires**: `ANTHROPIC_API_KEY` environment variable; returns 503 if not configured
 
 ### Analytics Page Tabs
 

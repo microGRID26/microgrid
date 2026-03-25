@@ -24,11 +24,12 @@ A comprehensive guide for Project Managers and team members at MicroGRID Energy 
 16. [Admin Portal](#admin-portal)
 17. [Document Management](#document-management)
 18. [Redesign Tool](#redesign-tool)
-19. [Legacy Projects](#legacy-projects)
-20. [Help Center](#help-center)
-21. [@Mentions and Notifications](#mentions-and-notifications)
-22. [Pagination](#pagination)
-23. [Tips and Best Practices](#tips-and-best-practices)
+19. [AI Reports](#ai-reports)
+20. [Legacy Projects](#legacy-projects)
+21. [Help Center](#help-center)
+22. [@Mentions and Notifications](#mentions-and-notifications)
+23. [Pagination](#pagination)
+24. [Tips and Best Practices](#tips-and-best-practices)
 
 ---
 
@@ -1272,6 +1273,47 @@ After configuring the system, click **Generate SLD** to create a Single Line Dia
 ### Batch Processing
 
 A batch processor button in the header allows processing multiple redesigns at once.
+
+---
+
+## AI Reports
+
+**URL:** `/reports`
+**Access:** Manager, Finance, Admin, and Super Admin roles
+
+AI Reports lets you ask questions about your project data in plain English. Instead of building filters or exporting spreadsheets, type a question and get results instantly.
+
+### How to Use
+
+1. Navigate to **Reports** from the "More" dropdown in the navigation bar.
+2. Type a question in the input field at the bottom, or click one of the starter prompts to get started.
+3. The system analyzes your question, queries the database, and displays results in a sortable table.
+4. Click any column header to sort the results.
+5. Click a project ID in the results to open the full Project Panel.
+
+### Example Questions
+
+- "Show me all blocked projects"
+- "Which permit stage projects have been stuck more than 30 days?"
+- "List projects by financier with contract values"
+- "What projects are missing a survey date?"
+- "Show me installs scheduled this month"
+- "Which PMs have the most projects?"
+
+### Exporting Results
+
+Click the **Export CSV** link below any results table to download the data as a CSV file. The export includes all columns and rows from the current result set, formatted for use in spreadsheets.
+
+### Follow-Up Questions
+
+After each result, the system may suggest a follow-up question. Click the suggestion to automatically send it as your next query. You can also type your own follow-up -- the system remembers the conversation context.
+
+### Limits
+
+- **25 queries per day** per user
+- **10 queries per minute** burst limit
+- **500 rows maximum** per result set
+- Available tables: projects, funding, tasks, notes, schedule, service calls, change orders
 
 ---
 

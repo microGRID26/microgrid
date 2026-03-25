@@ -20,6 +20,7 @@ function patternToRegex(pattern: string): RegExp {
   const escaped = pattern
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     .replace(/%/g, '.*')
+    .replace(/_/g, '.')
   return new RegExp(`^${escaped}$`, 'i')
 }
 

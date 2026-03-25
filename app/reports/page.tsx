@@ -359,7 +359,8 @@ export default function ReportsPage() {
       })
 
       if (!res.ok) {
-        throw new Error(`Request failed (${res.status})`)
+        const errBody = await res.json().catch(() => null)
+        throw new Error(errBody?.error || `Request failed (${res.status})`)
       }
 
       const data = await res.json()

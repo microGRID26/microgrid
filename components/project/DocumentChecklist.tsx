@@ -17,6 +17,7 @@ function patternToRegex(pattern: string): RegExp {
   const escaped = pattern
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')  // escape all regex specials
     .replace(/%/g, '.*')                        // convert SQL % wildcards
+    .replace(/_/g, '.')                          // convert SQL _ wildcards
   return new RegExp(`^${escaped}$`, 'i')
 }
 
@@ -142,7 +143,7 @@ export function DocumentChecklist({ projectId, currentStage }: DocumentChecklist
     )
   }
 
-  if (totalCount === 0) {
+  if (!loading && totalCount === 0) {
     return (
       <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
         <button
