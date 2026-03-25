@@ -75,7 +75,7 @@ function MultiSelect({ label, options, selected, onChange }: {
         onClick={() => setOpen(!open)}
         className="text-xs bg-gray-800 text-gray-300 border border-gray-700 rounded-md px-2 py-1.5 hover:border-gray-600 transition-colors"
       >
-        {count ? `${label} (${count})` : `All ${label}s`}
+        {count ? `${label} (${count})` : `All ${label}${label.endsWith('s') ? '' : 's'}`}
         <span className="ml-1 text-gray-500">▾</span>
       </button>
       {open && (
@@ -311,7 +311,7 @@ export default function PipelinePage() {
           onChange={v => setFilter('ahj', v)}
         />
         <MultiSelect
-          label="Utility"
+          label="Utilities"
           options={utilities}
           selected={filterValues.utility ?? ''}
           onChange={v => setFilter('utility', v)}
