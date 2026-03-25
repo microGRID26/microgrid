@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Nav } from '@/components/Nav'
 import { daysAgo, fmt$, STAGE_LABELS, STAGE_ORDER, SLA_THRESHOLDS } from '@/lib/utils'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
@@ -13,7 +13,7 @@ import { BulkActionBar, useBulkSelect, SelectCheckbox } from '@/components/BulkA
 import { ArrowRight, Loader2 } from 'lucide-react'
 import type { Project } from '@/types/database'
 
-const PROJECT_COLUMNS = 'id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, systemkw, financier, ahj, disposition'
+const PROJECT_COLUMNS = 'id, name, city, address, pm, pm_id, stage, stage_date, sale_date, contract, blocker, systemkw, financier, ahj, utility, disposition'
 
 const SEARCH_FIELDS = ['name', 'id', 'city', 'address']
 
@@ -21,6 +21,7 @@ const DROPDOWN_CONFIG = {
   pm: 'pm_id|pm',
   financier: 'financier',
   ahj: 'ahj',
+  utility: 'utility',
 }
 
 function getSLA(p: Project) {
@@ -40,6 +41,69 @@ const AGE_COLOR: Record<string, string> = {
   ok:   '#22c55e',
 }
 
+
+/** Multi-select dropdown for AHJ/Utility filters */
+function MultiSelect({ label, options, selected, onChange }: {
+  label: string
+  options: { value: string; label: string }[]
+  selected: string  // comma-separated
+  onChange: (v: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const selectedSet = useMemo(() => new Set(selected ? selected.split(',') : []), [selected])
+  const count = selectedSet.size
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function toggle(value: string) {
+    const next = new Set(selectedSet)
+    if (next.has(value)) next.delete(value)
+    else next.add(value)
+    onChange(Array.from(next).join(','))
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="text-xs bg-gray-800 text-gray-300 border border-gray-700 rounded-md px-2 py-1.5 hover:border-gray-600 transition-colors"
+      >
+        {count ? `${label} (${count})` : `All ${label}s`}
+        <span className="ml-1 text-gray-500">▾</span>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto min-w-[200px]">
+          {count > 0 && (
+            <button
+              onClick={() => onChange('')}
+              className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-gray-700 border-b border-gray-700"
+            >
+              Clear all
+            </button>
+          )}
+          {options.map(o => (
+            <label key={o.value} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selectedSet.has(o.value)}
+                onChange={() => toggle(o.value)}
+                className="rounded border-gray-600 bg-gray-900 text-green-500 focus:ring-green-500 focus:ring-offset-0"
+              />
+              {o.label}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function PipelinePage() {
   const [selected, setSelected] = useState<Project | null>(null)
@@ -91,7 +155,15 @@ export default function PipelinePage() {
     // Dropdown filters
     if (filterValues.pm) result = result.filter(p => p.pm_id === filterValues.pm)
     if (filterValues.financier) result = result.filter(p => p.financier === filterValues.financier)
-    if (filterValues.ahj) result = result.filter(p => p.ahj === filterValues.ahj)
+    // Multi-select: AHJ and Utility (comma-separated values)
+    if (filterValues.ahj) {
+      const selected = new Set(filterValues.ahj.split(','))
+      result = result.filter(p => selected.has(p.ahj ?? ''))
+    }
+    if (filterValues.utility) {
+      const selected = new Set(filterValues.utility.split(','))
+      result = result.filter(p => selected.has(p.utility ?? ''))
+    }
 
     return result
   }, [allProjects, search, filterValues])
@@ -100,6 +172,7 @@ export default function PipelinePage() {
   const pms = extractedDropdowns.pm ?? []
   const financiers = extractedDropdowns.financier ?? []
   const ahjs = extractedDropdowns.ahj ?? []
+  const utilities = extractedDropdowns.utility ?? []
 
   // Auto-open project from URL params (e.g., /pipeline?open=PROJ-28517&tab=notes)
   const [initialTab, setInitialTab] = useState<string | null>(null)
@@ -231,11 +304,18 @@ export default function PipelinePage() {
           <option value="all">All Financiers</option>
           {financiers.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
         </select>
-        <select value={filterValues.ahj ?? 'all'} onChange={e => setFilter('ahj', e.target.value)}
-          className="text-xs bg-gray-800 text-gray-300 border border-gray-700 rounded-md px-2 py-1.5">
-          <option value="all">All AHJs</option>
-          {ahjs.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-        </select>
+        <MultiSelect
+          label="AHJ"
+          options={ahjs}
+          selected={filterValues.ahj ?? ''}
+          onChange={v => setFilter('ahj', v)}
+        />
+        <MultiSelect
+          label="Utility"
+          options={utilities}
+          selected={filterValues.utility ?? ''}
+          onChange={v => setFilter('utility', v)}
+        />
 
         {/* Select mode toggle */}
         <button
