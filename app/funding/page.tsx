@@ -341,7 +341,9 @@ export default function FundingPage() {
   })
   const nfCodes = rawNfCodes as unknown as NonfundedCode[]
 
-  // funding_dashboard is a view (not in Database types), must query manually
+  // funding_dashboard is a Postgres view (migration 016) joining projects + project_funding.
+  // Views are not in Database types, so we query manually via cast and map rows to
+  // separate Project[] and ProjectFunding record structures client-side.
   const loadDashboard = useCallback(async () => {
     const supabase = createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

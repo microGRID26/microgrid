@@ -158,7 +158,7 @@ export function TasksTab({
         setDbPendingReasons(pending)
         setDbRevisionReasons(revision)
       })
-      .catch(() => { /* fallback to hardcoded */ })
+      .catch((err: unknown) => { console.error('Failed to load task reasons from DB, using hardcoded fallback:', err) })
   }, [])
 
   const activePendingReasons = dbPendingReasons ?? PENDING_REASONS

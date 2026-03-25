@@ -93,7 +93,7 @@ export function FilesTab({ folderUrl, projectId, currentStage }: FilesTabProps) 
         {folderUrl && (
           <a href={folderUrl} target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-3 py-2 transition-colors">
-            <img src="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_48dp.png" alt="Drive" className="w-5 h-5" />
+            <img src="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_48dp.png" alt="Open in Google Drive" className="w-5 h-5" />
             <span className="text-xs font-semibold text-white">Open in Drive</span>
             <ExternalLink size={12} className="text-gray-400" />
           </a>

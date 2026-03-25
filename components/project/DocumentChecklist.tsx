@@ -12,12 +12,19 @@ interface DocumentChecklistProps {
 }
 
 // Convert ILIKE-style patterns to regex: %word% means "contains word" (case-insensitive)
+// Handles escaped wildcards: \% and \_ are treated as literal characters
 function patternToRegex(pattern: string): RegExp {
-  // Escape regex special chars except %, then convert % to .*
-  const escaped = pattern
+  // First, replace escaped wildcards with placeholders to preserve them
+  const withPlaceholders = pattern
+    .replace(/\\%/g, '\x00PCT\x00')
+    .replace(/\\_/g, '\x00USC\x00')
+  // Escape regex special chars, then convert SQL wildcards
+  const escaped = withPlaceholders
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')  // escape all regex specials
     .replace(/%/g, '.*')                        // convert SQL % wildcards
     .replace(/_/g, '.')                          // convert SQL _ wildcards
+    .replace(/\x00PCT\x00/g, '%')              // restore literal %
+    .replace(/\x00USC\x00/g, '_')              // restore literal _
   return new RegExp(`^${escaped}$`, 'i')
 }
 

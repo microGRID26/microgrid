@@ -25,6 +25,7 @@ interface TaskStateRow {
   status: string
   reason?: string | null
   completed_date: string | null
+  follow_up_date?: string | null
 }
 
 // ── SLA BADGE ─────────────────────────────────────────────────────────────────
@@ -507,7 +508,7 @@ export default function CommandPage() {
     for (const t of taskStates) {
       // Overdue: task is stuck (Pending Resolution or Revision Required) with a follow_up_date in the past
       if ((t.status === 'Pending Resolution' || t.status === 'Revision Required') &&
-          (t as any).follow_up_date && daysAgo((t as any).follow_up_date) > 0) {
+          t.follow_up_date && daysAgo(t.follow_up_date) > 0) {
         overdue.add(t.project_id)
       }
       if (t.status === 'Pending Resolution') {

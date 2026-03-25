@@ -111,7 +111,8 @@ export default function QueuePage() {
   // ── Queue sections from DB (with hardcoded fallback) ───────────────────
   const [queueSections, setQueueSections] = useState<QueueSectionConfig[]>(HARDCODED_SECTIONS)
 
-  // queue_sections is an admin-configurable table not in Database types — cast required
+  // queue_sections is an admin-configurable table (migration 020) not in Database types.
+  // Cast required because useSupabaseQuery only accepts typed tables from types/database.ts.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: queueSectionsData } = useSupabaseQuery('queue_sections' as any, {
     select: 'id, label, task_id, match_status, color, icon, sort_order',

@@ -68,6 +68,9 @@ export function useCurrentUser() {
       const { data: u } = await (supabase as any)
         .from('users').select('id, name, email, role')
         .eq('email', email).single()
+      if (!u) {
+        console.warn(`useCurrentUser: no user row found for ${email}, falling back to default role`)
+      }
       const resolved: CurrentUser = u
         ? buildUser(u.id, u.email, u.name, u.role ?? 'user')
         : buildUser('', email, email.split('@')[0], 'user')

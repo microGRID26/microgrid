@@ -6,10 +6,10 @@ import { Pagination } from '@/components/Pagination'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { useSupabaseQuery } from '@/lib/hooks'
 import { useCurrentUser } from '@/lib/useCurrentUser'
-import { cn, fmtDate, escapeIlike } from '@/lib/utils'
+import { cn, escapeIlike } from '@/lib/utils'
 import { loadProjectById } from '@/lib/api'
 import { createClient } from '@/lib/supabase/client'
-import type { Project, AuditLog } from '@/types/database'
+import type { Project } from '@/types/database'
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────

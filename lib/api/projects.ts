@@ -27,9 +27,11 @@ export async function loadProjects(opts: ProjectQuery = {}) {
   }
 
   if (opts.excludeDispositions?.length) {
-    // Sanitize disposition values to prevent injection via the raw filter string
-    const safeList = opts.excludeDispositions.map(d => d.replace(/[^a-zA-Z_ ]/g, '')).join(',')
-    query = query.not('disposition', 'in', `(${safeList})`)
+    // Use properly escaped quoted values for the PostgREST not-in filter
+    const quotedList = opts.excludeDispositions
+      .map(d => `"${d.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
+      .join(',')
+    query = query.not('disposition', 'in', `(${quotedList})`)
   }
 
   const { data, error } = await query

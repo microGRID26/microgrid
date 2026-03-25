@@ -89,5 +89,7 @@ export function useRealtimeSubscription(table: TableName, options: RealtimeOptio
     }
   }, [table, event, filter, debounceMs, enabled])
 
+  // Exposed for callers that need to manually tear down the subscription before unmount,
+  // e.g., when switching contexts within a long-lived component. Normal cleanup is automatic via useEffect.
   return { unsubscribe }
 }

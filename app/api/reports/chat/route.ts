@@ -254,10 +254,22 @@ Rules:
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  // Use service role key for server-side read-only queries (bypasses RLS)
+  // Service role key is intentionally used here — the anon key returns empty results
+  // because RLS restricts row-level access. This route is protected by the Manager+
+  // role gate below (server-side session check) so only authorized users can invoke it.
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !key) throw new Error('Missing Supabase configuration')
   return createClient(url, key)
+}
+
+/** Create a user-scoped Supabase client from request cookies for auth checks */
+function getUserSupabase(request: NextRequest) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !key) return null
+  // Pass cookies from the request for session-based auth
+  const cookieHeader = request.headers.get('cookie') ?? ''
+  return createClient(url, key, { global: { headers: { cookie: cookieHeader } } })
 }
 
 // ── Query Execution ──────────────────────────────────────────────────────────
@@ -390,6 +402,27 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Server-side auth check — Manager+ role required.
+  // This supplements the frontend role gate (isManager check in the Reports page).
+  const userSupabase = getUserSupabase(request)
+  if (userSupabase) {
+    const { data: { user } } = await userSupabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    // Check role — only manager, admin, super_admin allowed
+    const { data: userRow } = await userSupabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    const role = (userRow as any)?.role ?? 'user'
+    const allowedRoles = ['manager', 'admin', 'super_admin']
+    if (!allowedRoles.includes(role)) {
+      return NextResponse.json({ error: 'Insufficient permissions. Manager role required.' }, { status: 403 })
+    }
+  }
+
   // Parse request body
   let message: string
   let history: ChatMessage[]
@@ -404,11 +437,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  // Rate limiting (use a header-based identifier or fall back to IP)
-  const userId =
-    request.headers.get('x-user-id') ||
-    request.headers.get('x-forwarded-for') ||
-    'anonymous'
+  // Rate limiting — use auth cookie as stable identifier (not spoofable headers)
+  const authCookie = request.cookies.getAll().find(c => c.name.startsWith('sb-'))?.value ?? ''
+  const userId = authCookie || 'anonymous'
   if (!checkRateLimit(userId)) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please wait a minute before trying again.' },

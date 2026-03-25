@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from 'react'
 import { Nav } from '@/components/Nav'
-import { fmt$, fmtDate, daysAgo, STAGE_LABELS, STAGE_ORDER, SLA_THRESHOLDS } from '@/lib/utils'
+import { fmt$, daysAgo, STAGE_LABELS, STAGE_ORDER, SLA_THRESHOLDS } from '@/lib/utils'
 import { useSupabaseQuery } from '@/lib/hooks'
-import type { Project, ProjectFunding } from '@/types/database'
+import type { ProjectFunding } from '@/types/database'
 
 type Period = 'wtd'|'mtd'|'qtd'|'ytd'|'last7'|'last30'|'last90'
 

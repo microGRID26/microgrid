@@ -6,7 +6,7 @@ import { daysAgo, fmt$, STAGE_LABELS, STAGE_ORDER, SLA_THRESHOLDS } from '@/lib/
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { NewProjectModal } from '@/components/project/NewProjectModal'
 import { useSupabaseQuery, useServerFilter, clearQueryCache } from '@/lib/hooks'
-import { createClient } from '@/lib/supabase/client'
+import { db } from '@/lib/db'
 import { updateProject } from '@/lib/api/projects'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { BulkActionBar, useBulkSelect, SelectCheckbox } from '@/components/BulkActionBar'
@@ -241,8 +241,6 @@ export default function PipelinePage() {
 
     setAdvanceProgress({ current: 0, total: selectedProjects.length })
 
-    const supabase = createClient()
-
     const failures: string[] = []
 
     for (let i = 0; i < selectedProjects.length; i++) {
@@ -251,12 +249,12 @@ export default function PipelinePage() {
 
       try {
         await updateProject(proj.id, { stage: nextStage, stage_date: today })
-        await (supabase as any).from('audit_log').insert({
+        await db().from('audit_log').insert({
           project_id: proj.id, field: 'stage',
           old_value: proj.stage, new_value: nextStage,
           changed_by: currentUser?.name ?? null, changed_by_id: currentUser?.id ?? null,
         })
-        await (supabase as any).from('stage_history').insert({
+        await db().from('stage_history').insert({
           project_id: proj.id, stage: nextStage, entered: today,
         })
       } catch (err) {

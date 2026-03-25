@@ -63,6 +63,8 @@ function fmtTime(t: string | null): string {
 
 export default function SchedulePage() {
   const supabase = createClient()
+  const mountedRef = useRef(true)
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false } }, [])
   const [schedule, setSchedule] = useState<ScheduleWithProject[]>([])
   const [weekOffset, setWeekOffset] = useState(0)
   const [warehouseFilter, setWarehouseFilter] = useState('all')
@@ -226,9 +228,14 @@ export default function SchedulePage() {
       const taskId = JOB_TO_TASK[job.job_type]
       if (taskId && job.project_id) {
         try {
+          // Preserve existing started_date if already set (#27)
+          const { data: existingTask } = await supabase.from('task_state')
+            .select('started_date').eq('project_id', job.project_id).eq('task_id', taskId).single()
+          const startDate = (existingTask as Record<string, unknown> | null)?.started_date ?? today
+
           await db().from('task_state').upsert({
             project_id: job.project_id, task_id: taskId,
-            status: 'Complete', completed_date: today, started_date: today,
+            status: 'Complete', completed_date: today, started_date: startDate,
           }, { onConflict: 'project_id,task_id' })
 
           await db().from('task_history').insert({
@@ -238,8 +245,9 @@ export default function SchedulePage() {
 
           const dateField = TASK_DATE[taskId]
           if (dateField) {
-            const { data: proj } = await supabase.from('projects').select(dateField).eq('id', job.project_id).single()
-            if (proj && !(proj as Record<string, unknown>)[dateField]) {
+            const { data: proj, error: projErr } = await supabase.from('projects').select(dateField).eq('id', job.project_id).single()
+            if (projErr || !proj) return
+            if (!(proj as Record<string, unknown>)[dateField]) {
               await db().from('projects').update({ [dateField]: today }).eq('id', job.project_id)
             }
           }
@@ -250,7 +258,8 @@ export default function SchedulePage() {
     }
 
     setCompleting(null)
-    loadSchedule()
+    // Guard against calling loadSchedule after unmount (#15)
+    if (mountedRef.current) loadSchedule()
   }
 
   return (

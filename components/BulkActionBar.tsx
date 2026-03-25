@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { updateProject, loadUsers } from '@/lib/api/projects'
+import { db } from '@/lib/db'
 import { clearQueryCache } from '@/lib/hooks'
 import { Users, ShieldAlert, Tag, Calendar, X, Loader2, CheckSquare, Square } from 'lucide-react'
 import type { Project } from '@/types/database'
@@ -96,8 +96,9 @@ export function SelectCheckbox({ selected, onToggle }: { selected: boolean; onTo
       aria-checked={selected}
       aria-label="Select project"
       tabIndex={0}
+      onClick={onToggle ? (e => { e.stopPropagation(); onToggle() }) : undefined}
       onKeyDown={onToggle ? (e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }) : undefined}
-      className="absolute top-1.5 right-1.5 z-10"
+      className="absolute top-1.5 right-1.5 z-10 cursor-pointer"
     >
       {selected
         ? <CheckSquare className="w-4 h-4 text-green-400" />
@@ -110,8 +111,7 @@ export function SelectCheckbox({ selected, onToggle }: { selected: boolean; onTo
 // ── Audit log helper ──────────────────────────────────────────────────────────
 
 async function logAudit(projectId: string, field: string, oldValue: string | null, newValue: string | null, currentUser: CurrentUser | null) {
-  const supabase = createClient()
-  const { error } = await (supabase as any).from('audit_log').insert({
+  const { error } = await db().from('audit_log').insert({
     project_id: projectId,
     field,
     old_value: oldValue,

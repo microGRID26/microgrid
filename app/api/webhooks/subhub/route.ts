@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import crypto from 'crypto'
 import { TASKS } from '@/lib/tasks'
 
 // ── SubHub Webhook: Project Created ─────────────────────────────────────────
@@ -16,6 +17,42 @@ const SUPABASE_SECRET = process.env.SUPABASE_SECRET_KEY || ''
 const WEBHOOK_SECRET = process.env.SUBHUB_WEBHOOK_SECRET || ''
 const WEBHOOK_ENABLED = process.env.SUBHUB_WEBHOOK_ENABLED === 'true'
 const DRIVE_WEBHOOK_URL = process.env.NEXT_PUBLIC_DRIVE_WEBHOOK_URL ?? ''
+
+/** Shape of the SubHub webhook payload. All fields are optional since external input is untrusted. */
+interface SubHubPayload {
+  subhub_id?: string
+  name?: string
+  first_name?: string
+  last_name?: string
+  email?: string
+  phone?: string
+  street?: string
+  city?: string
+  postal_code?: string
+  contract_signed_date?: string
+  contract_amount?: number
+  system_size_kw?: number
+  finance_partner?: string
+  finance_type?: string
+  finance_product_name?: string
+  finance_escalator_rate?: number
+  module_name?: string
+  module_total_panels?: number
+  inverter_name?: string
+  inverter_quantity?: number
+  battery_name?: string
+  battery_quantity?: number
+  utility_company?: string
+  hoa_name?: string
+  sales_representative_name?: string
+  sales_representative_email?: string
+  sales_rep_first_name?: string
+  sales_rep_last_name?: string
+  owner_email?: string
+  downpayment?: number
+  organization_name?: string
+  adders?: { name?: string; unit_price?: number; cost_total?: number; qty?: number }[]
+}
 
 function supabase() {
   return createClient(SUPABASE_URL, SUPABASE_SECRET)
@@ -36,21 +73,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Webhook is disabled. Set SUBHUB_WEBHOOK_ENABLED=true to activate.' }, { status: 503 })
   }
 
-  // Verify webhook secret if configured
+  // Verify webhook secret if configured (timing-safe comparison)
   if (WEBHOOK_SECRET) {
     const authHeader = request.headers.get('authorization') ?? request.headers.get('x-webhook-secret') ?? ''
-    if (authHeader !== WEBHOOK_SECRET && authHeader !== `Bearer ${WEBHOOK_SECRET}`) {
+    const candidate = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader
+    let secretMatch = false
+    try {
+      secretMatch = crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(WEBHOOK_SECRET))
+    } catch {
+      // timingSafeEqual throws if buffer lengths differ — that means no match
+      secretMatch = false
+    }
+    if (!secretMatch) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
   }
 
   try {
-    const payload = await request.json()
+    const payload = (await request.json()) as SubHubPayload
+
+    // Validate required fields
+    const customerName = payload.name ?? (`${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim())
+    const customerAddress = payload.street
+    if (!customerName || !customerAddress) {
+      return NextResponse.json({ error: 'Missing required fields: name and address (street) are required' }, { status: 400 })
+    }
+
     const db = supabase()
 
     // Idempotency: check for duplicate by matching name + address
-    const customerName = payload.name ?? (`${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim() || 'Unknown')
-    const customerAddress = payload.street ?? null
     if (customerName && customerAddress) {
       const { data: existing } = await db.from('projects')
         .select('id')
@@ -108,7 +159,7 @@ export async function POST(request: NextRequest) {
     const { error: projErr } = await db.from('projects').insert(project)
     if (projErr) {
       console.error('SubHub webhook: project insert failed:', projErr)
-      return NextResponse.json({ error: 'Failed to create project', detail: projErr.message }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to create project', detail: 'Internal error' }, { status: 500 })
     }
 
     // Create initial task states (all evaluation tasks as Ready To Start, rest as Not Ready)
@@ -188,9 +239,9 @@ export async function POST(request: NextRequest) {
       message: `Project ${projectId} created successfully`,
     }, { status: 201 })
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('SubHub webhook error:', err)
-    return NextResponse.json({ error: 'Internal server error', detail: err.message }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error', detail: 'Internal error' }, { status: 500 })
   }
 }
 

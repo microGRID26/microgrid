@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export interface ExportPreset {
@@ -41,10 +41,13 @@ function saveToLS(prefs: UserPreferences) {
 
 let cachedPrefs: UserPreferences | null = null
 let cachedUserId: string | null = null
+let initInProgress = false
 
 export function usePreferences() {
   const [prefs, setPrefs] = useState<UserPreferences>(cachedPrefs ?? { ...DEFAULTS, ...loadFromLS() })
   const [loaded, setLoaded] = useState(!!cachedPrefs)
+  const prefsRef = useRef(prefs)
+  useEffect(() => { prefsRef.current = prefs }, [prefs])
 
   useEffect(() => {
     const supabase = createClient()
@@ -54,11 +57,16 @@ export function usePreferences() {
       if (event === 'SIGNED_OUT') {
         cachedPrefs = null
         cachedUserId = null
+        initInProgress = false
         setPrefs({ ...DEFAULTS })
       }
     })
 
     if (cachedPrefs) return () => subscription.unsubscribe()
+
+    // Prevent double initialization from concurrent hook mounts (#24)
+    if (initInProgress) return () => subscription.unsubscribe()
+    initInProgress = true
 
     supabase.auth.getUser().then(async ({ data }) => {
       const uid = data.user?.id
@@ -98,7 +106,7 @@ export function usePreferences() {
   }, [])
 
   const updatePref = useCallback(async <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => {
-    const next = { ...prefs, [key]: value }
+    const next = { ...prefsRef.current, [key]: value }
     cachedPrefs = next
     setPrefs(next)
     saveToLS(next)
@@ -124,7 +132,7 @@ export function usePreferences() {
     } catch (err) {
       console.error('usePreferences: DB upsert error:', err)
     }
-  }, [prefs])
+  }, [])
 
   return { prefs, updatePref, loaded }
 }

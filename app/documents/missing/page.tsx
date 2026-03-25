@@ -62,7 +62,8 @@ export default function MissingDocumentsPage() {
     const { data: projData } = await supabase
       .from('projects')
       .select('*')
-      .not('disposition', 'in', '("Cancelled","In Service")')
+      .neq('disposition', 'Cancelled')
+      .neq('disposition', 'In Service')
       .order('id')
       .limit(2000)
 

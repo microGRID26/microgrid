@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { db } from '@/lib/db'
 import { Input, Textarea, Modal, SaveBtn, SearchBar, Badge } from './shared'
 import { STAGE_ORDER, STAGE_LABELS } from '@/lib/utils'
@@ -131,13 +131,13 @@ export function DocumentRequirementsManager({ isSuperAdmin }: { isSuperAdmin: bo
     load()
   }
 
-  // Group requirements by stage for display
-  const grouped = STAGE_ORDER
+  // Group requirements by stage for display (memoized to avoid re-filtering each render)
+  const grouped = useMemo(() => STAGE_ORDER
     .map(s => ({
       stage: s,
       items: requirements.filter(r => r.stage === s),
     }))
-    .filter(g => g.items.length > 0)
+    .filter(g => g.items.length > 0), [requirements])
 
   return (
     <div className="flex flex-col h-full">

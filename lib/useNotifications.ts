@@ -16,6 +16,27 @@ export interface Notification {
   read: boolean
 }
 
+/** Shape of a task_history row returned from the notification query */
+interface TaskHistoryRow {
+  project_id: string
+  task_id: string
+  status: string
+  reason: string | null
+  changed_at: string
+  changed_by: string
+}
+
+/** Shape of a mention_notification row with joined project name */
+interface MentionRow {
+  id: string
+  project_id: string
+  mentioned_by: string
+  message: string | null
+  created_at: string
+  read: boolean
+  project: { name: string } | null
+}
+
 export function useNotifications() {
   const { user } = useCurrentUser()
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -67,7 +88,7 @@ export function useNotifications() {
 
     // Recent revision/pending tasks
     if (recentHistory) {
-      recentHistory.forEach((h: any) => {
+      recentHistory.forEach((h: TaskHistoryRow) => {
         const proj = projects.find(p => p.id === h.project_id)
         if (!proj) return
         notifs.push({
@@ -93,7 +114,7 @@ export function useNotifications() {
       .limit(20)
 
     if (mentions) {
-      mentions.forEach((m: any) => {
+      mentions.forEach((m: MentionRow) => {
         const projName = m.project?.name ?? m.project_id
         notifs.push({
           id: `mention-${m.id}`,

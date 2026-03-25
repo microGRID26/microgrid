@@ -154,7 +154,16 @@ export function useSupabaseQuery<T extends TableName>(
 
   useEffect(() => {
     mountedRef.current = true
-    return () => { mountedRef.current = false }
+    return () => {
+      mountedRef.current = false
+      // Clean up orphaned inflight promises for this component's query (#19)
+      const cacheKey = buildCacheKey(table, {
+        ...options,
+        page: initialPage !== undefined ? currentPage : undefined,
+      })
+      // Only delete the inflight entry — cache entries are shared and may still be useful
+      inflight.delete(cacheKey)
+    }
   }, [])
 
   // Serialize options for dependency tracking
@@ -240,7 +249,7 @@ export function useSupabaseQuery<T extends TableName>(
             // to prevent injection via crafted filter values.
             const escapeNotInValue = (v: string): string =>
               v.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/,/g, '\\,').replace(/[()]/g, '\\$&')
-            const vals = value.not_in.map(v => typeof v === 'string' ? `"${escapeNotInValue(v)}"` : v).join(',')
+            const vals = value.not_in.map(v => typeof v === 'string' ? `"${escapeNotInValue(v)}"` : String(v)).join(',')
             query = query.not(field, 'in', `(${vals})`)
           } else if ('ilike' in value) {
             query = query.ilike(field, value.ilike)
