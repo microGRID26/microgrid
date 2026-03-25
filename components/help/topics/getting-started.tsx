@@ -6,7 +6,7 @@ function LoggingIn() {
       <div className="space-y-3">
         <div className="bg-gray-800/50 rounded-lg px-4 py-3 border-l-2 border-green-500">
           <div className="text-xs font-bold text-green-400 mb-1">Step 1</div>
-          <div className="text-xs text-gray-400">Navigate to the NOVA CRM URL and click <span className="text-white font-medium">Sign in with Google</span>.</div>
+          <div className="text-xs text-gray-400">Navigate to <a href="https://microgrid-crm.vercel.app" target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 underline">MicroGRID CRM</a> and click <span className="text-white font-medium">Sign in with Google</span>.</div>
         </div>
         <div className="bg-gray-800/50 rounded-lg px-4 py-3 border-l-2 border-blue-500">
           <div className="text-xs font-bold text-blue-400 mb-1">Step 2</div>
@@ -48,6 +48,7 @@ function UnderstandingRoles() {
   return (
     <div className="space-y-1.5 text-xs">
       {[
+        { role: 'Sales', desc: 'Energy consultants. View only their own projects. No financial data, no editing, no Atlas.', color: 'text-purple-300' },
         { role: 'User', desc: 'Standard access. Create/edit projects, update tasks, add notes.', color: 'text-gray-300' },
         { role: 'Manager', desc: 'Same as User with additional visibility and Atlas access.', color: 'text-blue-300' },
         { role: 'Finance', desc: 'Access to funding pages and financial data.', color: 'text-amber-300' },
@@ -120,9 +121,9 @@ export const gettingStartedTopics: HelpTopicData[] = [
   {
     id: 'understanding-roles',
     title: 'Understanding Roles',
-    description: 'User, Manager, Finance, Admin, Super Admin',
+    description: 'Sales, User, Manager, Finance, Admin, Super Admin',
     category: 'Getting Started',
-    keywords: ['role', 'permission', 'access', 'admin', 'manager', 'finance', 'super admin'],
+    keywords: ['role', 'permission', 'access', 'admin', 'manager', 'finance', 'super admin', 'sales', 'consultant'],
     relatedTopics: ['admin-portal', 'permission-matrix'],
     content: UnderstandingRoles,
   },

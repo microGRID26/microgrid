@@ -155,6 +155,82 @@ function StageAdvancement() {
   )
 }
 
+function PendingAndRevision() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-4">These are the two &quot;problem&quot; statuses. They signal that something is wrong and needs attention before the project can move forward.</p>
+
+      {/* Pending Resolution */}
+      <div className="bg-gray-800 rounded-lg p-4 mb-4 border-l-2 border-red-500">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="bg-red-900 text-red-300 px-2 py-0.5 rounded text-xs font-medium">Pending Resolution</span>
+          <span className="text-xs text-gray-500">— waiting on someone or something external</span>
+        </div>
+        <p className="text-xs text-gray-400 mb-3">Use when a task is <span className="text-white">blocked by something outside your control</span>. The project cannot move forward until this is resolved.</p>
+        <div className="text-xs text-gray-400 space-y-1.5">
+          <div className="font-medium text-gray-300 mb-1">When to use:</div>
+          <div className="flex items-start gap-2">
+            <span className="text-red-400 mt-0.5">&#8226;</span>
+            <span>City permit was submitted but the city hasn&apos;t responded</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-red-400 mt-0.5">&#8226;</span>
+            <span>Waiting on the customer to sign a document or provide information</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-red-400 mt-0.5">&#8226;</span>
+            <span>Utility company hasn&apos;t processed the interconnection application</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-red-400 mt-0.5">&#8226;</span>
+            <span>HOA review is pending</span>
+          </div>
+        </div>
+        <div className="mt-3 bg-red-950/50 rounded px-3 py-2 text-xs text-red-300">
+          <span className="font-medium">What happens:</span> A reason dropdown appears — select why it&apos;s pending. The project&apos;s blocker field is auto-set. The project shows as &quot;Blocked&quot; in Command Center and Queue.
+        </div>
+      </div>
+
+      {/* Revision Required */}
+      <div className="bg-gray-800 rounded-lg p-4 border-l-2 border-amber-500">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="bg-amber-900 text-amber-300 px-2 py-0.5 rounded text-xs font-medium">Revision Required</span>
+          <span className="text-xs text-gray-500">— work needs to be redone</span>
+        </div>
+        <p className="text-xs text-gray-400 mb-3">Use when a task&apos;s output was <span className="text-white">rejected or needs rework</span>. This triggers a cascade that resets downstream tasks.</p>
+        <div className="text-xs text-gray-400 space-y-1.5">
+          <div className="font-medium text-gray-300 mb-1">When to use:</div>
+          <div className="flex items-start gap-2">
+            <span className="text-amber-400 mt-0.5">&#8226;</span>
+            <span>Design was rejected by engineering — needs a new design</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-amber-400 mt-0.5">&#8226;</span>
+            <span>City permit was denied — need to fix plans and resubmit</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-amber-400 mt-0.5">&#8226;</span>
+            <span>Inspection failed — rework needed before re-inspection</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-amber-400 mt-0.5">&#8226;</span>
+            <span>Customer requested a system change after design was complete</span>
+          </div>
+        </div>
+        <div className="mt-3 bg-amber-950/50 rounded px-3 py-2 text-xs text-amber-300">
+          <span className="font-medium">What happens:</span> A confirmation dialog appears showing which downstream tasks will reset to &quot;Not Ready.&quot; Corresponding auto-populated dates are cleared. The project may need to redo those tasks from scratch.
+        </div>
+      </div>
+
+      {/* Key difference */}
+      <div className="mt-4 bg-gray-800/50 rounded-lg px-4 py-3 text-xs">
+        <div className="text-white font-medium mb-1">Key difference:</div>
+        <div className="text-gray-400"><span className="text-red-300">Pending Resolution</span> = waiting on someone else. <span className="text-amber-300">Revision Required</span> = our work needs to be redone.</div>
+      </div>
+    </div>
+  )
+}
+
 export const projectManagementTopics: HelpTopicData[] = [
   {
     id: 'task-statuses',
@@ -184,12 +260,21 @@ export const projectManagementTopics: HelpTopicData[] = [
     content: TaskPrerequisites,
   },
   {
+    id: 'pending-and-revision',
+    title: 'Pending Resolution & Revision Required',
+    description: 'When and how to use the two problem statuses',
+    category: 'Project Management',
+    keywords: ['pending', 'resolution', 'revision', 'required', 'blocked', 'rework', 'stuck', 'reason', 'cascade'],
+    relatedTopics: ['task-statuses', 'revision-cascade', 'stuck-tasks'],
+    content: PendingAndRevision,
+  },
+  {
     id: 'revision-cascade',
     title: 'Revision Cascade',
     description: 'Downstream reset with confirmation dialog',
     category: 'Project Management',
     keywords: ['revision', 'cascade', 'reset', 'downstream', 'not ready', 'rework'],
-    relatedTopics: ['updating-task', 'task-prerequisites'],
+    relatedTopics: ['pending-and-revision', 'task-prerequisites'],
     content: RevisionCascade,
   },
   {
