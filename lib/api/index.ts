@@ -17,3 +17,5 @@ export type { ProjectFile, DocumentRequirement, ProjectDocument } from './docume
 export { loadEquipment, searchEquipment, loadAllEquipment } from './equipment'
 export type { Equipment, EquipmentCategory } from './equipment'
 export { EQUIPMENT_CATEGORIES } from './equipment'
+export { loadProjectMaterials, addProjectMaterial, updateProjectMaterial, deleteProjectMaterial, autoGenerateMaterials, loadWarehouseStock, loadAllProjectMaterials, MATERIAL_STATUSES, MATERIAL_SOURCES, MATERIAL_CATEGORIES } from './inventory'
+export type { ProjectMaterial, WarehouseStock, MaterialStatus, MaterialSource, MaterialCategory } from './inventory'

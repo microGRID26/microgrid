@@ -31,6 +31,7 @@ const MORE_LINKS = [
   { label: 'Change Orders', href: '/change-orders' },
   { label: 'Atlas',          href: '/reports'  },
   { label: 'Documents',     href: '/documents' },
+  { label: 'Inventory',     href: '/inventory' },
   { label: 'Redesign',      href: '/redesign' },
   { label: 'Legacy',        href: '/legacy'   },
 ]

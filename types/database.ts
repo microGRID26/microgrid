@@ -468,6 +468,38 @@ export interface ProjectFile {
   synced_at: string
 }
 
+export interface ProjectMaterial {
+  id: string
+  project_id: string
+  equipment_id: string | null
+  name: string
+  category: string
+  quantity: number
+  unit: string
+  source: string
+  vendor: string | null
+  status: string
+  po_number: string | null
+  expected_date: string | null
+  delivered_date: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface WarehouseStock {
+  id: string
+  equipment_id: string | null
+  name: string
+  category: string
+  quantity_on_hand: number
+  reorder_point: number
+  unit: string
+  location: string | null
+  last_counted_at: string | null
+  updated_at: string
+}
+
 export interface LegacyProject {
   id: string
   ns_internal_id: string | null
@@ -717,6 +749,18 @@ export type Database = {
         Row: ProjectFile
         Insert: Omit<ProjectFile, 'id' | 'synced_at'> & { id?: string; synced_at?: string }
         Update: Partial<ProjectFile>
+
+      }
+      project_materials: {
+        Row: ProjectMaterial
+        Insert: Omit<ProjectMaterial, 'id' | 'created_at' | 'updated_at'> & { id?: string; created_at?: string; updated_at?: string }
+        Update: Partial<ProjectMaterial>
+
+      }
+      warehouse_stock: {
+        Row: WarehouseStock
+        Insert: Omit<WarehouseStock, 'id' | 'updated_at'> & { id?: string; updated_at?: string }
+        Update: Partial<WarehouseStock>
 
       }
       legacy_projects: {

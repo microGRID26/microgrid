@@ -11,6 +11,7 @@ import { TasksTab } from './TasksTab'
 import { NotesTab } from './NotesTab'
 import { InfoTab } from './InfoTab'
 import { FilesTab } from './FilesTab'
+import { MaterialsTab } from './MaterialsTab'
 import { ScheduleAssignModal } from './ScheduleAssignModal'
 
 // ── STAGE ADVANCE LOGIC ───────────────────────────────────────────────────────
@@ -25,14 +26,14 @@ interface ProjectPanelProps {
   project: Project
   onClose: () => void
   onProjectUpdated: () => void
-  initialTab?: 'tasks' | 'notes' | 'info' | 'bom' | 'files'
+  initialTab?: 'tasks' | 'notes' | 'info' | 'bom' | 'files' | 'materials'
 }
 
 export function ProjectPanel({ project: initialProject, onClose, onProjectUpdated, initialTab }: ProjectPanelProps) {
   const supabase = db()
   const { user: currentUser } = useCurrentUser()
   const [project, setProject] = useState<Project>(initialProject)
-  const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files'>(initialTab ?? 'tasks')
+  const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files' | 'materials'>(initialTab ?? 'tasks')
   useEffect(() => { if (initialTab) setTab(initialTab) }, [initialTab])
   const [taskStates, setTaskStates] = useState<Record<string, string>>({})
   const [taskReasons, setTaskReasons] = useState<Record<string, string>>({})
@@ -1050,6 +1051,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
             { id: 'notes', label: `Notes${notes.length ? ` (${notes.length})` : ''}`, stuck: false },
             { id: 'info',  label: 'Info', stuck: false },
             { id: 'bom',   label: 'BOM', stuck: false },
+            { id: 'materials', label: 'Materials', stuck: false },
             { id: 'files', label: 'Files', stuck: false },
           ] as const).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
@@ -1119,6 +1121,9 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
 
           {/* BOM */}
           {tab === 'bom' && <BomTab project={project} />}
+
+          {/* MATERIALS */}
+          {tab === 'materials' && <MaterialsTab project={project} />}
 
           {/* FILES */}
           {tab === 'files' && <FilesTab folderUrl={folderUrl} projectId={pid} currentStage={project.stage} />}
