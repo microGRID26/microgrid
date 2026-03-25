@@ -117,7 +117,7 @@ interface SearchResult {
 
 function Toast({ message, type = 'success', onDone }: { message: string; type?: 'success' | 'error'; onDone: () => void }) {
   useEffect(() => {
-    const t = setTimeout(onDone, 3000)
+    const t = setTimeout(onDone, 5000)
     return () => clearTimeout(t)
   }, [onDone])
 
@@ -455,6 +455,8 @@ export default function FieldPage() {
   const supabaseDb = db()
   const { user: currentUser, loading: userLoading } = useCurrentUser()
   const [jobs, setJobs] = useState<FieldJob[]>([])
+  const jobsRef = useRef<FieldJob[]>([])
+  useEffect(() => { jobsRef.current = jobs }, [jobs])
   const [jobsLoading, setJobsLoading] = useState(true)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -483,10 +485,14 @@ export default function FieldPage() {
   // Load crews
   useEffect(() => {
     async function loadCrews() {
-      const { data } = await (supabaseDb as any)
+      const { data, error } = await (supabaseDb as any)
         .from('crews')
         .select('id, name')
         .eq('active', 'TRUE')
+      if (error) {
+        setToast({ message: 'Failed to load crews', type: 'error' })
+        return
+      }
       if (data) {
         const map: Record<string, string> = {}
         ;(data as { id: string; name: string }[]).forEach(c => { map[c.id] = c.name })
@@ -497,7 +503,7 @@ export default function FieldPage() {
           const userCrew = (data as { id: string; name: string }[]).find(c =>
             c.name.toLowerCase().includes(currentUser.name.toLowerCase())
           )
-          if (userCrew) setCrewName(userCrew.name)
+          setCrewName(userCrew ? userCrew.name : currentUser.name)
         }
       }
     }
@@ -520,10 +526,13 @@ export default function FieldPage() {
       const pids = [...new Set(rawJobs.map((j: any) => j.project_id).filter(Boolean))]
       const projMap: Record<string, any> = {}
       if (pids.length > 0) {
-        const { data: projData } = await (supabase as any)
+        const { data: projData, error: projError } = await (supabase as any)
           .from('projects')
           .select('id, name, phone, email, address, city, zip, systemkw, module, module_qty, stage, stage_date, blocker, survey_date, install_complete_date, pto_date')
           .in('id', pids)
+        if (projError) {
+          setToast({ message: 'Failed to load project details', type: 'error' })
+        }
         if (projData) {
           projData.forEach((p: any) => { projMap[p.id] = p })
         }
@@ -606,12 +615,16 @@ export default function FieldPage() {
 
   // Open project detail
   async function openProject(projectId: string) {
+    if (!navigator.onLine) {
+      setToast({ message: 'No internet connection', type: 'error' })
+      return
+    }
     setDetailLoading(true)
-    const { data } = await supabase.from('projects').select('*').eq('id', projectId).single()
-    if (data) {
-      setDetailProject(data as Project)
+    const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).maybeSingle()
+    if (error || !data) {
+      setToast({ message: error?.message ?? 'Project not found', type: 'error' })
     } else {
-      setToast({ message: 'Project not found', type: 'error' })
+      setDetailProject(data as Project)
     }
     setDetailLoading(false)
     setSearch('')
@@ -620,6 +633,10 @@ export default function FieldPage() {
 
   // Status change handler
   async function handleStatusChange(jobId: string, newStatus: string) {
+    if (!navigator.onLine) {
+      setToast({ message: 'No internet connection', type: 'error' })
+      return
+    }
     const { error } = await (supabaseDb as any)
       .from('schedule')
       .update({ status: newStatus })
@@ -632,7 +649,7 @@ export default function FieldPage() {
 
     // Auto-complete corresponding task when job is marked complete
     if (newStatus === 'complete') {
-      const job = jobs.find(j => j.id === jobId)
+      const job = jobsRef.current.find(j => j.id === jobId)
       if (job) {
         const taskId = JOB_TO_TASK[job.job_type]
         if (taskId) {
@@ -672,6 +689,10 @@ export default function FieldPage() {
 
   // Mark task complete
   async function handleMarkTaskComplete(job: FieldJob) {
+    if (!navigator.onLine) {
+      setToast({ message: 'No internet connection', type: 'error' })
+      return
+    }
     const taskId = JOB_TO_TASK[job.job_type]
     if (!taskId) return
 
@@ -715,12 +736,17 @@ export default function FieldPage() {
   // Sort jobs: in_progress first, then scheduled, then complete
   const sortedJobs = useMemo(() => {
     const order: Record<string, number> = { in_progress: 0, scheduled: 1, complete: 2 }
+    const timeToMin = (t: string | null) => {
+      if (!t) return 9999
+      const [h, m] = t.split(':').map(Number)
+      return (h || 0) * 60 + (m || 0)
+    }
     return [...jobs].sort((a, b) => {
       const ao = order[a.status] ?? 1
       const bo = order[b.status] ?? 1
       if (ao !== bo) return ao - bo
-      // Then by time
-      return (a.time ?? '99:99').localeCompare(b.time ?? '99:99')
+      // Then by time (numeric comparison)
+      return timeToMin(a.time) - timeToMin(b.time)
     })
   }, [jobs])
 
@@ -728,14 +754,23 @@ export default function FieldPage() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-gray-950 flex items-center justify-center">
-        <div className="text-green-400 text-base animate-pulse">Loading field view...</div>
+      <div className="min-h-dvh bg-gray-950 px-4 pt-16 space-y-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="bg-gray-900 rounded-xl border border-gray-800 p-4 animate-pulse">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-6 w-16 bg-gray-800 rounded-full" />
+              <div className="h-4 w-20 bg-gray-800 rounded" />
+            </div>
+            <div className="h-5 w-48 bg-gray-800 rounded mb-2" />
+            <div className="h-4 w-32 bg-gray-800 rounded" />
+          </div>
+        ))}
       </div>
     )
   }
 
   return (
-    <div className="min-h-dvh bg-gray-950 flex flex-col">
+    <div className="min-h-dvh bg-gray-950 flex flex-col pb-[env(safe-area-inset-bottom)]">
       {/* Header */}
       <header className="bg-gray-950 border-b border-gray-800 px-4 py-3 flex-shrink-0 sticky top-0 z-40">
         <div className="flex items-center justify-between">
@@ -768,7 +803,13 @@ export default function FieldPage() {
             ) : searchResults.length === 0 ? (
               <div className="px-4 py-3 text-gray-500 text-sm">No results</div>
             ) : (
-              searchResults.map(r => (
+              <>
+              {searchResults.length >= 10 && (
+                <div className="px-4 py-2 text-xs text-amber-400 bg-amber-950/50 border-b border-gray-800">
+                  Showing first 10 results — refine your search
+                </div>
+              )}
+              {searchResults.map(r => (
                 <button
                   key={r.id}
                   onClick={() => openProject(r.id)}
@@ -785,7 +826,8 @@ export default function FieldPage() {
                     )}
                   </div>
                 </button>
-              ))
+              ))}
+              </>
             )}
           </div>
         )}

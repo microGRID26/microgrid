@@ -45,6 +45,55 @@ function CrewView() {
   )
 }
 
+function LeadershipDashboard() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-2">Mobile-first leadership dashboard at <span className="text-green-400 font-mono">/mobile/leadership</span>. Requires Manager role or above. Shows:</p>
+      <div className="space-y-1 text-xs">
+        {[
+          'Active projects count and portfolio value',
+          'Installs, M2 funded, and M3 funded this month (count + amount)',
+          'Blocked projects count (highlighted red)',
+          'Pipeline stage distribution bar chart',
+          'PM performance table (active + blocked per PM)',
+          'Avg sale-to-install days and aging project count (90+ cycle days)',
+          'Auto-refreshes every 5 minutes; manual refresh button in header',
+        ].map((item, i) => (
+          <div key={i} className="flex items-start gap-2 text-gray-400">
+            <span className="text-gray-600 mt-0.5">&bull;</span>
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function FieldOperatorView() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-2">Mobile-first field operator view at <span className="text-green-400 font-mono">/mobile/field</span>. Unlike the read-only Crew view, field operators can update job status and complete tasks:</p>
+      <div className="space-y-1 text-xs">
+        {[
+          "Today's scheduled jobs sorted by status (In Progress first, then Scheduled, then Complete)",
+          'Job cards with type badge, status, time, customer name, address, and crew',
+          'Quick actions: tap to call, navigate (Google Maps), or view notes',
+          'Start Job / Mark Job Complete buttons to progress job status',
+          'Mark Task Complete auto-completes the corresponding NOVA task and populates project dates',
+          'Project search by name, ID, or address with instant results',
+          'Full project detail modal with customer info, system specs, status, dates, and note submission',
+          'Realtime updates via schedule table subscription',
+        ].map((item, i) => (
+          <div key={i} className="flex items-start gap-2 text-gray-400">
+            <span className="text-gray-600 mt-0.5">&bull;</span>
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export const scheduleTopics: HelpTopicData[] = [
   {
     id: 'schedule-page',
@@ -63,7 +112,27 @@ export const scheduleTopics: HelpTopicData[] = [
     category: 'Schedule & Crews',
     keywords: ['crew', 'mobile', 'field', 'daily', 'job', 'phone', 'tablet'],
     tryItLink: '/crew',
-    relatedTopics: ['schedule-page'],
+    relatedTopics: ['schedule-page', 'leadership-dashboard', 'field-operator-view'],
     content: CrewView,
+  },
+  {
+    id: 'leadership-dashboard',
+    title: 'Leadership Dashboard (Mobile)',
+    description: 'Mobile-first executive snapshot of portfolio health and PM performance',
+    category: 'Schedule & Crews',
+    keywords: ['leadership', 'mobile', 'dashboard', 'executive', 'portfolio', 'metrics', 'funding', 'pipeline', 'pm performance', 'manager'],
+    tryItLink: '/mobile/leadership',
+    relatedTopics: ['analytics-page', 'crew-view', 'field-operator-view'],
+    content: LeadershipDashboard,
+  },
+  {
+    id: 'field-operator-view',
+    title: 'Field Operator View (Mobile)',
+    description: 'Mobile-first daily job view with status updates, task completion, and project search',
+    category: 'Schedule & Crews',
+    keywords: ['field', 'mobile', 'operator', 'installer', 'surveyor', 'inspector', 'job', 'task', 'complete', 'status', 'navigate', 'call'],
+    tryItLink: '/mobile/field',
+    relatedTopics: ['crew-view', 'leadership-dashboard', 'schedule-page'],
+    content: FieldOperatorView,
   },
 ]

@@ -35,7 +35,8 @@ A comprehensive guide for Project Managers and team members at MicroGRID Energy 
 27. [Help Center](#help-center)
 28. [@Mentions and Notifications](#mentions-and-notifications)
 29. [Pagination](#pagination)
-30. [Tips and Best Practices](#tips-and-best-practices)
+30. [Mobile Views](#mobile-views)
+31. [Tips and Best Practices](#tips-and-best-practices)
 
 ---
 
@@ -1857,6 +1858,105 @@ Some pages with large datasets include page controls at the bottom:
 - **Audit Trail** -- Paginates change log entries
 
 Pages without pagination (Pipeline, Command, Queue, Funding) load and display all matching projects at once. Use search and filters on these pages to narrow results.
+
+---
+
+## Mobile Views
+
+NOVA includes two mobile-first pages designed for use on phones and tablets. These views have no desktop navigation bar and use large touch targets, simplified layouts, and sticky headers.
+
+### Leadership Dashboard
+
+**URL:** `/mobile/leadership`
+
+**Access:** Managers, Admins, and Super Admins only. Users without Manager+ role see an "Access Restricted" screen.
+
+The Leadership Dashboard provides a high-level snapshot of portfolio health, optimized for quick checks from a phone.
+
+#### Metrics Displayed
+
+- **Active Projects** -- count of all non-complete projects (excludes Cancelled, In Service, Loyalty)
+- **Portfolio Value** -- total contract value of active projects, shown in compact format ($1.2M)
+- **Installs This Month** -- projects with an install completion date in the current calendar month
+- **Blocked** -- count of projects with a non-null blocker (highlighted red when > 0)
+- **M2 Funded This Month** -- count and dollar amount of M2 milestones funded this month
+- **M3 Funded This Month** -- count and dollar amount of M3 milestones funded this month
+
+#### Pipeline Snapshot
+
+A horizontal bar chart showing project counts by pipeline stage (Evaluation through Complete), color-coded per stage.
+
+#### PM Performance
+
+A ranked list of PMs showing active project count and blocked count per PM, with mini progress bars.
+
+#### Quick Stats
+
+- **Avg Sale-to-Install** -- average days from sale date to install complete date across all completed installs
+- **Projects > 90 Cycle Days** -- count of active projects exceeding 90 cycle days (highlighted amber when > 0)
+
+#### Auto-Refresh
+
+Data refreshes automatically every 5 minutes. Tap the refresh icon in the header to refresh manually. The "Updated" timestamp shows when data was last loaded.
+
+#### How to Access
+
+Navigate to `/mobile/leadership` directly in your mobile browser, or bookmark it for quick access. The back arrow in the header returns to the Command Center. A link to the full Analytics dashboard appears at the bottom of the page.
+
+### Field Operator View
+
+**URL:** `/mobile/field`
+
+The Field page is a mobile-first daily job view for field operators (installers, surveyors, inspectors). Unlike the read-only Crew page (`/crew`), the Field page allows operators to update job status and complete tasks directly from the field.
+
+#### Today's Jobs
+
+The main view shows all scheduled jobs for today (excluding cancelled), sorted by status priority:
+1. **In Progress** jobs appear first
+2. **Scheduled** jobs appear next
+3. **Complete** jobs appear last
+
+Within each status group, jobs are sorted by scheduled time.
+
+#### Job Cards
+
+Each job card displays:
+- **Job type badge** -- color-coded (Survey = blue, Install = green, Inspection = amber, Service = purple)
+- **Status indicator** -- dot with label (Scheduled, In Progress, Complete)
+- **Scheduled time** (if set)
+- **Customer name** and address
+- **Crew assignment**
+
+#### Quick Actions
+
+Each job card has a bottom action bar with three buttons:
+- **Call** -- tap to call the customer's phone number
+- **Navigate** -- tap to open the address in Google Maps
+- **Notes** -- tap to open the project detail view
+
+#### Status Progression
+
+Jobs that are not complete or cancelled show action buttons:
+- **Start Job** -- moves a Scheduled job to In Progress
+- **Mark Job Complete** -- moves an In Progress job to Complete
+- **Mark Task Complete** -- for install, survey, and inspection jobs, also marks the corresponding NOVA task as Complete (with task history logging and auto-populated project dates)
+
+#### Project Search
+
+A search bar at the top lets operators look up any project by name, ID, or address. Search results appear in a dropdown; tapping a result opens the project detail modal.
+
+#### Project Detail Modal
+
+Tapping a job card or search result opens a full-screen project detail view showing:
+- **Customer section** -- name, ID, phone (tap to call), email (tap to email), address (tap for Maps)
+- **System section** -- system size in kW, panel model and quantity
+- **Status section** -- current pipeline stage, days in stage, blocker (if any)
+- **Key Dates** -- survey date, install date, PTO date
+- **Add Note** -- text input to submit a note directly to the project
+
+#### Realtime Updates
+
+The page subscribes to realtime changes on the schedule table, so if a dispatcher adds or modifies a job, the field view updates automatically without manual refresh. A manual refresh button is also available.
 
 ---
 

@@ -74,16 +74,8 @@ export default function MobileLeadershipPage() {
     select: 'project_id, m2_funded_date, m3_funded_date, m2_amount, m3_amount, m2_status, m3_status',
   })
 
-  // Auto-refresh every 5 minutes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      handleRefresh()
-    }, 5 * 60 * 1000)
-    return () => clearInterval(interval)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   const handleRefresh = useCallback(() => {
+    if (!navigator.onLine) return
     setRefreshing(true)
     refreshProjects()
     refreshFunding()
@@ -93,6 +85,14 @@ export default function MobileLeadershipPage() {
       setRefreshing(false)
     }, 1000)
   }, [refreshProjects, refreshFunding])
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      handleRefresh()
+    }, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [handleRefresh])
 
   // Build funding map
   const funding = useMemo(() => {
@@ -165,7 +165,8 @@ export default function MobileLeadershipPage() {
       label: STAGE_LABELS[s],
       count: projects.filter(p => p.stage === s).length,
     }))
-    const maxStageCount = Math.max(...stageCounts.map(s => s.count), 1)
+    const stageCountValues = stageCounts.map(s => s.count)
+    const maxStageCount = stageCountValues.length > 0 ? Math.max(...stageCountValues, 1) : 1
 
     // PM performance
     const pmMap = new Map<string, string>()
@@ -226,7 +227,7 @@ export default function MobileLeadershipPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-8">
+    <div className="min-h-screen bg-gray-950 text-white pb-[max(2rem,env(safe-area-inset-bottom))]">
       {/* Top bar */}
       <header className="sticky top-0 z-50 bg-gray-950/95 backdrop-blur border-b border-gray-800 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -256,8 +257,25 @@ export default function MobileLeadershipPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="text-gray-500 text-sm">Loading dashboard data...</div>
+        <div className="px-4 space-y-4 pt-4">
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="bg-gray-900 rounded-xl border border-gray-800 p-4 animate-pulse">
+                <div className="h-4 w-4 bg-gray-800 rounded mb-2" />
+                <div className="h-8 w-16 bg-gray-800 rounded mb-1" />
+                <div className="h-3 w-24 bg-gray-800 rounded" />
+              </div>
+            ))}
+          </div>
+          <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 animate-pulse space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="h-3 w-20 bg-gray-800 rounded" />
+                <div className="flex-1 h-3 bg-gray-800 rounded-full" />
+                <div className="h-3 w-8 bg-gray-800 rounded" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="px-4 space-y-6">
