@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db'
+import { loadScheduleByDateRange } from '@/lib/api'
 import { Nav } from '@/components/Nav'
 import { ScheduleAssignModal } from '@/components/project/ScheduleAssignModal'
 import { JobBriefPanel } from '@/components/project/JobBriefPanel'
@@ -97,12 +98,7 @@ export default function SchedulePage() {
   const weekEndDate = useMemo(() => isoDate(weekDates[5]), [weekDates])
 
   const loadSchedule = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('schedule')
-      .select('id, crew_id, date, job_type, time, project_id, notes, status, pm, pm_id, arrival_window, arrays, pitch, stories, special_equipment, electrical_notes, wind_speed, risk_category, travel_adder, wifi_info, msp_upgrade, project:projects(name, city)')
-      .gte('date', weekStartDate)
-      .lte('date', weekEndDate)
-    if (error) console.error('schedule load failed:', error)
+    const { data } = await loadScheduleByDateRange(weekStartDate, weekEndDate)
     if (data) setSchedule(data as ScheduleWithProject[])
     setSchedLoading(false)
   }, [weekStartDate, weekEndDate])

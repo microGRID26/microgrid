@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
+import { escapeIlike } from '@/lib/utils'
+import type { Project } from '@/types/database'
 
 // ── Centralized project data access ─────────────────────────────────────────
 // All pages should use these functions instead of querying Supabase directly.
@@ -70,6 +72,40 @@ export async function updateProject(projectId: string, updates: Record<string, a
   const { error } = await (supabase as any).from('projects').update(updates).eq('id', projectId)
   if (error) console.error('project update failed:', error)
   return { error }
+}
+
+/** Load a single project by ID */
+export async function loadProjectById(projectId: string): Promise<Project | null> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single()
+  if (error) console.error('project load by id failed:', error)
+  return (data as Project | null) ?? null
+}
+
+/** Load multiple projects by IDs (batch lookup) */
+export async function loadProjectsByIds(projectIds: string[]): Promise<Project[]> {
+  if (!projectIds.length) return []
+  const supabase = createClient()
+  const allProjects: Project[] = []
+  for (let i = 0; i < projectIds.length; i += 100) {
+    const chunk = projectIds.slice(i, i + 100)
+    const { data, error } = await supabase.from('projects').select('id, name').in('id', chunk)
+    if (error) console.error('projects batch load failed:', error)
+    if (data) allProjects.push(...(data as unknown as Project[]))
+  }
+  return allProjects
+}
+
+/** Search projects by name or ID (for typeahead/autocomplete) */
+export async function searchProjects(query: string, limit = 10): Promise<Pick<Project, 'id' | 'name' | 'city' | 'pm' | 'pm_id' | 'systemkw' | 'module' | 'module_qty' | 'financier' | 'financing_type' | 'contract' | 'tpo_escalator' | 'financier_adv_pmt' | 'down_payment'>[]> {
+  const supabase = createClient()
+  const escaped = escapeIlike(query)
+  const { data, error } = await (supabase as any).from('projects')
+    .select('id, name, city, pm, pm_id, systemkw, module, module_qty, financier, financing_type, contract, tpo_escalator, financier_adv_pmt, down_payment')
+    .or(`name.ilike.%${escaped}%,id.ilike.%${escaped}%`)
+    .limit(limit)
+  if (error) console.error('project search failed:', error)
+  return (data ?? []) as Pick<Project, 'id' | 'name' | 'city' | 'pm' | 'pm_id' | 'systemkw' | 'module' | 'module_qty' | 'financier' | 'financing_type' | 'contract' | 'tpo_escalator' | 'financier_adv_pmt' | 'down_payment'>[]
 }
 
 export async function loadUsers(domainFilter?: string) {

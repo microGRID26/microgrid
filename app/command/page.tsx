@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { loadProjectsByIds } from '@/lib/api'
+import { loadCrewsByIds } from '@/lib/api'
 import { daysAgo, fmt$, fmtDate, STAGE_LABELS } from '@/lib/utils'
 import { exportProjectsCSV, ALL_EXPORT_FIELDS, DEFAULT_EXPORT_KEYS } from '@/lib/export-utils'
 import { classify, cycleDays, getSLA, getStuckTasks } from '@/lib/classify'
@@ -384,25 +386,25 @@ export default function CommandPage() {
 
     const rawJobs = schedRes.data as ScheduleEntry[]
     let enrichmentFailed = false
-    // Batch-fetch project names
+    // Batch-fetch project names via API layer
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const schedPids = [...new Set(rawJobs.map((j: any) => j.project_id).filter(Boolean))]
     const projNameMap: Record<string, string> = {}
     if (schedPids.length > 0) {
-      const { data: pData, error: pError } = await supabase.from('projects').select('id, name').in('id', schedPids)
-      if (pError) { console.error('schedule project names load failed:', pError); enrichmentFailed = true }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (pData) pData.forEach((p: any) => { projNameMap[p.id] = p.name })
+      try {
+        const projects = await loadProjectsByIds(schedPids as string[])
+        projects.forEach((p) => { projNameMap[p.id] = p.name })
+      } catch { enrichmentFailed = true }
     }
-    // Batch-fetch crew names
+    // Batch-fetch crew names via API layer
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const schedCids = [...new Set(rawJobs.map((j: any) => j.crew_id).filter(Boolean))]
     const crewNameMap: Record<string, string> = {}
     if (schedCids.length > 0) {
-      const { data: cData, error: cError } = await supabase.from('crews').select('id, name').in('id', schedCids)
-      if (cError) { console.error('schedule crew names load failed:', cError); enrichmentFailed = true }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (cData) cData.forEach((c: any) => { crewNameMap[c.id] = c.name })
+      try {
+        const crews = await loadCrewsByIds(schedCids as string[])
+        crews.forEach((c) => { crewNameMap[c.id] = c.name })
+      } catch { enrichmentFailed = true }
     }
     if (enrichmentFailed) setScheduleIncomplete(true)
     // Merge names onto schedule entries

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { loadProjectById } from '@/lib/api'
 import { Nav } from '@/components/Nav'
 import { Pagination } from '@/components/Pagination'
 import { fmtDate } from '@/lib/utils'
@@ -34,15 +34,13 @@ export default function ServicePage() {
 
   const openProject = async (projectId: string) => {
     setLoadingProject(true)
-    const supabase = createClient()
-    const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single()
-    if (error || !data) {
-      console.error('Failed to load project:', error)
+    const data = await loadProjectById(projectId)
+    if (!data) {
       alert(`Failed to load project ${projectId}`)
       setLoadingProject(false)
       return
     }
-    setSelected(data as Project)
+    setSelected(data)
     setLoadingProject(false)
   }
 

@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db'
-import { cn, fmtDate, fmt$, escapeIlike } from '@/lib/utils'
+import { loadChangeOrders, loadProjectById, searchProjects } from '@/lib/api'
+import { cn, fmtDate, fmt$ } from '@/lib/utils'
 import { Nav } from '@/components/Nav'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { useCurrentUser } from '@/lib/useCurrentUser'
@@ -78,7 +79,6 @@ export default function ChangeOrdersPage() {
 }
 
 function ChangeOrdersContent() {
-  const supabase = createClient()
   const { user: currentUser } = useCurrentUser()
   const [orders, setOrders] = useState<ChangeOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -100,14 +100,9 @@ function ChangeOrdersContent() {
     order: { column: 'name', ascending: true },
   })
 
-  // Change orders with project join — kept manual since useSupabaseQuery can't handle joins
+  // Change orders with project join via API layer
   const loadData = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('change_orders')
-      .select('*, project:projects(name, city, pm, pm_id)')
-      .order('created_at', { ascending: false })
-      .limit(2000)
-    if (error) console.error('change_orders load failed:', error)
+    const { data } = await loadChangeOrders()
     if (data) setOrders(data as ChangeOrder[])
     setLoading(false)
   }, [])
@@ -176,13 +171,12 @@ function ChangeOrdersContent() {
 
   // ── HANDLERS ─────────────────────────────────────────────────────────────
   const openProject = async (projectId: string) => {
-    const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single()
-    if (error || !data) {
-      console.error('Failed to load project:', error)
+    const data = await loadProjectById(projectId)
+    if (!data) {
       alert(`Failed to load project ${projectId}`)
       return
     }
-    setSelectedProject(data as Project)
+    setSelectedProject(data)
   }
 
   const onOrderCreated = (co: ChangeOrder) => {
@@ -684,7 +678,6 @@ function NewChangeOrderModal({ users, currentUser, onClose, onCreated }: {
   onClose: () => void
   onCreated: (co: ChangeOrder) => void
 }) {
-  const supabase = createClient()
   const [projectSearch, setProjectSearch] = useState('')
   const [projectResults, setProjectResults] = useState<Project[]>([])
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
@@ -710,10 +703,7 @@ function NewChangeOrderModal({ users, currentUser, onClose, onCreated }: {
     searchTimer.current = setTimeout(async () => {
       setSearching(true)
       const q = projectSearch.trim()
-      const { data } = await supabase.from('projects')
-        .select('id, name, city, pm, pm_id, systemkw, module, module_qty, financier, financing_type, contract, tpo_escalator, financier_adv_pmt, down_payment')
-        .or(`name.ilike.%${escapeIlike(q)}%,id.ilike.%${escapeIlike(q)}%`)
-        .limit(10)
+      const data = await searchProjects(q, 10)
       if (!mountedRef.current) return
       if (data) setProjectResults(data as Project[])
       setSearching(false)
