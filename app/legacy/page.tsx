@@ -290,6 +290,16 @@ function DetailPanel({ project: p, onClose }: { project: LegacyProject; onClose:
   const [notesLoading, setNotesLoading] = useState(true)
   const [noteText, setNoteText] = useState('')
   const [adding, setAdding] = useState(false)
+  const [noteError, setNoteError] = useState('')
+  const NOTE_PAGE_SIZE = 50
+  const [noteLimit, setNoteLimit] = useState(NOTE_PAGE_SIZE)
+
+  // Escape key to close panel
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   const fetchNotes = useCallback(async () => {
     setNotesLoading(true)
@@ -326,8 +336,11 @@ function DetailPanel({ project: p, onClose }: { project: LegacyProject; onClose:
 
     if (error) {
       console.error('Failed to add legacy note:', error)
+      setNoteError('Failed to save note. Please try again.')
+      setTimeout(() => setNoteError(''), 4000)
     } else {
       setNoteText('')
+      setNoteError('')
       await fetchNotes()
     }
     setAdding(false)
@@ -441,9 +454,12 @@ function DetailPanel({ project: p, onClose }: { project: LegacyProject; onClose:
                 className="px-3 py-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5"
               >
                 <Send className="w-3.5 h-3.5" />
-                Add
+                {adding ? 'Sending...' : 'Add'}
               </button>
             </div>
+
+            {/* Error toast */}
+            {noteError && <p className="text-xs text-red-400 mb-2">{noteError}</p>}
 
             {/* Notes list */}
             {notesLoading ? (
@@ -452,7 +468,7 @@ function DetailPanel({ project: p, onClose }: { project: LegacyProject; onClose:
               <p className="text-xs text-gray-500 py-3 text-center">No notes yet</p>
             ) : (
               <div className="space-y-2">
-                {notes.map(n => (
+                {notes.slice(0, noteLimit).map(n => (
                   <div key={n.id} className="bg-gray-800 rounded-lg border border-gray-700 px-4 py-3">
                     <p className="text-sm text-gray-300 whitespace-pre-wrap">{n.content}</p>
                     <p className="text-xs text-gray-500 mt-1.5">
@@ -460,6 +476,14 @@ function DetailPanel({ project: p, onClose }: { project: LegacyProject; onClose:
                     </p>
                   </div>
                 ))}
+                {notes.length > noteLimit && (
+                  <button
+                    onClick={() => setNoteLimit(l => l + NOTE_PAGE_SIZE)}
+                    className="w-full text-xs text-green-400 hover:text-green-300 py-2 text-center"
+                  >
+                    Show more ({notes.length - noteLimit} remaining)
+                  </button>
+                )}
               </div>
             )}
           </div>
