@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { Nav } from '@/components/Nav'
 import { db } from '@/lib/db'
 import { cn, escapeIlike, fmtDate, fmt$ } from '@/lib/utils'
-import { Search, X, ChevronUp, ChevronDown, Archive, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useCurrentUser } from '@/lib/useCurrentUser'
+import { Search, X, ChevronUp, ChevronDown, Archive, ChevronLeft, ChevronRight, Send } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,14 @@ interface LegacyProject {
   m2_date: string | null
   m3_amount: number | null
   m3_date: string | null
+}
+
+interface LegacyNote {
+  id: string
+  project_id: string
+  content: string
+  author: string
+  created_at: string
 }
 
 type SortCol = 'id' | 'name' | 'city' | 'systemkw' | 'financier' | 'install_date' | 'disposition'
@@ -276,6 +285,68 @@ export default function LegacyPage() {
 // ── Detail Panel ─────────────────────────────────────────────────────────────
 
 function DetailPanel({ project: p, onClose }: { project: LegacyProject; onClose: () => void }) {
+  const { user } = useCurrentUser()
+  const [notes, setNotes] = useState<LegacyNote[]>([])
+  const [notesLoading, setNotesLoading] = useState(true)
+  const [noteText, setNoteText] = useState('')
+  const [adding, setAdding] = useState(false)
+
+  const fetchNotes = useCallback(async () => {
+    setNotesLoading(true)
+    const { data, error } = await db()
+      .from('legacy_notes')
+      .select('*')
+      .eq('project_id', p.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Failed to load legacy notes:', error)
+    } else {
+      setNotes((data ?? []) as LegacyNote[])
+    }
+    setNotesLoading(false)
+  }, [p.id])
+
+  useEffect(() => {
+    fetchNotes()
+  }, [fetchNotes])
+
+  async function handleAddNote() {
+    const content = noteText.trim()
+    if (!content || !user) return
+    setAdding(true)
+
+    const { error } = await db()
+      .from('legacy_notes')
+      .insert({
+        project_id: p.id,
+        content,
+        author: user.name,
+      })
+
+    if (error) {
+      console.error('Failed to add legacy note:', error)
+    } else {
+      setNoteText('')
+      await fetchNotes()
+    }
+    setAdding(false)
+  }
+
+  function formatTimeAgo(dateStr: string): string {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMin = Math.floor(diffMs / 60000)
+    if (diffMin < 1) return 'just now'
+    if (diffMin < 60) return `${diffMin}m ago`
+    const diffHrs = Math.floor(diffMin / 60)
+    if (diffHrs < 24) return `${diffHrs}h ago`
+    const diffDays = Math.floor(diffHrs / 24)
+    if (diffDays < 30) return `${diffDays}d ago`
+    return fmtDate(dateStr)
+  }
+
   return (
     <>
       {/* Backdrop */}
@@ -346,6 +417,50 @@ function DetailPanel({ project: p, onClose }: { project: LegacyProject; onClose:
             <Field label="M3 Amount" value={p.m3_amount ? fmt$(p.m3_amount) : null} />
             <Field label="M3 Date" value={fmtDate(p.m3_date)} />
           </Section>
+
+          {/* Notes */}
+          <div>
+            <h3 className="text-xs font-semibold text-green-400 uppercase tracking-wider mb-2">Notes</h3>
+
+            {/* Add note input */}
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddNote() } }}
+                placeholder={user ? 'Add a note...' : 'Loading user...'}
+                disabled={!user || adding}
+                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 disabled:opacity-50"
+              />
+              <button
+                onClick={handleAddNote}
+                disabled={!noteText.trim() || !user || adding}
+                className="px-3 py-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Add
+              </button>
+            </div>
+
+            {/* Notes list */}
+            {notesLoading ? (
+              <p className="text-xs text-green-400 animate-pulse py-3 text-center">Loading notes...</p>
+            ) : notes.length === 0 ? (
+              <p className="text-xs text-gray-500 py-3 text-center">No notes yet</p>
+            ) : (
+              <div className="space-y-2">
+                {notes.map(n => (
+                  <div key={n.id} className="bg-gray-800 rounded-lg border border-gray-700 px-4 py-3">
+                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{n.content}</p>
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      {n.author} &middot; {formatTimeAgo(n.created_at)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
