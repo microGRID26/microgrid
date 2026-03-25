@@ -88,6 +88,17 @@ export function Nav({ active, right, onNewProject }: NavProps) {
             </a>
           )}
 
+          {(!loading && currentUser?.isAdmin) && (
+            <a href="/audit-trail"
+              className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
+                active === 'Audit Trail'
+                  ? 'bg-gray-800 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`}>
+              Audit Trail
+            </a>
+          )}
+
           <a href="/help"
             className={`text-xs px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 ${
               active === 'Help'
@@ -193,6 +204,18 @@ export function Nav({ active, right, onNewProject }: NavProps) {
                   }`}>
                   {GEAR_ICON}
                   Admin
+                </a>
+              )}
+
+              {(!loading && currentUser?.isAdmin) && (
+                <a href="/audit-trail"
+                  onClick={() => setDrawerOpen(false)}
+                  className={`block py-3 px-4 text-base font-medium transition-colors ${
+                    active === 'Audit Trail'
+                      ? 'text-green-400 bg-gray-900'
+                      : 'text-gray-300 active:bg-gray-800'
+                  }`}>
+                  Audit Trail
                 </a>
               )}
 

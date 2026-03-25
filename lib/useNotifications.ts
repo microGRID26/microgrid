@@ -132,30 +132,30 @@ export function useNotifications() {
 
   const markRead = (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
-    // Mark in localStorage for non-mention notifications
+    // Mark in localStorage — cap at 100 most recent IDs
     const readIds = JSON.parse(localStorage.getItem('mg_notif_read') || '[]') as string[]
     if (!readIds.includes(id)) {
-      // Keep only last 200 to prevent unbounded growth
-      if (readIds.length > 200) readIds.splice(0, readIds.length - 200)
       readIds.push(id)
-      localStorage.setItem('mg_notif_read', JSON.stringify(readIds))
+      localStorage.setItem('mg_notif_read', JSON.stringify(readIds.slice(-100)))
     }
-    // Mark in DB for mention notifications
+    // Fire-and-forget DB update for mention notifications
     if (id.startsWith('mention-')) {
       const dbId = id.replace('mention-', '')
-      db().from('mention_notifications').update({ read: true }).eq('id', dbId)
+      db().from('mention_notifications').update({ read: true }).eq('id', dbId).then()
     }
   }
 
   const markAllRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-    // localStorage — keep only current IDs, cap at 200
-    const ids = notifications.map(n => n.id).slice(0, 200)
+    // localStorage — keep only most recent 100 IDs
+    const ids = notifications.map(n => n.id).slice(-100)
     localStorage.setItem('mg_notif_read', JSON.stringify(ids))
-    // DB — mark all mention notifications as read
-    const mentionIds = notifications.filter(n => n.id.startsWith('mention-')).map(n => n.id.replace('mention-', ''))
+    // Fire-and-forget DB update for all unread mention notifications
+    const mentionIds = notifications
+      .filter(n => !n.read && n.id.startsWith('mention-'))
+      .map(n => n.id.replace('mention-', ''))
     if (mentionIds.length > 0) {
-      db().from('mention_notifications').update({ read: true }).in('id', mentionIds)
+      db().from('mention_notifications').update({ read: true }).in('id', mentionIds).then()
     }
   }
 
