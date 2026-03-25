@@ -47,7 +47,7 @@ The Supabase client is globally mocked in `vitest.setup.ts`. Tests focus on busi
 
 All pages are in `app/*/page.tsx` as client components (`"use client"`). Each page fetches its own data via the Supabase browser client on mount and subscribes to realtime changes. Root `/` redirects to `/command`.
 
-Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual stage grid), `/analytics` (6 tabs: Leadership, Pipeline Health, By PM, Funding, Cycle Times, Dealers), `/audit` (task compliance), `/audit-trail` (admin-only change log with sortable columns, filters, pagination at 50/page, and ProjectPanel integration), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns, powered by `funding_dashboard` Postgres view), `/change-orders` (HCO/change order queue with 6-step workflow), `/documents` (file browser hub + `/documents/missing` missing docs report), `/reports` (AI-powered natural language query interface), `/legacy` (read-only lookup of 14,705 In Service legacy TriSMART projects), `/admin`, `/help`.
+Key pages: `/command` (SLA dashboard), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual stage grid), `/analytics` (6 tabs: Leadership, Pipeline Health, By PM, Funding, Cycle Times, Dealers), `/audit` (task compliance), `/audit-trail` (admin-only change log with sortable columns, filters, pagination at 50/page, and ProjectPanel integration), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns, powered by `funding_dashboard` Postgres view), `/change-orders` (HCO/change order queue with 6-step workflow), `/documents` (file browser hub + `/documents/missing` missing docs report), `/reports` (AI-powered natural language query interface), `/legacy` (read-only lookup of 14,705 In Service legacy TriSMART projects), `/batch` (SLD batch design — upload or manually enter multiple project redesigns, configure target equipment, process string calculations and panel-fit estimates in bulk, download results), `/crew` (mobile-optimized daily crew view — shows scheduled jobs for the current week grouped by date, with job type badges, status dots, customer/address/equipment details, Google Maps links, and call/email buttons; uses `useSupabaseQuery` for projects/crews and realtime subscriptions), `/dashboard` (PM performance dashboard — shows the logged-in PM's portfolio metrics: active/blocked/critical counts, portfolio value, upcoming schedule, SLA health, and task breakdown; uses `useSupabaseQuery` for projects/tasks/crews), `/planset` (Duracell SLD planset generator — hardcoded reference design for PROJ-29857 with full equipment specs, string configurations, and SVG-rendered single-line diagram sheets), `/redesign` (system redesign calculator — enter existing and target system specs, calculates string sizing, voltage/current compatibility, panel-fit estimates per roof face, and generates downloadable DXF single-line diagrams), `/admin`, `/help`.
 
 ### API Layer
 
@@ -59,6 +59,8 @@ Centralized data access functions live in `lib/api/`:
 - `lib/api/schedules.ts` — `loadScheduleByDateRange`
 - `lib/api/change-orders.ts` — `loadChangeOrders`
 - `lib/api/crews.ts` — `loadCrewsByIds`, `loadActiveCrews`
+- `lib/api/documents.ts` — `loadProjectFiles`, `searchProjectFiles`, `searchAllProjectFiles`, `loadAllProjectFiles`, `loadDocumentRequirements`, `loadProjectDocuments`, `updateDocumentStatus`
+- `lib/api/equipment.ts` — `loadEquipment`, `searchEquipment`, `loadAllEquipment`, `EQUIPMENT_CATEGORIES`
 - `lib/api/index.ts` — barrel export for all of the above
 
 Pages should import from `@/lib/api` instead of querying Supabase directly. The API layer handles error logging, type casting, and consistent return shapes.
@@ -466,8 +468,7 @@ All in `supabase/`:
 - `019-notification-rules.sql` — DB-driven notification rules
 - `020-queue-config.sql` — DB-driven queue sections
 - `021-user-preferences.sql` — Per-user UI preferences
-- `022-legacy-projects.sql` — Legacy projects table for 14,705 In Service TriSMART projects
-- `legacy_notes` table — created directly in production (no numbered migration file). 150,633 BluChat messages for 8,299 legacy projects.
+- `022-legacy-projects.sql` — Legacy projects and legacy notes tables (retroactive — tables were created directly in production Supabase, migration file added for documentation). `legacy_projects` stores 14,705 In Service TriSMART projects; `legacy_notes` stores 150,633 BluChat messages for 8,299 legacy projects.
 - `023-document-management.sql` — Document management tables: `project_files` (Drive file inventory), `document_requirements` (admin-configurable required docs per stage), `project_documents` (per-project document status tracking)
 - `024-equipment.sql` — Equipment catalog table (2,517 items: panels, inverters, batteries, optimizers)
 - `seed-document-requirements.sql` — Seeds 23 document requirements across all 7 pipeline stages

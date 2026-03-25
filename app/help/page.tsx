@@ -1006,6 +1006,66 @@ function ForEveryone() {
         </div>
       </Card>
 
+      <SectionHeader title="Atlas (AI Reports)" />
+      <Card title="Atlas">
+        Ask natural language questions about your projects and get instant answers. Atlas generates database queries,
+        displays results in sortable tables, and supports CSV export. Available to Managers and above.
+        <Ul items={[
+          'Navigate to Atlas from the "More" dropdown in the nav bar',
+          'Type a question like "Show me all blocked projects" or "Which PMs have the most installs?"',
+          'Click starter prompts for common queries',
+          'Sort results by clicking column headers, click project IDs to open the Project Panel',
+          'Export any result set to CSV for spreadsheets',
+          'Atlas suggests follow-up questions — click to drill deeper',
+          'Limits: 25 queries/day, 500 rows max per result',
+        ]} />
+      </Card>
+
+      <SectionHeader title="Equipment Catalog" />
+      <Card title="Equipment Catalog">
+        Equipment fields in the project panel use autocomplete from a catalog of 2,517 items (panels, inverters,
+        batteries, optimizers). System kW auto-calculates from module wattage and panel count.
+        <Ul items={[
+          'In edit mode, start typing a manufacturer or model name in any equipment field',
+          'A dropdown appears with matching items — use arrow keys or click to select',
+          'System kW = module wattage × panel count ÷ 1000 (auto-calculated on save)',
+          'Use the X button to clear a selection',
+          'Admins can manage the catalog from the Equipment Manager in the Admin portal',
+          'Add custom equipment in Admin before assigning to projects',
+        ]} />
+      </Card>
+
+      <SectionHeader title="Document Management" />
+      <Card title="Document Management">
+        View project files synced from Google Drive. The document checklist tracks required documents per pipeline
+        stage with present/missing status indicators. The missing documents report shows gaps across the portfolio.
+        <Ul items={[
+          'Documents hub (/documents) — search files across all projects by filename, project ID, or folder',
+          'Files tab in Project Panel — Google Drive link + document checklist for the current stage',
+          '23 document requirements defined across all 7 stages (configured by admins)',
+          'Missing docs report (/documents/missing) — filter by stage to find projects lacking required paperwork',
+        ]} />
+      </Card>
+
+      <SectionHeader title="Design Tools" />
+      <Card title="Design Tools">
+        NOVA includes tools for system redesign calculations and SLD (Single Line Diagram) generation.
+        <Ul items={[
+          'Redesign (/redesign) — calculator for system changes: enter existing and target specs, get string sizing, voltage/current checks, and downloadable DXF files',
+          'Batch Design (/batch) — process multiple redesigns at once with shared target equipment settings',
+          'Planset (/planset) — Duracell SLD generator with SVG-rendered engineering sheets',
+          'All tools accessible from the "More" dropdown in the nav bar',
+        ]} />
+      </Card>
+
+      <SectionHeader title="Crew View" />
+      <Card title="Crew View">
+        Mobile-optimized daily job view for field crews at <span className="text-green-400 font-mono">/crew</span>.
+        Shows scheduled jobs for the week grouped by date with customer details, addresses (tap for Google Maps),
+        phone numbers (tap to call), equipment specs, and crew assignments. Read-only — designed for use on phones
+        and tablets in the field.
+      </Card>
+
       <SectionHeader title="Navigation" />
       <Card title="Pages at a glance">
         <Ul items={[
@@ -1017,8 +1077,14 @@ function ForEveryone() {
           'Service — service call tickets',
           'Funding — M1/M2/M3 milestone tracker',
           'Change Orders — HCO/change order queue with workflow tracking',
-          'Admin — AHJ, utilities, users, crews, SLA, audit trail, task audit, feedback (admins only)',
+          'Documents — file browser hub and missing docs report',
+          'Atlas — AI-powered natural language queries (Manager+ only)',
+          'Redesign — equipment calculator and SLD generator',
+          'Batch — batch SLD design for multiple projects',
           'Crew (/crew) — mobile-optimized daily job view for field crews',
+          'Dashboard — PM performance metrics and upcoming schedule',
+          'Legacy — historical TriSMART project lookup',
+          'Admin — AHJ, utilities, users, crews, SLA, equipment, audit trail, feedback (admins only)',
         ]} />
       </Card>
       <Card title="Searching projects">

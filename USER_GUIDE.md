@@ -25,12 +25,16 @@ A comprehensive guide for Project Managers and team members at MicroGRID Energy 
 17. [Document Management](#document-management)
 18. [Equipment Catalog](#equipment-catalog)
 19. [Redesign Tool](#redesign-tool)
-20. [Atlas (AI Reports)](#atlas-ai-reports)
-21. [Legacy Projects](#legacy-projects)
-22. [Help Center](#help-center)
-23. [@Mentions and Notifications](#mentions-and-notifications)
-24. [Pagination](#pagination)
-25. [Tips and Best Practices](#tips-and-best-practices)
+20. [Batch Design](#batch-design)
+21. [Crew Mobile View](#crew-mobile-view)
+22. [Crew Performance Dashboard](#crew-performance-dashboard)
+23. [Planset (Duracell SLD)](#planset-duracell-sld)
+24. [Atlas (AI Reports)](#atlas-ai-reports)
+25. [Legacy Projects](#legacy-projects)
+26. [Help Center](#help-center)
+27. [@Mentions and Notifications](#mentions-and-notifications)
+28. [Pagination](#pagination)
+29. [Tips and Best Practices](#tips-and-best-practices)
 
 ---
 
@@ -1232,35 +1236,52 @@ Task notes may include historical comments imported from NetSuite, identified by
 
 ## Equipment Catalog
 
-NOVA includes a centralized equipment catalog with 2,517 items covering panels, inverters, batteries, and optimizers used in solar installations.
+NOVA includes a centralized equipment catalog with 2,517 items across 8 categories: modules (solar panels), inverters, batteries, optimizers, racking, electrical components, adders, and other. The catalog serves as the single source of truth for equipment specifications used throughout the system.
 
 ### Autocomplete in Project Panel
 
-When editing a project's Equipment section in the Info tab, the module, inverter, battery, and optimizer fields use **autocomplete dropdowns** powered by the equipment catalog:
+When editing a project's Equipment section in the Info tab, the module, inverter, battery, and optimizer fields use **autocomplete dropdowns** powered by the equipment catalog. The autocomplete is debounced (waits briefly after you stop typing) to avoid excessive lookups:
 
 1. Open the Project Panel and click Edit
-2. In the Equipment section, start typing a manufacturer or model name
-3. A dropdown appears showing matching equipment from the catalog
-4. Select an item to populate the field
-5. Use the X button to clear a selection
+2. In the Equipment section, start typing a manufacturer or model name (e.g., "Duracell" or "IQ8")
+3. A dropdown appears below the field showing matching equipment from the catalog, searched across name, manufacturer, and description fields
+4. Use arrow keys to navigate the dropdown, or click an item to select it
+5. The selected item's full name populates the field. A clear button (X) appears to reset the selection
+6. Click outside the dropdown to dismiss it without selecting
+7. Recently used equipment items may appear at the top of results for faster selection
+
+The autocomplete searches across the `name`, `manufacturer`, and `description` fields simultaneously, so you can search by any identifying detail. Results are limited to 20 matches and sorted by sort order then name.
 
 ### Auto-Calculate System kW
 
 When both the module model and panel count are set on a project, the system automatically calculates the `system_kw` field:
 
-- The calculation uses the module's wattage from the equipment catalog multiplied by the panel count
+- The calculation uses the module's wattage from the equipment catalog multiplied by the panel count, divided by 1000 to convert watts to kilowatts
 - The result is displayed in the Project section of the Info tab
 - This eliminates manual entry errors and keeps system size consistent with equipment specs
+- If the module is changed to a different wattage panel, the system kW updates automatically on save
+- Clearing the module field does not reset system kW (the last calculated value is preserved)
 
 ### Equipment Manager (Admin)
 
-Administrators can manage the equipment catalog from the Admin portal:
+Administrators can manage the equipment catalog from the Admin portal (`components/admin/EquipmentManager.tsx`). The Equipment Manager provides full CRUD operations:
 
-- **Search** -- Find equipment by manufacturer or model name
-- **Filter by category** -- Show only panels, inverters, batteries, or optimizers
-- **Add new equipment** -- Enter category, manufacturer, model, wattage, and description
-- **Edit existing** -- Update any equipment record
-- **Deactivate** -- Toggle equipment active/inactive without deleting (inactive items do not appear in autocomplete)
+- **Search** -- Find equipment by manufacturer, model name, or description. Search uses partial matching across multiple fields
+- **Filter by category** -- Show only a specific category: module, inverter, battery, optimizer, racking, electrical, adder, or other
+- **Add new equipment** -- Click the Add button to create a new item. Required fields: category, name. Optional: manufacturer, model, wattage/capacity, description. New items default to active
+- **Edit existing** -- Click any equipment row to open the edit form. Update category, manufacturer, model, wattage, description, or sort order
+- **Deactivate** -- Toggle equipment active/inactive without deleting. Inactive items are hidden from autocomplete dropdowns in the project panel but remain in the database for historical reference. The admin view shows both active and inactive items
+- **Sort order** -- Set a numeric sort order to control the position of items within their category in dropdown lists. Lower numbers appear first
+
+### Adding Custom Equipment
+
+If a project uses equipment not in the catalog, an admin should add it through the Equipment Manager before assigning it to projects. This ensures the wattage and specifications are available for auto-calculations. Steps:
+
+1. Go to Admin portal and open Equipment Manager
+2. Click Add and fill in category, name (typically "Manufacturer Model"), wattage, and description
+3. Save the new item -- it immediately becomes available in autocomplete dropdowns across all projects
+
+The equipment table is stored in Supabase with the schema defined in migration `024-equipment.sql`. Import scripts (`scripts/import-equipment.ts`, `scripts/upload-equipment.ts`) were used to seed the initial 2,517 items from manufacturer data.
 
 ---
 
@@ -1308,7 +1329,115 @@ After configuring the system, click **Generate SLD** to create a Single Line Dia
 
 ### Batch Processing
 
-A batch processor button in the header allows processing multiple redesigns at once.
+A batch processor button in the header allows processing multiple redesigns at once. See the dedicated [Batch Design](#batch-design) section below.
+
+---
+
+## Batch Design
+
+**URL:** `/batch`
+
+The Batch Design page allows processing multiple system redesigns at once, rather than configuring one project at a time in the Redesign tool.
+
+### How It Works
+
+1. Add projects to the batch by clicking **Add Project** -- enter project details (name, address, existing equipment specs, roof face configurations) or upload a data file
+2. Configure **target system** settings that will apply to all projects in the batch: new panel model and specs, inverter model and MPPT configuration, battery specs, and string parameters
+3. Click **Process All** to run calculations across every project in the batch
+4. Review results for each project: string configurations, panel-fit estimates per roof face, voltage/current compatibility, system size comparison, and engineering notes/warnings
+5. Download results or export individual project SLD data
+
+### Input Fields Per Project
+
+- Project name and address
+- Existing panel model, wattage, count, and electrical specs (Voc, Vmp, Isc, Imp)
+- Inverter model, count, and AC power rating
+- Battery model, count, and capacity
+- Racking type and roof face details (panel count, azimuth, tilt, area per face)
+
+### Calculated Output
+
+For each project, the batch processor calculates:
+
+- Corrected Voc (cold temperature factor)
+- Maximum and minimum modules per string
+- Recommended string size and total string inputs
+- Panel-fit estimates per roof face (old count vs new count)
+- New vs old system DC/AC power and storage totals
+- Engineering notes and compatibility warnings
+
+---
+
+## Crew Mobile View
+
+**URL:** `/crew`
+
+The Crew page is a mobile-optimized daily job view designed for field crews to use on phones and tablets while on-site.
+
+### What It Shows
+
+- Scheduled jobs for the current week, grouped by date (Today, Tomorrow, then day names)
+- Each job card displays: job type badge (Survey/Install/Inspection/Service with color coding), status dot (Complete/Scheduled/In Progress/Cancelled), customer name, address (clickable link to Google Maps), phone (tap to call), email (tap to email), system specs (kW, modules, inverter, battery), and crew assignment
+- Job details include PM name, consultant, advisor, and any special notes
+
+### Navigation
+
+- Week navigation arrows to view previous or upcoming weeks
+- Jobs are loaded via `useSupabaseQuery` for the schedule table, filtered by date range
+- Project details are merged from the projects table for customer and equipment info
+- Crew names are resolved from the crews table
+
+### Mobile Optimization
+
+- Large tap targets for phone numbers and addresses
+- Simplified layout optimized for small screens
+- No editing capability -- this is a read-only reference view for crews in the field
+
+---
+
+## Crew Performance Dashboard
+
+**URL:** `/dashboard`
+
+The Dashboard page provides a personal performance overview for the logged-in PM. It automatically filters to the current user's projects.
+
+### Metrics Displayed
+
+- **Active projects** count (excluding Cancelled and In Service)
+- **Pipeline projects** count (also excluding Loyalty and Complete)
+- **Blocked** count with percentage
+- **Critical SLA** count
+- **Portfolio value** (total contract value)
+- **Upcoming schedule** for the next 7 days (surveys, installs, inspections, service calls with crew assignments)
+
+### Data Sources
+
+- Projects filtered by `pm_id` matching the current user
+- Task states for stuck task analysis
+- Schedule entries for the next 7 days
+- Active crews for crew name resolution
+
+---
+
+## Planset (Duracell SLD)
+
+**URL:** `/planset`
+
+The Planset page is a specialized Single Line Diagram (SLD) generator for Duracell equipment configurations. It renders a complete engineering planset as SVG sheets directly in the browser.
+
+### Current Configuration
+
+The page is currently hardcoded for a reference project (PROJ-29857) with Duracell Power Center Max Hybrid 15kW inverters, AMP 410W panels, and Duracell 5kWh LFP batteries. It demonstrates the full SLD layout including:
+
+- Equipment specifications and nameplate data
+- String configurations across multiple MPPT inputs and roof faces
+- Utility connection details (meter, ESID, utility company)
+- Contractor information (MicroGRID Energy license and contact details)
+- Existing system details (for redesign/expansion projects)
+
+### Usage
+
+This page serves as a template and proof-of-concept for automated SLD generation. The SVG rendering uses the `calculateSldLayout` helper from `lib/sld-layout.ts` and the `SldRenderer` component.
 
 ---
 
@@ -1317,39 +1446,81 @@ A batch processor button in the header allows processing multiple redesigns at o
 **URL:** `/reports`
 **Access:** Manager, Finance, Admin, and Super Admin roles
 
-Atlas lets you ask questions about your project data in plain English. Instead of building filters or exporting spreadsheets, type a question and get results instantly.
+Atlas is NOVA's AI-powered natural language query interface, branded as "Atlas" in the UI. Instead of building filters, writing SQL, or exporting spreadsheets to answer questions, type a question in plain English and get results instantly. Atlas uses Claude Sonnet to interpret your question, build a database query, execute it, and present the results in a sortable table.
 
 ### How to Use
 
-1. Navigate to **Atlas** from the "More" dropdown in the navigation bar.
-2. Type a question in the input field at the bottom, or click one of the starter prompts to get started.
-3. The system analyzes your question, queries the database, and displays results in a sortable table.
-4. Click any column header to sort the results.
-5. Click a project ID in the results to open the full Project Panel.
+1. Navigate to **Atlas** from the "More" dropdown in the navigation bar
+2. Type a question in the input field at the bottom, or click one of the **starter prompts** to get started quickly
+3. Atlas analyzes your question, generates a query plan, executes it against the database, and displays results in a sortable table
+4. Click any column header to sort the results ascending or descending
+5. Click a project ID in the results to open the full Project Panel for that project
+6. After each result, Atlas may suggest a **follow-up question** -- click it to send it automatically, or type your own follow-up
+
+### Starter Prompts
+
+When you first open Atlas, clickable starter prompts appear to help you get started:
+
+- "Show me all blocked projects with their blocker reasons"
+- "Which projects have been in permitting the longest?"
+- "List installs scheduled for this week"
+- "Show funding status for all eligible M2 milestones"
+
+Click any starter prompt to immediately run that query.
 
 ### Example Questions
 
-- "Show me all blocked projects"
-- "Which permit stage projects have been stuck more than 30 days?"
-- "List projects by financier with contract values"
-- "What projects are missing a survey date?"
-- "Show me installs scheduled this month"
+Atlas can answer a wide range of questions about your project data:
+
+**Portfolio overview:**
+- "How many active projects do we have by stage?"
+- "What is the total contract value by financier?"
 - "Which PMs have the most projects?"
 
-### Exporting Results
+**Finding specific projects:**
+- "Show me all blocked projects"
+- "Which permit stage projects have been stuck more than 30 days?"
+- "What projects are missing a survey date?"
+- "List projects in Corpus Christi"
 
-Click the **Export CSV** link below any results table to download the data as a CSV file. The export includes all columns and rows from the current result set, formatted for use in spreadsheets.
+**Scheduling and operations:**
+- "Show me installs scheduled this month"
+- "Which projects have overdue follow-up dates?"
+- "List all service calls with Open status"
+
+**Funding and financial:**
+- "List projects by financier with contract values"
+- "Show all M2 eligible milestones with amounts"
+- "Which projects have been funded this month?"
+
+### Exporting Results to CSV
+
+Click the **Export CSV** link below any results table to download the data as a CSV file. The export includes all columns and rows from the current result set, formatted for immediate use in Excel or Google Sheets. This is useful for:
+
+- Creating ad-hoc reports for leadership
+- Sharing data with external partners
+- Further analysis in spreadsheet tools
+- Archiving query results
 
 ### Follow-Up Questions
 
-After each result, the system may suggest a follow-up question. Click the suggestion to automatically send it as your next query. You can also type your own follow-up -- the system remembers the conversation context.
+After displaying results, Atlas often suggests a relevant follow-up question based on the data returned. Click the suggestion to automatically send it as your next query. You can also type your own follow-up -- Atlas remembers the full conversation context within the current session, so you can refine or drill deeper without restating the original question. For example:
+
+1. "Show me all blocked projects" -- returns 8 projects
+2. "Which of those are in the permit stage?" -- Atlas filters the previous results
+3. "What are their blocker reasons?" -- Atlas adds detail to the narrowed set
 
 ### Limits
 
-- **25 queries per day** per user
+- **25 queries per day** per user (tracked via the `user_sessions` table, persistent across Vercel instances)
 - **10 queries per minute** burst limit
 - **500 rows maximum** per result set
-- Available tables: projects, funding, tasks, notes, schedule, service calls, change orders
+- Available tables: projects, project_funding, task_state, notes, schedule, service_calls, change_orders
+- Client-side date filters (`daysAgo_gt`, `daysAgo_lt`) enable relative date queries like "stuck more than 30 days"
+
+### Technical Details
+
+Atlas uses the Anthropic API (Claude Sonnet model) for query generation. The API route at `/api/reports/chat` validates the generated query plan before execution, only allowing reads against whitelisted tables. Database queries use the `SUPABASE_SECRET_KEY` (service role key) for read-only access. Both `ANTHROPIC_API_KEY` and `SUPABASE_SECRET_KEY` environment variables must be configured; the endpoint returns 503 if either is missing.
 
 ---
 
