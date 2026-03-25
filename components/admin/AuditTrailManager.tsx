@@ -28,7 +28,8 @@ function SessionsTab() {
 
     const rangeStart = getDateRangeStart(dateRange)
     if (rangeStart) {
-      q = q.gte('logged_in_at', rangeStart)
+      // Show sessions that were created OR active within the date range
+      q = q.or(`logged_in_at.gte.${rangeStart},last_active_at.gte.${rangeStart}`)
     }
 
     const { data } = await q
