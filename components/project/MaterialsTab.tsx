@@ -16,6 +16,8 @@ import {
 } from '@/lib/api/inventory'
 import type { ProjectMaterial, MaterialStatus } from '@/lib/api/inventory'
 import { Package, Plus, Wand2, Trash2, ChevronDown, ChevronUp, X, ShoppingCart, Check } from 'lucide-react'
+import { VendorAutocomplete } from '@/components/VendorAutocomplete'
+import type { Vendor } from '@/lib/api/vendors'
 
 // ── Category badge colors ──────────────────────────────────────────────────
 const CATEGORY_COLORS: Record<string, string> = {
@@ -63,6 +65,7 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
   const [selectedForPO, setSelectedForPO] = useState<Set<string>>(new Set())
   const [showPOForm, setShowPOForm] = useState(false)
   const [poVendor, setPOVendor] = useState('')
+  const [poVendorInfo, setPOVendorInfo] = useState<Vendor | null>(null)
   const [poCreating, setPOCreating] = useState(false)
 
   // ── Inline edit state ───────────────────────────────────────────────────
@@ -255,6 +258,7 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
         setSelectedForPO(new Set())
         setShowPOForm(false)
         setPOVendor('')
+        setPOVendorInfo(null)
         const warning = (result as import('@/lib/api/inventory').PurchaseOrderResult)._materialWarning
         if (warning) {
           showToastMsg(`Created ${result.po_number} — warning: ${warning}`)
@@ -386,13 +390,21 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
           </div>
           <div>
             <label htmlFor="mat-po-vendor" className="text-xs text-gray-400 block mb-1">Vendor *</label>
-            <input
-              id="mat-po-vendor"
+            <VendorAutocomplete
               value={poVendor}
-              onChange={e => setPOVendor(e.target.value)}
+              onChange={(v, vendor) => {
+                setPOVendor(v)
+                setPOVendorInfo(vendor ?? null)
+              }}
               placeholder="e.g., CED Greentech"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white placeholder-gray-600"
             />
+            {poVendorInfo && (poVendorInfo.contact_phone || poVendorInfo.contact_email) && (
+              <div className="mt-1.5 text-[10px] text-gray-500 flex items-center gap-2">
+                {poVendorInfo.contact_name && <span>{poVendorInfo.contact_name}</span>}
+                {poVendorInfo.contact_phone && <span>{poVendorInfo.contact_phone}</span>}
+                {poVendorInfo.contact_email && <span>{poVendorInfo.contact_email}</span>}
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button
@@ -487,12 +499,10 @@ export function MaterialsTab({ project }: MaterialsTabProps) {
             </div>
             <div>
               <label htmlFor="mat-add-vendor" className="text-xs text-gray-400 block mb-1">Vendor</label>
-              <input
-                id="mat-add-vendor"
+              <VendorAutocomplete
                 value={addVendor}
-                onChange={e => setAddVendor(e.target.value)}
-                placeholder="Optional"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white placeholder-gray-600"
+                onChange={(v) => setAddVendor(v)}
+                placeholder="Search or type vendor name"
               />
             </div>
           </div>

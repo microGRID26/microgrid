@@ -101,7 +101,7 @@ export interface CRMStats {
   serviceCalls: number
 }
 
-export type Module = 'ahj' | 'utility' | 'hoa' | 'financier' | 'equipment' | 'users' | 'crews' | 'sla' | 'info' | 'releases' | 'feedback' | 'audit' | 'permissions' | 'notifications' | 'queue_config' | 'reasons' | 'doc_requirements' | 'edge_integration'
+export type Module = 'ahj' | 'utility' | 'hoa' | 'financier' | 'equipment' | 'vendors' | 'users' | 'crews' | 'sla' | 'info' | 'releases' | 'feedback' | 'audit' | 'permissions' | 'notifications' | 'queue_config' | 'reasons' | 'doc_requirements' | 'edge_integration'
 
 export const DEPARTMENTS = [
   'Inside Operations', 'Sales', 'Executive', 'Field Operations',
@@ -321,6 +321,10 @@ export const SIDEBAR_ITEMS: { id: Module; label: string; icon: React.ReactNode; 
   {
     id: 'equipment' as Module, label: 'Equipment Catalog', desc: 'Modules, inverters, batteries',
     icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>,
+  },
+  {
+    id: 'vendors' as Module, label: 'Vendor Manager', desc: 'Suppliers & contractors',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 17l4 4 4-4m-4-5v9M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29" /></svg>,
   },
   {
     id: 'users', label: 'Users', desc: 'Team members',

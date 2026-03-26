@@ -21,3 +21,5 @@ export { loadProjectMaterials, addProjectMaterial, updateProjectMaterial, delete
 export type { ProjectMaterial, WarehouseStock, MaterialStatus, MaterialSource, MaterialCategory } from './inventory'
 export { sendToEdge, syncProjectToEdge, syncFundingToEdge, isEdgeConfigured, getEdgeWebhookUrl } from './edge-sync'
 export type { EdgeEventType, EdgeWebhookPayload } from './edge-sync'
+export { loadVendors, searchVendors, loadVendor, addVendor, updateVendor, deleteVendor, VENDOR_CATEGORIES, EQUIPMENT_TYPE_OPTIONS } from './vendors'
+export type { Vendor, VendorCategory } from './vendors'

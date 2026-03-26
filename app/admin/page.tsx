@@ -22,6 +22,7 @@ import { ReasonsManager } from '@/components/admin/ReasonsManager'
 import { DocumentRequirementsManager } from '@/components/admin/DocumentRequirementsManager'
 import { EquipmentManager } from '@/components/admin/EquipmentManager'
 import { EdgeIntegrationManager } from '@/components/admin/EdgeIntegrationManager'
+import { VendorManager } from '@/components/admin/VendorManager'
 
 export default function AdminPage() {
   const { user: authUser, loading } = useCurrentUser()
@@ -124,6 +125,7 @@ export default function AdminPage() {
             {activeModule === 'hoa' && <HOAManager isSuperAdmin={isSuperAdmin} />}
             {activeModule === 'financier' && <FinancierManager isSuperAdmin={isSuperAdmin} />}
             {activeModule === 'equipment' && <EquipmentManager isSuperAdmin={isSuperAdmin} />}
+            {activeModule === 'vendors' && <VendorManager isSuperAdmin={isSuperAdmin} />}
             {activeModule === 'users'   && <UsersManager currentUserRole={authUser?.role ?? 'user'} />}
             {activeModule === 'crews'   && <CrewsManager />}
             {activeModule === 'sla'     && <SLAManager />}

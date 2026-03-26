@@ -30,6 +30,7 @@ const SALES_LINKS = [
 const MORE_LINKS = [
   { label: 'Service',       href: '/service'  },
   { label: 'Change Orders', href: '/change-orders' },
+  { label: 'Vendors',       href: '/vendors'  },
   { label: 'Atlas',          href: '/reports'  },
   { label: 'Documents',     href: '/documents' },
   { label: 'Redesign',      href: '/redesign' },

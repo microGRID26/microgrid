@@ -14,6 +14,8 @@ import type { ProjectMaterial, WarehouseStock, PurchaseOrder, POLineItem } from 
 import { loadProjects } from '@/lib/api'
 import { escapeIlike, fmtDate, fmt$ } from '@/lib/utils'
 import { Package, Search, Warehouse, ShoppingCart, ChevronDown, ChevronUp, Truck, CheckCircle2, X, AlertTriangle } from 'lucide-react'
+import { searchVendors } from '@/lib/api/vendors'
+import type { Vendor } from '@/lib/api/vendors'
 
 // ── Category badge colors ──────────────────────────────────────────────────
 const CATEGORY_COLORS: Record<string, string> = {
@@ -62,6 +64,16 @@ export default function InventoryPage() {
   const [poPage, setPOPage] = useState(1)
   const [toast, setToast] = useState<string | null>(null)
   const [confirmAction, setConfirmAction] = useState<{ poId: string; newStatus: string } | null>(null)
+
+  // ── Vendor contact lookup cache ────────────────────────────────────────────
+  const [vendorInfoCache, setVendorInfoCache] = useState<Record<string, Vendor | null>>({})
+  async function lookupVendor(vendorName: string) {
+    if (vendorInfoCache[vendorName] !== undefined) return
+    setVendorInfoCache(prev => ({ ...prev, [vendorName]: null }))
+    const results = await searchVendors(vendorName)
+    const match = results.find(v => v.name.toLowerCase() === vendorName.toLowerCase()) ?? results[0] ?? null
+    setVendorInfoCache(prev => ({ ...prev, [vendorName]: match }))
+  }
 
   // ── ProjectPanel state (for clicking into a project) ─────────────────────
   const [selectedProject, setSelectedProject] = useState<any>(null)
@@ -119,6 +131,9 @@ export default function InventoryPage() {
       const items = await loadPOLineItems(poId)
       setPOLineItems(prev => ({ ...prev, [poId]: items }))
     }
+    // Look up vendor contact info
+    const po = purchaseOrders.find(p => p.id === poId)
+    if (po) lookupVendor(po.vendor)
   }
 
   // Status advance
@@ -601,6 +616,20 @@ export default function InventoryPage() {
                                 <span className="ml-2 px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 font-medium">cancelled</span>
                               )}
                             </div>
+
+                            {/* Vendor contact info */}
+                            {(() => {
+                              const vi = vendorInfoCache[po.vendor]
+                              if (!vi) return null
+                              return (vi.contact_phone || vi.contact_email || vi.contact_name) ? (
+                                <div className="bg-gray-900 rounded-lg px-3 py-2 flex flex-wrap gap-4 text-xs">
+                                  <span className="text-gray-400 font-medium">Vendor Contact:</span>
+                                  {vi.contact_name && <span className="text-gray-300">{vi.contact_name}</span>}
+                                  {vi.contact_phone && <span className="text-blue-400">{vi.contact_phone}</span>}
+                                  {vi.contact_email && <span className="text-blue-400">{vi.contact_email}</span>}
+                                </div>
+                              ) : null
+                            })()}
 
                             {/* PO header details */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">

@@ -610,6 +610,26 @@ export interface LegacyNote {
   created_at: string
 }
 
+export interface Vendor {
+  id: string
+  name: string
+  contact_name: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  website: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
+  category: string | null
+  equipment_types: string[] | null
+  lead_time_days: number | null
+  payment_terms: string | null
+  notes: string | null
+  active: boolean
+  created_at: string
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -851,6 +871,12 @@ export type Database = {
         Row: LegacyNote
         Insert: Omit<LegacyNote, 'id' | 'created_at'> & { id?: string; created_at?: string }
         Update: Partial<LegacyNote>
+
+      }
+      vendors: {
+        Row: Vendor
+        Insert: Omit<Vendor, 'id' | 'active' | 'created_at'> & { id?: string; active?: boolean; created_at?: string }
+        Update: Partial<Vendor>
 
       }
     }
