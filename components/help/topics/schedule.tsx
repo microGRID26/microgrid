@@ -3,7 +3,7 @@ import type { HelpTopicData } from './index'
 function SchedulePage() {
   return (
     <div>
-      <p className="text-xs text-gray-400 mb-3">Weekly calendar showing crew assignments by day. Each cell shows the job type, project, and crew. Filter by crew or job type.</p>
+      <p className="text-xs text-gray-400 mb-3">Weekly calendar showing crew assignments by day. Each cell shows the job type, project, and crew. Filter by crew or job type. Supports multi-day jobs -- set an end date when scheduling to span across multiple days (e.g., 2-day installs show &quot;Day 1 of 2&quot;, &quot;Day 2 of 2&quot;).</p>
       <div className="border border-gray-700 rounded-lg overflow-hidden text-xs">
         <div className="grid grid-cols-6 gap-0 bg-gray-800/50 border-b border-gray-700">
           <span className="px-2 py-2 text-gray-500 font-medium">Crew</span>
@@ -141,7 +141,7 @@ export const scheduleTopics: HelpTopicData[] = [
     title: 'Schedule Page',
     description: 'Weekly calendar with crew assignments',
     category: 'Schedule & Crews',
-    keywords: ['schedule', 'calendar', 'crew', 'week', 'job', 'assign', 'install', 'survey'],
+    keywords: ['schedule', 'calendar', 'crew', 'week', 'job', 'assign', 'install', 'survey', 'multi-day', 'end date'],
     tryItLink: '/schedule',
     relatedTopics: ['crew-view'],
     content: SchedulePage,

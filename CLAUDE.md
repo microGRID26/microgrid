@@ -56,7 +56,7 @@ Centralized data access functions live in `lib/api/`:
 - `lib/api/projects.ts` — `loadProjects`, `loadProjectFunding`, `updateProject`, `loadUsers`, `loadProjectAdders`, `addProjectAdder`, `deleteProjectAdder`, `loadProjectById`, `loadProjectsByIds`, `searchProjects`
 - `lib/api/notes.ts` — `loadProjectNotes`, `loadTaskNotes`, `addNote`, `deleteNote`, `createMentionNotification`
 - `lib/api/tasks.ts` — `upsertTaskState`, `loadTaskStates`, `loadTaskHistory`, `insertTaskHistory`
-- `lib/api/schedules.ts` — `loadScheduleByDateRange`
+- `lib/api/schedules.ts` — `loadScheduleByDateRange` (supports multi-day jobs via `.or()` filter on `end_date`)
 - `lib/api/change-orders.ts` — `loadChangeOrders`
 - `lib/api/crews.ts` — `loadCrewsByIds`, `loadActiveCrews`
 - `lib/api/documents.ts` — `loadProjectFiles`, `searchProjectFiles`, `searchAllProjectFiles`, `loadAllProjectFiles`, `loadDocumentRequirements`, `loadProjectDocuments`, `updateDocumentStatus`
@@ -190,7 +190,7 @@ Standalone page at `/audit-trail` (admin-only, guarded by `useCurrentUser().isAd
 - **projects** — PK is `id` TEXT (format `PROJ-XXXXX`). `stage` field is the pipeline position. `blocker` non-null = blocked.
 - **task_state** — composite key `(project_id, task_id)`. Statuses: Complete, Pending Resolution, Revision Required, In Progress, Scheduled, Ready To Start, Not Ready. Includes `reason` field, `notes` (per-task notes text), and `follow_up_date`. RLS is open to all authenticated users (`USING true`, `WITH CHECK true`).
 - **notes** — per-project timestamped notes. Can optionally include `task_id` to associate a note with a specific task (per-task notes).
-- **schedule** — crew assignments with `job_type` (survey/install/inspection/service)
+- **schedule** — crew assignments with `job_type` (survey/install/inspection/service). Supports multi-day jobs via `end_date` column (nullable DATE). When `end_date` is set, the job spans from `date` to `end_date` inclusive and appears in every day column it covers on the calendar.
 - **project_funding** — M1/M2/M3 milestone amounts, dates, CB credits
 - **stage_history** — audit trail of stage transitions
 - **change_orders** — HCO/change order records. Fields: `project_id`, `title`, `type`, `reason`, `origin`, `priority`, `status` (Open/In Progress/Waiting On Signature/Complete/Cancelled), `assigned_to`, `created_by`, `notes` (chronological timestamped text). 6-step workflow booleans: `design_request_submitted`, `design_in_progress`, `design_pending_approval`, `design_approved`, `design_complete`, `design_signed`. Original/new design values: `original_panel_count`/`new_panel_count`, `original_system_size`/`new_system_size`, etc.
@@ -429,7 +429,7 @@ The Info tab now includes `permit_fee` and `reinspection_fee` fields in the Perm
 
 ### TypeScript Pattern
 
-`types/database.ts` covers core tables (`projects`, `task_state`, `notes`, `crews`, `schedule`, `stage_history`, `project_folders`) plus types added during refactoring: `ServiceCall`, `HOA`, `MentionNotification`, `ProjectAdder`, `ProjectBom`. The `Schedule` interface was expanded with 11 new fields. Several tables used in the app — `project_funding`, `service_calls`, `ahjs`, `utilities`, `users`, `sla_thresholds` — are **not** in the generated types but are accessed through the `lib/api/` layer or `db()` helper which handle casting internally.
+`types/database.ts` covers core tables (`projects`, `task_state`, `notes`, `crews`, `schedule`, `stage_history`, `project_folders`) plus types added during refactoring: `ServiceCall`, `HOA`, `MentionNotification`, `ProjectAdder`, `ProjectBom`. The `Schedule` interface was expanded with 11 new fields plus `end_date` for multi-day job support. Several tables used in the app — `project_funding`, `service_calls`, `ahjs`, `utilities`, `users`, `sla_thresholds` — are **not** in the generated types but are accessed through the `lib/api/` layer or `db()` helper which handle casting internally.
 
 **Type safety improved**: `as any` casts reduced from ~198 to 3 across the codebase (82 removed in Session 17 via full type safety pass — 19 files updated, 16 new interfaces added). Remaining 3 casts are in test mocks and Supabase RPC calls where typing is impractical. New code should use the API layer (`@/lib/api`) or `db()` helper rather than adding new `as any` casts.
 
@@ -609,6 +609,7 @@ All in `supabase/`:
 - `029-vendors.sql` — Vendor management table with category, equipment types array, lead time, payment terms. Trigram/category/active indexes. RLS: read/write for authenticated, delete for super_admin.
 - `030-work-orders.sql` — Work order system: `work_orders` table (field work tracking with status lifecycle, crew assignment, customer signature, time tracking) and `wo_checklist_items` table (per-WO checklist with completion tracking). Indexes on project_id, status, scheduled_date, assigned_crew, work_order_id.
 - `031-email-onboarding.sql` — Email onboarding table (`email_onboarding`) for 30-day training series tracking with user enrollment, current day, pause/resume, completion status
+- `032-schedule-end-date.sql` — Adds `end_date` DATE column to `schedule` table for multi-day job support
 - `seed-document-requirements.sql` — Seeds 23 document requirements across all 7 pipeline stages
 
 ### Legacy Projects

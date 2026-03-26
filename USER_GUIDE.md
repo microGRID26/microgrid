@@ -716,13 +716,14 @@ The Pipeline and Queue pages support multi-select for performing bulk actions on
 
 **URL:** `/schedule`
 
-The Schedule page is a weekly calendar view for managing crew assignments across all job types.
+The Schedule page is a weekly calendar view for managing crew assignments across all job types. It supports both single-day and multi-day jobs.
 
 ### Calendar Layout
 
 - Columns represent days of the week (Monday through Saturday)
 - Rows represent crews
 - Each cell can contain one or more scheduled jobs
+- Multi-day jobs span across multiple day columns and show a day indicator (e.g., "Day 1 of 3")
 
 ### Job Types and Colors
 
@@ -764,7 +765,10 @@ Each scheduled job shows a status dot:
 3. Select the project (search by name or ID)
 4. Choose the job type
 5. Optionally set a start time
-6. Click Schedule
+6. Optionally set an **End Date** for multi-day jobs (e.g., a 2-day install). The job will appear on every day from the start date through the end date.
+7. Click Schedule
+
+The modal also checks for crew conflicts -- if the crew already has a job on any day in the selected range, a warning is displayed.
 
 ### Job Brief
 

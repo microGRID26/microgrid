@@ -167,6 +167,12 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
     setSaving(true)
     setError(null)
     const pid = selectedProject?.id ?? form.project_id
+    // Validate end_date >= date if set
+    if (form.end_date && form.end_date < form.date) {
+      setError('End date cannot be before start date')
+      return
+    }
+
     const record: Record<string, any> = {
       crew_id: form.crew_id,
       project_id: pid,

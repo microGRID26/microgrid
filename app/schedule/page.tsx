@@ -422,8 +422,8 @@ export default function SchedulePage() {
                           const start = new Date(job.date + 'T00:00:00')
                           const end = new Date(((job as ScheduleWithProject).end_date ?? job.date) + 'T00:00:00')
                           const current = new Date(iso + 'T00:00:00')
-                          const totalDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1
-                          const dayNum = Math.round((current.getTime() - start.getTime()) / 86400000) + 1
+                          const totalDays = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1
+                          const dayNum = Math.floor((current.getTime() - start.getTime()) / 86400000) + 1
                           return `Day ${dayNum}/${totalDays}`
                         })() : null
                         return (
