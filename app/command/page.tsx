@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadProjectsByIds } from '@/lib/api'
 import { loadCrewsByIds } from '@/lib/api'
-import { daysAgo, fmt$, fmtDate, STAGE_LABELS } from '@/lib/utils'
+import { daysAgo, fmt$, fmtDate, STAGE_LABELS, STAGE_ORDER, STAGE_TASKS } from '@/lib/utils'
 import { exportProjectsCSV, ALL_EXPORT_FIELDS, DEFAULT_EXPORT_KEYS } from '@/lib/export-utils'
 import { classify, cycleDays, getSLA, getStuckTasks } from '@/lib/classify'
 import type { Section, TaskEntry, StuckTask } from '@/lib/classify'
@@ -29,153 +29,135 @@ interface TaskStateRow {
   follow_up_date?: string | null
 }
 
-// ── SLA BADGE ─────────────────────────────────────────────────────────────────
-function SlaBadge({ p }: { p: Project }) {
-  const sla = getSLA(p)
-  const colors = {
-    crit: 'bg-red-900 text-red-300',
-    risk: 'bg-amber-900 text-amber-300',
-    warn: 'bg-yellow-900 text-yellow-300',
-    ok:   'bg-gray-700 text-gray-300',
-  }
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-mono ${colors[sla.status]}`}>
-      {sla.days}d
-    </span>
-  )
-}
-
-// ── PROJECT ROW ───────────────────────────────────────────────────────────────
-function ProjectRow({ p, stuckTasks, onSelect, selected }: {
-  p: Project
-  stuckTasks: StuckTask[]
-  onSelect: (p: Project) => void
-  selected: boolean
-}) {
-  const sla = getSLA(p)
-  const cycle = cycleDays(p)
-
-  return (
-    <div
-      onClick={() => onSelect(p)}
-      className={`px-4 py-3 cursor-pointer hover:bg-gray-800 border-b border-gray-800 transition-colors ${selected ? 'bg-gray-800' : ''}`}
-    >
-      <div className="flex items-center gap-3">
-        {/* Stage dot */}
-        <div className={`w-1.5 h-8 rounded-full flex-shrink-0 ${
-          p.blocker ? 'bg-red-500' :
-          sla.status === 'crit' ? 'bg-red-500' :
-          sla.status === 'risk' ? 'bg-amber-500' :
-          sla.status === 'warn' ? 'bg-yellow-500' :
-          'bg-green-500'
-        }`} />
-
-        {/* Name + ID */}
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-white truncate">{p.name}</div>
-          <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
-            <span>{p.id}</span>
-            <span>·</span>
-            <span>{p.city}</span>
-            {p.pm && <><span>·</span><span className="text-gray-400">{p.pm}</span></>}
-          </div>
-        </div>
-
-        {/* Stage */}
-        <div className="text-xs text-gray-400 hidden sm:block w-20 text-right">
-          {STAGE_LABELS[p.stage] ?? p.stage}
-        </div>
-
-        {/* SLA */}
-        <SlaBadge p={p} />
-
-        {/* Cycle days */}
-        {cycle >= 90 && (
-          <span className="text-xs text-amber-400 hidden md:block">{cycle}d total</span>
-        )}
-
-        {/* Blocker */}
-        {p.blocker && (
-          <div className="text-xs text-red-400 max-w-[160px] truncate hidden lg:block">
-            🚫 {p.blocker}
-          </div>
-        )}
-      </div>
-
-      {/* Stuck tasks — shown inline below the name row */}
-      {stuckTasks.length > 0 && (
-        <div className="mt-1.5 ml-5 flex flex-wrap gap-1.5">
-          {stuckTasks.map(t => (
-            <span key={t.name} className={`text-xs rounded px-2 py-0.5 ${
-              t.status === 'Pending Resolution'
-                ? 'bg-red-950 text-red-300'
-                : 'bg-amber-950 text-amber-300'
-            }`}>
-              {t.status === 'Pending Resolution' ? '⏸' : '↩'}{' '}
-              {t.name}{t.reason ? ` — ${t.reason}` : ''}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── SECTION ───────────────────────────────────────────────────────────────────
-function CommandSection({
-  id, title, projects, color, taskMapAll, onSelect, selectedId, collapsed, onToggle,
-}: {
-  id: Section
-  title: string
-  projects: Project[]
-  color: string
-  taskMapAll: Record<string, Record<string, TaskEntry>>
-  onSelect: (p: Project) => void
-  selectedId: string | null
-  collapsed: boolean
-  onToggle: () => void
-}) {
-  if (projects.length === 0) return null
-  return (
-    <div className="border-b border-gray-800">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-800 transition-colors"
-      >
-        <span className={`text-xs font-bold uppercase tracking-wider ${color}`}>{title}</span>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-mono ${color} bg-opacity-20`}>
-          {projects.length}
-        </span>
-        <span className="ml-auto text-gray-600 text-xs">{collapsed ? '▶' : '▼'}</span>
-      </button>
-      {!collapsed && projects.map(p => (
-        <ProjectRow
-          key={p.id}
-          p={p}
-          stuckTasks={getStuckTasks(p, taskMapAll[p.id] ?? {})}
-          onSelect={onSelect}
-          selected={selectedId === p.id}
-        />
-      ))}
-    </div>
-  )
-}
-
 // ── METRIC CARD ───────────────────────────────────────────────────────────────
-function Metric({ label, value, color = 'text-white', onClick }: {
+function MetricCard({ label, value, accent, subtitle, onClick }: {
   label: string
   value: string | number
-  color?: string
+  accent?: string
+  subtitle?: string
   onClick?: () => void
 }) {
+  const border = accent ?? 'border-gray-700'
+  const textColor = accent
+    ? accent.replace('border-', 'text-')
+    : 'text-white'
+
   return (
     <button
       onClick={onClick}
-      className="flex flex-col gap-0.5 px-4 py-3 hover:bg-gray-800 rounded-lg transition-colors text-left"
+      className={`flex flex-col gap-1 px-4 py-3 bg-gray-800 rounded-lg border ${border} hover:bg-gray-750 transition-colors text-left min-w-0`}
     >
-      <span className="text-xs text-gray-500 uppercase tracking-wider">{label}</span>
-      <span className={`text-2xl font-bold font-mono ${color}`}>{value}</span>
+      <span className="text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap">{label}</span>
+      <span className={`text-2xl font-bold font-mono ${textColor}`}>{value}</span>
+      {subtitle && <span className="text-xs text-gray-500">{subtitle}</span>}
     </button>
+  )
+}
+
+// ── ACTION ITEM ROW ───────────────────────────────────────────────────────────
+function ActionRow({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-800 border-b border-gray-800/50 transition-colors"
+    >
+      {children}
+    </div>
+  )
+}
+
+// ── COLLAPSIBLE SECTION ───────────────────────────────────────────────────────
+function ActionSection({ title, count, color, open, onToggle, children }: {
+  title: string
+  count: number
+  color: string
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  if (count === 0) return null
+  return (
+    <div className="border border-gray-800 rounded-lg overflow-hidden">
+      <button
+        onClick={onToggle}
+        className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-800 transition-colors ${color} bg-opacity-5`}
+      >
+        <span className={`text-xs font-bold uppercase tracking-wider ${color}`}>{title}</span>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-mono ${color} bg-gray-800`}>
+          {count}
+        </span>
+        <span className="ml-auto text-gray-600 text-xs">{open ? '▼' : '▶'}</span>
+      </button>
+      {open && <div className="bg-gray-900/50">{children}</div>}
+    </div>
+  )
+}
+
+// ── PIPELINE BAR ──────────────────────────────────────────────────────────────
+const STAGE_COLORS: Record<string, string> = {
+  evaluation: 'bg-blue-500',
+  survey: 'bg-cyan-500',
+  design: 'bg-violet-500',
+  permit: 'bg-amber-500',
+  install: 'bg-orange-500',
+  inspection: 'bg-pink-500',
+  complete: 'bg-green-500',
+}
+
+function PipelineBar({ projects, stageFilter, onStageClick }: {
+  projects: Project[]
+  stageFilter: string | null
+  onStageClick: (stage: string | null) => void
+}) {
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {}
+    for (const s of STAGE_ORDER) c[s] = 0
+    for (const p of projects) {
+      if (p.disposition === 'Cancelled' || p.disposition === 'In Service' || p.disposition === 'Loyalty') continue
+      c[p.stage] = (c[p.stage] ?? 0) + 1
+    }
+    return c
+  }, [projects])
+
+  const max = Math.max(...Object.values(counts), 1)
+
+  return (
+    <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Pipeline Snapshot</span>
+        {stageFilter && (
+          <button
+            onClick={() => onStageClick(null)}
+            className="text-xs text-green-400 hover:text-green-300 transition-colors"
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        {STAGE_ORDER.filter(s => s !== 'complete').map(stage => {
+          const count = counts[stage] ?? 0
+          const pct = max > 0 ? (count / max) * 100 : 0
+          const isActive = stageFilter === stage
+          return (
+            <button
+              key={stage}
+              onClick={() => onStageClick(isActive ? null : stage)}
+              className={`w-full flex items-center gap-3 group transition-colors rounded px-1 py-0.5 ${isActive ? 'bg-gray-700' : 'hover:bg-gray-700/50'}`}
+            >
+              <span className="text-xs text-gray-400 w-20 text-right truncate">{STAGE_LABELS[stage] ?? stage}</span>
+              <div className="flex-1 h-4 bg-gray-900 rounded overflow-hidden">
+                <div
+                  className={`h-full rounded transition-all ${STAGE_COLORS[stage] ?? 'bg-gray-500'} ${isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}
+                  style={{ width: `${Math.max(pct, count > 0 ? 2 : 0)}%` }}
+                />
+              </div>
+              <span className="text-xs font-mono text-gray-300 w-8 text-right">{count}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -347,6 +329,10 @@ function ExportModal({ projects, onClose }: { projects: Project[]; onClose: () =
   )
 }
 
+// ── SORT HELPERS ──────────────────────────────────────────────────────────────
+type SortCol = 'name' | 'stage' | 'days' | 'blocker' | 'nextTask' | 'contract' | 'followUp'
+type SortDir = 'asc' | 'desc'
+
 // ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function CommandPage() {
   const supabase = createClient()
@@ -354,21 +340,28 @@ export default function CommandPage() {
 
   // ── Data queries via useSupabaseQuery ────────────────────────────────────
   const projectsQuery = useSupabaseQuery('projects', {
-    select: 'id, name, city, pm, pm_id, stage, stage_date, sale_date, contract, blocker, disposition, address, financier, follow_up_date, consultant, advisor',
+    select: 'id, name, city, pm, pm_id, stage, stage_date, sale_date, contract, blocker, disposition, address, financier, follow_up_date, consultant, advisor, install_complete_date',
     order: { column: 'stage_date', ascending: true },
     limit: 5000,
   })
 
-  // Optimized: only load stuck tasks (Pending Resolution / Revision Required / Complete)
-  // instead of all 25K+ task_state rows
+  // Load stuck + complete tasks, plus tasks with follow_up dates
   const taskQuery = useSupabaseQuery('task_state', {
     select: 'project_id, task_id, status, reason, completed_date, follow_up_date',
     filters: { status: { in: ['Pending Resolution', 'Revision Required', 'Complete'] } },
     limit: 50000,
   })
 
+  // Separate query for follow-up tasks (any status with a follow_up_date)
+  const followUpQuery = useSupabaseQuery('task_state', {
+    select: 'project_id, task_id, status, reason, follow_up_date',
+    filters: { follow_up_date: { isNot: null } },
+    limit: 10000,
+  })
+
   const projects = (projectsQuery.data ?? []) as unknown as Project[]
   const taskStates = (taskQuery.data ?? []) as unknown as TaskStateRow[]
+  const followUpTasks = (followUpQuery.data ?? []) as unknown as TaskStateRow[]
   const loading = projectsQuery.loading || taskQuery.loading
 
   // ── Schedule (manual — requires enrichment with project/crew names) ──────
@@ -388,17 +381,15 @@ export default function CommandPage() {
 
     const rawJobs = schedRes.data as ScheduleEntry[]
     let enrichmentFailed = false
-    // Batch-fetch project names via API layer
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const schedPids = [...new Set(rawJobs.map((j: any) => j.project_id).filter(Boolean))]
     const projNameMap: Record<string, string> = {}
     if (schedPids.length > 0) {
       try {
-        const projects = await loadProjectsByIds(schedPids as string[])
-        projects.forEach((p) => { projNameMap[p.id] = p.name })
+        const projs = await loadProjectsByIds(schedPids as string[])
+        projs.forEach((p) => { projNameMap[p.id] = p.name })
       } catch { enrichmentFailed = true }
     }
-    // Batch-fetch crew names via API layer
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const schedCids = [...new Set(rawJobs.map((j: any) => j.crew_id).filter(Boolean))]
     const crewNameMap: Record<string, string> = {}
@@ -409,7 +400,6 @@ export default function CommandPage() {
       } catch { enrichmentFailed = true }
     }
     if (enrichmentFailed) setScheduleIncomplete(true)
-    // Merge names onto schedule entries
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rawJobs.forEach((j: any) => {
       j.project_name = projNameMap[j.project_id] ?? null
@@ -418,15 +408,14 @@ export default function CommandPage() {
     setTodaySchedule(rawJobs)
   }, [supabase])
 
-  // Load schedule on mount
   useEffect(() => { loadSchedule() }, [loadSchedule])
 
-  // Combined refresh for callbacks
   const refresh = useCallback(() => {
     projectsQuery.refresh()
     taskQuery.refresh()
+    followUpQuery.refresh()
     loadSchedule()
-  }, [projectsQuery.refresh, taskQuery.refresh, loadSchedule])
+  }, [projectsQuery.refresh, taskQuery.refresh, followUpQuery.refresh, loadSchedule])
 
   // ── Auth ─────────────────────────────────────────────────────────────────
   const [user, setUser] = useState<{ email: string } | null>(null)
@@ -437,7 +426,7 @@ export default function CommandPage() {
   }, [supabase])
 
   // ── UI state ─────────────────────────────────────────────────────────────
-  const [pmFilter, setPmFilter] = useState<string>('all')
+  const [pmFilter, setPmFilter] = useState<string>('loading')
   const [search, setSearch] = useState<string>('')
   const [showNewProject, setShowNewProject] = useState(false)
   const [displayName, setDisplayName] = useState(() =>
@@ -445,13 +434,35 @@ export default function CommandPage() {
   )
   const [showNameInput, setShowNameInput] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
-  const [collapsed, setCollapsed] = useState<Partial<Record<Section, boolean>>>({
-    overdue: true, blocked: true, pending: true, crit: true, risk: true,
-    stall: true, aging: true, ok: true, loyalty: true, inService: true,
-  })
+  const [selectedTab, setSelectedTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files' | undefined>(undefined)
   const [lastRefresh, setLastRefresh] = useState(0)
   const [minutesAgo, setMinutesAgo] = useState(0)
   const [showExport, setShowExport] = useState(false)
+  const [stageFilter, setStageFilter] = useState<string | null>(null)
+
+  // Action sections open/closed state
+  const [followUpsOpen, setFollowUpsOpen] = useState(true)
+  const [blockedOpen, setBlockedOpen] = useState(true)
+  const [stuckOpen, setStuckOpen] = useState(true)
+
+  // Table sort
+  const [sortCol, setSortCol] = useState<SortCol>('days')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+
+  // Auto-select logged-in user as PM
+  useEffect(() => {
+    if (currentUser?.id && pmFilter === 'loading') {
+      setPmFilter(currentUser.id)
+    }
+  }, [currentUser, pmFilter])
+
+  // Fallback: if user has no PM entries, switch to 'all'
+  useEffect(() => {
+    if (pmFilter !== 'loading' && pmFilter !== 'all' && projects.length > 0) {
+      const hasProjects = projects.some(p => p.pm_id === pmFilter)
+      if (!hasProjects) setPmFilter('all')
+    }
+  }, [pmFilter, projects])
 
   // Track last refresh timestamp when data finishes loading
   const prevLoading = useRef(true)
@@ -486,7 +497,7 @@ export default function CommandPage() {
     return map
   }, [taskStates])
 
-  // Filtered projects
+  // Filtered projects (PM + search + sales role)
   const filtered = useMemo(() => {
     let result = projects
     // Sales role: only show projects where consultant or advisor matches user name
@@ -497,7 +508,9 @@ export default function CommandPage() {
         p.advisor?.toLowerCase() === salesName
       )
     }
-    result = pmFilter === 'all' ? result : result.filter(p => p.pm_id === pmFilter)
+    if (pmFilter !== 'all' && pmFilter !== 'loading') {
+      result = result.filter(p => p.pm_id === pmFilter)
+    }
     if (search.trim()) {
       const q = search.toLowerCase().trim()
       result = result.filter(p =>
@@ -511,12 +524,118 @@ export default function CommandPage() {
     return result
   }, [projects, pmFilter, search, currentUser])
 
-  // Overdue + Pending Resolution: single pass over taskStates
+  // Active projects (exclude Cancelled, In Service, Loyalty, complete)
+  const activeProjects = useMemo(() =>
+    filtered.filter(p =>
+      p.disposition !== 'Cancelled' &&
+      p.disposition !== 'In Service' &&
+      p.disposition !== 'Loyalty' &&
+      p.stage !== 'complete'
+    ),
+    [filtered]
+  )
+
+  // ── Follow-ups due today or overdue ──────────────────────────────────────
+  const followUpsDue = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const projectTaskMap = new Map<string, { taskId: string; taskName: string; followUpDate: string; daysOverdue: number }>()
+
+    // Check task-level follow-ups
+    for (const t of followUpTasks) {
+      if (!t.follow_up_date) continue
+      const d = t.follow_up_date
+      if (d > today) continue // future, skip
+      const overdue = daysAgo(d)
+      const existing = projectTaskMap.get(t.project_id + ':' + t.task_id)
+      if (!existing) {
+        const taskDef = STAGE_TASKS[Object.keys(STAGE_TASKS).find(s =>
+          STAGE_TASKS[s].some(st => st.id === t.task_id)
+        ) ?? '']?.find(st => st.id === t.task_id)
+        projectTaskMap.set(t.project_id + ':' + t.task_id, {
+          taskId: t.task_id,
+          taskName: taskDef?.name ?? t.task_id,
+          followUpDate: d,
+          daysOverdue: overdue,
+        })
+      }
+    }
+
+    // Also check project-level follow_up_date
+    for (const p of activeProjects) {
+      if (p.follow_up_date && p.follow_up_date <= today) {
+        projectTaskMap.set(p.id + ':project', {
+          taskId: 'project',
+          taskName: 'Project Follow-up',
+          followUpDate: p.follow_up_date,
+          daysOverdue: daysAgo(p.follow_up_date),
+        })
+      }
+    }
+
+    // Merge with project data
+    const items: { project: Project; taskName: string; followUpDate: string; daysOverdue: number }[] = []
+    const projectMap = new Map(filtered.map(p => [p.id, p]))
+
+    for (const [key, info] of projectTaskMap) {
+      const pid = key.split(':')[0]
+      const project = projectMap.get(pid)
+      if (!project) continue
+      // Respect PM filter
+      if (pmFilter !== 'all' && pmFilter !== 'loading' && project.pm_id !== pmFilter) continue
+      items.push({ project, taskName: info.taskName, followUpDate: info.followUpDate, daysOverdue: info.daysOverdue })
+    }
+
+    return items.sort((a, b) => b.daysOverdue - a.daysOverdue)
+  }, [followUpTasks, activeProjects, filtered, pmFilter])
+
+  // ── Blocked projects ────────────────────────────────────────────────────
+  const blockedProjects = useMemo(() =>
+    activeProjects.filter(p => p.blocker).sort((a, b) => daysAgo(b.stage_date) - daysAgo(a.stage_date)),
+    [activeProjects]
+  )
+
+  // ── Stuck tasks ──────────────────────────────────────────────────────────
+  const stuckItems = useMemo(() => {
+    const items: { project: Project; taskName: string; status: string; reason: string }[] = []
+    for (const p of activeProjects) {
+      const tasks = getStuckTasks(p, taskMapAll[p.id] ?? {})
+      for (const t of tasks) {
+        items.push({ project: p, taskName: t.name, status: t.status, reason: t.reason })
+      }
+    }
+    return items
+  }, [activeProjects, taskMapAll])
+
+  // ── Stats ───────────────────────────────────────────────────────────────
+  const pms = useMemo(() => {
+    const pmMap = new Map<string, string>()
+    projects.forEach(p => { if (p.pm_id && p.pm) pmMap.set(p.pm_id, p.pm) })
+    return [...pmMap.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [projects])
+
+  const totalContract = useMemo(() =>
+    activeProjects.reduce((s, p) => s + (Number(p.contract) || 0), 0),
+    [activeProjects]
+  )
+
+  const installsThisMonth = useMemo(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    return filtered.filter(p => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = (p as any).install_complete_date
+      if (!d) return false
+      const dt = new Date(d + 'T00:00:00')
+      return dt.getFullYear() === year && dt.getMonth() === month
+    }).length
+  }, [filtered])
+
+  // For classify (still used for overdue/pending detection)
   const { overduePids, pendingPids } = useMemo(() => {
     const overdue = new Set<string>()
     const pending = new Set<string>()
     for (const t of taskStates) {
-      // Overdue: task is stuck (Pending Resolution or Revision Required) with a follow_up_date in the past
       if ((t.status === 'Pending Resolution' || t.status === 'Revision Required') &&
           t.follow_up_date && daysAgo(t.follow_up_date) > 0) {
         overdue.add(t.project_id)
@@ -528,25 +647,94 @@ export default function CommandPage() {
     return { overduePids: overdue, pendingPids: pending }
   }, [taskStates])
 
+  // Keep classify available for compatibility
   const sections = useMemo(() => classify(filtered, overduePids, pendingPids), [filtered, overduePids, pendingPids])
-  const pms = useMemo(() => {
-    const pmMap = new Map<string, string>()
-    projects.forEach(p => { if (p.pm_id && p.pm) pmMap.set(p.pm_id, p.pm) })
-    return [...pmMap.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
-  }, [projects])
-  const totalContract = useMemo(() => filtered.reduce((s, p) => s + (Number(p.contract) || 0), 0), [filtered])
 
-  // When search is active, any section with results is force-expanded — synchronous, no timing issues
-  const effectiveCollapsed = (id: Section, count: number): boolean => {
-    if (search.trim() && count > 0) return false
-    return !!collapsed[id]
+  // ── Next task helper ────────────────────────────────────────────────────
+  const getNextTask = useCallback((p: Project): string => {
+    const tasks = STAGE_TASKS[p.stage] ?? []
+    const projTasks = taskMapAll[p.id] ?? {}
+    for (const t of tasks) {
+      const status = projTasks[t.id]?.status ?? 'Not Ready'
+      if (status !== 'Complete') return t.name
+    }
+    return '—'
+  }, [taskMapAll])
+
+  // ── Project table data ──────────────────────────────────────────────────
+  const tableProjects = useMemo(() => {
+    let list = activeProjects
+    if (stageFilter) {
+      list = list.filter(p => p.stage === stageFilter)
+    }
+    // Sort
+    const sorted = [...list].sort((a, b) => {
+      let cmp = 0
+      switch (sortCol) {
+        case 'name':
+          cmp = (a.name ?? '').localeCompare(b.name ?? '')
+          break
+        case 'stage': {
+          const ai = STAGE_ORDER.indexOf(a.stage)
+          const bi = STAGE_ORDER.indexOf(b.stage)
+          cmp = ai - bi
+          break
+        }
+        case 'days':
+          cmp = daysAgo(a.stage_date) - daysAgo(b.stage_date)
+          break
+        case 'blocker':
+          cmp = (a.blocker ? 1 : 0) - (b.blocker ? 1 : 0)
+          break
+        case 'nextTask':
+          cmp = getNextTask(a).localeCompare(getNextTask(b))
+          break
+        case 'contract':
+          cmp = (Number(a.contract) || 0) - (Number(b.contract) || 0)
+          break
+        case 'followUp':
+          cmp = (a.follow_up_date ?? '9999').localeCompare(b.follow_up_date ?? '9999')
+          break
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return sorted
+  }, [activeProjects, stageFilter, sortCol, sortDir, getNextTask])
+
+  function toggleSort(col: SortCol) {
+    if (sortCol === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortCol(col)
+      setSortDir(col === 'name' || col === 'nextTask' ? 'asc' : 'desc')
+    }
   }
 
-  function toggleSection(id: Section) {
-    setCollapsed(c => ({ ...c, [id]: !c[id] }))
+  function sortIcon(col: SortCol) {
+    if (sortCol !== col) return ''
+    return sortDir === 'asc' ? ' ▲' : ' ▼'
   }
 
-  if (loading) {
+  // ── Follow-up date display helper ───────────────────────────────────────
+  function renderFollowUp(date: string | null | undefined) {
+    if (!date) return <span className="text-gray-600">—</span>
+    const today = new Date().toISOString().slice(0, 10)
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+    if (date < today) return <span className="text-red-400">{daysAgo(date)}d overdue</span>
+    if (date === today) return <span className="text-amber-400">Today</span>
+    if (date === tomorrow) return <span className="text-blue-400">Tomorrow</span>
+    return <span className="text-gray-400">{fmtDate(date)}</span>
+  }
+
+  // Open project panel with optional tab
+  function openProject(p: Project, tab?: 'tasks' | 'notes' | 'info' | 'bom' | 'files') {
+    setSelectedProject(p)
+    setSelectedTab(tab)
+  }
+
+  const isMyProjects = pmFilter !== 'all' && pmFilter !== 'loading'
+
+  if (loading || pmFilter === 'loading') {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-green-400 text-sm animate-pulse">Loading...</div>
@@ -563,13 +751,30 @@ export default function CommandPage() {
             placeholder="Search projects..."
             className="text-xs bg-gray-800 text-gray-200 border border-gray-700 rounded-md px-3 py-1.5 w-44 focus:outline-none focus:border-green-500 placeholder-gray-500"
           />
-          <select value={pmFilter} onChange={e => setPmFilter(e.target.value)}
-            className="text-xs bg-gray-800 text-gray-300 border border-gray-700 rounded-md px-2 py-1.5">
-            <option value="all">All PMs</option>
-            {pms.map(pm => <option key={pm.id} value={pm.id}>{pm.name}</option>)}
-          </select>
+          {/* My Projects / All Projects toggle */}
+          <div className="flex items-center bg-gray-800 rounded-md border border-gray-700">
+            <button
+              onClick={() => setPmFilter(currentUser?.id ?? 'all')}
+              className={`text-xs px-3 py-1.5 rounded-l-md transition-colors ${isMyProjects ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              My Projects
+            </button>
+            <button
+              onClick={() => setPmFilter('all')}
+              className={`text-xs px-3 py-1.5 rounded-r-md transition-colors ${!isMyProjects ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              All
+            </button>
+          </div>
+          {!isMyProjects && (
+            <select value={pmFilter} onChange={e => setPmFilter(e.target.value)}
+              className="text-xs bg-gray-800 text-gray-300 border border-gray-700 rounded-md px-2 py-1.5">
+              <option value="all">All PMs</option>
+              {pms.map(pm => <option key={pm.id} value={pm.id}>{pm.name}</option>)}
+            </select>
+          )}
           <span className="text-xs text-gray-500">
-            {filtered.length} projects
+            {activeProjects.length} active
           </span>
           <button onClick={refresh} className="text-xs text-gray-500 hover:text-white transition-colors">
             ↻ {minutesAgo}m ago
@@ -595,106 +800,311 @@ export default function CommandPage() {
           )}
         </>} />
 
-      {/* ── METRICS BAR ──────────────────────────────────────────────────── */}
-      <div className="bg-gray-900 border-b border-gray-800 flex items-center gap-1 px-2 overflow-x-auto">
-        <Metric label="Total" value={filtered.length} />
-        <Metric label="Blocked" value={sections.blocked.length}
-          color={sections.blocked.length ? 'text-red-400' : 'text-white'}
-          onClick={() => setCollapsed(c => ({ ...c, blocked: false }))} />
-        <Metric label="Pending" value={sections.pending.length}
-          color={sections.pending.length ? 'text-orange-400' : 'text-white'}
-          onClick={() => setCollapsed(c => ({ ...c, pending: false }))} />
-        <Metric label="Critical" value={sections.crit.length}
-          color={sections.crit.length ? 'text-red-400' : 'text-white'}
-          onClick={() => setCollapsed(c => ({ ...c, crit: false }))} />
-        <Metric label="At Risk" value={sections.risk.length}
-          color={sections.risk.length ? 'text-amber-400' : 'text-white'}
-          onClick={() => setCollapsed(c => ({ ...c, risk: false }))} />
-        <Metric label="90+ Day Cycle" value={sections.aging.length}
-          color={sections.aging.length ? 'text-amber-400' : 'text-white'}
-          onClick={() => setCollapsed(c => ({ ...c, aging: false }))} />
-        <Metric label="Portfolio" value={fmt$(totalContract)} />
-        <div className="ml-auto" />
+      {/* ── PERSONAL STATS ROW ─────────────────────────────────────────── */}
+      <div className="bg-gray-900 border-b border-gray-800 px-4 py-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          <MetricCard
+            label="My Active"
+            value={activeProjects.length}
+            accent="border-green-600"
+          />
+          <MetricCard
+            label="Blocked"
+            value={blockedProjects.length}
+            accent={blockedProjects.length > 0 ? 'border-red-500' : 'border-gray-700'}
+            onClick={() => setBlockedOpen(true)}
+          />
+          <MetricCard
+            label="Follow-ups Due"
+            value={followUpsDue.length}
+            accent={followUpsDue.length > 0 ? 'border-amber-500' : 'border-gray-700'}
+            onClick={() => setFollowUpsOpen(true)}
+          />
+          <MetricCard
+            label="Installs This Month"
+            value={installsThisMonth}
+            accent="border-blue-500"
+          />
+          <MetricCard
+            label="Portfolio Value"
+            value={totalContract >= 1000000 ? `$${(totalContract / 1000000).toFixed(1)}M` : fmt$(totalContract)}
+            accent="border-gray-700"
+          />
+        </div>
       </div>
 
-      {/* ── TODAY'S SCHEDULE WIDGET ───────────────────────────────────────── */}
-      {todaySchedule.length > 0 && (
-        <div className="bg-gray-900 border-b border-gray-800 px-4 py-2">
-          <div className="text-xs text-green-400 font-bold uppercase tracking-wider mb-2">
-            Today&apos;s Schedule ({todaySchedule.length})
-            {scheduleIncomplete && <span className="text-amber-400 font-normal ml-2">Schedule data incomplete</span>}
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-1">
-            {todaySchedule.map(job => {
-              const j = job
-              const statusColor = j.status === 'complete' ? 'bg-green-400' : j.status === 'in_progress' ? 'bg-amber-400' : 'bg-blue-400'
-              return (
-                <div key={job.id} className="flex-shrink-0 bg-gray-800 rounded-lg px-3 py-2 min-w-[180px]">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`} />
-                    <span className="text-xs font-medium text-white truncate">{j.project_name ?? job.project_id}</span>
+      {/* ── MAIN SCROLLABLE CONTENT ───────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
+
+          {/* ── ACTION ITEMS ──────────────────────────────────────────── */}
+          <div className="space-y-3">
+
+            {/* Follow-ups Due Today */}
+            <ActionSection
+              title="Follow-ups Due"
+              count={followUpsDue.length}
+              color="text-amber-400"
+              open={followUpsOpen}
+              onToggle={() => setFollowUpsOpen(!followUpsOpen)}
+            >
+              {followUpsDue.map((item, i) => (
+                <ActionRow key={`${item.project.id}-${item.taskName}-${i}`} onClick={() => openProject(item.project, 'tasks')}>
+                  <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-white truncate">{item.project.name}</span>
+                    <span className="text-xs text-gray-500 ml-2">{item.project.id}</span>
                   </div>
-                  <div className="text-xs text-gray-400">{job.job_type} · {job.time ?? 'TBD'}</div>
-                  {j.crew_name && <div className="text-xs text-gray-500 mt-0.5">{j.crew_name}</div>}
-                </div>
-              )
-            })}
+                  <span className="text-xs text-gray-400">{item.taskName}</span>
+                  <span className={`text-xs font-mono ${item.daysOverdue > 0 ? 'text-red-400' : 'text-amber-400'}`}>
+                    {item.daysOverdue === 0 ? 'Due today' : `${item.daysOverdue}d overdue`}
+                  </span>
+                </ActionRow>
+              ))}
+            </ActionSection>
+
+            {/* Blocked Projects */}
+            <ActionSection
+              title="Blocked Projects"
+              count={blockedProjects.length}
+              color="text-red-400"
+              open={blockedOpen}
+              onToggle={() => setBlockedOpen(!blockedOpen)}
+            >
+              {blockedProjects.map(p => (
+                <ActionRow key={p.id} onClick={() => openProject(p)}>
+                  <div className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-white truncate">{p.name}</span>
+                    <span className="text-xs text-gray-500 ml-2">{p.id}</span>
+                  </div>
+                  <span className="text-xs text-gray-400">{STAGE_LABELS[p.stage] ?? p.stage}</span>
+                  <span className="text-xs text-red-400 max-w-[200px] truncate">{p.blocker}</span>
+                  <span className="text-xs text-gray-500 font-mono">{daysAgo(p.stage_date)}d</span>
+                </ActionRow>
+              ))}
+            </ActionSection>
+
+            {/* Stuck Tasks */}
+            <ActionSection
+              title="Stuck Tasks"
+              count={stuckItems.length}
+              color="text-orange-400"
+              open={stuckOpen}
+              onToggle={() => setStuckOpen(!stuckOpen)}
+            >
+              {stuckItems.map((item, i) => (
+                <ActionRow key={`${item.project.id}-${item.taskName}-${i}`} onClick={() => openProject(item.project, 'tasks')}>
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                    item.status === 'Pending Resolution' ? 'bg-red-400' : 'bg-amber-400'
+                  }`} />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-white truncate">{item.project.name}</span>
+                    <span className="text-xs text-gray-500 ml-2">{item.project.id}</span>
+                  </div>
+                  <span className="text-xs text-gray-400">{item.taskName}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded ${
+                    item.status === 'Pending Resolution' ? 'bg-red-950 text-red-300' : 'bg-amber-950 text-amber-300'
+                  }`}>
+                    {item.status === 'Pending Resolution' ? 'Pending' : 'Revision'}
+                  </span>
+                  {item.reason && (
+                    <span className="text-xs text-gray-500 max-w-[180px] truncate hidden lg:block">{item.reason}</span>
+                  )}
+                </ActionRow>
+              ))}
+            </ActionSection>
           </div>
-        </div>
-      )}
 
-      {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
-          <CommandSection id="overdue" title="Overdue Tasks"
-            projects={sections.overdue} color="text-red-400" taskMapAll={taskMapAll}
-            onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
-            collapsed={effectiveCollapsed('overdue', sections.overdue.length)} onToggle={() => toggleSection('overdue')} />
+          {/* ── PIPELINE SNAPSHOT ─────────────────────────────────────── */}
+          <PipelineBar
+            projects={filtered}
+            stageFilter={stageFilter}
+            onStageClick={setStageFilter}
+          />
 
-          <CommandSection id="blocked" title="Blocked"
-            projects={sections.blocked} color="text-red-400" taskMapAll={taskMapAll}
-            onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
-            collapsed={effectiveCollapsed('blocked', sections.blocked.length)} onToggle={() => toggleSection('blocked')} />
+          {/* ── TODAY'S SCHEDULE WIDGET ──────────────────────────────── */}
+          {todaySchedule.length > 0 && (
+            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+              <div className="text-xs text-green-400 font-bold uppercase tracking-wider mb-3">
+                Today&apos;s Schedule ({todaySchedule.length})
+                {scheduleIncomplete && <span className="text-amber-400 font-normal ml-2">Schedule data incomplete</span>}
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {todaySchedule.map(job => {
+                  const j = job
+                  const statusColor = j.status === 'complete' ? 'bg-green-400' : j.status === 'in_progress' ? 'bg-amber-400' : 'bg-blue-400'
+                  const proj = filtered.find(p => p.id === job.project_id)
+                  return (
+                    <div
+                      key={job.id}
+                      onClick={() => proj && openProject(proj)}
+                      className="flex-shrink-0 bg-gray-900 rounded-lg px-3 py-2 min-w-[180px] cursor-pointer hover:bg-gray-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`} />
+                        <span className="text-xs font-medium text-white truncate">{j.project_name ?? job.project_id}</span>
+                      </div>
+                      <div className="text-xs text-gray-400">{job.job_type} · {job.time ?? 'TBD'}</div>
+                      {j.crew_name && <div className="text-xs text-gray-500 mt-0.5">{j.crew_name}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
-          <CommandSection id="pending" title="Pending Resolution"
-            projects={sections.pending} color="text-orange-400" taskMapAll={taskMapAll}
-            onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
-            collapsed={effectiveCollapsed('pending', sections.pending.length)} onToggle={() => toggleSection('pending')} />
+          {/* ── FULL PROJECT TABLE ────────────────────────────────────── */}
+          <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+              <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">
+                All Projects ({tableProjects.length})
+                {stageFilter && (
+                  <span className="text-green-400 ml-2 normal-case font-normal">
+                    filtered: {STAGE_LABELS[stageFilter]}
+                  </span>
+                )}
+              </span>
+            </div>
 
-          <CommandSection id="crit" title="Critical — Past SLA"
-            projects={sections.crit} color="text-red-400" taskMapAll={taskMapAll}
-            onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
-            collapsed={effectiveCollapsed('crit', sections.crit.length)} onToggle={() => toggleSection('crit')} />
+            {/* Table header */}
+            <div className="hidden md:grid grid-cols-[1fr_100px_70px_160px_140px_90px_100px] gap-2 px-4 py-2 border-b border-gray-700 text-xs text-gray-500 uppercase tracking-wider">
+              <button onClick={() => toggleSort('name')} className="text-left hover:text-white transition-colors">
+                Name{sortIcon('name')}
+              </button>
+              <button onClick={() => toggleSort('stage')} className="text-left hover:text-white transition-colors">
+                Stage{sortIcon('stage')}
+              </button>
+              <button onClick={() => toggleSort('days')} className="text-right hover:text-white transition-colors">
+                Days{sortIcon('days')}
+              </button>
+              <button onClick={() => toggleSort('blocker')} className="text-left hover:text-white transition-colors">
+                Blocker{sortIcon('blocker')}
+              </button>
+              <button onClick={() => toggleSort('nextTask')} className="text-left hover:text-white transition-colors">
+                Next Task{sortIcon('nextTask')}
+              </button>
+              <button onClick={() => toggleSort('contract')} className="text-right hover:text-white transition-colors">
+                Contract{sortIcon('contract')}
+              </button>
+              <button onClick={() => toggleSort('followUp')} className="text-right hover:text-white transition-colors">
+                Follow-up{sortIcon('followUp')}
+              </button>
+            </div>
 
-          <CommandSection id="risk" title="At Risk"
-            projects={sections.risk} color="text-amber-400" taskMapAll={taskMapAll}
-            onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
-            collapsed={effectiveCollapsed('risk', sections.risk.length)} onToggle={() => toggleSection('risk')} />
+            {/* Table rows */}
+            <div className="max-h-[600px] overflow-y-auto">
+              {tableProjects.length === 0 && (
+                <div className="px-4 py-8 text-center text-gray-600 text-sm">No projects found</div>
+              )}
+              {tableProjects.map(p => {
+                const days = daysAgo(p.stage_date)
+                const nextTask = getNextTask(p)
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => openProject(p)}
+                    className={`grid grid-cols-1 md:grid-cols-[1fr_100px_70px_160px_140px_90px_100px] gap-1 md:gap-2 px-4 py-2.5 cursor-pointer hover:bg-gray-700 border-b border-gray-800/50 transition-colors items-center ${
+                      selectedProject?.id === p.id ? 'bg-gray-700' : ''
+                    }`}
+                  >
+                    {/* Name + ID + city (responsive) */}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                          p.blocker ? 'bg-red-500' : 'bg-green-500'
+                        }`} />
+                        <span className="text-sm text-white truncate">{p.name}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 ml-3.5 truncate">
+                        {p.id} · {p.city}
+                        {p.pm && !isMyProjects && <span className="text-gray-600 ml-1">· {p.pm}</span>}
+                      </div>
+                    </div>
 
-          <CommandSection id="stall" title="Stalled — No Movement 5+ Days"
-            projects={sections.stall} color="text-yellow-400" taskMapAll={taskMapAll}
-            onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
-            collapsed={effectiveCollapsed('stall', sections.stall.length)} onToggle={() => toggleSection('stall')} />
+                    {/* Stage */}
+                    <span className="text-xs text-gray-400 hidden md:block">{STAGE_LABELS[p.stage] ?? p.stage}</span>
 
-          <CommandSection id="aging" title="Aging Projects — 90+ Day Cycle"
-            projects={sections.aging} color="text-amber-400" taskMapAll={taskMapAll}
-            onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
-            collapsed={effectiveCollapsed('aging', sections.aging.length)} onToggle={() => toggleSection('aging')} />
+                    {/* Days in stage */}
+                    <span className={`text-xs font-mono text-right hidden md:block ${
+                      days >= 30 ? 'text-red-400' : days >= 14 ? 'text-amber-400' : 'text-gray-400'
+                    }`}>
+                      {days}d
+                    </span>
 
-          <CommandSection id="ok" title={`On Track — ${sections.ok.length}`}
-            projects={sections.ok} color="text-green-400" taskMapAll={taskMapAll}
-            onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
-            collapsed={effectiveCollapsed('ok', sections.ok.length)} onToggle={() => toggleSection('ok')} />
+                    {/* Blocker */}
+                    <span className="text-xs text-red-400 truncate hidden md:block">
+                      {p.blocker ?? '—'}
+                    </span>
 
-          <CommandSection id="loyalty" title={`Loyalty (${sections.loyalty.length})`}
-            projects={sections.loyalty} color="text-purple-400" taskMapAll={taskMapAll}
-            onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
-            collapsed={effectiveCollapsed('loyalty', sections.loyalty.length)} onToggle={() => toggleSection('loyalty')} />
+                    {/* Next Task */}
+                    <span className="text-xs text-gray-400 truncate hidden md:block">{nextTask}</span>
 
-          <CommandSection id="inService" title={`In Service (${sections.inService.length})`}
-            projects={sections.inService} color="text-gray-500" taskMapAll={taskMapAll}
-            onSelect={setSelectedProject} selectedId={selectedProject?.id ?? null}
-            collapsed={effectiveCollapsed('inService', sections.inService.length)} onToggle={() => toggleSection('inService')} />
+                    {/* Contract */}
+                    <span className="text-xs text-gray-300 text-right font-mono hidden md:block">
+                      {fmt$(Number(p.contract) || 0)}
+                    </span>
+
+                    {/* Follow-up */}
+                    <span className="text-xs text-right hidden md:block">
+                      {renderFollowUp(p.follow_up_date)}
+                    </span>
+
+                    {/* Mobile: show key info inline */}
+                    <div className="flex items-center gap-3 md:hidden text-xs text-gray-500">
+                      <span>{STAGE_LABELS[p.stage]}</span>
+                      <span>{days}d</span>
+                      {p.blocker && <span className="text-red-400 truncate max-w-[120px]">{p.blocker}</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ── LOYALTY + IN SERVICE (collapsed by default) ──────────── */}
+          {(sections.loyalty.length > 0 || sections.inService.length > 0) && (
+            <div className="space-y-3 mt-2">
+              {sections.loyalty.length > 0 && (
+                <details className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                  <summary className="px-4 py-2.5 cursor-pointer hover:bg-gray-700 transition-colors text-xs text-purple-400 font-bold uppercase tracking-wider">
+                    Loyalty ({sections.loyalty.length})
+                  </summary>
+                  {sections.loyalty.map(p => (
+                    <div
+                      key={p.id}
+                      onClick={() => openProject(p)}
+                      className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-700 border-t border-gray-800/50 transition-colors"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0" />
+                      <span className="text-sm text-white truncate">{p.name}</span>
+                      <span className="text-xs text-gray-500">{p.id}</span>
+                      <span className="text-xs text-gray-500 ml-auto">{STAGE_LABELS[p.stage]}</span>
+                    </div>
+                  ))}
+                </details>
+              )}
+              {sections.inService.length > 0 && (
+                <details className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                  <summary className="px-4 py-2.5 cursor-pointer hover:bg-gray-700 transition-colors text-xs text-gray-500 font-bold uppercase tracking-wider">
+                    In Service ({sections.inService.length})
+                  </summary>
+                  {sections.inService.map(p => (
+                    <div
+                      key={p.id}
+                      onClick={() => openProject(p)}
+                      className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-700 border-t border-gray-800/50 transition-colors"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-gray-500 flex-shrink-0" />
+                      <span className="text-sm text-white truncate">{p.name}</span>
+                      <span className="text-xs text-gray-500">{p.id}</span>
+                      <span className="text-xs text-gray-500 ml-auto">{STAGE_LABELS[p.stage]}</span>
+                    </div>
+                  ))}
+                </details>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -707,8 +1117,9 @@ export default function CommandPage() {
       {selectedProject && (
         <ProjectPanel
           project={selectedProject}
-          onClose={() => setSelectedProject(null)}
+          onClose={() => { setSelectedProject(null); setSelectedTab(undefined) }}
           onProjectUpdated={refresh}
+          initialTab={selectedTab}
         />
       )}
 
