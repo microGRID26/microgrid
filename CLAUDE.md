@@ -629,12 +629,12 @@ All in `scripts/`:
 
 All three planned consolidation targets from Session 15 have been completed in Session 16:
 
-**Admin page** — `app/admin/page.tsx` split into 17 components in `components/admin/`:
+**Admin page** — `app/admin/page.tsx` split into 18 components in `components/admin/`:
 - `shared.tsx` — shared styles, types, and utility components (SectionShell, ModalShell, etc.)
 - `UsersManager.tsx`, `CrewsManager.tsx`, `AHJManager.tsx`, `UtilityManager.tsx`, `HOAManager.tsx`
 - `FinancierManager.tsx`, `ReasonsManager.tsx`, `NotificationRulesManager.tsx`, `QueueConfigManager.tsx`
 - `SLAManager.tsx`, `FeedbackManager.tsx`, `AuditTrailManager.tsx`, `PermissionMatrix.tsx`, `VendorManager.tsx`
-- `CRMInfo.tsx`, `ReleaseNotes.tsx`
+- `EmailManager.tsx`, `CRMInfo.tsx`, `ReleaseNotes.tsx`
 
 **ProjectPanel** — `components/project/FilesTab.tsx` extracted as standalone component.
 
@@ -799,6 +799,34 @@ Three database tables power the document management system (migration `023-docum
 - `scripts/upload-action-comments.ts` — uploads parsed comments to the `notes` table with `task_id` set and `[NS]` prefix on each message.
 
 **Display:** Action comments appear in per-task note panels in ProjectPanel's Tasks tab, interleaved with regular notes. The `[NS]` prefix distinguishes imported historical comments from user-created notes.
+
+## Onboarding Email System
+
+30-day automated training email series for new NOVA users, powered by **Resend**.
+
+### Architecture
+
+- `lib/email.ts` — Resend client wrapper. Singleton `getResend()` with lazy init. `sendEmail(to, subject, html)` sends from `nova@gomicrogridenergy.com`. Gracefully no-ops if `RESEND_API_KEY` is not set.
+- `lib/email-templates.ts` — 30 HTML email templates (one per day), organized into 4 weeks: Foundations (days 1-7), Operations (days 8-14), Power Features (days 15-21), Mastery (days 22-30). Each template is a factory function `(name: string) => { subject, html }` wrapped in a dark-themed HTML layout with CTA buttons. Exports: `getTemplate(day, userName)`, `getMaxDay()` (returns 30).
+- `app/api/email/send-daily/route.ts` — GET endpoint triggered by Vercel Cron. Loads active (non-paused, non-completed) enrollments from `email_onboarding`, sends the next day's template to each, advances `current_day`, and marks completed at day 30. Skips if already sent today. Auth: `CRON_SECRET` bearer token.
+- `app/api/email/enroll/route.ts` — POST endpoint. Creates an enrollment in `email_onboarding` and immediately sends Day 1. Deduplicates by `user_id`.
+- `app/api/email/announce/route.ts` — POST endpoint. Sends a one-off announcement email to all active users (or filtered by role). Wraps provided HTML in the NOVA email layout. Auth: optional `ADMIN_API_SECRET`.
+- `components/admin/EmailManager.tsx` — Admin portal section (`email_onboarding` module). Shows enrollment stats (total/active/paused/completed), searchable table with day progress, status badges, and pause/resume per user. Super admin actions: "Enroll All Users", "Trigger Daily Send", "Send Announcement" (modal with subject, message, role filter). Includes a 30-day progress bar visualization.
+
+### Database Table
+
+- **`email_onboarding`** — enrollment tracking. Fields: `id`, `user_id`, `user_email`, `user_name`, `current_day` (1-30), `started_at`, `last_sent_at`, `paused` (boolean), `completed` (boolean).
+
+### Cron Schedule
+
+Configured in `vercel.json`: `0 13 * * 1-5` (weekdays at 8 AM CT / 1 PM UTC).
+
+### Environment Variables
+
+- `RESEND_API_KEY` — Resend API key (required for email sending; no-ops without it)
+- `CRON_SECRET` — bearer token for the `/api/email/send-daily` cron endpoint
+- `ADMIN_API_SECRET` — optional auth for the `/api/email/announce` endpoint
+- `NEXT_PUBLIC_APP_URL` — base URL for CTA links in emails (defaults to `https://nova.gomicrogridenergy.com`)
 
 ## Co-Author Convention
 

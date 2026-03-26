@@ -1208,6 +1208,29 @@ View active and recent user sessions:
 
 Sessions are tracked automatically with a 60-second heartbeat.
 
+### Email Onboarding
+
+A 30-day automated training email series that teaches new users how to use NOVA. Emails are sent on weekdays and cover topics from basic navigation through advanced features.
+
+**Enrollment Stats:**
+- View total, active, paused, and completed enrollment counts at a glance
+- Search enrollments by name or email
+- See each user's current day (1-30), status, last sent date, and start date
+
+**Super Admin Actions:**
+- **Enroll All Users** -- enrolls all active users who are not already in the series; sends Day 1 immediately
+- **Trigger Daily Send** -- manually fires the daily email job (normally runs automatically on weekdays at 8 AM CT)
+- **Pause / Resume** -- pause an individual user's series or resume it later
+- **Send Announcement** -- compose and send a one-off announcement email to all active users or a specific role (Super Admin, Admin, Finance, Manager, User, Sales)
+
+**Email Series Schedule:**
+| Week | Days | Theme |
+|------|------|-------|
+| 1 | 1-7 | Foundations -- Command Center, Queue, Project Panel, Tasks, Notes, Pipeline |
+| 2 | 8-14 | Operations -- Funding, Schedule, Audit, Change Orders, Service, Analytics |
+| 3 | 15-21 | Power Features -- Bulk Ops, CSV Export, Follow-ups, Keyboard Shortcuts, Work Orders |
+| 4 | 22-30 | Mastery -- Admin, Equipment, Drive, Inventory, Vendors, Redesign, Batch Design, Tips |
+
 ---
 
 ## Document Management

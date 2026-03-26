@@ -3,18 +3,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { db } from '@/lib/db'
 import { SearchBar } from './shared'
+import type { EmailOnboarding } from '@/types/database'
 
-interface Enrollment {
-  id: string
-  user_id: string
-  user_email: string
-  user_name: string | null
-  current_day: number
-  started_at: string
-  last_sent_at: string | null
-  paused: boolean
-  completed: boolean
+/** Escape HTML special characters to prevent XSS in email templates */
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
+
+type Enrollment = EmailOnboarding
 
 export function EmailManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
@@ -124,7 +120,7 @@ export function EmailManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subject: announceSubject,
-          html: `<h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">${announceSubject}</h2><p>${announceMessage.replace(/\n/g, '</p><p>')}</p>`,
+          html: `<h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">${escapeHtml(announceSubject)}</h2><p>${escapeHtml(announceMessage).replace(/\n/g, '</p><p>')}</p>`,
           targetRole: announceRole || undefined,
         }),
       })

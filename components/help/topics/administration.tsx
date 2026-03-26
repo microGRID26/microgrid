@@ -17,6 +17,7 @@ function AdminPortal() {
           'Vendors -- Supplier/contractor directory',
           'Feedback -- User-submitted bugs/features',
           'Audit Trail -- Session + change tracking',
+          'Email Onboarding -- 30-day training series',
         ].map((item, i) => (
           <div key={i} className="bg-gray-800 rounded-md px-3 py-2 text-gray-400">{item}</div>
         ))}
@@ -127,6 +128,33 @@ function VendorManagement() {
   )
 }
 
+function EmailOnboarding() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-3">30-day automated training email series for new NOVA users. Managed in the Admin portal under "Email Onboarding".</p>
+      <div className="space-y-2 text-xs">
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-green-400 font-medium">Enroll All Users:</span>
+          <span className="text-gray-400 ml-1">Enrolls every active user not already in the series and sends Day 1 immediately</span>
+        </div>
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-blue-400 font-medium">Trigger Daily Send:</span>
+          <span className="text-gray-400 ml-1">Manually fires the daily email job (auto-runs weekdays 8 AM CT)</span>
+        </div>
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-amber-400 font-medium">Pause / Resume:</span>
+          <span className="text-gray-400 ml-1">Pause or resume an individual user's training series</span>
+        </div>
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-purple-400 font-medium">Send Announcement:</span>
+          <span className="text-gray-400 ml-1">One-off email to all users or a specific role</span>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 mt-3">4 weeks: Foundations (1-7), Operations (8-14), Power Features (15-21), Mastery (22-30).</p>
+    </div>
+  )
+}
+
 export const administrationTopics: HelpTopicData[] = [
   {
     id: 'admin-portal',
@@ -184,5 +212,15 @@ export const administrationTopics: HelpTopicData[] = [
     tryItLink: '/vendors',
     relatedTopics: ['admin-portal', 'equipment-manager', 'materials-tab'],
     content: VendorManagement,
+  },
+  {
+    id: 'email-onboarding',
+    title: 'Email Onboarding',
+    description: '30-day automated training email series for new users',
+    category: 'Administration',
+    keywords: ['email', 'onboarding', 'training', 'series', 'enroll', 'resend', 'announcement', 'daily'],
+    tryItLink: '/admin',
+    relatedTopics: ['admin-portal', 'user-management'],
+    content: EmailOnboarding,
   },
 ]

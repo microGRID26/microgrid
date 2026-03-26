@@ -1,5 +1,10 @@
 // ── Email Template Helpers ────────────────────────────────────────────────────
 
+/** Escape HTML special characters to prevent XSS in email templates */
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://nova.gomicrogridenergy.com'
 
 function layout(day: number, body: string): string {
@@ -679,7 +684,8 @@ const templates: Record<number, TemplateFactory> = {
 export function getTemplate(day: number, userName: string): EmailTemplate | null {
   const factory = templates[day]
   if (!factory) return null
-  return factory(userName || 'there')
+  // Escape user name to prevent XSS — all template factories interpolate this into HTML
+  return factory(escapeHtml(userName || 'there'))
 }
 
 export function getMaxDay(): number {

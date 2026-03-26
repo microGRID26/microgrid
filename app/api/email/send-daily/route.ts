@@ -3,6 +3,26 @@ import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
 import { getTemplate, getMaxDay } from '@/lib/email-templates'
 
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+// Simple in-memory rate limiter (per-minute).
+// On Vercel serverless, memory does not persist across cold starts — this provides
+// burst protection within a warm instance without needing an external store.
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 10
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(key)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false
+  entry.count++
+  return true
+}
+
 // Supabase admin client for server-side cron (no user auth)
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -12,10 +32,18 @@ function getAdminClient() {
 }
 
 export async function GET(req: Request) {
-  // Verify cron secret
+  // Rate limit: 10 requests per minute per endpoint
+  if (!checkRateLimit('send-daily')) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+  }
+
+  // Verify cron secret — if env var is NOT set, reject all requests (#7)
   const authHeader = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 })
+  }
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -42,10 +70,14 @@ export async function GET(req: Request) {
     let sent = 0
     let skipped = 0
     let completed = 0
+    let failed = 0
     const errors: string[] = []
 
     for (const enrollment of enrollments) {
-      // Don't double-send: skip if last_sent_at is already today
+      // Double-send prevention (#8): Compare last_sent_at date to today's date.
+      // This ensures that even if the cron fires multiple times per day (manual trigger,
+      // retry, duplicate Vercel cron invocation), each user only receives one email per day.
+      // The date comparison uses UTC ISO date strings (YYYY-MM-DD) for consistency.
       if (enrollment.last_sent_at) {
         const lastDate = new Date(enrollment.last_sent_at).toISOString().slice(0, 10)
         if (lastDate === today) {
@@ -86,6 +118,8 @@ export async function GET(req: Request) {
         sent++
         if (nextDay >= getMaxDay()) completed++
       } else {
+        failed++
+        console.error(`[send-daily] Failed to send day ${nextDay} email to ${enrollment.user_email}`)
         errors.push(`Failed to send to ${enrollment.user_email}`)
       }
     }
@@ -94,6 +128,7 @@ export async function GET(req: Request) {
       sent,
       skipped,
       completed,
+      failed,
       errors: errors.length > 0 ? errors : undefined,
       total: enrollments.length,
     })

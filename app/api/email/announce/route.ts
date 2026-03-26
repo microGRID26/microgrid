@@ -2,6 +2,31 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
 
+/** Escape HTML special characters to prevent XSS in email templates */
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+// Simple in-memory rate limiter (per-minute).
+// On Vercel serverless, memory does not persist across cold starts — this provides
+// burst protection within a warm instance without needing an external store.
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 10
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(key)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false
+  entry.count++
+  return true
+}
+
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -11,12 +36,20 @@ function getAdminClient() {
 
 export async function POST(req: Request) {
   try {
+    // Rate limit: 10 requests per minute per endpoint
+    if (!checkRateLimit('announce')) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+
     const body = await req.json()
     const { subject, html, targetRole, adminSecret } = body
 
-    // Require admin secret for announcement endpoint
+    // Require admin secret — if env var is NOT set, reject all requests (#7)
     const secret = process.env.ADMIN_API_SECRET
-    if (secret && adminSecret !== secret) {
+    if (!secret) {
+      return NextResponse.json({ error: 'ADMIN_API_SECRET not configured' }, { status: 503 })
+    }
+    if (adminSecret !== secret) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
