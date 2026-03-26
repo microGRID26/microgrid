@@ -36,6 +36,7 @@ export interface WarehouseStock {
   reorder_point: number
   unit: string
   location: string | null
+  barcode: string | null
   last_counted_at: string | null
   updated_at: string
 }
@@ -197,15 +198,34 @@ export async function autoGenerateMaterials(
 }
 
 /**
- * Load warehouse stock, optionally filtered by category.
+ * Load warehouse stock, optionally filtered by category and/or location.
  */
-export async function loadWarehouseStock(category?: string): Promise<WarehouseStock[]> {
+export async function loadWarehouseStock(category?: string, location?: string): Promise<WarehouseStock[]> {
   const supabase = db()
   let q = supabase.from('warehouse_stock').select('*').order('category').order('name')
   if (category) q = q.eq('category', category)
+  if (location) q = q.eq('location', location)
   const { data, error } = await q
   if (error) console.error('[loadWarehouseStock]', error.message)
   return (data ?? []) as WarehouseStock[]
+}
+
+/**
+ * Look up a warehouse stock item by barcode.
+ */
+export async function lookupByBarcode(barcode: string): Promise<WarehouseStock | null> {
+  const supabase = db()
+  const { data, error } = await supabase
+    .from('warehouse_stock')
+    .select('*')
+    .eq('barcode', barcode)
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error('[lookupByBarcode]', error.message)
+    return null
+  }
+  return (data as WarehouseStock) ?? null
 }
 
 /**

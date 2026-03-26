@@ -497,6 +497,7 @@ export interface WarehouseStock {
   reorder_point: number
   unit: string
   location: string | null
+  barcode: string | null
   last_counted_at: string | null
   updated_at: string
 }

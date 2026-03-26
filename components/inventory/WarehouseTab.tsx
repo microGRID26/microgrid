@@ -18,7 +18,7 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { fmtDate } from '@/lib/utils'
 import {
   Warehouse, Search, Plus, X, ArrowDownToLine, ArrowUpFromLine,
-  SlidersHorizontal, History, AlertTriangle, Package, Trash2,
+  SlidersHorizontal, History, AlertTriangle, Package, Trash2, Printer,
 } from 'lucide-react'
 
 // ── Category badge colors ──────────────────────────────────────────────────
@@ -57,6 +57,7 @@ export function WarehouseTab({ projects }: WarehouseTabProps) {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
+  const [filterLocation, setFilterLocation] = useState('')
   const [toast, setToast] = useState<string | null>(null)
 
   // Modal state
@@ -73,6 +74,7 @@ export function WarehouseTab({ projects }: WarehouseTabProps) {
   const [addReorder, setAddReorder] = useState(0)
   const [addUnit, setAddUnit] = useState('each')
   const [addLocation, setAddLocation] = useState('')
+  const [addBarcode, setAddBarcode] = useState('')
   const [addSaving, setAddSaving] = useState(false)
 
   // Checkout state
@@ -135,21 +137,34 @@ export function WarehouseTab({ projects }: WarehouseTabProps) {
   }, [])
 
   // ── Filtered stock ──────────────────────────────────────────────────────
+  // Distinct locations for filter dropdown
+  const distinctLocations = useMemo(() => {
+    const locs = new Set<string>()
+    for (const s of stock) {
+      if (s.location) locs.add(s.location)
+    }
+    return Array.from(locs).sort()
+  }, [stock])
+
   const filtered = useMemo(() => {
     let list = stock
     if (filterCategory) {
       list = list.filter(s => s.category === filterCategory)
+    }
+    if (filterLocation) {
+      list = list.filter(s => s.location === filterLocation)
     }
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(s =>
         s.name.toLowerCase().includes(q) ||
         (s.location ?? '').toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q)
+        s.category.toLowerCase().includes(q) ||
+        (s.barcode ?? '').toLowerCase().includes(q)
       )
     }
     return list
-  }, [stock, filterCategory, search])
+  }, [stock, filterCategory, filterLocation, search])
 
   // ── Summary counts ──────────────────────────────────────────────────────
   const totalItems = stock.length
@@ -212,7 +227,8 @@ export function WarehouseTab({ projects }: WarehouseTabProps) {
     setAddQty(0)
     setAddReorder(0)
     setAddUnit('each')
-    setAddLocation('')
+    setAddLocation(filterLocation || '')
+    setAddBarcode('')
     setModal('add')
   }
 
@@ -243,6 +259,7 @@ export function WarehouseTab({ projects }: WarehouseTabProps) {
       reorder_point: addReorder,
       unit: addUnit,
       location: addLocation.trim() || null,
+      barcode: addBarcode.trim() || null,
       last_counted_at: null,
     })
     if (result) {
@@ -388,6 +405,30 @@ export function WarehouseTab({ projects }: WarehouseTabProps) {
     }
   }
 
+  // ── Print label ──────────────────────────────────────────────────────────
+  function printLabel(item: WarehouseStock) {
+    const html = `<!DOCTYPE html>
+<html><head><title>Label - ${item.name}</title>
+<style>
+@page { size: 2in 1in; margin: 0; }
+body { font-family: Arial, sans-serif; width: 2in; height: 1in; padding: 4px 6px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
+.name { font-size: 9px; font-weight: bold; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barcode { font-size: 11px; font-family: monospace; font-weight: bold; letter-spacing: 1px; margin: 2px 0; }
+.meta { font-size: 7px; color: #555; display: flex; justify-content: space-between; }
+</style></head><body>
+<div class="name">${item.name}</div>
+<div class="barcode">${item.barcode || 'NO BARCODE'}</div>
+<div class="meta"><span>${item.location || ''}</span><span>${item.category}</span></div>
+</body></html>`
+    const win = window.open('', '_blank', 'width=250,height=150')
+    if (win) {
+      win.document.write(html)
+      win.document.close()
+      win.focus()
+      win.print()
+    }
+  }
+
   if (loading) {
     return <div className="text-gray-500 text-sm py-8 text-center">Loading warehouse stock...</div>
   }
@@ -450,6 +491,16 @@ export function WarehouseTab({ projects }: WarehouseTabProps) {
             <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
           ))}
         </select>
+        <select
+          value={filterLocation}
+          onChange={e => setFilterLocation(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white"
+        >
+          <option value="">All Locations</option>
+          {distinctLocations.map(loc => (
+            <option key={loc} value={loc}>{loc}</option>
+          ))}
+        </select>
         <button
           onClick={openAdd}
           className="text-xs px-3 py-1.5 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 transition-colors flex items-center gap-1.5"
@@ -478,6 +529,7 @@ export function WarehouseTab({ projects }: WarehouseTabProps) {
                   <th className="text-center px-3 py-2">Reorder Pt</th>
                   <th className="text-center px-3 py-2">Unit</th>
                   <th className="text-left px-3 py-2">Location</th>
+                  <th className="text-left px-3 py-2">Barcode</th>
                   <th className="text-left px-3 py-2">Last Counted</th>
                   <th className="text-right px-3 py-2">Actions</th>
                 </tr>
@@ -500,6 +552,7 @@ export function WarehouseTab({ projects }: WarehouseTabProps) {
                       <td className="px-3 py-2 text-center text-gray-400 font-mono">{item.reorder_point}</td>
                       <td className="px-3 py-2 text-center text-gray-400">{item.unit}</td>
                       <td className="px-3 py-2 text-gray-400 text-xs">{item.location || '\u2014'}</td>
+                      <td className="px-3 py-2 text-gray-400 text-xs font-mono">{item.barcode || '\u2014'}</td>
                       <td className="px-3 py-2 text-gray-400 text-xs">{item.last_counted_at ? fmtDate(item.last_counted_at) : '\u2014'}</td>
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-end gap-1">
@@ -530,6 +583,13 @@ export function WarehouseTab({ projects }: WarehouseTabProps) {
                             title="History"
                           >
                             <History className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => printLabel(item)}
+                            className="p-1 rounded hover:bg-indigo-500/20 text-gray-400 hover:text-indigo-400 transition-colors"
+                            title="Print label"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => openDelete(item)}
@@ -621,12 +681,27 @@ export function WarehouseTab({ projects }: WarehouseTabProps) {
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="text-xs text-gray-400 block mb-1">Location (shelf/bin)</label>
+                    <label className="text-xs text-gray-400 block mb-1">Location</label>
                     <input
                       value={addLocation}
                       onChange={e => setAddLocation(e.target.value)}
-                      placeholder="e.g., Shelf A3, Bin 12"
+                      placeholder="e.g., Main Warehouse, DFW1 Truck"
                       className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white placeholder-gray-600"
+                      list="location-suggestions"
+                    />
+                    <datalist id="location-suggestions">
+                      {distinctLocations.map(loc => (
+                        <option key={loc} value={loc} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-gray-400 block mb-1">Barcode</label>
+                    <input
+                      value={addBarcode}
+                      onChange={e => setAddBarcode(e.target.value)}
+                      placeholder="e.g., BOS-AWG10-001"
+                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white font-mono placeholder-gray-600"
                     />
                   </div>
                 </div>
