@@ -18,8 +18,7 @@ function layout(day: number, body: string): string {
   <!-- Header -->
   <tr><td style="background:#111827;padding:24px 32px 16px;border-bottom:1px solid #1f2937;">
     <table width="100%"><tr>
-      <td><span style="color:#1D9E75;font-size:20px;font-weight:700;letter-spacing:-0.5px;">MicroGRID CRM</span>
-      <span style="color:#6b7280;font-size:12px;margin-left:8px;">CRM Training</span></td>
+      <td><span style="color:#1D9E75;font-size:20px;font-weight:700;letter-spacing:-0.5px;">MicroGRID CRM</span></td>
       <td align="right"><span style="color:#6b7280;font-size:11px;">Day ${day} of 30</span></td>
     </tr></table>
   </td></tr>
