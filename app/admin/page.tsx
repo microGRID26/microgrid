@@ -85,7 +85,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <nav className="flex-1 p-2 space-y-0.5">
+          <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
             {SIDEBAR_ITEMS.map(item => (
               <button key={item.id} onClick={() => setActiveModule(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${

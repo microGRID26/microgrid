@@ -23,3 +23,5 @@ export { sendToEdge, syncProjectToEdge, syncFundingToEdge, isEdgeConfigured, get
 export type { EdgeEventType, EdgeWebhookPayload } from './edge-sync'
 export { loadVendors, searchVendors, loadVendor, addVendor, updateVendor, deleteVendor, VENDOR_CATEGORIES, EQUIPMENT_TYPE_OPTIONS } from './vendors'
 export type { Vendor, VendorCategory } from './vendors'
+export { loadWorkOrders, loadWorkOrder, createWorkOrder, updateWorkOrder, updateWorkOrderStatus, addChecklistItem, toggleChecklistItem, deleteChecklistItem, createWorkOrderFromProject, loadProjectWorkOrders, generateWONumber, getValidTransitions, WO_CHECKLIST_TEMPLATES } from './work-orders'
+export type { WorkOrder, WOChecklistItem, WorkOrderFilters } from './work-orders'

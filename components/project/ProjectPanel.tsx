@@ -14,6 +14,7 @@ import { InfoTab } from './InfoTab'
 import { FilesTab } from './FilesTab'
 import { MaterialsTab } from './MaterialsTab'
 import { ScheduleAssignModal } from './ScheduleAssignModal'
+import { createWorkOrderFromProject } from '@/lib/api/work-orders'
 
 // ── STAGE ADVANCE LOGIC ───────────────────────────────────────────────────────
 function canAdvance(stage: string, taskStates: Record<string, string>, ahj?: string | null): { ok: boolean; missing: string[] } {
@@ -82,6 +83,9 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   } | null>(null)
   const [coSaving, setCoSaving] = useState(false)
   const [scheduleModal, setScheduleModal] = useState<{ jobType: string; crews: any[] } | null>(null)
+  const [showWOCreate, setShowWOCreate] = useState(false)
+  const [woType, setWoType] = useState('install')
+  const [woCreating, setWoCreating] = useState(false)
   // ── Notification rules (loaded once per panel mount) ──────────────────────
   const [notificationRules, setNotificationRules] = useState<{ id: string; task_id: string; trigger_status: string; trigger_reason: string | null; action_type: string; action_message: string; notify_role: string | null }[]>([])
 
@@ -971,9 +975,14 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
               </div>
             )}
             {!showBlockerForm && !editMode && currentUser && !currentUser.isSales && (
-              <button onClick={startEdit} className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors">
-                ✏ Edit
-              </button>
+              <>
+                <button onClick={startEdit} className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors">
+                  ✏ Edit
+                </button>
+                <button onClick={() => setShowWOCreate(true)} className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors">
+                  + Work Order
+                </button>
+              </>
             )}
             {editMode && (
               <div className="flex items-center gap-2">
@@ -1337,6 +1346,59 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
           onClose={() => setScheduleModal(null)}
           onSaved={() => { setScheduleModal(null); loadTasks(); showToast('Job scheduled') }}
         />
+      )}
+
+      {/* Create Work Order Modal */}
+      {showWOCreate && (
+        <div className="fixed inset-0 bg-black/60 z-[120] flex items-center justify-center" onClick={() => setShowWOCreate(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-white">Create Work Order</h3>
+              <button onClick={() => setShowWOCreate(false)} className="text-gray-500 hover:text-white text-lg">&times;</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Project</label>
+                <div className="text-sm text-white">{project.name} ({project.id})</div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Type</label>
+                <select value={woType} onChange={e => setWoType(e.target.value)}
+                  className="w-full bg-gray-800 text-white text-xs rounded-lg px-3 py-2 border border-gray-700 focus:border-green-500 focus:outline-none">
+                  <option value="install">Installation</option>
+                  <option value="service">Service</option>
+                  <option value="inspection">Inspection</option>
+                  <option value="repair">Repair</option>
+                  <option value="survey">Survey</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setShowWOCreate(false)} className="px-4 py-1.5 text-xs text-gray-400 hover:text-white border border-gray-700 rounded-md">Cancel</button>
+              <button
+                onClick={async () => {
+                  setWoCreating(true)
+                  const result = await createWorkOrderFromProject(project.id, woType, {
+                    name: project.name,
+                    address: project.address,
+                    city: project.city,
+                  }, { createdBy: currentUser?.name ?? undefined })
+                  setWoCreating(false)
+                  setShowWOCreate(false)
+                  if (result) {
+                    showToast(`Work order ${result.wo_number} created`)
+                  } else {
+                    showToast('Failed to create work order')
+                  }
+                }}
+                disabled={woCreating}
+                className="px-4 py-1.5 text-xs bg-green-700 hover:bg-green-600 text-white rounded-md font-medium disabled:opacity-50"
+              >
+                {woCreating ? 'Creating...' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Utility Edit Popup */}

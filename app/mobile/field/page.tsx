@@ -8,6 +8,8 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { addNote } from '@/lib/api/notes'
 import { upsertTaskState, insertTaskHistory } from '@/lib/api/tasks'
 import { useRealtimeSubscription } from '@/lib/hooks'
+import { loadProjectWorkOrders, updateWorkOrderStatus, toggleChecklistItem, updateWorkOrder, loadWorkOrder } from '@/lib/api/work-orders'
+import type { WorkOrder, WOChecklistItem } from '@/lib/api/work-orders'
 import type { Project, Schedule } from '@/types/database'
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -149,6 +151,55 @@ function ProjectDetail({
   const [noteText, setNoteText] = useState('')
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
+  const [woLoading, setWoLoading] = useState(true)
+  const [expandedWO, setExpandedWO] = useState<string | null>(null)
+  const [woChecklist, setWoChecklist] = useState<WOChecklistItem[]>([])
+  const [woNotes, setWoNotes] = useState('')
+  const [woTimeOnSite, setWoTimeOnSite] = useState('')
+
+  useEffect(() => {
+    async function loadWOs() {
+      const data = await loadProjectWorkOrders(project.id)
+      setWorkOrders(data)
+      setWoLoading(false)
+    }
+    loadWOs()
+  }, [project.id])
+
+  async function expandWO(woId: string) {
+    if (expandedWO === woId) { setExpandedWO(null); return }
+    const result = await loadWorkOrder(woId)
+    if (result) {
+      setWoChecklist(result.checklist)
+      setWoNotes(result.wo.notes ?? '')
+      setWoTimeOnSite(result.wo.time_on_site_minutes?.toString() ?? '')
+    }
+    setExpandedWO(woId)
+  }
+
+  async function handleWOStatusChange(woId: string, status: string) {
+    const ok = await updateWorkOrderStatus(woId, status)
+    if (ok) {
+      setWorkOrders(prev => prev.map(wo => wo.id === woId ? { ...wo, status } : wo))
+      setToast(status === 'complete' ? 'Work order completed' : 'Status updated')
+    }
+  }
+
+  async function handleToggleChecklist(item: WOChecklistItem) {
+    const ok = await toggleChecklistItem(item.id, !item.completed, userName ?? 'Field Crew')
+    if (ok) {
+      setWoChecklist(prev => prev.map(c => c.id === item.id ? { ...c, completed: !c.completed, completed_by: !item.completed ? (userName ?? 'Field Crew') : null } : c))
+    }
+  }
+
+  async function handleSaveWONotes(woId: string) {
+    await updateWorkOrder(woId, {
+      notes: woNotes || null,
+      time_on_site_minutes: woTimeOnSite ? parseInt(woTimeOnSite, 10) : null,
+    })
+    setToast('Work order notes saved')
+  }
 
   const address = [project.address, project.city, project.zip].filter(Boolean).join(', ')
 
@@ -304,6 +355,128 @@ function ProjectDetail({
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
             </button>
           </div>
+        </section>
+
+        {/* Work Orders */}
+        <section>
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 pb-1 border-b border-gray-800">Work Orders</h3>
+          {woLoading ? (
+            <div className="text-sm text-gray-500 animate-pulse">Loading...</div>
+          ) : workOrders.length === 0 ? (
+            <div className="text-sm text-gray-600">No work orders for this project</div>
+          ) : (
+            <div className="space-y-3">
+              {workOrders.map(wo => {
+                const isExpanded = expandedWO === wo.id
+                const statusColor: Record<string, string> = {
+                  draft: 'bg-gray-700 text-gray-300',
+                  assigned: 'bg-blue-900 text-blue-300',
+                  in_progress: 'bg-amber-900 text-amber-300',
+                  complete: 'bg-green-900 text-green-300',
+                  cancelled: 'bg-red-900 text-red-300',
+                }
+                return (
+                  <div key={wo.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => expandWO(wo.id)}
+                      className="w-full text-left px-4 py-3 active:bg-gray-800 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-white">{wo.wo_number}</span>
+                        <span className={cn('text-xs px-2 py-0.5 rounded-full', statusColor[wo.status] ?? 'bg-gray-700 text-gray-300')}>
+                          {wo.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {wo.type.charAt(0).toUpperCase() + wo.type.slice(1)}
+                        {wo.scheduled_date && <> &middot; {fmtDate(wo.scheduled_date)}</>}
+                      </div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="px-4 pb-4 space-y-3 border-t border-gray-800 pt-3">
+                        {/* Checklist */}
+                        {woChecklist.length > 0 && (
+                          <div>
+                            <div className="text-xs text-gray-500 font-medium mb-2">
+                              Checklist ({woChecklist.filter(c => c.completed).length}/{woChecklist.length})
+                            </div>
+                            <div className="space-y-2">
+                              {woChecklist.map(item => (
+                                <button
+                                  key={item.id}
+                                  onClick={() => handleToggleChecklist(item)}
+                                  className="w-full flex items-center gap-3 text-left min-h-[44px] active:bg-gray-800 rounded-lg px-2 -mx-2 transition-colors"
+                                >
+                                  <div className={cn(
+                                    'w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0',
+                                    item.completed ? 'bg-green-600 border-green-500' : 'border-gray-600'
+                                  )}>
+                                    {item.completed && (
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                    )}
+                                  </div>
+                                  <span className={cn('text-sm', item.completed ? 'text-gray-500 line-through' : 'text-gray-200')}>
+                                    {item.description}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Notes + Time */}
+                        <div>
+                          <label className="text-xs text-gray-500 block mb-1">Notes</label>
+                          <input
+                            type="text"
+                            value={woNotes}
+                            onChange={e => setWoNotes(e.target.value)}
+                            placeholder="Add notes..."
+                            className="w-full min-h-[44px] bg-gray-800 text-white border border-gray-700 rounded-xl px-4 text-sm placeholder-gray-600 focus:outline-none focus:border-green-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 block mb-1">Time on Site (minutes)</label>
+                          <input
+                            type="number"
+                            value={woTimeOnSite}
+                            onChange={e => setWoTimeOnSite(e.target.value)}
+                            placeholder="0"
+                            className="w-full min-h-[44px] bg-gray-800 text-white border border-gray-700 rounded-xl px-4 text-sm placeholder-gray-600 focus:outline-none focus:border-green-500"
+                          />
+                        </div>
+                        <button
+                          onClick={() => handleSaveWONotes(wo.id)}
+                          className="w-full py-3 rounded-xl font-semibold text-sm bg-gray-800 border border-gray-700 active:bg-gray-700 text-gray-300 transition-colors"
+                        >
+                          Save Notes
+                        </button>
+
+                        {/* Status actions */}
+                        {wo.status === 'assigned' && (
+                          <button
+                            onClick={() => handleWOStatusChange(wo.id, 'in_progress')}
+                            className="w-full py-3 rounded-xl font-semibold text-base bg-amber-700 active:bg-amber-500 text-white transition-colors"
+                          >
+                            Start Work Order
+                          </button>
+                        )}
+                        {wo.status === 'in_progress' && (
+                          <button
+                            onClick={() => handleWOStatusChange(wo.id, 'complete')}
+                            className="w-full py-3 rounded-xl font-semibold text-base bg-green-700 active:bg-green-500 text-white transition-colors"
+                          >
+                            Complete Work Order
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </section>
       </div>
 

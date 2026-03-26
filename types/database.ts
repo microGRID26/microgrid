@@ -610,6 +610,42 @@ export interface LegacyNote {
   created_at: string
 }
 
+export interface WorkOrder {
+  id: string
+  project_id: string
+  wo_number: string
+  type: string
+  status: string
+  assigned_crew: string | null
+  assigned_to: string | null
+  scheduled_date: string | null
+  started_at: string | null
+  completed_at: string | null
+  priority: string
+  description: string | null
+  special_instructions: string | null
+  customer_signature: boolean
+  customer_signed_at: string | null
+  materials_used: Record<string, unknown>[]
+  time_on_site_minutes: number | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface WOChecklistItem {
+  id: string
+  work_order_id: string
+  description: string
+  completed: boolean
+  completed_by: string | null
+  completed_at: string | null
+  sort_order: number
+  notes: string | null
+  photo_url: string | null
+}
+
 export interface Vendor {
   id: string
   name: string
@@ -877,6 +913,18 @@ export type Database = {
         Row: Vendor
         Insert: Omit<Vendor, 'id' | 'active' | 'created_at'> & { id?: string; active?: boolean; created_at?: string }
         Update: Partial<Vendor>
+
+      }
+      work_orders: {
+        Row: WorkOrder
+        Insert: Omit<WorkOrder, 'id' | 'created_at' | 'updated_at'> & { id?: string; created_at?: string; updated_at?: string }
+        Update: Partial<WorkOrder>
+
+      }
+      wo_checklist_items: {
+        Row: WOChecklistItem
+        Insert: Omit<WOChecklistItem, 'id' | 'completed' | 'sort_order'> & { id?: string; completed?: boolean; sort_order?: number }
+        Update: Partial<WOChecklistItem>
 
       }
     }
