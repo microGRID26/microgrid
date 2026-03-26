@@ -75,16 +75,28 @@ const templates: Record<number, TemplateFactory> = {
     subject: 'Welcome to MicroGRID CRM — Your Command Center',
     html: layout(1, `
       <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Welcome to MicroGRID CRM, ${name}!</h2>
-      <p>Your Command Center is the nerve center of your solar portfolio. It classifies every project by urgency so you always know what needs attention first.</p>
+      <p>Your Command Center is your morning dashboard. It auto-selects your projects and surfaces what needs attention first -- personal stats, action items, and a sortable project table.</p>
       ${visualBox(`
-        <div style="color:#9ca3af;font-size:12px;margin-bottom:8px;">COMMAND CENTER</div>
-        ${sectionBadge('3 Overdue', '#ef4444')}
-        ${sectionBadge('5 At Risk', '#f59e0b')}
-        ${sectionBadge('12 On Track', '#1D9E75')}
-        ${sectionBadge('2 Blocked', '#ef4444')}
-        ${sectionBadge('8 Stalled', '#6b7280')}
+        <div style="color:#9ca3af;font-size:12px;margin-bottom:8px;">YOUR MORNING DASHBOARD</div>
+        <div style="display:flex;gap:12px;margin-bottom:12px;">
+          <div style="flex:1;background:#1f293750;border-radius:6px;padding:8px;text-align:center;">
+            <div style="color:#6b7280;font-size:10px;">ACTIVE</div>
+            <div style="color:#ffffff;font-size:18px;font-weight:700;">24</div>
+          </div>
+          <div style="flex:1;background:#1f293750;border-radius:6px;padding:8px;text-align:center;">
+            <div style="color:#6b7280;font-size:10px;">PORTFOLIO</div>
+            <div style="color:#1D9E75;font-size:18px;font-weight:700;">$1.2M</div>
+          </div>
+          <div style="flex:1;background:#1f293750;border-radius:6px;padding:8px;text-align:center;">
+            <div style="color:#6b7280;font-size:10px;">INSTALLS</div>
+            <div style="color:#3b82f6;font-size:18px;font-weight:700;">3</div>
+          </div>
+        </div>
+        ${sectionBadge('4 Follow-ups Due', '#f59e0b')}
+        ${sectionBadge('3 Blocked', '#ef4444')}
+        ${sectionBadge('5 Stuck Tasks', '#ef4444')}
       `)}
-      <p>Projects flow through priority sections automatically based on SLA thresholds. No manual sorting needed.</p>
+      <p>Action items expand to show each follow-up, blocker, or stuck task. The pipeline snapshot and project table give you the full picture below.</p>
       ${ctaButton('Open Command Center →', '/command')}
     `),
   }),
@@ -187,7 +199,7 @@ const templates: Record<number, TemplateFactory> = {
       <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Week 1 complete! Nice work, ${name}.</h2>
       <p>Here is what you have learned so far:</p>
       ${visualBox(`
-        <div style="margin-bottom:6px;"><span style="color:#1D9E75;">&#10004;</span> <span style="color:#e5e7eb;font-size:13px;">Command Center — see your portfolio at a glance</span></div>
+        <div style="margin-bottom:6px;"><span style="color:#1D9E75;">&#10004;</span> <span style="color:#e5e7eb;font-size:13px;">Command Center — your morning dashboard with stats and action items</span></div>
         <div style="margin-bottom:6px;"><span style="color:#1D9E75;">&#10004;</span> <span style="color:#e5e7eb;font-size:13px;">Queue — your personal task-based worklist</span></div>
         <div style="margin-bottom:6px;"><span style="color:#1D9E75;">&#10004;</span> <span style="color:#e5e7eb;font-size:13px;">Project Panel — full project detail in one view</span></div>
         <div style="margin-bottom:6px;"><span style="color:#1D9E75;">&#10004;</span> <span style="color:#e5e7eb;font-size:13px;">Task Management — automations that save you time</span></div>

@@ -426,7 +426,7 @@ export default function CommandPage() {
   }, [supabase])
 
   // ── UI state ─────────────────────────────────────────────────────────────
-  const [pmFilter, setPmFilter] = useState<string>('loading')
+  const [pmFilter, setPmFilter] = useState<string>('all')
   const [search, setSearch] = useState<string>('')
   const [showNewProject, setShowNewProject] = useState(false)
   const [displayName, setDisplayName] = useState(() =>
@@ -449,16 +449,18 @@ export default function CommandPage() {
   const [sortCol, setSortCol] = useState<SortCol>('days')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
-  // Auto-select logged-in user as PM
+  // Auto-select logged-in user as PM (once currentUser loads)
+  const pmAutoSet = useRef(false)
   useEffect(() => {
-    if (currentUser?.id && pmFilter === 'loading') {
+    if (currentUser?.id && !pmAutoSet.current) {
+      pmAutoSet.current = true
       setPmFilter(currentUser.id)
     }
-  }, [currentUser, pmFilter])
+  }, [currentUser])
 
   // Fallback: if user has no PM entries, switch to 'all'
   useEffect(() => {
-    if (pmFilter !== 'loading' && pmFilter !== 'all' && projects.length > 0) {
+    if (pmFilter !== 'all' && projects.length > 0) {
       const hasProjects = projects.some(p => p.pm_id === pmFilter)
       if (!hasProjects) setPmFilter('all')
     }
@@ -508,7 +510,7 @@ export default function CommandPage() {
         p.advisor?.toLowerCase() === salesName
       )
     }
-    if (pmFilter !== 'all' && pmFilter !== 'loading') {
+    if (pmFilter !== 'all') {
       result = result.filter(p => p.pm_id === pmFilter)
     }
     if (search.trim()) {
@@ -551,9 +553,13 @@ export default function CommandPage() {
         const taskDef = STAGE_TASKS[Object.keys(STAGE_TASKS).find(s =>
           STAGE_TASKS[s].some(st => st.id === t.task_id)
         ) ?? '']?.find(st => st.id === t.task_id)
+        if (!taskDef) {
+          console.warn(`Task ID "${t.task_id}" not found in STAGE_TASKS`)
+        }
+        const fallbackName = t.task_id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
         projectTaskMap.set(t.project_id + ':' + t.task_id, {
           taskId: t.task_id,
-          taskName: taskDef?.name ?? t.task_id,
+          taskName: taskDef?.name ?? fallbackName,
           followUpDate: d,
           daysOverdue: overdue,
         })
@@ -581,7 +587,7 @@ export default function CommandPage() {
       const project = projectMap.get(pid)
       if (!project) continue
       // Respect PM filter
-      if (pmFilter !== 'all' && pmFilter !== 'loading' && project.pm_id !== pmFilter) continue
+      if (pmFilter !== 'all' && project.pm_id !== pmFilter) continue
       items.push({ project, taskName: info.taskName, followUpDate: info.followUpDate, daysOverdue: info.daysOverdue })
     }
 
@@ -667,6 +673,8 @@ export default function CommandPage() {
     if (stageFilter) {
       list = list.filter(p => p.stage === stageFilter)
     }
+    // Pre-compute getNextTask for all items to avoid repeated lookups in comparator
+    const nextTaskCache = new Map(list.map(p => [p.id, getNextTask(p)]))
     // Sort
     const sorted = [...list].sort((a, b) => {
       let cmp = 0
@@ -687,7 +695,7 @@ export default function CommandPage() {
           cmp = (a.blocker ? 1 : 0) - (b.blocker ? 1 : 0)
           break
         case 'nextTask':
-          cmp = getNextTask(a).localeCompare(getNextTask(b))
+          cmp = (nextTaskCache.get(a.id) ?? '').localeCompare(nextTaskCache.get(b.id) ?? '')
           break
         case 'contract':
           cmp = (Number(a.contract) || 0) - (Number(b.contract) || 0)
@@ -732,9 +740,10 @@ export default function CommandPage() {
     setSelectedTab(tab)
   }
 
-  const isMyProjects = pmFilter !== 'all' && pmFilter !== 'loading'
+  const isMyProjects = pmFilter !== 'all'
+  const userLoading = !currentUser
 
-  if (loading || pmFilter === 'loading') {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-green-400 text-sm animate-pulse">Loading...</div>
@@ -749,19 +758,26 @@ export default function CommandPage() {
       <Nav active="Command" onNewProject={() => setShowNewProject(true)} right={<>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search projects..."
+            aria-label="Search projects"
             className="text-xs bg-gray-800 text-gray-200 border border-gray-700 rounded-md px-3 py-1.5 w-44 focus:outline-none focus:border-green-500 placeholder-gray-500"
           />
           {/* My Projects / All Projects toggle */}
-          <div className="flex items-center bg-gray-800 rounded-md border border-gray-700">
+          <div className="flex items-center bg-gray-800 rounded-md border border-gray-700" role="group" aria-label="Project filter toggle">
             <button
               onClick={() => setPmFilter(currentUser?.id ?? 'all')}
-              className={`text-xs px-3 py-1.5 rounded-l-md transition-colors ${isMyProjects ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+              disabled={userLoading}
+              aria-label="Show my projects"
+              aria-pressed={isMyProjects}
+              className={`text-xs px-3 py-1.5 rounded-l-md transition-colors disabled:opacity-50 ${isMyProjects ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
             >
               My Projects
             </button>
             <button
               onClick={() => setPmFilter('all')}
-              className={`text-xs px-3 py-1.5 rounded-r-md transition-colors ${!isMyProjects ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+              disabled={userLoading}
+              aria-label="Show all projects"
+              aria-pressed={!isMyProjects}
+              className={`text-xs px-3 py-1.5 rounded-r-md transition-colors disabled:opacity-50 ${!isMyProjects ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
             >
               All
             </button>
@@ -776,10 +792,11 @@ export default function CommandPage() {
           <span className="text-xs text-gray-500">
             {activeProjects.length} active
           </span>
-          <button onClick={refresh} className="text-xs text-gray-500 hover:text-white transition-colors">
+          <button onClick={refresh} aria-label="Refresh data" className="text-xs text-gray-500 hover:text-white transition-colors">
             ↻ {minutesAgo}m ago
           </button>
           <button onClick={() => setShowExport(true)}
+            aria-label="Export projects to CSV"
             className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -794,7 +811,7 @@ export default function CommandPage() {
               placeholder="Your name"
             />
           ) : (
-            <button onClick={() => setShowNameInput(true)} className="text-xs text-gray-500 hover:text-white">
+            <button onClick={() => setShowNameInput(true)} aria-label="Edit display name" className="text-xs text-gray-500 hover:text-white">
               {displayName || user?.email?.split('@')[0]}
             </button>
           )}
@@ -995,7 +1012,11 @@ export default function CommandPage() {
             {/* Table rows */}
             <div className="max-h-[600px] overflow-y-auto">
               {tableProjects.length === 0 && (
-                <div className="px-4 py-8 text-center text-gray-600 text-sm">No projects found</div>
+                <div className="px-4 py-8 text-center text-gray-600 text-sm">
+                  {currentUser?.isSales && filtered.length === 0
+                    ? 'No projects found. Your consultant/advisor name may not match any projects.'
+                    : 'No projects found'}
+                </div>
               )}
               {tableProjects.map(p => {
                 const days = daysAgo(p.stage_date)

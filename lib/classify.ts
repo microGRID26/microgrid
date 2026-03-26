@@ -57,6 +57,11 @@ export function classify(projects: Project[], overduePids: Set<string>, pendingP
   }
 }
 
+/** Format a raw task_id into a human-readable name (underscore → space, capitalize words) */
+function formatTaskId(id: string): string {
+  return id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
 export function getStuckTasks(p: Project, taskMap: Record<string, TaskEntry>): StuckTask[] {
   const tasks = STAGE_TASKS[p.stage] ?? []
   return tasks
@@ -64,9 +69,14 @@ export function getStuckTasks(p: Project, taskMap: Record<string, TaskEntry>): S
       const s = taskMap[t.id]?.status ?? 'Not Ready'
       return s === 'Pending Resolution' || s === 'Revision Required'
     })
-    .map(t => ({
-      name: t.name,
-      status: (taskMap[t.id]?.status ?? '') as 'Pending Resolution' | 'Revision Required',
-      reason: taskMap[t.id]?.reason ?? '',
-    }))
+    .map(t => {
+      if (!t.name) {
+        console.warn(`Task ID "${t.id}" has no name in STAGE_TASKS for stage "${p.stage}"`)
+      }
+      return {
+        name: t.name || formatTaskId(t.id),
+        status: (taskMap[t.id]?.status ?? '') as 'Pending Resolution' | 'Revision Required',
+        reason: taskMap[t.id]?.reason ?? '',
+      }
+    })
 }

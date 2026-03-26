@@ -3,15 +3,27 @@ import type { HelpTopicData } from './index'
 function CommandCenter() {
   return (
     <div>
-      <p className="text-xs text-gray-400 mb-3">Your home base. Projects grouped by urgency into collapsible sections. Metric cards at the top show counts -- click any card to expand that section.</p>
+      <p className="text-xs text-gray-400 mb-3">Your morning dashboard. Auto-selects your PM filter so you see your own projects. Personal stats at top, action items in the middle, pipeline snapshot and sortable project table below.</p>
+      {/* Stats row mock */}
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        {[
+          { label: 'Active', value: '24', color: 'text-white' },
+          { label: 'Portfolio', value: '$1.2M', color: 'text-green-400' },
+          { label: 'Installs', value: '3', color: 'text-blue-400' },
+          { label: 'Today', value: '2 jobs', color: 'text-amber-400' },
+        ].map(s => (
+          <div key={s.label} className="bg-gray-800 rounded-md px-2 py-2 text-center">
+            <div className="text-[10px] text-gray-500 uppercase">{s.label}</div>
+            <div className={`text-sm font-bold font-mono ${s.color}`}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+      {/* Action items mock */}
       <div className="space-y-1.5 text-xs">
         {[
-          { label: 'Overdue Tasks', color: 'bg-red-900 text-red-300', count: 3 },
-          { label: 'Blocked', color: 'bg-red-900 text-red-300', count: 8 },
-          { label: 'Pending Resolution', color: 'bg-red-900/80 text-red-300', count: 12 },
-          { label: 'Critical', color: 'bg-red-900 text-red-300', count: 15 },
-          { label: 'At Risk', color: 'bg-amber-900 text-amber-300', count: 22 },
-          { label: 'On Track', color: 'bg-green-900 text-green-300', count: 187 },
+          { label: 'Follow-ups Due', color: 'bg-amber-900 text-amber-300', count: 4 },
+          { label: 'Blocked', color: 'bg-red-900 text-red-300', count: 3 },
+          { label: 'Stuck Tasks', color: 'bg-red-900/80 text-red-300', count: 5 },
         ].map(s => (
           <div key={s.label} className="flex items-center gap-2 bg-gray-800 rounded-md px-3 py-2">
             <span className={`px-2 py-0.5 rounded font-medium text-[10px] ${s.color}`}>{s.count}</span>
@@ -25,24 +37,24 @@ function CommandCenter() {
 
 function CommandSections() {
   return (
-    <div className="space-y-2 text-xs">
-      {[
-        { section: 'Overdue Tasks', desc: 'Tasks past their scheduled completion date. Immediate attention.' },
-        { section: 'Blocked', desc: 'Active blocker set. Auto-set when a task enters Pending Resolution.' },
-        { section: 'Pending Resolution', desc: 'Tasks waiting on external action, not yet at Critical SLA.' },
-        { section: 'Critical', desc: 'Past the critical SLA threshold for the current stage.' },
-        { section: 'At Risk', desc: 'Approaching the critical threshold but not past it yet.' },
-        { section: 'Stalled', desc: 'SLA ok but no movement for 5+ days.' },
-        { section: 'Aging', desc: '90+ day total cycle time from sale date.' },
-        { section: 'On Track', desc: 'Healthy SLA, no blockers, progressing normally.' },
-        { section: 'Loyalty', desc: 'Disposition set to Loyalty -- retention efforts underway.' },
-        { section: 'In Service', desc: 'Completed the pipeline, now in post-installation mode.' },
-      ].map(s => (
-        <div key={s.section} className="flex items-start gap-2">
-          <span className="text-green-500 mt-0.5 font-bold shrink-0">&bull;</span>
-          <span><span className="text-white font-medium">{s.section}</span> -- {s.desc}</span>
-        </div>
-      ))}
+    <div className="space-y-3 text-xs">
+      <p className="text-gray-400">The Command Center has three action item sections plus a sortable project table:</p>
+      <div className="space-y-2">
+        {[
+          { section: 'Follow-ups Due', desc: 'Tasks and projects with follow-up dates due today or overdue. Shows task name and days overdue.' },
+          { section: 'Blocked', desc: 'Projects with an active blocker. Shows blocker reason. Sorted by days in stage (longest first).' },
+          { section: 'Stuck Tasks', desc: 'Tasks in Pending Resolution or Revision Required. Shows task name, status, and reason.' },
+        ].map(s => (
+          <div key={s.section} className="flex items-start gap-2">
+            <span className="text-green-500 mt-0.5 font-bold shrink-0">&bull;</span>
+            <span><span className="text-white font-medium">{s.section}</span> -- {s.desc}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2">
+        <p className="text-gray-400 mb-1.5">Below the action items, the <span className="text-white font-medium">Pipeline Snapshot</span> shows project counts by stage as a bar chart. Click a stage to filter the table.</p>
+        <p className="text-gray-400">The <span className="text-white font-medium">Project Table</span> lists all active projects with sortable columns: Project, Stage, Days, Blocker, Next Task, Contract, and Follow-up.</p>
+      </div>
     </div>
   )
 }
@@ -160,19 +172,19 @@ export const dailyWorkflowTopics: HelpTopicData[] = [
   {
     id: 'command-center',
     title: 'Command Center',
-    description: 'Your home base for all active projects',
+    description: 'Your morning dashboard with personal stats and action items',
     category: 'Daily Workflow',
-    keywords: ['command', 'dashboard', 'home', 'overview', 'urgency', 'priority'],
+    keywords: ['command', 'dashboard', 'home', 'overview', 'morning', 'stats', 'action items', 'pipeline snapshot'],
     tryItLink: '/command',
     relatedTopics: ['command-sections', 'sla-indicators'],
     content: CommandCenter,
   },
   {
     id: 'command-sections',
-    title: 'Command Center Sections',
-    description: 'Overdue, Blocked, Critical, At Risk, and more',
+    title: 'Action Items and Project Table',
+    description: 'Follow-ups, blocked, stuck tasks, and sortable project list',
     category: 'Daily Workflow',
-    keywords: ['overdue', 'blocked', 'critical', 'at risk', 'stalled', 'aging', 'on track', 'sections'],
+    keywords: ['follow-ups', 'blocked', 'stuck', 'action items', 'project table', 'pipeline snapshot', 'sort'],
     relatedTopics: ['command-center', 'stuck-tasks'],
     content: CommandSections,
   },

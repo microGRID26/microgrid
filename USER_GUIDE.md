@@ -76,7 +76,7 @@ Your account has a role assigned by an administrator:
 The navigation bar runs across the top of every page with a two-tier layout:
 
 **Primary links** (always visible):
-- **Command** -- SLA dashboard (your home base)
+- **Command** -- Morning dashboard (your home base)
 - **Queue** -- PM-filtered project list
 - **Pipeline** -- Visual stage grid
 - **Schedule** -- Weekly crew calendar
@@ -109,102 +109,61 @@ On pages that support it (Command, Queue, Pipeline), a **+ New Project** button 
 
 **URL:** `/command`
 
-The Command Center is your daily home base. It gives you a bird's-eye view of every active project, organized by urgency so you know exactly where to focus your attention.
+The Command Center is your morning dashboard -- a personalized view of your portfolio that surfaces what needs attention right now. It auto-selects your PM filter on login so you see your own projects immediately.
 
-### Metric Cards
+### Personal Stats Row
 
-At the top of the page, summary metric cards display counts for each classification. Click any card to jump to and expand that section.
+At the top, metric cards show your key numbers at a glance:
 
-### Project Classifications
+- **Active Projects** -- count of your non-cancelled, non-complete projects
+- **Portfolio Value** -- total contract value of your active projects
+- **Installs This Month** -- projects with install_complete_date in the current month
+- **Today's Schedule** -- number of jobs scheduled for today (surveys, installs, inspections)
 
-Projects are sorted into sections in priority order. Each section is collapsible -- click the section header to expand or collapse it.
+Click any metric card to drill into the relevant data.
 
-#### 1. Overdue Tasks
-Projects with tasks that are past their scheduled completion date. These need immediate attention.
+### Action Items
 
-#### 2. Blocked
-Projects with an active blocker. The blocker reason appears as a badge on the project row. A blocker is automatically set when a task enters "Pending Resolution" status, and automatically cleared when the stuck task is resolved (as long as no other tasks remain stuck).
+Below the stats, collapsible action sections highlight items needing attention. Each section shows a count badge and expands to show individual items:
 
-- **Badge color:** Red background with red text
+#### Follow-ups Due
+Tasks and projects with follow-up dates that are today or overdue. Each row shows the project, task name, and how many days overdue. Click to open the project panel.
 
-#### 3. Pending Resolution
-Projects that have tasks in "Pending Resolution" status but are not yet at Critical or At Risk SLA levels. These are waiting on external action (customer response, AHJ reply, etc.).
+#### Blocked Projects
+Projects with an active blocker. Shows the blocker reason as a badge. Sorted by days in current stage (longest first). Blockers are auto-set when tasks enter "Pending Resolution" and auto-cleared when resolved.
 
-#### 4. Critical (Past SLA)
-Projects that have exceeded the critical SLA threshold for their current stage. These are the most time-sensitive active projects.
+#### Stuck Tasks
+Tasks in "Pending Resolution" or "Revision Required" status. Shows the task name, status badge (red for Pending, amber for Revision), and reason. Click to open the project's Tasks tab.
 
-- **Badge color:** Red background (`bg-red-900 text-red-300`)
+### Pipeline Snapshot
 
-#### 5. At Risk
-Projects approaching the critical SLA threshold. They have passed the risk threshold but not yet the critical threshold.
+A horizontal bar chart showing the count of active projects in each pipeline stage (Evaluation through Inspection). Click any stage bar to filter the project table below to that stage. Click again or "Clear filter" to remove the filter.
 
-- **Badge color:** Amber/orange background (`bg-amber-900 text-amber-300`)
+### Project Table
 
-#### 6. Stalled
-Projects with acceptable SLA but no movement for 5 or more days. Nothing is technically wrong, but they are not progressing. Check if any action is needed.
+A sortable table of all active projects. Click any column header to sort ascending/descending:
 
-#### 7. Aging
-Projects with a total cycle time of 90 or more days (measured from sale date). Even if SLA is fine, these have been in the pipeline too long.
+| Column | Description |
+|--------|-------------|
+| Project | Name and ID |
+| Stage | Current pipeline stage |
+| Days | Days in current stage |
+| Blocker | Blocker reason (if any) |
+| Next Task | The next incomplete task in the current stage |
+| Contract | Contract value |
+| Follow-up | Next follow-up date with color coding (red = overdue, amber = today, blue = tomorrow) |
 
-#### 8. On Track
-Projects with healthy SLA status and no blockers. These are progressing normally.
+Click any project row to open the Project Panel with full details.
 
-#### 9. Loyalty
-Projects with a "Loyalty" disposition. These are existing customers being managed for additional work.
+### PM Filter
 
-#### 10. In Service
-Projects with an "In Service" disposition. These have completed the pipeline and are in post-installation service mode.
-
-### SLA Badges
-
-Every project row shows an SLA badge indicating how many days the project has been in its current stage:
-
-| Color | Meaning |
-|-------|---------|
-| Green | On track -- within target SLA |
-| Yellow | Warning -- approaching risk threshold |
-| Amber/Orange | At risk -- past risk threshold |
-| Red | Critical -- past critical SLA threshold |
-
-**Note: SLA indicators are currently paused.** All thresholds are temporarily set to 999 days, so all projects appear as "On Track" for SLA purposes. The original threshold values are preserved and will be re-enabled in a future update.
-
-The original SLA thresholds by stage (currently paused):
-
-| Stage | Target | Risk | Critical |
-|-------|--------|------|----------|
-| Evaluation | 3 days | 4 days | 6 days |
-| Site Survey | 3 days | 5 days | 10 days |
-| Design | 3 days | 5 days | 10 days |
-| Permitting | 21 days | 30 days | 45 days |
-| Installation | 5 days | 7 days | 10 days |
-| Inspection | 14 days | 21 days | 30 days |
-| Complete | 3 days | 5 days | 7 days |
-
-### Stuck Task Badges
-
-Below each project row, you may see small badges indicating tasks that are stuck:
-
-- **Red badge** -- Task in "Pending Resolution" status, with the reason displayed
-- **Amber badge** -- Task in "Revision Required" status, with the reason displayed
-
-### Project Row Information
-
-Each project row in the Command Center shows:
-
-- Project ID (e.g., PROJ-30456)
-- Customer name
-- City
-- PM name
-- Current stage
-- Contract value
-- SLA badge (days in stage with color coding)
-- Blocker indicator (if blocked)
+The Command Center defaults to "My Projects" using your logged-in user ID. Toggle between "My Projects" and "All" using the buttons in the nav bar. When viewing "All", a PM dropdown lets you select a specific PM. If your user has no assigned projects, the filter automatically switches to "All".
 
 ### Actions
 
-- **Click any project row** to open the Project Panel with full details
-- **Search** using the search bar to filter by name, ID, or city
-- **Export** projects to CSV using the export button
+- **Search** using the search bar to filter by name, ID, city, PM, or address
+- **Export** projects to CSV using the Export button (with field picker and saved presets)
+- **Refresh** data manually with the refresh button (shows minutes since last refresh)
 - **+ New Project** to create a new project
 
 ---
@@ -346,7 +305,7 @@ The top bar shows the total number of filtered projects and the combined contrac
 
 ### Excluded Projects
 
-The Pipeline view excludes projects with dispositions of In Service, Loyalty, or Cancelled. These are managed through the Command Center.
+The Pipeline view excludes projects with dispositions of In Service, Loyalty, or Cancelled. These are visible in the Command Center when the PM filter is set to "All" or through the Queue page.
 
 ---
 
@@ -2158,7 +2117,7 @@ All webhook payloads are signed with HMAC-SHA256 using the shared secret. The si
 
 ### Daily PM Workflow
 
-1. **Start at Command Center** -- Check your Overdue, Blocked, and Critical sections first
+1. **Start at Command Center** -- Review your personal stats, clear follow-ups due, and address blocked/stuck items
 2. **Switch to Queue** -- Work through your projects top to bottom
 3. **Update tasks as you go** -- Keeping task statuses current triggers automations and keeps SLA accurate
 4. **Add notes** -- Document customer interactions, decisions, and blockers in the Notes tab
