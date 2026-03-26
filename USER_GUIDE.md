@@ -172,7 +172,7 @@ The Command Center defaults to "My Projects" using your logged-in user ID. Toggl
 
 **URL:** `/queue`
 
-The Queue page is your personal worklist. It shows projects filtered to your PM assignment, organized into task-based sections so you can see exactly what needs attention.
+The Queue page is your personal worklist -- "My Worklist." It shows projects filtered to your PM assignment, with smart filters, clickable stats, inline actions, funding badges, sortable sections, and last activity indicators so you can see exactly what needs attention and take action without leaving the page.
 
 ### PM Filter
 
@@ -180,71 +180,113 @@ The Queue page is your personal worklist. It shows projects filtered to your PM 
 - Your selection is remembered in your browser for future visits
 - Select "All PMs" to see every project in the system (useful for managers)
 
+### Smart Filters
+
+Below the nav bar, a filter toolbar lets you narrow your worklist:
+
+- **Stage chips** -- Click any pipeline stage to show only projects in that stage. Multiple stages can be active at once. Active stages are highlighted green.
+- **Financier dropdown** -- Filter by financing company.
+- **AHJ dropdown** -- Filter by authority having jurisdiction.
+- **Blocked Only** -- Toggle to show only blocked projects (highlighted red when active).
+- **Days range** -- Quick time-in-stage filters: `<7d`, `7-30d`, `30-90d`, `90+d`. Click to toggle on/off.
+- **Clear All** -- Appears when any filter is active. Click to reset all filters at once.
+
+Filters apply across all sections, including Loyalty. They combine with search and PM filter.
+
+### Clickable Stat Cards
+
+Stat cards provide at-a-glance metrics and double as interactive controls:
+
+- **Total** -- Number of projects in your filtered queue. Green border when no filters are active. Click to clear all filters.
+- **Blocked** -- Number of blocked projects (red text when > 0). Click to toggle the Blocked Only filter.
+- **Follow-ups** -- Number of follow-ups due today or overdue (amber text when > 0). Click to scroll to and expand the Follow-ups section.
+- **Portfolio** -- Combined contract value of your active projects.
+
 ### Queue Sections
 
-Projects are organized into collapsible sections based on their current task state. All sections start collapsed except "Follow-ups Today." Click any section header to expand or collapse it.
+Projects are organized into collapsible sections. All sections start collapsed except "Follow-ups Today." Click any section header to expand or collapse it.
 
-#### 1. Follow-ups Today
-Projects that have a follow-up date (set on a task or on the project itself) that is today or overdue. Shows the task name and whether the follow-up is due today or how many days overdue it is.
+#### Follow-ups Today
+Projects with a follow-up date (task-level or project-level) that is today or overdue. Amber-themed section with calendar icon. Shows the task name and whether the follow-up is due "Today" or how many days overdue.
 
-#### 2. City Permit Approval -- Ready to Start
-Projects where the City Permit Approval task is ready to be worked (all prerequisites are met). These are permits you need to submit.
+#### Dynamic Task Sections
+Configurable sections based on task status (managed in Admin portal). Default sections:
 
-#### 3. City Permit -- Submitted, Pending Approval
-Projects where the City Permit Approval task is actively being tracked (In Progress, Scheduled, Pending Resolution, or Revision Required). These are permits you are waiting on.
+- **City Permit Approval -- Ready to Start** -- permits ready to submit
+- **City Permit -- Submitted, Pending Approval** -- permits you are waiting on
+- **Utility Permit -- Submitted, Pending Approval** -- utility permits in progress
+- **Utility Inspection -- Ready to Start** -- ready to schedule
+- **Utility Inspection -- Submitted, Pending Approval** -- inspections in progress
 
-#### 4. Utility Permit -- Submitted, Pending Approval
-Same as above, but for the Utility Permit Approval task.
+#### Blocked
+Projects with an active blocker. Red-themed. Blocker reason is displayed on each card.
 
-#### 5. Utility Inspection -- Ready to Start
-Projects where the Utility Inspection task is ready to be worked.
-
-#### 6. Utility Inspection -- Submitted, Pending Approval
-Projects where the Utility Inspection task is actively being tracked.
-
-#### 7. Blocked
-Projects with an active blocker. The blocker reason is displayed on the card.
-
-#### 8. Active
+#### Active
 All other projects not in a special section and not in the Complete stage.
 
-#### 9. Complete
+#### Loyalty
+Loyalty disposition projects in their own purple-themed section, separated from active workflow.
+
+#### Complete
 Projects in the Complete stage of the pipeline.
+
+### Sortable Sections
+
+Each section has a sort toggle button. Click to cycle through sort modes:
+
+- **Days** (default) -- sorted by days in current stage, longest first
+- **Value** -- sorted by contract value, highest first
+- **Name** -- sorted alphabetically by customer name
 
 ### What Each Card Shows
 
-Each project card in the Queue displays:
+Each project card displays:
 
-- Project ID and customer name
-- Current stage with SLA status dot (colored: green, yellow, amber, or red)
-- City
-- **Next Task** -- the first incomplete task in the current stage
-- **Stuck Tasks** -- any tasks in Pending Resolution or Revision Required, with their reasons
-- Contract value
-- Blocker status (if applicable)
+- **Priority dot** -- color-coded by SLA status (green/yellow/amber/red), red if blocked
+- **Project name and ID** -- customer name and PROJ-XXXXX identifier
+- **Stage** -- current pipeline stage (configurable via card field settings)
+- **Funding badge** -- inline milestone status (e.g., "M2: Sub", "M3: Funded") with color coding
+- **Meta fields** -- configurable extra fields (city, address, financier, contract, kW, AHJ, PM, sale date)
+- **Blocker bar** -- red bar with blocker reason and inline clear (X) button
+- **Stuck tasks** -- red (Pending Resolution) or amber (Revision Required) badges with task name and reason
+- **Next task** -- the first incomplete task when no blocker or stuck tasks exist
+- **SLA days** -- days in current stage (right side, color-coded)
+- **Cycle days** -- total days since sale date
+- **Last activity** -- "Stale Xd" in amber if > 5 days since last stage change, otherwise "Xd ago" in gray
 
-### Stats Bar
+### Inline Quick Actions
 
-At the top of the Queue, a stats bar shows:
+Hover over any project card to reveal quick action icons on the right side:
 
-- **Total** -- Number of projects in your queue
-- **Blocked** -- Number of blocked projects (red when > 0)
-- **Critical** -- Number of projects past critical SLA
-- **Portfolio** -- Combined contract value
+- **Calendar icon** -- Set a project-level follow-up date. An inline date picker expands below the card.
+- **Message icon** -- Add a quick note without opening the project panel. A text input expands below the card.
+- **Clear blocker (X)** -- On blocked projects, click the X in the blocker bar to clear the blocker directly (with confirmation). The change is logged to the audit trail.
+
+### Card Field Configuration
+
+Click the gear icon in the nav bar to customize which fields appear on each card. Choose from: Name, City, Address, Financier, Contract, System kW, AHJ, PM, Stage, Sale Date. Your selection is saved to your user preferences.
 
 ### Filtering
 
-- **Search bar** -- Type to filter by customer name, project ID, or city
-- **Disposition** -- Queue shows active projects plus Loyalty projects. Cancelled and In Service are excluded.
+- **Search bar** -- Type to filter by customer name, project ID, city, or address across all sections
+- **Disposition** -- Queue shows active projects plus Loyalty. Cancelled and In Service are excluded.
+- **Sales role** -- Sales users only see projects where they are the consultant or advisor.
+
+### Bulk Operations
+
+Click **Select** in the nav bar to enter multi-select mode. Checkboxes appear on each card. Use per-section "Select All" or click individual cards. Available bulk actions: Reassign PM, Set/Clear Blocker, Change Disposition, Set Follow-up Date.
 
 ### Daily Workflow
 
 1. Open your Queue each morning
-2. Start with **Follow-ups Today** -- these are items you scheduled for follow-up
-3. Check **City Permit Ready** -- submit any permits that are ready
-4. Review **Blocked** projects -- try to unblock what you can
-5. Work through **Active** projects as time allows
-6. Click any card to open the Project Panel and take action
+2. Glance at **stat cards** -- check your blocked count and follow-ups
+3. Click the **Follow-ups** stat card to jump to follow-ups due today
+4. Use **smart filters** to focus on a specific stage, financier, or time range
+5. Check **City Permit Ready** -- submit any permits that are ready
+6. Review **Blocked** projects -- clear blockers using inline X buttons
+7. Use **inline quick actions** to set follow-ups and add notes without opening each project
+8. Work through **Active** projects as time allows
+9. Click any card to open the Project Panel for full detail and task management
 
 ---
 

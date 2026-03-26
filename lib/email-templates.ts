@@ -103,16 +103,43 @@ const templates: Record<number, TemplateFactory> = {
   2: (name) => ({
     subject: 'Your Queue — What Needs Attention Today',
     html: layout(2, `
-      <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Your personal task list, ${name}</h2>
-      <p>The Queue page shows only your projects, organized by what action is needed. Follow-ups, permits ready for pickup, blocked projects — all in one view.</p>
+      <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Your personal worklist, ${name}</h2>
+      <p>The Queue page is your daily worklist with smart filters, clickable stats, inline actions, and funding badges -- everything you need to manage your projects without extra clicks.</p>
       ${visualBox(`
-        <div style="color:#9ca3af;font-size:12px;margin-bottom:10px;">QUEUE SECTIONS</div>
-        <div style="color:#f59e0b;font-size:13px;margin-bottom:6px;">&#9733; Follow-ups Today <span style="background:#f59e0b20;color:#f59e0b;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:4px;">3</span></div>
-        <div style="color:#3b82f6;font-size:13px;margin-bottom:6px;">&#9635; City Permit Ready <span style="background:#3b82f620;color:#3b82f6;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:4px;">5</span></div>
-        <div style="color:#ef4444;font-size:13px;margin-bottom:6px;">&#9888; Blocked <span style="background:#ef444420;color:#ef4444;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:4px;">2</span></div>
-        <div style="color:#1D9E75;font-size:13px;">&#10004; Active <span style="background:#1D9E7520;color:#1D9E75;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:4px;">18</span></div>
+        <div style="color:#9ca3af;font-size:12px;margin-bottom:10px;">SMART FILTERS</div>
+        <div style="margin-bottom:10px;">
+          ${sectionBadge('Permit', '#1D9E75')}
+          ${sectionBadge('Design', '#6b7280')}
+          ${sectionBadge('Blocked Only', '#ef4444')}
+          ${sectionBadge('<7d', '#3b82f6')}
+        </div>
+        <div style="color:#9ca3af;font-size:12px;margin-bottom:8px;">CLICKABLE STAT CARDS</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <div style="flex:1;background:#1f293750;border-radius:6px;padding:6px;text-align:center;border:1px solid #1D9E7550;">
+            <div style="color:#6b7280;font-size:10px;">TOTAL</div>
+            <div style="color:#ffffff;font-size:16px;font-weight:700;">42</div>
+          </div>
+          <div style="flex:1;background:#1f293750;border-radius:6px;padding:6px;text-align:center;">
+            <div style="color:#6b7280;font-size:10px;">BLOCKED</div>
+            <div style="color:#ef4444;font-size:16px;font-weight:700;">5</div>
+          </div>
+          <div style="flex:1;background:#1f293750;border-radius:6px;padding:6px;text-align:center;">
+            <div style="color:#6b7280;font-size:10px;">FOLLOW-UPS</div>
+            <div style="color:#f59e0b;font-size:16px;font-weight:700;">3</div>
+          </div>
+          <div style="flex:1;background:#1f293750;border-radius:6px;padding:6px;text-align:center;">
+            <div style="color:#6b7280;font-size:10px;">PORTFOLIO</div>
+            <div style="color:#ffffff;font-size:16px;font-weight:700;">$2.1M</div>
+          </div>
+        </div>
+        <div style="color:#9ca3af;font-size:12px;margin-bottom:8px;">SORTABLE SECTIONS</div>
+        <div style="color:#f59e0b;font-size:13px;margin-bottom:6px;">&#9660; Follow-ups Today <span style="background:#f59e0b20;color:#f59e0b;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:4px;">3</span></div>
+        <div style="color:#3b82f6;font-size:13px;margin-bottom:6px;">&#9654; City Permit Ready <span style="background:#3b82f620;color:#3b82f6;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:4px;">5</span></div>
+        <div style="color:#ef4444;font-size:13px;margin-bottom:6px;">&#9654; Blocked <span style="background:#ef444420;color:#ef4444;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:4px;">5</span></div>
+        <div style="color:#1D9E75;font-size:13px;">&#9654; Active <span style="background:#1D9E7520;color:#1D9E75;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:4px;">24</span></div>
       `)}
-      <p>Set your PM filter once and it remembers your selection. Each section collapses for a cleaner view.</p>
+      <p><strong>Inline actions:</strong> Hover any card to set a follow-up date, add a quick note, or clear a blocker -- right from the queue. <strong>Funding badges</strong> show M1/M2/M3 status on each card. <strong>Sort</strong> any section by Days, Value, or Name.</p>
+      <p>Click stat cards to filter or jump to sections. Set your PM filter once and it remembers your selection.</p>
       ${ctaButton('Open Your Queue →', '/queue')}
     `),
   }),

@@ -307,25 +307,62 @@ The service page (`/service`) displays 922 imported service cases from NetSuite.
 
 New projects auto-create a folder structure in the MicroGRID Projects shared Google Drive via a Google Apps Script webhook. The script creates 16 subfolders (01 Proposal through 20 Cases). The Drive folder URL is saved to the `project_folders` table and accessible from the Files tab in ProjectPanel.
 
-### Queue Page (Task-Based Sections)
+### Queue Page (My Worklist)
 
-The Queue page (`/queue`) was redesigned with task-based sections instead of a flat priority-sorted list. Sections are collapsible (all start collapsed except Follow-ups Today):
+The Queue page (`/queue`) is a PM's daily worklist with smart filters, clickable stat cards, inline actions, funding badges, sortable sections, and last activity indicators. Redesigned from basic task-based sections to a full-featured "My Worklist" layout.
 
-1. **Follow-ups Today** — projects with task-level or project-level `follow_up_date` that is today or overdue
-2. **City Permit Ready** — projects where `city_permit` task status is "Ready To Start"
-3. **City Permit Submitted** — projects where `city_permit` task is In Progress, Scheduled, Pending Resolution, or Revision Required
-4. **Utility Permit Submitted** — same as above for `util_permit` task
-5. **Utility Inspection Ready** — projects where `util_insp` task is "Ready To Start"
-6. **Utility Inspection Submitted** — same active statuses for `util_insp`
-7. **Blocked** — projects with a non-null `blocker`
-8. **Active** — everything not in a special section and not complete
-9. **Complete** — projects in the `complete` stage
+**Smart Filters Toolbar:**
+- **Stage chips** — toggle-able pill buttons for each pipeline stage (evaluation through inspection), highlighted green when active
+- **Financier dropdown** — filter by financing company (populated from loaded projects)
+- **AHJ dropdown** — filter by authority having jurisdiction
+- **Blocked Only toggle** — red pill button to show only blocked projects
+- **Days range chips** — `<7d`, `7-30d`, `30-90d`, `90+d` time-in-stage filters (blue when active)
+- **Clear All** button appears when any filter is active
+- Filters apply to all sections including Loyalty; combine freely with search and PM filter
 
-PM filter uses `pm_id` (user UUID) stored in localStorage as `mg_pm`. PM dropdown is populated from distinct PMs on loaded projects.
+**Clickable Stat Cards:**
+- **Total** — project count (green border when no filters active, click to clear all filters)
+- **Blocked** — blocked count (red text when > 0, click to toggle Blocked Only filter)
+- **Follow-ups** — follow-up count (amber text when > 0, click to scroll to and expand Follow-ups section)
+- **Portfolio** — combined contract value (display only)
+
+**Collapsible Sections** (all start collapsed except Follow-ups Today):
+
+1. **Follow-ups Today** — projects with task-level or project-level `follow_up_date` that is today or overdue. Amber-themed with calendar icon. Shows task name and "Today" or "Xd overdue".
+2. **Dynamic sections from DB** (`queue_sections` table) — default: City Permit Ready, City Permit Submitted, Utility Permit Submitted, Utility Inspection Ready, Utility Inspection Submitted. Admin-configurable via Admin portal.
+3. **Blocked** — projects with a non-null `blocker`. Red-themed.
+4. **Active** — everything not in a special section and not complete.
+5. **Loyalty** — purple-themed, separated from all other sections.
+6. **Complete** — projects in the `complete` stage. Gray-themed.
+
+**Sortable Sections:**
+Each section has a sort toggle button (cycle: Days > Value > Name). Projects sort by days in stage (descending), contract value (descending), or name (ascending).
+
+**Queue Card Features:**
+- **Priority dot** — colored dot (green/yellow/amber/red) based on SLA status, red if blocked
+- **Funding badge** — inline `M1: Funded`, `M2: Sub`, `M3: Eligible` etc. with color coding (green=eligible, blue=submitted, emerald=funded, red=rejected). Shows the most advanced non-null milestone.
+- **Last activity indicator** — "Stale Xd" in amber if > 5 days since stage_date, otherwise "Xd ago" in gray
+- **Stuck task badges** — red (Pending Resolution) or amber (Revision Required) with task name and reason
+- **Next task** — shown when no blocker and no stuck tasks
+- **Configurable card fields** — gear icon opens field picker (name, city, address, financier, contract, system kW, AHJ, PM, stage, sale date). Saved to user preferences.
+- **SLA days** — days in current stage (right side), color-coded by status
+- **Cycle days** — total days since sale (smaller, below SLA days)
+
+**Inline Quick Actions** (appear on hover, right side of card):
+- **Calendar icon** — set project-level follow-up date via inline date picker (expands below card)
+- **Message icon** — quick note submission inline (expands below card with text input)
+- **X button on blocker** — clear blocker directly from the card (with confirmation dialog, logs to audit_log)
+
+**Other features:**
+- PM filter uses `pm_id` (user UUID) stored in localStorage as `mg_pm`. PM dropdown populated from distinct PMs on loaded projects.
+- Sales role filtering — sales users only see projects where they are the consultant or advisor.
+- Bulk select mode with Select/Exit Select toggle and per-section Select All buttons.
+- Search matches name, ID, city, and address across all sections including Loyalty.
+- Funding data loaded from `project_funding` table and mapped per project.
 
 **Performance optimizations:**
-- **PM-scoped realtime** — when a PM filter is active, the projects realtime subscription uses `realtimeFilter: 'pm_id=eq.<uuid>'` so only changes to that PM's projects trigger refetches (not all 938 projects).
-- **Incremental task map** — task states are loaded into a `taskMapRef` (keyed by project ID then task ID). A dedicated `queue-taskmap-incremental` realtime channel listens for `task_state` changes and patches only the affected entry in the ref, then bumps a version counter to trigger re-render. This avoids re-fetching all 50K task_state rows on every single task update.
+- **PM-scoped realtime** — when a PM filter is active, the projects realtime subscription uses `realtimeFilter: 'pm_id=eq.<uuid>'` so only changes to that PM's projects trigger refetches.
+- **Selective task loading** — only queue-relevant task IDs are fetched (section tasks + follow-up dates), not all task_state rows.
 
 ### Disposition Workflow
 
@@ -764,7 +801,7 @@ Follow-up dates exist only on tasks (`task_state.follow_up_date`) and at the pro
 
 ## Loyalty Queue Section
 
-On the Queue page, Loyalty projects are separated into their own collapsible section (purple-themed) and excluded from all other queue sections. This ensures Loyalty projects are visible but do not clutter the active workflow sections.
+On the Queue page, Loyalty projects are separated into their own collapsible section (purple-themed) and excluded from all other queue sections. Smart filters (stage, financier, AHJ, blocked, days range) apply to Loyalty projects as well. This ensures Loyalty projects are visible and filterable but do not clutter the active workflow sections.
 
 ## Document Management
 

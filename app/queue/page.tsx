@@ -13,7 +13,7 @@ import { BulkActionBar, useBulkSelect, SelectCheckbox } from '@/components/BulkA
 import { updateProject, addNote } from '@/lib/api'
 import { db } from '@/lib/db'
 import type { Project } from '@/types/database'
-import { Calendar, X, MessageSquare, ArrowUpDown, ChevronDown } from 'lucide-react'
+import { Calendar, X, MessageSquare, ArrowUpDown } from 'lucide-react'
 
 /** Project with computed follow-up fields attached in the followUps memo */
 interface ProjectWithFollowUp extends Project {
@@ -218,7 +218,7 @@ export default function QueuePage() {
 
   // ── PM filter (server-side) via useServerFilter ────────────────────────
   const pmFilters = useMemo(() => {
-    const f: Record<string, any> = {}
+    const f: Record<string, { eq: string }> = {}
     if (userPm) f.pm_id = { eq: userPm }
     return f
   }, [userPm])
@@ -289,31 +289,44 @@ export default function QueuePage() {
   // ── Query 4: Project funding data ──────────────────────────────────────
   const {
     data: fundingRaw,
+    error: fundingError,
   } = useSupabaseQuery('project_funding', {
     select: 'project_id, m1_status, m2_status, m3_status',
     limit: 5000,
   })
 
   const fundingMap = useMemo(() => {
+    if (fundingError) {
+      console.warn('Failed to load funding data:', fundingError)
+      return {} as Record<string, FundingRecord>
+    }
     const map: Record<string, FundingRecord> = {}
     for (const f of (fundingRaw as unknown as FundingRecord[])) {
       map[f.project_id] = f
     }
     return map
-  }, [fundingRaw])
+  }, [fundingRaw, fundingError])
 
   // ── Merge task data + follow-up data (filtered to PM-filtered projects) ──
   const projectIdSet = useMemo(() => new Set(projects.map(p => p.id)), [projects])
 
   const taskStates: TaskStateRow[] = useMemo(() => {
     const allTasks: TaskStateRow[] = [...(taskDataRaw as unknown as TaskStateRow[])]
+    // Build a Map keyed on `${project_id}|${task_id}` for O(1) lookups instead of O(n) array.find()
+    const taskIndex = new Map<string, TaskStateRow>()
+    for (const t of allTasks) {
+      taskIndex.set(`${t.project_id}|${t.task_id}`, t)
+    }
     for (const fu of followUpDataRaw as unknown as TaskStateRow[]) {
       if (!projectIdSet.has(fu.project_id)) continue
-      const existing = allTasks.find(t => t.project_id === fu.project_id && t.task_id === fu.task_id)
+      const key = `${fu.project_id}|${fu.task_id}`
+      const existing = taskIndex.get(key)
       if (existing) {
         existing.follow_up_date = fu.follow_up_date
       } else {
-        allTasks.push({ project_id: fu.project_id, task_id: fu.task_id, status: '', follow_up_date: fu.follow_up_date })
+        const newRow: TaskStateRow = { project_id: fu.project_id, task_id: fu.task_id, status: 'Not Ready', follow_up_date: fu.follow_up_date }
+        allTasks.push(newRow)
+        taskIndex.set(key, newRow)
       }
     }
     return allTasks
@@ -349,7 +362,7 @@ export default function QueuePage() {
   // ── Bulk selection ────────────────────────────────────────────────────
   const {
     selectMode, setSelectMode, selectedIds, selectedProjects,
-    toggleSelect, selectAll, deselectAll, exitSelectMode,
+    toggleSelect, selectAll, exitSelectMode,
   } = useBulkSelect(projects)
 
   const handleBulkComplete = useCallback(() => {
@@ -447,6 +460,7 @@ export default function QueuePage() {
     return sorted
       .filter(p => (p.follow_up_date && p.follow_up_date <= today) || taskFollowUpMap[p.id])
       .map((p): ProjectWithFollowUp => ({ ...p, _taskFollowUp: taskFollowUpMap[p.id] ?? null, _followUpDate: taskFollowUpMap[p.id]?.date ?? p.follow_up_date ?? null }))
+      // localeCompare is safe for YYYY-MM-DD format — lexicographic order matches chronological order
       .sort((a, b) => (a._followUpDate ?? '').localeCompare(b._followUpDate ?? ''))
   }, [sorted, taskStates, todayStr])
 
@@ -663,7 +677,7 @@ export default function QueuePage() {
         {/* Follow-ups Today */}
         <div ref={followUpsRef} className="mb-6 bg-amber-950/30 border border-amber-900/50 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
-              <button onClick={() => toggleBucket('followups')} className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-amber-300 transition-colors flex-1">
+              <button onClick={() => toggleBucket('followups')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBucket('followups') } }} aria-expanded={!collapsed.followups} aria-controls="section-followups" className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-amber-300 transition-colors flex-1">
                 <span className="text-[10px]">{collapsed.followups ? '▸' : '▾'}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
                 Follow-ups Today ({followUps.length})
@@ -715,9 +729,11 @@ export default function QueuePage() {
                   <div className={`text-xs font-medium ${
                     (p as ProjectWithFollowUp)._followUpDate === todayStr ? 'text-amber-400' : 'text-red-400'
                   }`}>
-                    {(p as ProjectWithFollowUp)._followUpDate === todayStr
-                      ? 'Today'
-                      : `${daysAgo((p as ProjectWithFollowUp)._followUpDate)}d overdue`}
+                    {!(p as ProjectWithFollowUp)._followUpDate
+                      ? '—'
+                      : (p as ProjectWithFollowUp)._followUpDate === todayStr
+                        ? 'Today'
+                        : `${daysAgo((p as ProjectWithFollowUp)._followUpDate)}d overdue`}
                   </div>
                 </div>
               </div>
@@ -728,7 +744,7 @@ export default function QueuePage() {
         {dynamicSections.map(sec => sec.items.length > 0 && (
           <div key={sec.id} className="mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <button onClick={() => toggleBucket(sec.id)} className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-left transition-colors flex-1 ${COLOR_MAP[sec.color] ?? 'text-gray-400'} ${COLOR_HOVER[sec.color] ?? 'hover:text-gray-300'}`}>
+              <button onClick={() => toggleBucket(sec.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBucket(sec.id) } }} aria-expanded={!collapsed[sec.id]} aria-controls={`section-${sec.id}`} className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-left transition-colors flex-1 ${COLOR_MAP[sec.color] ?? 'text-gray-400'} ${COLOR_HOVER[sec.color] ?? 'hover:text-gray-300'}`}>
                 <span className="text-[10px]">{collapsed[sec.id] ? '▸' : '▾'}</span>
                 {sec.icon} {sec.label} ({sec.items.length})
               </button>
@@ -753,7 +769,7 @@ export default function QueuePage() {
         {blocked.length > 0 && (
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <button onClick={() => toggleBucket('blocked')} className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-red-300 transition-colors flex-1">
+              <button onClick={() => toggleBucket('blocked')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBucket('blocked') } }} aria-expanded={!collapsed.blocked} aria-controls="section-blocked" className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-red-300 transition-colors flex-1">
                 <span className="text-[10px]">{collapsed.blocked ? '▸' : '▾'}</span>
                 Blocked ({blocked.length})
               </button>
@@ -778,7 +794,7 @@ export default function QueuePage() {
         {active.length > 0 && (
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <button onClick={() => toggleBucket('active')} className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-gray-300 transition-colors flex-1">
+              <button onClick={() => toggleBucket('active')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBucket('active') } }} aria-expanded={!collapsed.active} aria-controls="section-active" className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-gray-300 transition-colors flex-1">
                 <span className="text-[10px]">{collapsed.active ? '▸' : '▾'}</span>
                 Active ({active.length})
               </button>
@@ -803,7 +819,7 @@ export default function QueuePage() {
         {filteredLoyalty.length > 0 && (
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <button onClick={() => toggleBucket('loyalty')} className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-purple-300 transition-colors flex-1">
+              <button onClick={() => toggleBucket('loyalty')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBucket('loyalty') } }} aria-expanded={!collapsed.loyalty} aria-controls="section-loyalty" className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2 text-left hover:text-purple-300 transition-colors flex-1">
                 <span className="text-[10px]">{collapsed.loyalty ? '▸' : '▾'}</span>
                 Loyalty ({filteredLoyalty.length})
               </button>
@@ -828,10 +844,12 @@ export default function QueuePage() {
         {complete.length > 0 && (
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <button onClick={() => toggleBucket('complete')} className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-2 text-left hover:text-gray-500 transition-colors flex-1">
+              <button onClick={() => toggleBucket('complete')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBucket('complete') } }} aria-expanded={!collapsed.complete} aria-controls="section-complete" className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-2 text-left hover:text-gray-500 transition-colors flex-1">
                 <span className="text-[10px]">{collapsed.complete ? '▸' : '▾'}</span>
                 Complete ({complete.length})
               </button>
+              {/* #15: Descending sort shows most recently completed first — correct UX for tracking completions */}
+              <SortToggle sectionKey="complete" current={getSectionSort('complete')} onCycle={cycleSectionSort} />
               {selectMode && (
                 <button
                   onClick={() => selectAll(complete.map(p => p.id))}
@@ -1012,10 +1030,15 @@ function QueueCard({ p, taskMap, onOpen, cardFields, selectMode, isSelected, onT
 
   const handleSetFollowUp = useCallback(async (date: string) => {
     if (!date) return
-    await updateProject(p.id, { follow_up_date: date })
-    setShowDatePicker(false)
-    setFollowUpDate('')
-    onRefresh()
+    try {
+      await updateProject(p.id, { follow_up_date: date })
+      setShowDatePicker(false)
+      setFollowUpDate('')
+      onRefresh()
+    } catch (err) {
+      console.error('Failed to set follow-up date:', err)
+      alert('Failed to set follow-up date. Please try again.')
+    }
   }, [p.id, onRefresh])
 
   const handleClearBlocker = useCallback(async () => {
@@ -1052,6 +1075,10 @@ function QueueCard({ p, taskMap, onOpen, cardFields, selectMode, isSelected, onT
       })
       setQuickNote('')
       setShowQuickNote(false)
+    } catch (err) {
+      console.error('Failed to add note:', err)
+      alert('Failed to add note. Please try again.')
+      // Note text is preserved on failure — not cleared
     } finally {
       setQuickNoteSubmitting(false)
     }

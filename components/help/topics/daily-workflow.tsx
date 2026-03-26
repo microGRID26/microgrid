@@ -62,25 +62,75 @@ function CommandSections() {
 function QueuePage() {
   return (
     <div>
-      <p className="text-xs text-gray-400 mb-3">Your daily worklist. PM-filtered, task-based collapsible sections. All start collapsed except Follow-ups Today.</p>
-      <div className="space-y-1 text-xs">
+      <p className="text-xs text-gray-400 mb-3">Your daily worklist with smart filters, clickable stats, inline actions, funding badges, and sortable sections.</p>
+      {/* Smart filters mock */}
+      <div className="mb-3">
+        <div className="text-[10px] text-gray-500 uppercase mb-1.5">Smart Filters</div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {['Evaluation', 'Survey', 'Design', 'Permit'].map(s => (
+            <span key={s} className={`text-[10px] px-2 py-0.5 rounded-full border ${s === 'Permit' ? 'bg-green-900/60 border-green-600 text-green-300' : 'border-gray-700 text-gray-500'}`}>{s}</span>
+          ))}
+          <span className="text-[10px] px-2 py-0.5 rounded-full border border-gray-700 text-gray-500">Financier: All</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full border border-gray-700 text-gray-500">&lt;7d</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full border border-red-600 bg-red-900/60 text-red-300">Blocked Only</span>
+        </div>
+      </div>
+      {/* Clickable stat cards mock */}
+      <div className="grid grid-cols-4 gap-2 mb-3">
         {[
-          'Follow-ups Today -- task follow-up dates due today or overdue',
-          'City Permit Ready -- City Permit Approval is Ready To Start',
-          'City Permit Submitted -- permits in progress, waiting for approval',
-          'Utility Permit Submitted -- utility permits in progress',
-          'Utility Inspection Ready -- ready to schedule utility inspection',
-          'Utility Inspection Submitted -- inspections in progress',
-          'Blocked -- projects with a blocker set',
-          'Active -- everything else',
-          'Complete -- finished projects',
-        ].map((item, i) => (
-          <div key={i} className="flex items-start gap-2 text-gray-400">
-            <span className="text-gray-600 mt-0.5">&bull;</span>
-            <span>{item}</span>
+          { label: 'Total', value: '42', color: 'text-white', border: 'border-green-600' },
+          { label: 'Blocked', value: '5', color: 'text-red-400', border: 'border-gray-700' },
+          { label: 'Follow-ups', value: '3', color: 'text-amber-400', border: 'border-gray-700' },
+          { label: 'Portfolio', value: '$2.1M', color: 'text-white', border: 'border-gray-700' },
+        ].map(s => (
+          <div key={s.label} className={`bg-gray-800 rounded-md px-2 py-2 text-center border ${s.border}`}>
+            <div className="text-[10px] text-gray-500 uppercase">{s.label}</div>
+            <div className={`text-sm font-bold font-mono ${s.color}`}>{s.value}</div>
           </div>
         ))}
       </div>
+      <div className="text-[10px] text-gray-500 mb-1">Click Total to clear filters, Blocked to toggle filter, Follow-ups to scroll to section.</div>
+      {/* Sections mock */}
+      <div className="space-y-1.5 text-xs mb-2">
+        {[
+          { label: 'Follow-ups Today', count: 3, color: 'text-amber-400' },
+          { label: 'City Permit Ready', count: 5, color: 'text-blue-400' },
+          { label: 'Blocked', count: 5, color: 'text-red-400' },
+          { label: 'Active', count: 24, color: 'text-gray-400' },
+        ].map(s => (
+          <div key={s.label} className="flex items-center gap-2 bg-gray-800 rounded-md px-3 py-1.5">
+            <span className="text-[10px]">&#9660;</span>
+            <span className={`font-medium ${s.color}`}>{s.label}</span>
+            <span className="text-gray-500 ml-auto text-[10px]">{s.count}</span>
+            <span className="text-[10px] text-gray-600 border border-gray-700 rounded px-1">Days</span>
+          </div>
+        ))}
+      </div>
+      {/* Inline actions mock */}
+      <div className="bg-gray-800 rounded-lg px-3 py-2 text-xs mb-2">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+          <span className="text-white font-medium">Smith Residence</span>
+          <span className="text-gray-500">PROJ-30456</span>
+          <span className="text-green-400 text-[10px]">Permit</span>
+          <span className="text-blue-400 text-[10px] ml-1">M2: Sub</span>
+          <span className="ml-auto text-red-400 font-mono text-[10px]">12d</span>
+        </div>
+        <div className="mt-1 text-[10px] text-gray-500 flex items-center gap-3">
+          <span>Houston</span>
+          <span>&middot;</span>
+          <span>Mosaic</span>
+          <span className="ml-auto text-amber-400">Stale 8d</span>
+        </div>
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className="text-[10px] bg-red-950 text-red-300 px-1.5 py-0.5 rounded">Pending Resolution -- MPU Review</span>
+          <span className="ml-auto flex items-center gap-1.5">
+            <span className="text-gray-600 text-[10px]" title="Set follow-up">&#128197;</span>
+            <span className="text-gray-600 text-[10px]" title="Quick note">&#128172;</span>
+          </span>
+        </div>
+      </div>
+      <div className="text-[10px] text-gray-500">Hover cards for inline actions: set follow-up date, add quick note, clear blocker.</div>
     </div>
   )
 }
@@ -191,9 +241,9 @@ export const dailyWorkflowTopics: HelpTopicData[] = [
   {
     id: 'queue-page',
     title: 'My Queue',
-    description: 'Task-based daily worklist for PMs',
+    description: 'Smart worklist with filters, clickable stats, inline actions, and funding badges',
     category: 'Daily Workflow',
-    keywords: ['queue', 'worklist', 'daily', 'follow-up', 'permit', 'blocked', 'active'],
+    keywords: ['queue', 'worklist', 'daily', 'follow-up', 'permit', 'blocked', 'active', 'smart filters', 'inline actions', 'funding badge', 'sortable'],
     tryItLink: '/queue',
     relatedTopics: ['setting-pm-filter', 'command-center'],
     content: QueuePage,
