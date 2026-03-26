@@ -47,6 +47,7 @@ export function DocumentChecklist({ projectId, currentStage }: DocumentChecklist
   const [loading, setLoading] = useState(true)
   const [collapsed, setCollapsed] = useState(false)
   const [collapsedStages, setCollapsedStages] = useState<Set<string>>(new Set())
+  const [filesNotSynced, setFilesNotSynced] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -61,6 +62,8 @@ export function DocumentChecklist({ projectId, currentStage }: DocumentChecklist
       setRequirements(reqs)
       setProjectDocs(docs)
       setFiles(projFiles)
+      // If no files are synced and no manual overrides exist, flag it
+      setFilesNotSynced(projFiles.length === 0 && docs.length === 0)
       setLoading(false)
     })
 
@@ -146,6 +149,33 @@ export function DocumentChecklist({ projectId, currentStage }: DocumentChecklist
     return (
       <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
         <div className="text-gray-500 text-xs">Loading document checklist...</div>
+      </div>
+    )
+  }
+
+  // When no files have been synced from Drive, don't show misleading "Missing" for everything
+  if (!loading && filesNotSynced && totalCount > 0) {
+    return (
+      <div className="bg-gray-800 rounded-lg border border-gray-700">
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex items-center gap-2 w-full text-left px-4 py-3"
+        >
+          {collapsed ? <ChevronRight size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
+          <span className="text-xs font-semibold text-green-400">Document Checklist</span>
+          <span className="ml-auto text-xs text-amber-400">Files not synced</span>
+        </button>
+        {!collapsed && (
+          <div className="px-4 pb-4">
+            <div className="bg-amber-900/20 border border-amber-700/30 rounded-md px-3 py-2 text-xs text-amber-300">
+              Document checklist requires file sync from Google Drive. Files may exist in the Drive folder but haven&apos;t been indexed yet.
+              Use the Drive link above to verify files directly.
+            </div>
+            <div className="mt-3 text-[10px] text-gray-500">
+              {totalCount} document{totalCount !== 1 ? 's' : ''} required for current stage
+            </div>
+          </div>
+        )}
       </div>
     )
   }
