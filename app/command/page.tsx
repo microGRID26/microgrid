@@ -223,7 +223,7 @@ function ExportModal({ projects, onClose }: { projects: Project[]; onClose: () =
             <h2 className="text-sm font-semibold text-white">Export CSV</h2>
             <p className="text-xs text-gray-500 mt-0.5">{projects.length} projects · {selected.size} fields selected</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+          <button onClick={onClose} aria-label="Close export dialog" className="text-gray-400 hover:text-white transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
