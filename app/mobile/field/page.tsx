@@ -150,7 +150,7 @@ function ProjectDetail({
 }) {
   const [noteText, setNoteText] = useState('')
   const [sending, setSending] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null)
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [woLoading, setWoLoading] = useState(true)
   const [expandedWO, setExpandedWO] = useState<string | null>(null)
@@ -182,7 +182,9 @@ function ProjectDetail({
     const ok = await updateWorkOrderStatus(woId, status)
     if (ok) {
       setWorkOrders(prev => prev.map(wo => wo.id === woId ? { ...wo, status } : wo))
-      setToast(status === 'complete' ? 'Work order completed' : 'Status updated')
+      setToast({ message: status === 'complete' ? 'Work order completed' : 'Status updated', type: 'success' })
+    } else {
+      setToast({ message: 'Failed to update status', type: 'error' })
     }
   }
 
@@ -190,15 +192,21 @@ function ProjectDetail({
     const ok = await toggleChecklistItem(item.id, !item.completed, userName ?? 'Field Crew')
     if (ok) {
       setWoChecklist(prev => prev.map(c => c.id === item.id ? { ...c, completed: !c.completed, completed_by: !item.completed ? (userName ?? 'Field Crew') : null } : c))
+    } else {
+      setToast({ message: 'Failed to update checklist item', type: 'error' })
     }
   }
 
   async function handleSaveWONotes(woId: string) {
-    await updateWorkOrder(woId, {
+    const ok = await updateWorkOrder(woId, {
       notes: woNotes || null,
-      time_on_site_minutes: woTimeOnSite ? parseInt(woTimeOnSite, 10) : null,
+      time_on_site_minutes: woTimeOnSite ? (parseInt(woTimeOnSite, 10) || null) : null,
     })
-    setToast('Work order notes saved')
+    if (ok) {
+      setToast({ message: 'Work order notes saved', type: 'success' })
+    } else {
+      setToast({ message: 'Failed to save work order notes', type: 'error' })
+    }
   }
 
   const address = [project.address, project.city, project.zip].filter(Boolean).join(', ')
@@ -215,10 +223,10 @@ function ProjectDetail({
     })
     setSending(false)
     if (error) {
-      setToast('Failed to add note')
+      setToast({ message: 'Failed to add note', type: 'error' })
     } else {
       setNoteText('')
-      setToast('Note added')
+      setToast({ message: 'Note added', type: 'success' })
       onNoteAdded()
     }
   }
@@ -379,6 +387,7 @@ function ProjectDetail({
                   <div key={wo.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
                     <button
                       onClick={() => expandWO(wo.id)}
+                      aria-label={isExpanded ? `Collapse ${wo.wo_number}` : `Expand ${wo.wo_number}`}
                       className="w-full text-left px-4 py-3 active:bg-gray-800 transition-colors"
                     >
                       <div className="flex items-center justify-between">
@@ -480,7 +489,7 @@ function ProjectDetail({
         </section>
       </div>
 
-      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+      {toast && <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
     </div>
   )
 }

@@ -10,7 +10,7 @@ import {
   addChecklistItem, toggleChecklistItem, deleteChecklistItem, updateWorkOrder,
   getValidTransitions, WO_CHECKLIST_TEMPLATES,
 } from '@/lib/api/work-orders'
-import type { WorkOrder, WOChecklistItem } from '@/lib/api/work-orders'
+import type { WorkOrder, WOChecklistItem, WorkOrderFilters } from '@/lib/api/work-orders'
 import type { Project } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeSubscription } from '@/lib/hooks'
@@ -137,7 +137,7 @@ function CreateWOModal({
       <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <h2 className="text-lg font-bold text-white">Create Work Order</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} aria-label="Close create work order dialog" className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-5 py-4 space-y-4">
           {/* Project ID */}
@@ -267,6 +267,24 @@ function CreateWOModal({
   )
 }
 
+// ── Toast ────────────────────────────────────────────────────────────────────
+
+function Toast({ message, type = 'success', onDone }: { message: string; type?: 'success' | 'error'; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 5000)
+    return () => clearTimeout(t)
+  }, [onDone])
+
+  return (
+    <div className={cn(
+      'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 text-sm px-5 py-3 rounded-xl shadow-xl max-w-[90vw] text-center',
+      type === 'success' ? 'bg-green-800 text-green-100' : 'bg-red-800 text-red-100'
+    )}>
+      {message}
+    </div>
+  )
+}
+
 // ── Work Order Detail (Expandable Row) ───────────────────────────────────────
 
 function WODetail({
@@ -274,11 +292,13 @@ function WODetail({
   onClose,
   onUpdated,
   onOpenProject,
+  showToast,
 }: {
   woId: string
   onClose: () => void
   onUpdated: () => void
   onOpenProject: (projectId: string) => void
+  showToast: (msg: string, type?: 'success' | 'error') => void
 }) {
   const { user: currentUser } = useCurrentUser()
   const [wo, setWO] = useState<WorkOrder | null>(null)
@@ -309,20 +329,24 @@ function WODetail({
     const next = transitions.find(s => s !== 'cancelled')
     if (!next) return
     const ok = await updateWorkOrderStatus(wo.id, next)
-    if (ok) { load(); onUpdated() }
+    if (ok) { load(); onUpdated() } else { showToast('Failed to update status', 'error') }
   }
 
   async function handleCancel() {
     if (!wo || !confirm('Cancel this work order?')) return
     const ok = await updateWorkOrderStatus(wo.id, 'cancelled')
-    if (ok) { load(); onUpdated() }
+    if (ok) { load(); onUpdated() } else { showToast('Failed to cancel work order', 'error') }
   }
 
   async function handleAddItem() {
     if (!newItem.trim() || !wo) return
-    await addChecklistItem(wo.id, newItem.trim())
-    setNewItem('')
-    load()
+    const result = await addChecklistItem(wo.id, newItem.trim())
+    if (result) {
+      setNewItem('')
+      load()
+    } else {
+      showToast('Failed to add checklist item', 'error')
+    }
   }
 
   async function handleToggleItem(item: WOChecklistItem) {
@@ -331,8 +355,12 @@ function WODetail({
   }
 
   async function handleDeleteItem(itemId: string) {
-    await deleteChecklistItem(itemId)
-    load()
+    const ok = await deleteChecklistItem(itemId)
+    if (ok) {
+      load()
+    } else {
+      showToast('Failed to delete checklist item', 'error')
+    }
   }
 
   async function handleSaveNotes() {
@@ -387,7 +415,7 @@ function WODetail({
             )}
           </div>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+        <button onClick={onClose} aria-label="Close work order detail" className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
       </div>
 
       <div className="px-5 py-4 space-y-5">
@@ -554,12 +582,17 @@ export default function WorkOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null)
+
+  const showToast = useCallback((message: string, type?: 'success' | 'error') => {
+    setToast({ message, type })
+  }, [])
 
   const load = useCallback(async () => {
-    const filters: Record<string, string> = {}
+    const filters: WorkOrderFilters = {}
     if (statusFilter !== 'all') filters.status = statusFilter
     if (typeFilter !== 'all') filters.type = typeFilter
-    const data = await loadWorkOrders(filters as any)
+    const data = await loadWorkOrders(filters)
     setWorkOrders(data)
     setLoading(false)
   }, [statusFilter, typeFilter])
@@ -629,6 +662,7 @@ export default function WorkOrdersPage() {
             <p className="text-sm text-gray-500 mt-0.5">Field work tracking and completion</p>
           </div>
           <button onClick={() => setShowCreate(true)}
+            aria-label="Create new work order"
             className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white text-sm px-4 py-2 rounded-lg font-medium transition-colors">
             <Plus className="w-4 h-4" /> New Work Order
           </button>
@@ -688,6 +722,7 @@ export default function WorkOrdersPage() {
                 {/* Row */}
                 <button
                   onClick={() => setExpandedId(expandedId === wo.id ? null : wo.id)}
+                  aria-label={expandedId === wo.id ? `Collapse ${wo.wo_number}` : `Expand ${wo.wo_number}`}
                   className={cn(
                     'w-full text-left bg-gray-800 rounded-lg px-4 py-3 hover:bg-gray-750 transition-colors border',
                     expandedId === wo.id ? 'border-green-700' : 'border-gray-800'
@@ -735,6 +770,7 @@ export default function WorkOrdersPage() {
                       onClose={() => setExpandedId(null)}
                       onUpdated={load}
                       onOpenProject={handleOpenProject}
+                      showToast={showToast}
                     />
                   </div>
                 )}
@@ -760,6 +796,9 @@ export default function WorkOrdersPage() {
           onProjectUpdated={load}
         />
       )}
+
+      {/* Toast */}
+      {toast && <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
     </div>
   )
 }

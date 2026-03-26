@@ -1,6 +1,7 @@
 // lib/api/work-orders.ts — Work order data access layer
 import { db } from '@/lib/db'
 import { createClient } from '@/lib/supabase/client'
+import { escapeIlike } from '@/lib/utils'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -112,7 +113,7 @@ export async function generateWONumber(): Promise<string> {
   const { data } = await supabase
     .from('work_orders')
     .select('wo_number')
-    .like('wo_number', `${prefix}%`)
+    .like('wo_number', `${escapeIlike(prefix)}%`)
     .order('wo_number', { ascending: false })
     .limit(1)
 
@@ -210,15 +211,39 @@ export async function createWorkOrder(
   wo: Omit<WorkOrder, 'id' | 'wo_number' | 'created_at' | 'updated_at' | 'project'>,
   checklistItems?: string[]
 ): Promise<WorkOrder | null> {
-  const woNumber = await generateWONumber()
+  // Retry up to 3 times on unique constraint violation (concurrent WO number race)
+  let data: unknown = null
+  let lastError: unknown = null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const woNumber = await generateWONumber()
+    const result = await db()
+      .from('work_orders')
+      .insert({ ...wo, wo_number: woNumber })
+      .select()
+      .single()
 
-  const { data, error } = await db()
-    .from('work_orders')
-    .insert({ ...wo, wo_number: woNumber })
-    .select()
-    .single()
+    if (!result.error) {
+      data = result.data
+      lastError = null
+      break
+    }
 
-  if (error) { console.error('createWorkOrder failed:', error); return null }
+    // PostgreSQL unique violation = code 23505
+    if (result.error.code === '23505') {
+      console.warn(`WO number conflict (attempt ${attempt + 1}/3), retrying...`)
+      lastError = result.error
+      continue
+    }
+
+    // Non-retryable error
+    console.error('createWorkOrder failed:', result.error)
+    return null
+  }
+
+  if (lastError || !data) {
+    console.error('createWorkOrder failed after 3 retries:', lastError)
+    return null
+  }
 
   const created = data as WorkOrder
 
@@ -248,9 +273,29 @@ export async function updateWorkOrder(id: string, updates: Partial<WorkOrder>): 
 }
 
 export async function updateWorkOrderStatus(id: string, status: string): Promise<boolean> {
+  // Load current WO to validate transition
+  const supabase = createClient()
+  const { data: current, error: loadErr } = await supabase
+    .from('work_orders')
+    .select('status')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (loadErr || !current) {
+    console.error('updateWorkOrderStatus: failed to load current WO:', loadErr)
+    return false
+  }
+
+  const currentStatus = (current as { status: string }).status
+  const allowed = getValidTransitions(currentStatus)
+  if (!allowed.includes(status)) {
+    console.warn(`updateWorkOrderStatus: invalid transition from "${currentStatus}" to "${status}" (allowed: ${allowed.join(', ')})`)
+    return false
+  }
+
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
 
-  if (status === 'in_progress' ) {
+  if (status === 'in_progress') {
     updates.started_at = new Date().toISOString()
   }
   if (status === 'complete') {

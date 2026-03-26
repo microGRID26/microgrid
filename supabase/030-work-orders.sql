@@ -42,6 +42,10 @@ CREATE INDEX idx_wo_date ON work_orders(scheduled_date);
 CREATE INDEX idx_wo_crew ON work_orders(assigned_crew);
 CREATE INDEX idx_wo_checklist ON wo_checklist_items(work_order_id);
 
+-- RLS: Permissive policies for all authenticated users.
+-- This is the intentional pattern per CLAUDE.md — all authenticated users can
+-- create and edit work orders (same as projects, task_state, notes, etc.).
+-- Role-based restrictions are enforced at the application layer via useCurrentUser().
 ALTER TABLE work_orders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "wo_select" ON work_orders FOR SELECT TO authenticated USING (true);
 CREATE POLICY "wo_insert" ON work_orders FOR INSERT TO authenticated WITH CHECK (true);

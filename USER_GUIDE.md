@@ -26,19 +26,20 @@ A comprehensive guide for Project Managers and team members at MicroGRID Energy 
 18. [Equipment Catalog](#equipment-catalog)
 19. [Inventory Management](#inventory-management)
 20. [Vendor Management](#vendor-management)
-21. [Redesign Tool](#redesign-tool)
-22. [Batch Design](#batch-design)
-23. [Crew Mobile View](#crew-mobile-view)
-24. [Crew Performance Dashboard](#crew-performance-dashboard)
-25. [Planset (Duracell SLD)](#planset-duracell-sld)
-26. [Atlas (AI Reports)](#atlas-ai-reports)
-27. [Legacy Projects](#legacy-projects)
-28. [Help Center](#help-center)
-29. [@Mentions and Notifications](#mentions-and-notifications)
-30. [Pagination](#pagination)
-31. [Mobile Views](#mobile-views)
-32. [EDGE Integration](#edge-integration)
-33. [Tips and Best Practices](#tips-and-best-practices)
+21. [Work Orders](#work-orders)
+22. [Redesign Tool](#redesign-tool)
+23. [Batch Design](#batch-design)
+24. [Crew Mobile View](#crew-mobile-view)
+25. [Crew Performance Dashboard](#crew-performance-dashboard)
+26. [Planset (Duracell SLD)](#planset-duracell-sld)
+27. [Atlas (AI Reports)](#atlas-ai-reports)
+28. [Legacy Projects](#legacy-projects)
+29. [Help Center](#help-center)
+30. [@Mentions and Notifications](#mentions-and-notifications)
+31. [Pagination](#pagination)
+32. [Mobile Views](#mobile-views)
+33. [EDGE Integration](#edge-integration)
+34. [Tips and Best Practices](#tips-and-best-practices)
 
 ---
 
@@ -1520,6 +1521,74 @@ Only Super Admins can delete vendors. In the expanded edit panel, click "Delete 
 ### Admin Portal
 
 The Admin portal includes a Vendor Manager section with the same functionality in a modal-based interface. Access it from the Admin sidebar.
+
+---
+
+## Work Orders
+
+**URL:** `/work-orders`
+
+Work orders track field work (installs, surveys, inspections, repairs, and service calls) from creation through completion. Each work order is linked to a project and includes a checklist, crew assignment, scheduling, notes, and customer signature collection.
+
+### Creating a Work Order
+
+1. Click **New Work Order** in the top-right corner
+2. Enter the **Project ID** (e.g., PROJ-12345)
+3. Select the **Type** (Installation, Survey, Inspection, Repair, or Service)
+4. Set the **Priority** (Low, Normal, High, or Urgent)
+5. Optionally assign a **Crew**, **Person**, and **Scheduled Date**
+6. Add a **Description** and **Special Instructions** if needed
+7. The checklist defaults to the template for the selected type -- you can toggle "Use default template" off, or add custom items on top
+8. Click **Create Work Order**
+
+If a crew is assigned at creation, the work order starts in **Assigned** status; otherwise it starts as **Draft**.
+
+### Checklists
+
+Each work order type has a default checklist template:
+
+- **Installation** -- 9 items covering equipment delivery through customer walkthrough
+- **Inspection** -- 5 items from permit verification through result submission
+- **Service** -- 4 items: diagnose, repair, test, sign-off
+- **Survey** -- 5 items: roof measurement, electrical panel, photos, shade analysis, customer questions
+- **Repair** -- 6 items: diagnose, identify parts, repair, test, cleanup, sign-off
+
+After creation, you can add more checklist items, toggle items complete, or delete items. The progress bar at the top shows completion percentage. Each completed item records who completed it and when.
+
+### Status Flow
+
+Work orders progress through these statuses:
+
+1. **Draft** -- just created, not yet assigned
+2. **Assigned** -- crew/person assigned, ready to start
+3. **In Progress** -- work has begun (start time auto-recorded)
+4. **Complete** -- all work done (completion time auto-recorded)
+
+A work order can be **Cancelled** from any non-terminal status.
+
+To advance the status, expand the work order and click the action button (Assign / Start Work / Mark Complete). You can also cancel from the detail view.
+
+### Mobile Usage
+
+The work orders page is accessible from any device. When in the field:
+
+1. Open the work order from `/work-orders`
+2. Click **Start Work** when you arrive on site
+3. Check off each checklist item as you complete it
+4. Add notes and record time on site
+5. Collect the **Customer Signature** using the signature button
+6. Click **Mark Complete** when finished
+
+### Filtering and Search
+
+- **Search** by WO number, project name/ID, crew name, or assigned person
+- **Status filter** to show only Draft, Assigned, In Progress, Complete, or Cancelled
+- **Type filter** to show only a specific work order type
+- The count of matching work orders is displayed in the filter bar
+
+### Work Order Numbers
+
+Work orders are auto-numbered as `WO-YYYYMMDD-NNN` (e.g., WO-20260326-001). Numbers are sequential per day, starting at 001.
 
 ---
 

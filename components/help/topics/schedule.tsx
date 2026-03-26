@@ -94,6 +94,47 @@ function FieldOperatorView() {
   )
 }
 
+function WorkOrdersPage() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-2">Field work tracking at <span className="text-green-400 font-mono">/work-orders</span>. Create, assign, and complete work orders for installs, surveys, inspections, repairs, and service calls.</p>
+      <div className="space-y-2 text-xs">
+        <div>
+          <span className="text-gray-300 font-medium block mb-1">Status Flow</span>
+          <div className="flex items-center gap-1.5 text-gray-400">
+            <span className="bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded text-[10px]">Draft</span>
+            <span className="text-gray-600">&rarr;</span>
+            <span className="bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded text-[10px]">Assigned</span>
+            <span className="text-gray-600">&rarr;</span>
+            <span className="bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded text-[10px]">In Progress</span>
+            <span className="text-gray-600">&rarr;</span>
+            <span className="bg-green-900 text-green-300 px-1.5 py-0.5 rounded text-[10px]">Complete</span>
+          </div>
+        </div>
+        <div>
+          <span className="text-gray-300 font-medium block mb-1">Features</span>
+          {[
+            'Type-specific checklist templates (install, survey, inspection, repair, service)',
+            'Crew and person assignment with scheduled date',
+            'Checklist progress bar with per-item completion tracking',
+            'Customer signature collection with timestamp',
+            'Time on site tracking (minutes)',
+            'Notes and special instructions',
+            'Search by WO#, project, crew, or person',
+            'Filter by status and type',
+            'Realtime updates across all users',
+          ].map((item, i) => (
+            <div key={i} className="flex items-start gap-2 text-gray-400">
+              <span className="text-gray-600 mt-0.5">&bull;</span>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export const scheduleTopics: HelpTopicData[] = [
   {
     id: 'schedule-page',
@@ -134,5 +175,15 @@ export const scheduleTopics: HelpTopicData[] = [
     tryItLink: '/mobile/field',
     relatedTopics: ['crew-view', 'leadership-dashboard', 'schedule-page'],
     content: FieldOperatorView,
+  },
+  {
+    id: 'work-orders',
+    title: 'Work Orders',
+    description: 'Create, assign, and track field work orders with checklists and customer signatures',
+    category: 'Schedule & Crews',
+    keywords: ['work order', 'checklist', 'install', 'survey', 'inspection', 'repair', 'service', 'crew', 'signature', 'field', 'tracking'],
+    tryItLink: '/work-orders',
+    relatedTopics: ['schedule-page', 'crew-view', 'field-operator-view'],
+    content: WorkOrdersPage,
   },
 ]
