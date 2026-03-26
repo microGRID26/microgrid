@@ -284,6 +284,10 @@ export function isEdgeConfigured(): boolean {
   return !!EDGE_WEBHOOK_URL
 }
 
+export function isEdgeSecretConfigured(): boolean {
+  return !!EDGE_WEBHOOK_SECRET
+}
+
 /**
  * Get the configured EDGE webhook URL (masked for display).
  */

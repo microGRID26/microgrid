@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { db } from '@/lib/db'
-import { isEdgeConfigured, getEdgeWebhookUrl, syncProjectToEdge } from '@/lib/api/edge-sync'
+import { isEdgeConfigured, isEdgeSecretConfigured, getEdgeWebhookUrl, syncProjectToEdge } from '@/lib/api/edge-sync'
 import { Input } from '@/components/admin/shared'
 
 interface SyncLogEntry {
@@ -18,6 +18,7 @@ interface SyncLogEntry {
 
 export function EdgeIntegrationManager() {
   const [configured] = useState(isEdgeConfigured())
+  const [secretConfigured] = useState(isEdgeSecretConfigured())
   const [webhookUrl] = useState(getEdgeWebhookUrl())
   const [recentLogs, setRecentLogs] = useState<SyncLogEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -78,6 +79,11 @@ export function EdgeIntegrationManager() {
             <p className="text-xs text-gray-400 mb-1">Endpoint</p>
             <p className="text-sm text-gray-300 font-mono">{webhookUrl}</p>
           </div>
+          {configured && !secretConfigured && (
+            <div className="col-span-full bg-amber-900/30 border border-amber-800/50 rounded-lg px-3 py-2 text-xs text-amber-400">
+              Warning: EDGE_WEBHOOK_SECRET is not set. Webhooks are unsigned and EDGE cannot verify authenticity. Set the secret in environment variables.
+            </div>
+          )}
           <div>
             <p className="text-xs text-gray-400 mb-1">Last Sync</p>
             <p className="text-sm text-gray-300">
