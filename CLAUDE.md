@@ -119,7 +119,7 @@ Reusable hooks in `lib/hooks/` (barrel-exported from `lib/hooks/index.ts`):
 - **Request deduplication** — identical in-flight queries reuse the same promise
 - **Stale-while-revalidate** — returns cached data immediately while refetching in background
 - **Pagination** — pass `page: 1` to enable; returns `totalCount`, `hasMore`, `nextPage`, `prevPage`, `setPage`, `currentPage`
-- **Realtime** — pass `subscribe: true` to auto-invalidate cache and refetch on postgres_changes
+- **Realtime** — pass `subscribe: true` to auto-invalidate cache and refetch on postgres_changes. Optional `realtimeFilter` narrows the subscription to matching rows only (PostgREST syntax, e.g., `'pm_id=eq.abc123'`), reducing unnecessary refetches when only a subset of the table is relevant.
 - **Typed filters** — supports `eq`, `neq`, `in`, `not_in`, `ilike`, `is` (null), `isNot` (null), `gt`, `lt`, `gte`, `lte`. Shorthand: `{ pm_id: 'abc' }` is equivalent to `{ pm_id: { eq: 'abc' } }`
 - **`.or()` expressions** — pass `or: 'name.ilike.%test%,id.ilike.%test%'` for compound search
 - `clearQueryCache()` — exported function to invalidate all cached data (used after bulk mutations)
@@ -320,6 +320,10 @@ The Queue page (`/queue`) was redesigned with task-based sections instead of a f
 
 PM filter uses `pm_id` (user UUID) stored in localStorage as `mg_pm`. PM dropdown is populated from distinct PMs on loaded projects.
 
+**Performance optimizations:**
+- **PM-scoped realtime** — when a PM filter is active, the projects realtime subscription uses `realtimeFilter: 'pm_id=eq.<uuid>'` so only changes to that PM's projects trigger refetches (not all 938 projects).
+- **Incremental task map** — task states are loaded into a `taskMapRef` (keyed by project ID then task ID). A dedicated `queue-taskmap-incremental` realtime channel listens for `task_state` changes and patches only the affected entry in the ref, then bumps a version counter to trigger re-render. This avoids re-fetching all 50K task_state rows on every single task update.
+
 ### Disposition Workflow
 
 Disposition transitions are constrained: Sale -> Loyalty -> Cancelled. You cannot skip from Sale directly to Cancelled. The allowed transitions per current state are defined in `InfoTab.tsx`:
@@ -457,6 +461,9 @@ Added in `supabase/016-scale-optimization.sql`:
   - Queue loads only queue-relevant task_state rows (8 specific task IDs + non-null follow_up_date)
   - Command loads only stuck/complete task_state rows (Pending Resolution, Revision Required, Complete)
   - Audit loads only non-Complete task_state rows
+- **LRU cache** — `useSupabaseQuery` cache uses LRU eviction (50 entries max, 5-min hard TTL, 30-sec stale threshold). Evicts least-recently-used entries when capacity is reached. Scale-ready to 5K projects without memory pressure.
+- **Incremental task map** — Queue page maintains a `taskMapRef` that is patched in-place by a dedicated realtime channel (`queue-taskmap-incremental`) instead of re-fetching all task_state rows on every change. Only the affected project/task entry is updated.
+- **Realtime filtering** — `useSupabaseQuery` accepts `realtimeFilter` (PostgREST syntax) to narrow realtime subscriptions to matching rows. Queue uses this to scope project subscriptions to the active PM, reducing unnecessary cache invalidation and refetch traffic.
 
 ### SubHub Webhook
 
