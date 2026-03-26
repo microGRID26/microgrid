@@ -145,23 +145,43 @@ const templates: Record<number, TemplateFactory> = {
   }),
 
   3: (name) => ({
-    subject: 'Opening a Project — The Project Panel',
+    subject: 'The Visual Pipeline — Your Kanban Board',
     html: layout(3, `
-      <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Everything about a project, one click away</h2>
-      <p>Click any project card to open the Project Panel. Five tabs give you complete visibility: Overview, Tasks, Notes, Files, and BOM.</p>
+      <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">See every project at a glance</h2>
+      <p>The Pipeline is a visual Kanban board with 7 stage columns. Smart headers show project count, total value, blocked/stuck counts, and average days. Cards are enriched with task context so you know exactly what is happening without opening a project.</p>
       ${visualBox(`
-        <div style="color:#9ca3af;font-size:12px;margin-bottom:10px;">PROJECT PANEL TABS</div>
-        <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-          <td style="color:#1D9E75;font-size:12px;font-weight:600;padding:6px 0;border-bottom:2px solid #1D9E75;text-align:center;">Info</td>
-          <td style="color:#6b7280;font-size:12px;padding:6px 0;text-align:center;">Tasks</td>
-          <td style="color:#6b7280;font-size:12px;padding:6px 0;text-align:center;">Notes</td>
-          <td style="color:#6b7280;font-size:12px;padding:6px 0;text-align:center;">Files</td>
-          <td style="color:#6b7280;font-size:12px;padding:6px 0;text-align:center;">BOM</td>
-        </tr></table>
+        <div style="color:#9ca3af;font-size:12px;margin-bottom:10px;">SMART COLUMN HEADER</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="color:#ffffff;font-size:13px;font-weight:600;">Permitting</span>
+          <span style="color:#9ca3af;font-size:13px;font-family:monospace;">28</span>
+        </div>
+        <div style="color:#6b7280;font-size:11px;margin-bottom:6px;">$1.4M</div>
+        <div style="display:flex;gap:6px;">
+          ${sectionBadge('4 blocked', '#ef4444')}
+          ${sectionBadge('6 stuck', '#f59e0b')}
+          <span style="color:#4b5563;font-size:11px;margin-left:auto;">&Oslash; 18d</span>
+        </div>
       `)}
-      <p>The Info tab shows all project details. Click "Edit" to update equipment, financier, AHJ, and more. Changes are audited automatically.</p>
-      ${ctaButton('Try Opening a Project →', '/pipeline')}
+      ${visualBox(`
+        <div style="color:#9ca3af;font-size:12px;margin-bottom:10px;">SMART PROJECT CARD</div>
+        <div style="border-left:2px solid #f59e0b;padding-left:10px;">
+          <div style="color:#ffffff;font-size:13px;font-weight:500;">Smith Residence</div>
+          <div style="color:#6b7280;font-size:11px;">PROJ-30456 &middot; 8.4 kW &middot; $42,500</div>
+          <div style="margin-top:6px;color:#9ca3af;font-size:11px;">Next: <span style="color:#e5e7eb;">City Permit</span> ${sectionBadge('In Prog', '#3b82f6')}</div>
+          <div style="margin-top:4px;">${sectionBadge('Pending', '#ef4444')} <span style="color:#9ca3af;font-size:11px;">Utility Permit - MPU Review</span></div>
+          <div style="margin-top:6px;display:flex;gap:8px;">
+            <span style="color:#3b82f6;font-size:11px;font-weight:500;">M2:Sub</span>
+            <span style="color:#f59e0b;font-size:11px;font-weight:500;">FU: Today</span>
+          </div>
+          <div style="margin-top:6px;padding-top:6px;border-top:1px solid #374151;display:flex;justify-content:space-between;">
+            <span style="color:#6b7280;font-size:11px;">Sarah K. &middot; Mosaic</span>
+            <span style="color:#f59e0b;font-size:13px;font-weight:700;font-family:monospace;">18d</span>
+          </div>
+        </div>
+      `)}
+      <p><strong>Compact/Detailed toggle:</strong> Switch between dense and full card views. <strong>Collapse columns</strong> you don't need. <strong>Filter by blocked or stuck</strong> within each column header. All filters persist in the URL -- share a filtered view by copying the link.</p>
+      <p>Click any card to open the Project Panel with five tabs: Info, Tasks, Notes, Files, and BOM.</p>
+      ${ctaButton('Open the Pipeline →', '/pipeline')}
     `),
   }),
 

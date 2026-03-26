@@ -119,6 +119,7 @@ function MultiSelect({ label, options, selected, onChange }: {
   const selectedSet = useMemo(() => new Set(selected ? selected.split(',') : []), [selected])
   const count = selectedSet.size
 
+  // Empty deps is correct: handler checks ref.current at call time, not at setup time
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
@@ -226,6 +227,7 @@ function TaskStatusBadge({ status }: { status: string }) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE COMPONENT
+// No component-level ErrorBoundary needed — app/error.tsx catches page-level errors
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function PipelinePage() {
@@ -252,7 +254,7 @@ export default function PipelinePage() {
   useEffect(() => { localStorage.setItem('mg_pipeline_collapsed', JSON.stringify(collapsedCols)) }, [collapsedCols])
   const toggleColCollapse = (stageId: string) => setCollapsedCols(prev => ({ ...prev, [stageId]: !prev[stageId] }))
 
-  // Column filters (blocked/stuck per stage)
+  // Column filters (blocked/stuck per stage) — intentionally not persisted; these are temporary, session-contextual filters
   const [colFilter, setColFilter] = useState<Record<string, 'blocked' | 'stuck' | null>>({})
   const toggleColFilter = (stageId: string, filter: 'blocked' | 'stuck') => {
     setColFilter(prev => ({ ...prev, [stageId]: prev[stageId] === filter ? null : filter }))
@@ -264,6 +266,7 @@ export default function PipelinePage() {
     STAGE_ORDER.forEach(s => { init[s] = true })
     return init
   })
+  // CSS transitions handle rapid clicks gracefully; no debounce needed
   const toggleMobileSection = (stageId: string) => {
     setMobileCollapsed(prev => {
       // Only one section open at a time on mobile
@@ -360,17 +363,20 @@ export default function PipelinePage() {
   } = useSupabaseQuery('project_funding', {
     select: 'project_id, m1_status, m2_status, m3_status',
     limit: 5000,
+    subscribe: true,
   })
 
   const loading = projectsLoading || tasksLoading
 
   // Build task map
+  // Cast: useSupabaseQuery returns generic Row type; cast to TaskStateRow[] is safe because select matches the shape
   const taskMap = useMemo(() => buildTaskMap(taskDataRaw as unknown as TaskStateRow[]), [taskDataRaw])
 
   // Build funding map
   const fundingMap = useMemo(() => {
     const map: Record<string, FundingRecord> = {}
     if (fundingRaw) {
+      // Cast: useSupabaseQuery returns generic Row type; cast to FundingRecord[] is safe because select matches the shape
       for (const f of fundingRaw as unknown as FundingRecord[]) {
         map[f.project_id] = f
       }
@@ -379,6 +385,8 @@ export default function PipelinePage() {
   }, [fundingRaw])
 
   // Build follow-up map: project_id -> { date, taskName }
+  // Includes both task-level follow_up_date (from task_state) and project-level follow_up_date.
+  // Uses the earliest date between task-level and project-level.
   const followUpMap = useMemo(() => {
     const map: Record<string, { date: string; taskName: string }> = {}
     if (!taskDataRaw) return map
@@ -390,10 +398,22 @@ export default function PipelinePage() {
         }
       }
     }
+    // Also check project-level follow_up_date and use earliest
+    if (allProjects) {
+      for (const p of allProjects as unknown as Project[]) {
+        if (p.follow_up_date) {
+          const existing = map[p.id]
+          if (!existing || p.follow_up_date < existing.date) {
+            map[p.id] = { date: p.follow_up_date, taskName: 'Project' }
+          }
+        }
+      }
+    }
     return map
-  }, [taskDataRaw])
+  }, [taskDataRaw, allProjects])
 
   // Extract dropdown options
+  // Cast: useServerFilter expects Record<string, unknown>[]; safe because we only extract dropdown values
   const { dropdowns: extractedDropdowns } = useServerFilter(
     allProjects as unknown as Record<string, unknown>[],
     { extractDropdowns: DROPDOWN_CONFIG }
@@ -401,6 +421,7 @@ export default function PipelinePage() {
 
   // Client-side filtering
   const projects = useMemo(() => {
+    // Cast: useSupabaseQuery returns generic Row type; cast to Project[] is safe because the projects table matches
     let result = allProjects as unknown as Project[]
     if (!result) return []
 
@@ -413,7 +434,7 @@ export default function PipelinePage() {
       )
     }
 
-    // Search filter
+    // Search filter — client-side .includes() on in-memory data, so escapeIlike is not needed
     const q = search.trim().toLowerCase()
     if (q) {
       result = result.filter(p => {
@@ -477,6 +498,7 @@ export default function PipelinePage() {
       map[stageId] = [...cards].sort((a, b) => {
         if (sort === 'sla') return getSLA(b).days - getSLA(a).days
         if (sort === 'contract') return (Number(b.contract) || 0) - (Number(a.contract) || 0)
+        // daysAgo always returns a number (0 for null), so || 0 is defensive but harmless
         if (sort === 'cycle') return (daysAgo(b.sale_date) || 0) - (daysAgo(a.sale_date) || 0)
         return (a.name ?? '').localeCompare(b.name ?? '')
       })
@@ -553,7 +575,7 @@ export default function PipelinePage() {
         })
       } catch (err) {
         console.error(`Bulk advance failed for ${proj.id}:`, err)
-        failures.push(proj.id)
+        failures.push(`${proj.id} (${err instanceof Error ? err.message : 'unknown error'})`)
       }
     }
     setAdvanceProgress(null)
@@ -565,7 +587,7 @@ export default function PipelinePage() {
   }, [canAdvance, selectedProjects, currentUser, handleBulkComplete])
 
   // ── Today string for follow-up comparison ────────────────────────────────
-
+  // ISO date string comparison (< > ===) is safe for YYYY-MM-DD format — lexicographic order matches chronological order
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], [])
 
   // ── Loading state ────────────────────────────────────────────────────────
@@ -645,6 +667,7 @@ export default function PipelinePage() {
                 onClick={() => setViewMode('compact')}
                 className={`px-2 py-1.5 text-xs transition-colors ${viewMode === 'compact' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-white'}`}
                 title="Compact view"
+                aria-label="Switch to compact view"
               >
                 <List className="w-3.5 h-3.5" />
               </button>
@@ -652,6 +675,7 @@ export default function PipelinePage() {
                 onClick={() => setViewMode('detailed')}
                 className={`px-2 py-1.5 text-xs transition-colors ${viewMode === 'detailed' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-white'}`}
                 title="Detailed view"
+                aria-label="Switch to detailed view"
               >
                 <Layers className="w-3.5 h-3.5" />
               </button>
@@ -665,6 +689,7 @@ export default function PipelinePage() {
                   className={`text-xs px-3 py-1.5 rounded-md transition-colors font-medium ${
                     selectMode ? 'bg-green-700 text-white hover:bg-green-600' : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
                   }`}
+                  aria-label={selectMode ? 'Exit selection mode' : 'Enter selection mode'}
                 >
                   {selectMode ? 'Exit Select' : 'Select'}
                 </button>
@@ -690,6 +715,7 @@ export default function PipelinePage() {
             <span className="text-xs text-gray-500">Sort:</span>
             {(['sla', 'name', 'contract', 'cycle'] as const).map(s => (
               <button key={s} onClick={() => setSort(s)}
+                aria-label={`Sort by ${s === 'sla' ? 'days in stage' : s === 'contract' ? 'contract value' : s === 'cycle' ? 'cycle time' : 'name'}`}
                 className={`text-xs px-2 py-1 rounded-md transition-colors ${sort === s ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-white'}`}>
                 {s === 'sla' ? 'Days' : s === 'contract' ? '$' : s === 'cycle' ? 'Cycle' : 'Name'}
               </button>
@@ -713,6 +739,7 @@ export default function PipelinePage() {
                     onClick={() => toggleColCollapse(stageId)}
                     className="flex flex-col items-center py-3 px-1 gap-2 hover:bg-gray-900 transition-colors h-full"
                     title={`Expand ${STAGE_LABELS[stageId]}`}
+                    aria-label={`Expand ${STAGE_LABELS[stageId]} column`}
                   >
                     <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
                     <span className="text-[10px] text-gray-500 font-medium [writing-mode:vertical-lr] rotate-180">
@@ -734,6 +761,7 @@ export default function PipelinePage() {
                         onClick={() => toggleColCollapse(stageId)}
                         className="text-gray-500 hover:text-white transition-colors"
                         title={`Collapse ${STAGE_LABELS[stageId]}`}
+                        aria-label={`Collapse ${STAGE_LABELS[stageId]} column`}
                       >
                         <ChevronLeft className="w-3.5 h-3.5" />
                       </button>
@@ -981,7 +1009,7 @@ function PipelineCard({ p, viewMode, taskMap, funding, followUp, todayStr, selec
         p.blocker ? `${SLA_BORDER[sla.status]} border-gray-700` :
         isActive ? `${SLA_BORDER[sla.status]} border-green-600` :
         `${SLA_BORDER[sla.status]} border-gray-700`
-      } ${viewMode === 'compact' ? 'p-2' : 'p-2.5'}`}
+      } ${viewMode === 'compact' ? 'px-2 py-2' : 'px-2 py-2.5 sm:px-2.5'}`}
     >
       {selectMode && <SelectCheckbox selected={isSelected} />}
 

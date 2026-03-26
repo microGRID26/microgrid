@@ -135,6 +135,67 @@ function QueuePage() {
   )
 }
 
+function PipelinePage() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-3">Visual Kanban board with 7 stage columns. Smart headers, task-enriched cards, compact/detailed toggle, collapsible columns, and URL-persistent filters.</p>
+      {/* Column header mock */}
+      <div className="mb-3">
+        <div className="bg-gray-950 border border-gray-800 rounded-lg px-3 py-2">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-gray-600">&#9664;</span>
+              <span className="text-xs font-semibold text-white">Permitting</span>
+            </div>
+            <span className="text-xs text-gray-400 font-mono">28</span>
+          </div>
+          <div className="text-[10px] text-gray-500 mb-1">$1.4M</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] bg-red-950 text-red-400 px-1.5 py-0.5 rounded">4 blocked</span>
+            <span className="text-[10px] bg-amber-950 text-amber-400 px-1.5 py-0.5 rounded">6 stuck</span>
+            <span className="text-[10px] text-gray-600 ml-auto">{'\u00D8'} 18d</span>
+          </div>
+        </div>
+      </div>
+      {/* Card mock - detailed */}
+      <div className="bg-gray-800 rounded-lg border-l-2 border-l-amber-500 border border-gray-700 p-2.5 mb-2">
+        <div className="text-xs font-medium text-white truncate">Smith Residence</div>
+        <div className="text-[10px] text-gray-500">PROJ-30456</div>
+        <div className="text-[10px] text-gray-400 mt-1">8.4 kW {'\u00B7'} $42,500</div>
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <span className="text-[10px] text-gray-500">Next:</span>
+          <span className="text-[10px] text-gray-300">City Permit</span>
+          <span className="text-[9px] px-1 py-0.5 rounded bg-blue-900/60 text-blue-300">In Prog</span>
+        </div>
+        <div className="flex items-center gap-1 mt-1">
+          <span className="text-[9px] px-1 py-0.5 rounded bg-red-900/60 text-red-300">Pending</span>
+          <span className="text-[10px] text-gray-400">Utility Permit</span>
+          <span className="text-[9px] text-gray-500">- MPU Review</span>
+        </div>
+        <div className="flex items-center gap-2 mt-1.5">
+          <span className="text-[10px] text-blue-400 font-medium">M2:Sub</span>
+          <span className="text-[10px] text-amber-400 font-medium">FU: Today</span>
+        </div>
+        <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-gray-700/50">
+          <span className="text-[10px] text-gray-500">Sarah K. {'\u00B7'} Mosaic</span>
+          <span className="text-xs font-mono font-bold text-amber-400">18d</span>
+        </div>
+        <div className="mt-1.5 h-0.5 bg-gray-700 rounded-full overflow-hidden">
+          <div className="h-full rounded-full bg-amber-500" style={{ width: '60%' }} />
+        </div>
+      </div>
+      {/* Features */}
+      <div className="space-y-1 text-[10px] text-gray-500 mt-2">
+        <div><span className="text-white">Compact/Detailed</span> -- toggle card density (saved in localStorage)</div>
+        <div><span className="text-white">Collapse columns</span> -- click chevron to hide stages you do not need</div>
+        <div><span className="text-white">Column filters</span> -- click blocked/stuck badges to filter within a column</div>
+        <div><span className="text-white">URL filters</span> -- PM, financier, AHJ, utility, blocked, days range all saved in URL</div>
+        <div><span className="text-white">Mobile</span> -- accordion layout, one section open at a time</div>
+      </div>
+    </div>
+  )
+}
+
 function OpeningProject() {
   return (
     <div>
@@ -247,6 +308,16 @@ export const dailyWorkflowTopics: HelpTopicData[] = [
     tryItLink: '/queue',
     relatedTopics: ['setting-pm-filter', 'command-center'],
     content: QueuePage,
+  },
+  {
+    id: 'pipeline-page',
+    title: 'Pipeline (Visual Kanban)',
+    description: 'Visual stage board with smart headers, task-enriched cards, and collapsible columns',
+    category: 'Daily Workflow',
+    keywords: ['pipeline', 'kanban', 'board', 'stage', 'column', 'compact', 'detailed', 'collapse', 'card', 'task', 'funding badge', 'stuck', 'blocked', 'filter'],
+    tryItLink: '/pipeline',
+    relatedTopics: ['queue-page', 'command-center', 'bulk-operations'],
+    content: PipelinePage,
   },
   {
     id: 'opening-project',

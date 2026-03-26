@@ -294,7 +294,7 @@ Click **Select** in the nav bar to enter multi-select mode. Checkboxes appear on
 
 **URL:** `/pipeline`
 
-The Pipeline page shows all active projects organized in a visual grid by stage. Each column represents one of the 7 pipeline stages.
+The Pipeline page is a visual Kanban board with 7 stage columns. Each column has smart headers showing project count, total value, blocked/stuck counts, and average days. Cards are enriched with task context, funding badges, and follow-up indicators.
 
 ### Pipeline Stages
 
@@ -308,42 +308,90 @@ The Pipeline page shows all active projects organized in a visual grid by stage.
 | Inspection | City and utility inspections |
 | Complete | PTO and In Service |
 
-### Project Cards
+### Smart Column Headers
 
-Each card in the pipeline grid shows:
+Each stage column header displays:
 
-- Customer name
-- Project ID
-- Contract value
-- A colored bar on the left indicating SLA status:
-  - Green -- On Track
-  - Yellow -- Warning
-  - Amber -- At Risk
-  - Red -- Critical
-- Blocker icon if the project is blocked
+- **Stage name** with project count
+- **Total contract value** for the stage
+- **Blocked count** (red badge) -- click to filter column to blocked projects only
+- **Stuck count** (amber badge) -- click to filter column to projects with stuck tasks
+- **Average days** in stage
+- **Collapse button** -- click the left chevron to collapse a column to a narrow vertical bar. Collapsed state is saved in localStorage.
 
-### Filters
+### Project Cards (Detailed Mode)
 
-Use the filter bar at the top to narrow results:
+In detailed view, each card shows:
 
-- **PM** -- Filter by project manager
-- **Financier** -- Filter by financing company
-- **AHJ** -- Filter by Authority Having Jurisdiction (multi-select: pick one or more AHJs)
-- **Utility** -- Filter by utility company (multi-select: pick one or more utilities)
-- **Search** -- Text search by name, ID, city, or address
+- **Blocker bar** (if blocked) -- red highlighted bar at top with blocker reason
+- **Customer name** and project ID
+- **System kW** and contract value
+- **Next task** with status badge (In Prog, Sched, Ready, Pending, Revision, Done)
+- **Stuck task badges** -- up to 2 stuck tasks with status and reason (Pending Resolution or Revision Required)
+- **Funding badge** -- highest active milestone status (M1/M2/M3: Elig/Sub/Fun/Rej)
+- **Follow-up indicator** -- shows "Today", "Xd overdue" (red), or future date
+- **Footer** -- PM name, financier, and days-in-stage count
+- **SLA progress bar** -- color-coded (green/yellow/amber/red) based on stage thresholds
+- **Left border** color matches SLA status
 
-### Sorting
+### Project Cards (Compact Mode)
 
-Use the sort dropdown to change the order of cards within each column:
+In compact view, cards show only:
 
-- **SLA** (default) -- Most urgent at top
-- **Name** -- Alphabetical
-- **Contract** -- Highest value first
-- **Cycle** -- Longest cycle time first
+- Customer name with days-in-stage count
+- Project ID and blocker (if any)
+- SLA progress bar
+
+Toggle between compact and detailed views using the icons in the toolbar. Your selection is saved in localStorage.
+
+### Smart Filters Toolbar
+
+A full-width filter bar sits below the navigation:
+
+- **PM dropdown** -- filter by project manager
+- **Financier dropdown** -- filter by financing company
+- **AHJ** -- multi-select checkbox dropdown (pick one or more AHJs)
+- **Utility** -- multi-select checkbox dropdown (pick one or more utilities)
+- **Blocked toggle** -- red highlight when active, shows only blocked projects
+- **Days range chips** -- `<7d`, `7-30d`, `30-90d`, `90+d` (click to toggle, blue when active)
+- **Clear All** -- appears when any filter is active
+- **All filters persist in URL parameters** -- share a filtered view by copying the URL
+
+### View Controls (right side of toolbar)
+
+- **Compact/Detailed toggle** -- switch between card density modes
+- **Select mode** -- enter multi-select for bulk operations
+- **Sort buttons** -- Days (default), Name, $, Cycle
+
+### Collapsible Columns
+
+Click the left chevron on any column header to collapse it to a narrow vertical bar showing just the stage name and count. Click again to expand. Collapsed state is saved in localStorage across sessions.
+
+### Per-Column Filters
+
+Click the "blocked" or "stuck" badges in a column header to filter that column to show only blocked or stuck projects. Click again to clear. These filters work independently of the global smart filters.
+
+### Mobile Layout
+
+On screens below the `md` breakpoint, the Pipeline switches to an accordion layout:
+
+- Each stage is a collapsible section showing stage name, count, blocked count, and value
+- Only one section can be open at a time (tapping a new section closes the previous one)
+- All sections start collapsed
+- Project cards within each section use the same compact/detailed rendering
+
+### Bulk Operations
+
+Enter Select mode to choose multiple projects. Available bulk actions:
+
+- **Reassign PM** -- change the PM for all selected projects
+- **Set/Clear Blocker** -- apply or remove a blocker
+- **Change Disposition** -- transition disposition (Sale/Loyalty/Cancelled)
+- **Advance Stage** -- move all selected projects to the next pipeline stage (only available when all selected projects are in the same stage and not in Complete)
 
 ### Summary
 
-The top bar shows the total number of filtered projects and the combined contract value.
+The nav bar shows the total number of filtered projects and combined contract value.
 
 ### Excluded Projects
 
