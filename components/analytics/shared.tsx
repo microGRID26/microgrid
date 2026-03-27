@@ -61,6 +61,10 @@ export function MetricCard({ label, value, sub, color, onClick }: {
     <div
       className={`bg-gray-800 rounded-xl p-4 border border-gray-700 ${onClick ? 'cursor-pointer hover:border-gray-500 hover:bg-gray-750 transition-colors' : ''}`}
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+      aria-label={onClick ? `${label}: ${value}` : undefined}
     >
       <div className="text-xs text-gray-400 mb-1">{label}</div>
       <div className={`text-2xl font-bold font-mono ${color ?? 'text-white'}`}>{value}</div>
@@ -71,7 +75,7 @@ export function MetricCard({ label, value, sub, color, onClick }: {
 }
 
 export function MiniBar({ label, count, value, max }: { label: string; count: number; value: number; max: number }) {
-  const pct = max > 0 ? Math.round(count / max * 100) : 0
+  const pct = max > 0 ? Math.round((count / max) * 100) : 0
   return (
     <div className="flex items-center gap-3 py-1.5">
       <div className="text-xs text-gray-400 w-24 flex-shrink-0">{label}</div>

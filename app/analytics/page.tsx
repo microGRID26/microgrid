@@ -22,24 +22,6 @@ export default function AnalyticsPage() {
   const [tab, setTab] = useState<Tab>('leadership')
   const [refreshing, setRefreshing] = useState(false)
 
-  // Role gate: Manager+ only
-  if (!userLoading && currentUser && !currentUser.isManager) {
-    return (
-      <>
-        <Nav active="Analytics" />
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-lg text-gray-400">Access Restricted</p>
-            <p className="text-sm text-gray-500 mt-2">Analytics is available to Managers and above.</p>
-            <a href="/command" className="inline-block mt-4 text-xs text-blue-400 hover:text-blue-300 transition-colors">
-              ← Back to Command Center
-            </a>
-          </div>
-        </div>
-      </>
-    )
-  }
-
   const { data: projects, loading: projLoading, refresh: refreshProjects } = useSupabaseQuery('projects', {
     select: 'id, name, stage, contract, install_complete_date, stage_date, sale_date, pm, pm_id, blocker, financier, disposition, pto_date, dealer, consultant, advisor, systemkw',
     filters: { disposition: { not_in: ['In Service', 'Loyalty', 'Cancelled'] } },
@@ -73,6 +55,24 @@ export default function AnalyticsPage() {
     setTimeout(() => setRefreshing(false), 600)
   }, [refreshProjects, refreshFunding])
 
+  // Role gate: Manager+ only (after all hooks to respect Rules of Hooks)
+  if (!userLoading && currentUser && !currentUser.isManager) {
+    return (
+      <>
+        <Nav active="Analytics" />
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-lg text-gray-400">Access Restricted</p>
+            <p className="text-sm text-gray-500 mt-2">Analytics is available to Managers and above.</p>
+            <a href="/command" className="inline-block mt-4 text-xs text-blue-400 hover:text-blue-300 transition-colors">
+              &larr; Back to Command Center
+            </a>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   if (loading) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
       <div className="text-green-400 text-sm animate-pulse">Loading analytics...</div>
@@ -85,7 +85,8 @@ export default function AnalyticsPage() {
         <div className="flex items-center gap-2">
           <button onClick={handleRefresh} disabled={refreshing}
             className="text-xs text-gray-400 hover:text-white border border-gray-700 rounded-md px-2 py-1.5 transition-colors disabled:opacity-50 flex items-center gap-1"
-            title="Refresh data">
+            title="Refresh data"
+            aria-label="Refresh analytics data">
             <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
             <span className="hidden sm:inline">Refresh</span>
           </button>

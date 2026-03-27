@@ -47,12 +47,16 @@ export function NfCodePicker({ value, onSave, codes, slot, disabled = false }: N
           <span
             className={`bg-red-900/50 text-red-300 text-[10px] px-1 py-0.5 rounded ${disabled ? '' : 'cursor-pointer hover:bg-red-800'}`}
             onClick={e => { e.stopPropagation(); if (!disabled) setOpen(!open) }}
+            onKeyDown={e => { if (!disabled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); setOpen(!open) } }}
+            role={disabled ? undefined : 'button'}
+            tabIndex={disabled ? undefined : 0}
             title={codes.find(c => c.code === value)?.description ?? value}
+            aria-label={`NF code ${slot}: ${value}`}
           >{value}</span>
-          {!disabled && <button onClick={e => { e.stopPropagation(); select(null) }} className="text-gray-600 hover:text-red-400 text-[10px]" title="Remove">x</button>}
+          {!disabled && <button onClick={e => { e.stopPropagation(); select(null) }} className="text-gray-600 hover:text-red-400 text-[10px]" title="Remove" aria-label={`Remove NF code ${slot}`}>x</button>}
         </span>
       ) : (
-        !disabled && <button onClick={e => { e.stopPropagation(); setOpen(!open) }} className="text-gray-600 hover:text-gray-300 text-xs" title={`Add NF code ${slot}`}>+</button>
+        !disabled && <button onClick={e => { e.stopPropagation(); setOpen(!open) }} className="text-gray-600 hover:text-gray-300 text-xs" title={`Add NF code ${slot}`} aria-label={`Add NF code ${slot}`}>+</button>
       )}
       {open && (
         <div className="absolute z-50 top-full left-0 mt-1 w-80 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>

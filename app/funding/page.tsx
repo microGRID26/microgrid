@@ -325,6 +325,8 @@ export default function FundingPage() {
     <th
       className={`text-left text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800 cursor-pointer hover:text-white select-none whitespace-nowrap ${className}`}
       onClick={() => toggleSort(col)}
+      aria-sort={sortCol === col ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
+      scope="col"
     >
       {children}{sortIcon(col)}
     </th>
@@ -450,6 +452,7 @@ export default function FundingPage() {
             onClick={() => exportFundingCSV(rows)}
             className="inline-flex items-center gap-1 text-gray-400 hover:text-green-400 transition-colors"
             title="Export filtered results to CSV"
+            aria-label="Export funding data to CSV"
           >
             <Download size={14} />
             <span className="hidden sm:inline">CSV</span>

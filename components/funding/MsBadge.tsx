@@ -11,5 +11,5 @@ export function MsBadge({ ms, data }: { ms: MilestoneKey; data: MsData }) {
     : data.status === 'Rejected' ? 'bg-red-900 text-red-300'
     : data.isEligible ? 'bg-amber-900 text-amber-300'
     : 'bg-gray-800 text-gray-500'
-  return <span className={`font-bold px-1 py-0.5 rounded text-[10px] ${color}`}>{ms.toUpperCase()}</span>
+  return <span className={`font-bold px-1 py-0.5 rounded text-[10px] ${color}`} aria-label={`${ms.toUpperCase()}: ${data.status ?? (data.isEligible ? 'Eligible' : 'Not eligible')}`}>{ms.toUpperCase()}</span>
 }
