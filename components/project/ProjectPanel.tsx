@@ -13,6 +13,7 @@ import { NotesTab } from './NotesTab'
 import { InfoTab } from './InfoTab'
 import { FilesTab } from './FilesTab'
 import { MaterialsTab } from './MaterialsTab'
+import { WarrantyTab } from './WarrantyTab'
 import { ScheduleAssignModal } from './ScheduleAssignModal'
 import { createWorkOrderFromProject } from '@/lib/api/work-orders'
 
@@ -28,7 +29,7 @@ interface ProjectPanelProps {
   project: Project
   onClose: () => void
   onProjectUpdated: () => void
-  initialTab?: 'tasks' | 'notes' | 'info' | 'bom' | 'files' | 'materials'
+  initialTab?: 'tasks' | 'notes' | 'info' | 'bom' | 'files' | 'materials' | 'warranty'
 }
 
 export function ProjectPanel({ project: initialProject, onClose, onProjectUpdated, initialTab }: ProjectPanelProps) {
@@ -36,7 +37,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const { user: currentUser } = useCurrentUser()
   const edgeSync = useEdgeSync()
   const [project, setProject] = useState<Project>(initialProject)
-  const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files' | 'materials'>(initialTab ?? 'tasks')
+  const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files' | 'materials' | 'warranty'>(initialTab ?? 'tasks')
   useEffect(() => { if (initialTab) setTab(initialTab) }, [initialTab])
   const [taskStates, setTaskStates] = useState<Record<string, string>>({})
   const [taskReasons, setTaskReasons] = useState<Record<string, string>>({})
@@ -1088,6 +1089,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
             { id: 'info',  label: 'Info', stuck: false },
             { id: 'bom',   label: 'BOM', stuck: false },
             { id: 'materials', label: 'Materials', stuck: false },
+            { id: 'warranty', label: 'Warranty', stuck: false },
             { id: 'files', label: 'Files', stuck: false },
           ] as const).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
@@ -1160,6 +1162,9 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
 
           {/* MATERIALS */}
           {tab === 'materials' && <MaterialsTab project={project} />}
+
+          {/* WARRANTY */}
+          {tab === 'warranty' && <WarrantyTab project={project} />}
 
           {/* FILES */}
           {tab === 'files' && <FilesTab folderUrl={folderUrl} projectId={pid} currentStage={project.stage} />}

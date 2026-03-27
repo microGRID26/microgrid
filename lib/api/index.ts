@@ -25,3 +25,5 @@ export { loadVendors, searchVendors, loadVendor, addVendor, updateVendor, delete
 export type { Vendor, VendorCategory } from './vendors'
 export { loadWorkOrders, loadWorkOrder, createWorkOrder, updateWorkOrder, updateWorkOrderStatus, addChecklistItem, toggleChecklistItem, deleteChecklistItem, createWorkOrderFromProject, loadProjectWorkOrders, generateWONumber, getValidTransitions, WO_CHECKLIST_TEMPLATES } from './work-orders'
 export type { WorkOrder, WOChecklistItem, WorkOrderFilters } from './work-orders'
+export { loadProjectWarranties, addWarranty, updateWarranty, deleteWarranty, loadWarrantyClaims, addClaim, updateClaim, loadExpiringWarranties, loadAllWarranties, loadOpenClaims, WARRANTY_EQUIPMENT_TYPES, CLAIM_STATUSES } from './warranties'
+export type { EquipmentWarranty, WarrantyClaim, WarrantyFilters, WarrantyEquipmentType, ClaimStatus } from './warranties'

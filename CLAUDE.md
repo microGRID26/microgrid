@@ -872,6 +872,25 @@ Configured in `vercel.json`: `0 13 * * 1-5` (weekdays at 8 AM CT / 1 PM UTC).
 - `ADMIN_API_SECRET` — optional auth for the `/api/email/announce` endpoint
 - `NEXT_PUBLIC_APP_URL` — base URL for CTA links in emails (defaults to `https://nova.gomicrogridenergy.com`)
 
+## Sentry Error Tracking
+
+Sentry is integrated via `@sentry/nextjs` for error monitoring, performance tracing, and session replay on errors.
+
+**Config files:**
+- `sentry.client.config.ts` — browser-side init (tracing at 10%, replay on errors only)
+- `sentry.server.config.ts` — Node.js server-side init
+- `sentry.edge.config.ts` — Edge runtime init
+- `instrumentation.ts` — Next.js instrumentation hook that imports server/edge configs at runtime
+- `next.config.ts` — wrapped with `withSentryConfig` (source map upload disabled until org/project configured)
+- `app/error.tsx` and `app/global-error.tsx` — call `Sentry.captureException(error)` on render
+
+**Graceful degradation:** If `NEXT_PUBLIC_SENTRY_DSN` is not set, Sentry does not initialize and has zero runtime impact. No crashes, no console errors.
+
+**Environment variable:**
+- `NEXT_PUBLIC_SENTRY_DSN` — Sentry DSN (e.g., `https://examplePublicKey@o0.ingest.sentry.io/0`). Set in Vercel to activate. Optional — app works fine without it.
+
+**To enable source map uploads** (recommended for production): set `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` env vars, then set `sourcemaps.disable` to `false` in `next.config.ts`.
+
 ## Co-Author Convention
 
 All commits use `Atlas (Claude Opus 4.6)` as co-author:

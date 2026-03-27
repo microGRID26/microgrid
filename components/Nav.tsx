@@ -31,6 +31,7 @@ const MORE_LINKS = [
   { label: 'Service',       href: '/service'  },
   { label: 'Change Orders', href: '/change-orders' },
   { label: 'Work Orders',   href: '/work-orders' },
+  { label: 'Warranty',      href: '/warranty' },
   { label: 'Vendors',       href: '/vendors'  },
   { label: 'Atlas',          href: '/reports'  },
   { label: 'Documents',     href: '/documents' },
