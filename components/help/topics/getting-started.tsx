@@ -6,7 +6,7 @@ function LoggingIn() {
       <div className="space-y-3">
         <div className="bg-gray-800/50 rounded-lg px-4 py-3 border-l-2 border-green-500">
           <div className="text-xs font-bold text-green-400 mb-1">Step 1</div>
-          <div className="text-xs text-gray-400">Navigate to <a href="https://microgrid-crm.vercel.app" target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 underline">MicroGRID CRM</a> and click <span className="text-white font-medium">Sign in with Google</span>.</div>
+          <div className="text-xs text-gray-400">Navigate to <a href="https://microgrid-crm.vercel.app" target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 underline">MicroGRID</a> and click <span className="text-white font-medium">Sign in with Google</span>.</div>
         </div>
         <div className="bg-gray-800/50 rounded-lg px-4 py-3 border-l-2 border-blue-500">
           <div className="text-xs font-bold text-blue-400 mb-1">Step 2</div>

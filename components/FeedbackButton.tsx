@@ -88,7 +88,7 @@ export function FeedbackButton() {
               {/* Instruction banner */}
               <div className="bg-gray-800/60 border border-gray-700/50 rounded-lg px-3 py-2">
                 <p className="text-xs text-gray-400 leading-relaxed">
-                  Help us improve MicroGRID CRM. Report bugs, request features, or suggest improvements.
+                  Help us improve MicroGRID. Report bugs, request features, or suggest improvements.
                   Your feedback is reviewed by the admin team.
                 </p>
               </div>

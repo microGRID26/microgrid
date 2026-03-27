@@ -6,7 +6,7 @@ import { syncProjectToEdge } from '@/lib/api/edge-sync'
 
 // ── SubHub Webhook: Project Created ─────────────────────────────────────────
 // Receives a POST from SubHub when a contract is signed.
-// Creates the project, initial task states, and Google Drive folder in NOVA.
+// Creates the project, initial task states, and Google Drive folder in MicroGRID.
 //
 // To enable: set SUBHUB_WEBHOOK_SECRET in .env.local
 // To test: POST to /api/webhooks/subhub with the payload from docs/subhub-webhook-sample.json
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
     // Generate project ID
     const projectId = await getNextProjectId()
 
-    // Map SubHub fields to NOVA project
+    // Map SubHub fields to MicroGRID project
     const project: Record<string, any> = {
       id: projectId,
       name: payload.name ?? (`${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim() || 'Unknown'),

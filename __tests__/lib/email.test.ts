@@ -54,7 +54,7 @@ describe('email-templates', () => {
   describe('day 30 is the graduation email', () => {
     it('day 30 subject indicates graduation/completion', () => {
       const t = getTemplate(30, 'Test User')!
-      // Day 30 subject: "You're a NOVA Expert — What's Next?"
+      // Day 30 subject: "You're a MicroGRID Expert — What's Next?"
       expect(t.subject.toLowerCase()).toMatch(/expert|graduat|next|complete/)
     })
 

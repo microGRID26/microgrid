@@ -462,7 +462,7 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
   // Divider
   elements.push({ type: 'line', x1: tbX, y1: tbY + 58, x2: tbX + tbW, y2: tbY + 58, strokeWidth: 0.5 })
   // Drawn by
-  elements.push({ type: 'text', x: tbX + 5, y: tbY + 70, text: 'DRAWN BY: NOVA CRM', fontSize: 5.5, fill: '#333' })
+  elements.push({ type: 'text', x: tbX + 5, y: tbY + 70, text: 'DRAWN BY: MicroGRID', fontSize: 5.5, fill: '#333' })
   elements.push({ type: 'text', x: tbX + 5, y: tbY + 78, text: `DATE: ${new Date().toLocaleDateString('en-US')}`, fontSize: 5.5, fill: '#333' })
   // Engineer stamp area
   elements.push({ type: 'rect', x: tbX + 160, y: tbY + 60, w: tbW - 165, h: 22, dash: true, strokeWidth: 0.5 })

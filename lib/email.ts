@@ -16,7 +16,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   }
   try {
     await resend.emails.send({
-      from: 'MicroGRID CRM <nova@gomicrogridenergy.com>',
+      from: 'MicroGRID <nova@gomicrogridenergy.com>',
       to,
       subject,
       html,

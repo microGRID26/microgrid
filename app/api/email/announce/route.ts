@@ -90,7 +90,7 @@ export async function POST(req: Request) {
 <tr><td align="center">
 <table width="560" cellpadding="0" cellspacing="0" style="background:#111827;border-radius:12px;border:1px solid #1f2937;overflow:hidden;">
   <tr><td style="background:#111827;padding:24px 32px 16px;border-bottom:1px solid #1f2937;">
-    <span style="color:#1D9E75;font-size:20px;font-weight:700;letter-spacing:-0.5px;">NOVA</span>
+    <span style="color:#1D9E75;font-size:20px;font-weight:700;letter-spacing:-0.5px;">MicroGRID</span>
     <span style="color:#6b7280;font-size:12px;margin-left:8px;">What's New</span>
   </td></tr>
   <tr><td style="padding:28px 32px 32px;color:#e5e7eb;font-size:14px;line-height:1.6;">
@@ -98,8 +98,8 @@ export async function POST(req: Request) {
   </td></tr>
   <tr><td style="padding:16px 32px;background:#0d1117;border-top:1px solid #1f2937;">
     <table width="100%"><tr>
-      <td><span style="color:#4b5563;font-size:11px;">MicroGRID Energy &middot; NOVA CRM</span></td>
-      <td align="right"><a href="${BASE_URL}" style="color:#1D9E75;font-size:11px;text-decoration:none;">Open NOVA →</a></td>
+      <td><span style="color:#4b5563;font-size:11px;">MicroGRID Energy &middot; MicroGRID</span></td>
+      <td align="right"><a href="${BASE_URL}" style="color:#1D9E75;font-size:11px;text-decoration:none;">Open MicroGRID →</a></td>
     </tr></table>
   </td></tr>
 </table>

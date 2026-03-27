@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 
-// ── EDGE → NOVA Webhook: Funding Status Updates ────────────────────────────
+// ── EDGE → MicroGRID Webhook: Funding Status Updates ────────────────────────────
 // Receives POST from EDGE Portal when funding status changes.
-// Updates NOVA's project_funding table and logs to audit_log.
+// Updates MicroGRID's project_funding table and logs to audit_log.
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SECRET = process.env.SUPABASE_SECRET_KEY || ''
@@ -275,6 +275,6 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: WEBHOOK_SECRET ? 'configured' : 'no_secret',
-    message: 'EDGE → NOVA webhook endpoint. Accepts funding status updates.',
+    message: 'EDGE → MicroGRID webhook endpoint. Accepts funding status updates.',
   })
 }

@@ -99,7 +99,7 @@ export default function HelpPage() {
 
       {/* Hero */}
       <div className="bg-green-700 px-8 py-8">
-        <h1 className="text-2xl font-bold text-white">NOVA Help Center</h1>
+        <h1 className="text-2xl font-bold text-white">MicroGRID Help Center</h1>
         <p className="text-green-100 text-sm mt-1 mb-4">Search topics or browse by category</p>
         <HelpSearch query={query} onChange={setQuery} />
       </div>

@@ -88,7 +88,7 @@ function checkDailyLimit(userId: string): { allowed: boolean; remaining: number 
 
 // ── System Prompt ────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are a data analyst assistant for MicroGRID Energy's CRM system called NOVA. You help users query project data using natural language.
+const SYSTEM_PROMPT = `You are a data analyst assistant for MicroGRID Energy's project management system called MicroGRID. You help users query project data using natural language.
 
 You must respond with a valid JSON object (no markdown, no code fences, ONLY raw JSON) that describes the Supabase query to execute.
 

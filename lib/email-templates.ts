@@ -18,7 +18,7 @@ function layout(day: number, body: string): string {
   <!-- Header -->
   <tr><td style="background:#111827;padding:24px 32px 16px;border-bottom:1px solid #1f2937;">
     <table width="100%"><tr>
-      <td><span style="color:#1D9E75;font-size:20px;font-weight:700;letter-spacing:-0.5px;">MicroGRID CRM</span></td>
+      <td><span style="color:#1D9E75;font-size:20px;font-weight:700;letter-spacing:-0.5px;">MicroGRID</span></td>
       <td align="right"><span style="color:#6b7280;font-size:11px;">Day ${day} of 30</span></td>
     </tr></table>
   </td></tr>
@@ -29,7 +29,7 @@ function layout(day: number, body: string): string {
   <!-- Footer -->
   <tr><td style="padding:16px 32px;background:#0d1117;border-top:1px solid #1f2937;">
     <table width="100%"><tr>
-      <td><span style="color:#4b5563;font-size:11px;">MicroGRID Energy &middot; MicroGRID CRM</span></td>
+      <td><span style="color:#4b5563;font-size:11px;">MicroGRID Energy &middot; MicroGRID</span></td>
       <td align="right"><span style="color:#4b5563;font-size:11px;">Day ${day} of 30</span></td>
     </tr></table>
   </td></tr>
@@ -71,9 +71,9 @@ const templates: Record<number, TemplateFactory> = {
   // ── WEEK 1: Foundations ─────────────────────────────────────────────────────
 
   1: (name) => ({
-    subject: 'Welcome to MicroGRID CRM — Your Command Center',
+    subject: 'Welcome to MicroGRID — Your Command Center',
     html: layout(1, `
-      <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Welcome to MicroGRID CRM, ${name}!</h2>
+      <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Welcome to MicroGRID, ${name}!</h2>
       <p>Your Command Center is your morning dashboard. It auto-selects your projects and surfaces what needs attention first -- personal stats, action items, and a sortable project table.</p>
       ${visualBox(`
         <div style="color:#9ca3af;font-size:12px;margin-bottom:8px;">YOUR MORNING DASHBOARD</div>
@@ -189,7 +189,7 @@ const templates: Record<number, TemplateFactory> = {
     subject: 'Task Management — Moving Projects Forward',
     html: layout(4, `
       <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Tasks drive your pipeline</h2>
-      <p>Each stage has defined tasks with prerequisites. Mark a task Complete and MicroGRID CRM automatically advances the project, sets dates, and unlocks the next tasks.</p>
+      <p>Each stage has defined tasks with prerequisites. Mark a task Complete and MicroGRID automatically advances the project, sets dates, and unlocks the next tasks.</p>
       ${visualBox(`
         <div style="color:#9ca3af;font-size:12px;margin-bottom:10px;">TASK AUTOMATION</div>
         <div style="margin-bottom:6px;"><span style="color:#1D9E75;">&#10004;</span> <span style="color:#e5e7eb;font-size:13px;">Site Survey Complete</span> <span style="color:#6b7280;font-size:11px;">→ sets survey_date</span></div>
@@ -204,7 +204,7 @@ const templates: Record<number, TemplateFactory> = {
   5: (name) => ({
     subject: 'Adding Notes and @Mentions',
     html: layout(5, `
-      <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Communicate right inside MicroGRID CRM</h2>
+      <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Communicate right inside MicroGRID</h2>
       <p>Add timestamped notes to any project or specific task. Type <span style="color:#1D9E75;font-weight:600;">@</span> to mention a team member — they will get an instant notification.</p>
       ${visualBox(`
         <div style="color:#9ca3af;font-size:12px;margin-bottom:8px;">PROJECT NOTES</div>
@@ -240,7 +240,7 @@ const templates: Record<number, TemplateFactory> = {
   }),
 
   7: (name) => ({
-    subject: 'Week 1 Recap — You\'re a MicroGRID CRM Pro',
+    subject: 'Week 1 Recap — You\'re a MicroGRID Pro',
     html: layout(7, `
       <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Week 1 complete! Nice work, ${name}.</h2>
       <p>Here is what you have learned so far:</p>
@@ -390,7 +390,7 @@ const templates: Record<number, TemplateFactory> = {
     subject: 'Week 2 Recap — Inventory Master',
     html: layout(14, `
       <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Two weeks down, ${name}!</h2>
-      <p>This week you explored the operational backbone of MicroGRID CRM:</p>
+      <p>This week you explored the operational backbone of MicroGRID:</p>
       ${visualBox(`
         <div style="margin-bottom:6px;"><span style="color:#1D9E75;">&#10004;</span> <span style="color:#e5e7eb;font-size:13px;">Funding — M1/M2/M3 milestone tracking</span></div>
         <div style="margin-bottom:6px;"><span style="color:#1D9E75;">&#10004;</span> <span style="color:#e5e7eb;font-size:13px;">Schedule — crew assignments and calendar</span></div>
@@ -522,7 +522,7 @@ const templates: Record<number, TemplateFactory> = {
     subject: 'Week 3 Recap — Power Features Unlocked',
     html: layout(21, `
       <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Three weeks in, ${name}!</h2>
-      <p>You now know the advanced features that make MicroGRID CRM a complete platform:</p>
+      <p>You now know the advanced features that make MicroGRID a complete platform:</p>
       ${visualBox(`
         <div style="margin-bottom:6px;"><span style="color:#1D9E75;">&#10004;</span> <span style="color:#e5e7eb;font-size:13px;">Work Orders — structured field checklists</span></div>
         <div style="margin-bottom:6px;"><span style="color:#1D9E75;">&#10004;</span> <span style="color:#e5e7eb;font-size:13px;">Vendors — supplier network management</span></div>
@@ -610,7 +610,7 @@ const templates: Record<number, TemplateFactory> = {
           <span style="color:#6b7280;font-size:13px;">&#128269;</span>
           <span style="color:#9ca3af;font-size:13px;margin-left:8px;">Search legacy projects...</span>
         </div>
-        <div style="color:#6b7280;font-size:11px;margin-top:8px;">Covers all historical projects from NetSuite (pre-MicroGRID CRM)</div>
+        <div style="color:#6b7280;font-size:11px;margin-top:8px;">Covers all historical projects from NetSuite (pre-MicroGRID)</div>
       `)}
       <p>Legacy data is read-only and separate from active projects. Useful for warranty lookups, customer history, and reference.</p>
       ${ctaButton('Search Legacy Projects →', '/legacy')}
@@ -638,7 +638,7 @@ const templates: Record<number, TemplateFactory> = {
     subject: 'Keyboard Shortcuts and Tips',
     html: layout(27, `
       <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Work faster with these tips</h2>
-      <p>A few shortcuts and patterns that will speed up your daily workflow in MicroGRID CRM:</p>
+      <p>A few shortcuts and patterns that will speed up your daily workflow in MicroGRID:</p>
       ${visualBox(`
         <div style="color:#9ca3af;font-size:12px;margin-bottom:10px;">POWER USER TIPS</div>
         <div style="margin-bottom:8px;">
@@ -658,15 +658,15 @@ const templates: Record<number, TemplateFactory> = {
           <span style="color:#e5e7eb;font-size:13px;margin-left:8px;">Click any section header to collapse/expand on Queue page</span>
         </div>
       `)}
-      <p>The more you use MicroGRID CRM, the more these patterns become second nature. Speed comes from knowing where things live.</p>
-      ${ctaButton('Jump into MicroGRID CRM →', '/command')}
+      <p>The more you use MicroGRID, the more these patterns become second nature. Speed comes from knowing where things live.</p>
+      ${ctaButton('Jump into MicroGRID →', '/command')}
     `),
   }),
 
   28: (name) => ({
     subject: 'The Admin Portal',
     html: layout(28, `
-      <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Configure MicroGRID CRM your way</h2>
+      <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Configure MicroGRID your way</h2>
       <p>The Admin Portal (admin role required) lets you manage reference data, users, crews, SLA thresholds, notification rules, queue sections, and more — all without code changes.</p>
       ${visualBox(`
         <div style="color:#9ca3af;font-size:12px;margin-bottom:10px;">ADMIN MODULES</div>
@@ -709,12 +709,12 @@ const templates: Record<number, TemplateFactory> = {
   }),
 
   30: (name) => ({
-    subject: 'You\'re a MicroGRID CRM Expert — What\'s Next?',
+    subject: 'You\'re a MicroGRID Expert — What\'s Next?',
     html: layout(30, `
       <h2 style="color:#ffffff;font-size:18px;margin:0 0 12px;">Congratulations, ${name}! You made it.</h2>
-      <p>Over 30 days, you have learned every major feature in MicroGRID CRM. You are now equipped to manage your solar portfolio like a pro.</p>
+      <p>Over 30 days, you have learned every major feature in MicroGRID. You are now equipped to manage your solar portfolio like a pro.</p>
       ${visualBox(`
-        <div style="color:#9ca3af;font-size:12px;margin-bottom:10px;">YOUR MicroGRID CRM JOURNEY</div>
+        <div style="color:#9ca3af;font-size:12px;margin-bottom:10px;">YOUR MicroGRID JOURNEY</div>
         <div style="margin-bottom:6px;">
           <span style="color:#1D9E75;font-weight:600;">Week 1:</span>
           <span style="color:#e5e7eb;font-size:13px;"> Command Center, Queue, Projects, Tasks, Notes, Search</span>
@@ -733,7 +733,7 @@ const templates: Record<number, TemplateFactory> = {
         </div>
       `)}
       <p>New features are being added regularly. Keep an eye on the Release Notes in Admin, and use the Feedback button to tell us what you want next. Welcome to the team!</p>
-      ${ctaButton('Go to MicroGRID CRM →', '/command')}
+      ${ctaButton('Go to MicroGRID →', '/command')}
     `),
   }),
 }

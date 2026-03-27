@@ -1,8 +1,8 @@
-// lib/api/edge-sync.ts — NOVA → EDGE webhook integration
+// lib/api/edge-sync.ts — MicroGRID → EDGE webhook integration
 // Sends project data and funding events to the EDGE Portal.
 // Fire-and-forget: never blocks UI on webhook success/failure.
 //
-// #8: Asymmetric signing — NOVA signs outbound payloads with HMAC-SHA256 using
+// #8: Asymmetric signing — MicroGRID signs outbound payloads with HMAC-SHA256 using
 // the shared EDGE_WEBHOOK_SECRET. EDGE must validate the `x-webhook-signature`
 // header on their end by computing the same HMAC over the raw request body and
 // comparing in constant time. If EDGE does not verify signatures, any party with

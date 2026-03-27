@@ -378,7 +378,7 @@ export function EmailManager({ isSuperAdmin, currentUserEmail, currentUserName }
                   onChange={e => setAnnounceSubject(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white
                            focus:outline-none focus:border-blue-500 transition-colors"
-                  placeholder="What's New in NOVA..."
+                  placeholder="What's New in MicroGRID..."
                 />
               </div>
               <div>

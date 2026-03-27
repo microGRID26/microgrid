@@ -2,7 +2,7 @@
  * DXF (AutoCAD Drawing Exchange Format) Generator
  *
  * Produces valid DXF R12-compatible plain text files.
- * Used by the NOVA CRM single-line diagram generator to create
+ * Used by the MicroGRID single-line diagram generator to create
  * professional electrical drawings for PE review.
  */
 

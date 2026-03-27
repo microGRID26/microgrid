@@ -68,16 +68,16 @@ function EdgeIntegration() {
   return (
     <div>
       <p className="text-xs text-gray-400 mb-3">
-        NOVA syncs project data and funding events bidirectionally with the EDGE Portal via webhooks.
+        MicroGRID syncs project data and funding events bidirectionally with the EDGE Portal via webhooks.
         All sync activity is logged and visible in the Admin portal.
       </p>
       <div className="space-y-2 text-xs">
         <div className="bg-gray-800 rounded-md px-3 py-2">
-          <span className="text-blue-400 font-medium">Outbound (NOVA → EDGE):</span>
+          <span className="text-blue-400 font-medium">Outbound (MicroGRID → EDGE):</span>
           <span className="text-gray-400 ml-1">Project creation, stage changes, install complete, PTO received, in service, funding milestones</span>
         </div>
         <div className="bg-gray-800 rounded-md px-3 py-2">
-          <span className="text-purple-400 font-medium">Inbound (EDGE → NOVA):</span>
+          <span className="text-purple-400 font-medium">Inbound (EDGE → MicroGRID):</span>
           <span className="text-gray-400 ml-1">M2/M3 funded, funding rejected, milestone status updates</span>
         </div>
         <div className="bg-gray-800 rounded-md px-3 py-2">
@@ -131,7 +131,7 @@ function VendorManagement() {
 function EmailOnboarding() {
   return (
     <div>
-      <p className="text-xs text-gray-400 mb-3">30-day automated training email series for new NOVA users. Managed in the Admin portal under "Email Onboarding".</p>
+      <p className="text-xs text-gray-400 mb-3">30-day automated training email series for new MicroGRID users. Managed in the Admin portal under "Email Onboarding".</p>
       <div className="space-y-2 text-xs">
         <div className="bg-gray-800 rounded-md px-3 py-2">
           <span className="text-green-400 font-medium">Enroll All Users:</span>
@@ -241,7 +241,7 @@ export const administrationTopics: HelpTopicData[] = [
   {
     id: 'edge-integration',
     title: 'EDGE Integration',
-    description: 'Bidirectional webhook sync between NOVA and EDGE Portal',
+    description: 'Bidirectional webhook sync between MicroGRID and EDGE Portal',
     category: 'Administration',
     keywords: ['edge', 'integration', 'webhook', 'sync', 'funding', 'portal', 'outbound', 'inbound'],
     tryItLink: '/admin',

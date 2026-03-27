@@ -79,7 +79,7 @@ function FieldOperatorView() {
           'Job cards with type badge, status, time, customer name, address, and crew',
           'Quick actions: tap to call, navigate (Google Maps), or view notes',
           'Start Job / Mark Job Complete buttons to progress job status',
-          'Mark Task Complete auto-completes the corresponding NOVA task and populates project dates',
+          'Mark Task Complete auto-completes the corresponding MicroGRID task and populates project dates',
           'Project search by name, ID, or address with instant results',
           'Full project detail modal with customer info, system specs, status, dates, and note submission',
           'Realtime updates via schedule table subscription',
