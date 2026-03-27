@@ -10,20 +10,17 @@ const TEST_PASSWORD = 'E2E-test-pw-2026!'
 export default async function globalSetup() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (!supabaseUrl || !serviceKey) {
-    throw new Error(
-      'Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment. ' +
-      'E2E tests require these to create a test session.'
-    )
+  if (!supabaseUrl || !serviceKey || !anonKey) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or NEXT_PUBLIC_SUPABASE_ANON_KEY')
   }
 
-  // Create admin Supabase client
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  // Ensure test user exists with a password
+  // Ensure test user exists
   const { data: listData } = await supabase.auth.admin.listUsers()
   let testUser = listData?.users?.find((u) => u.email === TEST_EMAIL)
 
@@ -38,31 +35,15 @@ export default async function globalSetup() {
     if (error) throw new Error(`Failed to create test user: ${error.message}`)
     testUser = data.user!
 
-    // Also provision a users table row so useCurrentUser works
     await supabase.from('users').upsert(
-      {
-        id: testUser.id,
-        email: TEST_EMAIL,
-        name: 'E2E Test User',
-        role: 'admin',
-        active: true,
-      },
+      { id: testUser.id, email: TEST_EMAIL, name: 'E2E Test User', role: 'admin', active: true },
       { onConflict: 'id' }
     )
   } else {
-    // Ensure password is set (user might exist from a prior run without password)
-    await supabase.auth.admin.updateUserById(testUser.id, {
-      password: TEST_PASSWORD,
-    })
+    await supabase.auth.admin.updateUserById(testUser.id, { password: TEST_PASSWORD })
   }
 
-  // Sign in as the test user to get access/refresh tokens
-  // We need a regular (anon key) client for signInWithPassword
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!anonKey) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY in environment.')
-  }
-
+  // Sign in to get tokens
   const anonClient = createClient(supabaseUrl, anonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
@@ -74,9 +55,7 @@ export default async function globalSetup() {
     })
 
   if (signInError || !signInData.session) {
-    throw new Error(
-      `Failed to sign in test user: ${signInError?.message ?? 'no session returned'}`
-    )
+    throw new Error(`Sign in failed: ${signInError?.message ?? 'no session'}`)
   }
 
   const session = signInData.session
@@ -84,54 +63,74 @@ export default async function globalSetup() {
   const storageKey = `sb-${ref}-auth-token`
 
   console.log('[E2E Setup] Authenticated as', TEST_EMAIL)
-  console.log('[E2E Setup] Supabase ref:', ref)
 
-  // Launch a browser to set localStorage, then save storage state
+  // Build the session JSON
+  const sessionJson = JSON.stringify(session)
+
+  // @supabase/ssr stores the session as base64url-encoded JSON, chunked across cookies
+  // But the cookie value itself is the base64url of the ENTIRE session object
+  // Let's try URL-encoded JSON directly (some versions use this)
+  const encoded = encodeURIComponent(sessionJson)
+
+  // Chunk the encoded value
+  const CHUNK_SIZE = 3180
+  const chunks: string[] = []
+  for (let i = 0; i < encoded.length; i += CHUNK_SIZE) {
+    chunks.push(encoded.slice(i, i + CHUNK_SIZE))
+  }
+
+  // Launch browser
   const browser = await chromium.launch()
   const context = await browser.newContext()
   const page = await context.newPage()
 
-  // Navigate to the app origin so we can set localStorage on the correct domain
+  // Set cookies BEFORE navigating (so they're sent with the first request)
+  const cookieEntries = chunks.map((chunk, i) => ({
+    name: i === 0 ? storageKey : `${storageKey}.${i}`,
+    value: chunk,
+    url: 'http://localhost:3000/',
+    httpOnly: false,
+    secure: false,
+    sameSite: 'Lax' as const,
+  }))
+
+  await context.addCookies(cookieEntries)
+
+  // Navigate to login to set localStorage too
   await page.goto('http://localhost:3000/login')
   await page.waitForLoadState('domcontentloaded')
 
-  // Set the Supabase auth token in localStorage
+  // Set localStorage with the raw JSON (some Supabase client versions check both)
   await page.evaluate(
-    ({ key, session: s }) => {
-      localStorage.setItem(
-        key,
-        JSON.stringify({
-          access_token: s.access_token,
-          refresh_token: s.refresh_token,
-          expires_in: s.expires_in,
-          expires_at: s.expires_at,
-          token_type: s.token_type,
-          user: s.user,
-        })
-      )
-    },
-    {
-      key: storageKey,
-      session: {
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-        expires_in: session.expires_in,
-        expires_at: session.expires_at,
-        token_type: session.token_type,
-        user: session.user,
-      },
-    }
+    ({ key, val }) => localStorage.setItem(key, val),
+    { key: storageKey, val: sessionJson }
   )
 
-  // Ensure output directory exists
-  const authDir = path.dirname(STORAGE_STATE_PATH)
-  if (!fs.existsSync(authDir)) {
-    fs.mkdirSync(authDir, { recursive: true })
+  // Now navigate to command to verify
+  await page.goto('http://localhost:3000/command')
+  await page.waitForTimeout(3000)
+
+  const finalUrl = page.url()
+  if (finalUrl.includes('/login')) {
+    // Debug: dump what the page sees
+    console.warn('[E2E Setup] WARNING: Auth not recognized. Dumping debug info...')
+    const cookies = await context.cookies()
+    const authCookies = cookies.filter(c => c.name.includes('sb-'))
+    console.log(`[E2E Setup] Auth cookies: ${authCookies.length}`)
+    authCookies.forEach(c => console.log(`  ${c.name} = ${c.value.slice(0, 30)}...`))
+
+    // Check if there's a server-side middleware redirecting
+    const bodyText = await page.textContent('body')
+    console.log(`[E2E Setup] Page body: ${bodyText?.slice(0, 200)}`)
+  } else {
+    console.log('[E2E Setup] Auth verified — loaded /command successfully')
   }
 
-  // Save the storage state (includes localStorage)
+  // Save storage state
+  const authDir = path.dirname(STORAGE_STATE_PATH)
+  if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true })
   await context.storageState({ path: STORAGE_STATE_PATH })
-  console.log('[E2E Setup] Storage state saved to', STORAGE_STATE_PATH)
+  console.log('[E2E Setup] Storage state saved')
 
   await browser.close()
 }
