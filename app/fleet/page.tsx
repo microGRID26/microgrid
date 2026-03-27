@@ -551,8 +551,8 @@ export default function FleetPage() {
 
       {/* ── Add Vehicle Modal ────────────────────────────────────────────────── */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onKeyDown={e => { if (e.key === 'Escape') setShowAddModal(false) }}>
+          <div role="dialog" aria-label="Add Vehicle" className="bg-gray-800 rounded-xl border border-gray-700 shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
               <h2 className="text-sm font-semibold">Add Vehicle</h2>
               <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-white">

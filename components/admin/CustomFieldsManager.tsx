@@ -388,8 +388,8 @@ export function CustomFieldsManager({ isSuperAdmin: _isSuperAdmin }: { isSuperAd
 
       {/* Delete Confirmation */}
       {showDelete && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60">
-          <div className="bg-gray-800 border border-gray-600 rounded-lg p-6 max-w-md shadow-xl">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" onKeyDown={e => { if (e.key === 'Escape') setShowDelete(null) }}>
+          <div role="alertdialog" aria-label={`Delete ${showDelete.label}`} className="bg-gray-800 border border-gray-600 rounded-lg p-6 max-w-md shadow-xl">
             <h3 className="text-white text-sm font-semibold mb-2">Delete &quot;{showDelete.label}&quot;?</h3>
             <p className="text-gray-400 text-xs mb-4">
               This will permanently delete this field definition and all saved values across all projects. This cannot be undone.

@@ -20,7 +20,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  // Close on click outside
+  // Close on click outside or Escape key
   useEffect(() => {
     if (!open) return
     function handleClick(e: MouseEvent) {
@@ -28,8 +28,15 @@ export function NotificationBell() {
         setOpen(false)
       }
     }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [open])
 
   const displayed = notifications.slice(0, 10)
@@ -50,7 +57,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-80 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-[100] overflow-hidden">
+        <div role="menu" aria-label="Notifications" className="absolute right-0 top-full mt-1 w-80 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-[100] overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700">
             <span className="text-sm font-medium text-white">Notifications</span>
