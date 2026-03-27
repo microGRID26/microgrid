@@ -51,7 +51,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
               Something went wrong
             </h1>
             <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '1rem' }}>
-              {error.message || 'A critical error occurred.'}
+              A critical error occurred. Please reload the page or contact support if the problem persists.
             </p>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
               <button

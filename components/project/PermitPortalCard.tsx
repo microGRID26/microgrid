@@ -138,6 +138,7 @@ export function PermitPortalCard({ ahjName, compact = false }: PermitPortalCardP
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowCreds(!showCreds)}
+              aria-label={showCreds ? 'Hide permit credentials' : 'Reveal permit credentials'}
               className="inline-flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-300 transition-colors"
             >
               {showCreds ? <EyeOff size={10} /> : <Eye size={10} />}
@@ -168,6 +169,7 @@ export function PermitPortalCard({ ahjName, compact = false }: PermitPortalCardP
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowInspCreds(!showInspCreds)}
+              aria-label={showInspCreds ? 'Hide inspection credentials' : 'Reveal inspection credentials'}
               className="inline-flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-300 transition-colors"
             >
               {showInspCreds ? <EyeOff size={10} /> : <Eye size={10} />}

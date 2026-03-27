@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Nav } from '@/components/Nav'
 import { useCurrentUser } from '@/lib/useCurrentUser'
+import { cn } from '@/lib/utils'
 import { db } from '@/lib/db'
-import { escapeIlike } from '@/lib/utils'
 import { Search, ExternalLink, Globe, Phone, Eye, EyeOff, ChevronDown, ChevronUp, Shield, Download, Clock } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -242,6 +242,7 @@ export default function PermitsPage() {
           </div>
           <button
             onClick={exportCsv}
+            aria-label="Export AHJ data to CSV"
             className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5"
           >
             <Download size={13} />
@@ -251,31 +252,37 @@ export default function PermitsPage() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div
-            className={`bg-gray-800 rounded-lg p-3 border cursor-pointer transition-colors ${filterHasPortal === 'yes' ? 'border-green-500' : 'border-gray-700/50 hover:border-gray-600'}`}
+          <button
+            className={cn('bg-gray-800 rounded-lg p-3 border cursor-pointer transition-colors text-left w-full',
+              filterHasPortal === 'yes' ? 'border-green-500' : 'border-gray-700/50 hover:border-gray-600')}
             onClick={() => setFilterHasPortal(filterHasPortal === 'yes' ? '' : 'yes')}
+            aria-label="Filter: AHJs with portal"
           >
             <div className="text-xl font-bold text-green-400">{stats.withPortal}</div>
             <div className="text-[10px] text-gray-500 uppercase tracking-wider">With Portal</div>
-          </div>
-          <div
-            className={`bg-gray-800 rounded-lg p-3 border cursor-pointer transition-colors ${filterMethod.toLowerCase().includes('online') ? 'border-blue-500' : 'border-gray-700/50 hover:border-gray-600'}`}
+          </button>
+          <button
+            className={cn('bg-gray-800 rounded-lg p-3 border cursor-pointer transition-colors text-left w-full',
+              filterMethod.toLowerCase().includes('online') ? 'border-blue-500' : 'border-gray-700/50 hover:border-gray-600')}
             onClick={() => setFilterMethod(filterMethod ? '' : 'Online')}
+            aria-label="Filter: online submission AHJs"
           >
             <div className="text-xl font-bold text-blue-400">{stats.online}</div>
             <div className="text-[10px] text-gray-500 uppercase tracking-wider">Online Submission</div>
-          </div>
+          </button>
           <div className="bg-gray-800 rounded-lg p-3 border border-gray-700/50">
             <div className="text-xl font-bold text-amber-400">{stats.phoneOnly}</div>
             <div className="text-[10px] text-gray-500 uppercase tracking-wider">Phone Only</div>
           </div>
-          <div
-            className={`bg-gray-800 rounded-lg p-3 border cursor-pointer transition-colors ${filterHasPortal === 'no' ? 'border-red-500' : 'border-gray-700/50 hover:border-gray-600'}`}
+          <button
+            className={cn('bg-gray-800 rounded-lg p-3 border cursor-pointer transition-colors text-left w-full',
+              filterHasPortal === 'no' ? 'border-red-500' : 'border-gray-700/50 hover:border-gray-600')}
             onClick={() => setFilterHasPortal(filterHasPortal === 'no' ? '' : 'no')}
+            aria-label="Filter: AHJs without portal info"
           >
             <div className="text-xl font-bold text-gray-500">{stats.noInfo}</div>
             <div className="text-[10px] text-gray-500 uppercase tracking-wider">No Portal Info</div>
-          </div>
+          </button>
         </div>
 
         {/* Filters */}
@@ -286,6 +293,7 @@ export default function PermitsPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search AHJs by name, county, or city..."
+              aria-label="Search AHJs"
               className="w-full bg-gray-800 border border-gray-700 rounded-md text-xs text-gray-200 pl-8 pr-3 py-2 focus:outline-none focus:border-green-500"
             />
           </div>
@@ -293,6 +301,7 @@ export default function PermitsPage() {
           <select
             value={filterHasPortal}
             onChange={e => setFilterHasPortal(e.target.value as '' | 'yes' | 'no')}
+            aria-label="Filter by portal availability"
             className="bg-gray-800 border border-gray-700 rounded-md text-xs text-gray-300 px-2 py-2 focus:outline-none focus:border-green-500"
           >
             <option value="">All (Portal)</option>
@@ -304,6 +313,7 @@ export default function PermitsPage() {
             <select
               value={filterMethod}
               onChange={e => setFilterMethod(e.target.value)}
+              aria-label="Filter by submission method"
               className="bg-gray-800 border border-gray-700 rounded-md text-xs text-gray-300 px-2 py-2 focus:outline-none focus:border-green-500"
             >
               <option value="">All Methods</option>
@@ -315,6 +325,7 @@ export default function PermitsPage() {
             <select
               value={filterCounty}
               onChange={e => setFilterCounty(e.target.value)}
+              aria-label="Filter by county"
               className="bg-gray-800 border border-gray-700 rounded-md text-xs text-gray-300 px-2 py-2 focus:outline-none focus:border-green-500 max-w-[180px]"
             >
               <option value="">All Counties</option>
@@ -509,6 +520,7 @@ export default function PermitsPage() {
                                       <span className="text-[10px] text-gray-500 w-16">Login:</span>
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setShowCreds(p => ({ ...p, [a.id]: !p[a.id] })) }}
+                                        aria-label={showCreds[a.id] ? 'Hide permit credentials' : 'Reveal permit credentials'}
                                         className="inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-200 transition-colors"
                                       >
                                         {showCreds[a.id] ? <EyeOff size={10} /> : <Eye size={10} />}
@@ -556,6 +568,7 @@ export default function PermitsPage() {
                                           <span className="text-[10px] text-gray-500 w-16">Login:</span>
                                           <button
                                             onClick={(e) => { e.stopPropagation(); setShowInspCreds(p => ({ ...p, [a.id]: !p[a.id] })) }}
+                                            aria-label={showInspCreds[a.id] ? 'Hide inspection credentials' : 'Reveal inspection credentials'}
                                             className="inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-200 transition-colors"
                                           >
                                             {showInspCreds[a.id] ? <EyeOff size={10} /> : <Eye size={10} />}
