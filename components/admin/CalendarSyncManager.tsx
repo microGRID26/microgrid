@@ -127,7 +127,7 @@ export function CalendarSyncManager() {
   }
 
   const errorSyncs = recentSyncs.filter(s => s.sync_status === 'error')
-  const totalSynced = recentSyncs.filter(s => s.sync_status === 'synced').length
+  const totalSynced = Object.values(syncCounts).reduce((sum, n) => sum + n, 0)
 
   return (
     <div className="h-full overflow-y-auto space-y-6">

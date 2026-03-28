@@ -130,6 +130,7 @@ interface NavProps {
 
 export function Nav({ active, right, onNewProject }: NavProps) {
   const { user: currentUser, loading } = useCurrentUser()
+  const { flags } = useFeatureFlags()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const isSales = !loading && !!currentUser?.isSales
   const navLinks = isSales ? SALES_LINKS : PRIMARY_LINKS
@@ -250,7 +251,10 @@ export function Nav({ active, right, onNewProject }: NavProps) {
                 </button>
               )}
 
-              {(isSales ? [...SALES_LINKS, { label: 'Help', href: '/help' }] : ALL_LINKS).map(v => (
+              {(isSales ? [...SALES_LINKS, { label: 'Help', href: '/help' }] : ALL_LINKS.filter(link => {
+                const fk = (link as { flagKey?: string }).flagKey
+                return !fk || isFeatureEnabled(flags, fk, currentUser?.id, currentUser?.role)
+              })).map(v => (
                 <a key={v.label} href={v.href}
                   onClick={() => setDrawerOpen(false)}
                   className={`block py-3 px-4 text-base font-medium transition-colors ${

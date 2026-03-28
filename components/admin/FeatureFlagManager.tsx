@@ -14,7 +14,6 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 export function FeatureFlagManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
-  const supabase = db()
   const [flags, setFlags] = useState<FeatureFlag[]>([])
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<FeatureFlag | null>(null)
@@ -26,6 +25,7 @@ export function FeatureFlagManager({ isSuperAdmin }: { isSuperAdmin: boolean }) 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
   const load = useCallback(async () => {
+    const supabase = db()
     let q = supabase.from('feature_flags').select('*').order('label')
     if (search) q = q.ilike('label', `%${escapeIlike(search)}%`)
     const { data } = await q
@@ -40,7 +40,7 @@ export function FeatureFlagManager({ isSuperAdmin }: { isSuperAdmin: boolean }) 
   }
 
   const toggleEnabled = async (f: FeatureFlag) => {
-    const { error } = await supabase.from('feature_flags')
+    const { error } = await db().from('feature_flags')
       .update({ enabled: !f.enabled, updated_at: new Date().toISOString() })
       .eq('id', f.id)
     if (error) { showToast('Toggle failed'); return }
@@ -52,7 +52,7 @@ export function FeatureFlagManager({ isSuperAdmin }: { isSuperAdmin: boolean }) 
     if (!editing) return
     setSaving(true)
     const roles = draft.draftRoles?.length ? draft.draftRoles : null
-    const { error } = await supabase.from('feature_flags').update({
+    const { error } = await db().from('feature_flags').update({
       label: draft.label,
       description: draft.description ?? null,
       rollout_percentage: Math.max(0, Math.min(100, Number(draft.rollout_percentage) || 100)),
@@ -67,7 +67,7 @@ export function FeatureFlagManager({ isSuperAdmin }: { isSuperAdmin: boolean }) 
     if (!draft.flag_key?.trim() || !draft.label?.trim()) { showToast('Key and label are required'); return }
     setSaving(true)
     const roles = draft.draftRoles?.length ? draft.draftRoles : null
-    const { error } = await supabase.from('feature_flags').insert({
+    const { error } = await db().from('feature_flags').insert({
       flag_key: draft.flag_key!.trim().toLowerCase().replace(/\s+/g, '_'),
       label: draft.label,
       description: draft.description ?? null,
@@ -119,6 +119,9 @@ export function FeatureFlagManager({ isSuperAdmin }: { isSuperAdmin: boolean }) 
                 <td className="px-3 py-2">
                   <button
                     onClick={() => toggleEnabled(f)}
+                    role="switch"
+                    aria-checked={f.enabled}
+                    aria-label={`${f.enabled ? 'Disable' : 'Enable'} ${f.label}`}
                     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                       f.enabled ? 'bg-green-600' : 'bg-gray-700'
                     }`}
@@ -205,7 +208,7 @@ export function FeatureFlagManager({ isSuperAdmin }: { isSuperAdmin: boolean }) 
             {editing && isSuperAdmin ? (
               <button onClick={async () => {
                 if (!confirm(`DELETE flag "${editing.flag_key}"?`)) return
-                await supabase.from('feature_flags').delete().eq('id', editing.id)
+                await db().from('feature_flags').delete().eq('id', editing.id)
                 setEditing(null); clearFlagsCache(); showToast('Flag deleted'); load()
               }} className="px-3 py-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-md">Delete</button>
             ) : <div />}
