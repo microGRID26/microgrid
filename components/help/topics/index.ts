@@ -27,6 +27,9 @@ export const CATEGORIES = [
 ]
 
 export const WHATS_NEW = [
+  { date: 'Mar 2026', title: 'Permit Portal', topicId: 'permit-portal' },
+  { date: 'Mar 2026', title: 'Feature Flags', topicId: 'feature-flags' },
+  { date: 'Mar 2026', title: 'System Page', topicId: 'system-page' },
   { date: 'Mar 2026', title: 'Google Calendar Sync', topicId: 'calendar-sync' },
   { date: 'Mar 2026', title: 'Fleet Management', topicId: 'fleet-management' },
   { date: 'Mar 2026', title: 'Custom Fields', topicId: 'custom-fields' },

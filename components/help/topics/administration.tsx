@@ -3,7 +3,7 @@ import type { HelpTopicData } from './index'
 function AdminPortal() {
   return (
     <div>
-      <p className="text-xs text-gray-400 mb-3">Click the gear icon in the nav bar. Admin and Super Admin roles only. Sections include:</p>
+      <p className="text-xs text-gray-400 mb-3">Click the gear icon in the nav bar. Admin and Super Admin roles only. System-level settings (Feature Flags, EDGE, Calendar Sync, etc.) are on the separate System page (/system, super admin only).</p>
       <div className="grid grid-cols-2 gap-2 text-xs">
         {[
           'Users -- add/edit/delete, roles, active status',
@@ -15,10 +15,10 @@ function AdminPortal() {
           'SLA -- Editable thresholds per stage',
           'Equipment -- Catalog management',
           'Vendors -- Supplier/contractor directory',
-          'Feedback -- User-submitted bugs/features',
-          'Audit Trail -- Session + change tracking',
-          'Email Onboarding -- 30-day training series',
+          'Queue Config -- Task-based queue sections',
+          'Document Requirements -- Per-stage docs',
           'Custom Fields -- Define dynamic project fields',
+          'Email Onboarding -- 30-day training series',
         ].map((item, i) => (
           <div key={i} className="bg-gray-800 rounded-md px-3 py-2 text-gray-400">{item}</div>
         ))}
@@ -243,6 +243,84 @@ function CustomFieldsHelp() {
   )
 }
 
+function PermitPortal() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-3">Centralized permit portal showing all 1,633 AHJ records with portal URLs, phone numbers, and masked credentials. Filters by submission method, county, and whether the AHJ has a portal.</p>
+      <div className="space-y-2 text-xs">
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-green-400 font-medium">Portal URLs:</span>
+          <span className="text-gray-400 ml-1">Click to open the AHJ permit submission portal in a new tab</span>
+        </div>
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-blue-400 font-medium">Masked Credentials:</span>
+          <span className="text-gray-400 ml-1">Login usernames and passwords are masked by default — click the eye icon to reveal</span>
+        </div>
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-purple-400 font-medium">PermitPortalCard:</span>
+          <span className="text-gray-400 ml-1">Appears inline on permit tasks in the ProjectPanel Tasks tab with AHJ portal info and &quot;Open Portal&quot; button</span>
+        </div>
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-amber-400 font-medium">CSV Export:</span>
+          <span className="text-gray-400 ml-1">Download filtered AHJ data as a CSV file</span>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 mt-3">Data comes from the ahjs table. Includes inspection portal info, electric codes, and max permit durations.</p>
+    </div>
+  )
+}
+
+function FeatureFlags() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-3">Admin-toggleable feature flags for gradual rollout and feature gating. Found in the System page (super admin only).</p>
+      <div className="space-y-2 text-xs">
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-green-400 font-medium">Toggle On/Off:</span>
+          <span className="text-gray-400 ml-1">Enable or disable features instantly without code deploys</span>
+        </div>
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-blue-400 font-medium">Rollout Percentage:</span>
+          <span className="text-gray-400 ml-1">Gradual rollout from 0-100% using deterministic user bucketing</span>
+        </div>
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-purple-400 font-medium">Role Restrictions:</span>
+          <span className="text-gray-400 ml-1">Limit a flag to specific roles (e.g., Manager+, Admin only)</span>
+        </div>
+        <div className="bg-gray-800 rounded-md px-3 py-2">
+          <span className="text-amber-400 font-medium">Nav Gating:</span>
+          <span className="text-gray-400 ml-1">Nav links can be conditionally shown based on flag state (e.g., Fleet page)</span>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 mt-3">7 default flags seeded: Atlas Reports, Calendar Sync, Warranty Tracking, Fleet Management, Custom Fields, Permit Portal, Barcode Scanning. Use the useFeatureFlag(key) hook in code.</p>
+    </div>
+  )
+}
+
+function SystemPage() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-3">Super admin only page at /system. Contains system-level configuration modules separated from the Admin portal to reduce clutter.</p>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        {[
+          'Feature Flags -- toggle features on/off',
+          'Calendar Sync -- Google Calendar integration',
+          'EDGE Integration -- MicroGRID to EDGE sync',
+          'Audit Trail -- sessions and changes',
+          'Notification Rules -- task triggers',
+          'Reasons Manager -- task reasons config',
+          'Feedback -- user feedback review',
+          'CRM Info -- live system stats',
+          'Release Notes -- version history',
+        ].map((item, i) => (
+          <div key={i} className="bg-gray-800 rounded-md px-3 py-2 text-gray-400">{item}</div>
+        ))}
+      </div>
+      <p className="text-xs text-gray-500 mt-3">The Admin page retains: AHJ, Utilities, HOA, Financiers, Equipment, Vendors, Users, Crews, SLA, Queue Config, Document Requirements, Custom Fields, Email Onboarding.</p>
+    </div>
+  )
+}
+
 export const administrationTopics: HelpTopicData[] = [
   {
     id: 'admin-portal',
@@ -330,5 +408,35 @@ export const administrationTopics: HelpTopicData[] = [
     tryItLink: '/admin',
     relatedTopics: ['admin-portal', 'project-info-tab'],
     content: CustomFieldsHelp,
+  },
+  {
+    id: 'permit-portal',
+    title: 'Permit Portal',
+    description: 'AHJ portal URLs, credentials, and permit info for 1,633 jurisdictions',
+    category: 'Administration',
+    keywords: ['permit', 'portal', 'ahj', 'credentials', 'login', 'jurisdiction', 'submit', 'inspection', 'csv'],
+    tryItLink: '/permits',
+    relatedTopics: ['admin-portal', 'task-management'],
+    content: PermitPortal,
+  },
+  {
+    id: 'feature-flags',
+    title: 'Feature Flags',
+    description: 'Toggle features on/off without code deploys, gradual rollout support',
+    category: 'Administration',
+    keywords: ['feature', 'flag', 'toggle', 'rollout', 'percentage', 'role', 'gate', 'enable', 'disable'],
+    tryItLink: '/system',
+    relatedTopics: ['system-page', 'admin-portal'],
+    content: FeatureFlags,
+  },
+  {
+    id: 'system-page',
+    title: 'System Page',
+    description: 'Super admin system settings — flags, integrations, audit, notifications',
+    category: 'Administration',
+    keywords: ['system', 'super admin', 'settings', 'configuration', 'flags', 'calendar', 'edge', 'audit', 'notifications'],
+    tryItLink: '/system',
+    relatedTopics: ['admin-portal', 'feature-flags', 'edge-integration'],
+    content: SystemPage,
   },
 ]

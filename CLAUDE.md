@@ -47,7 +47,7 @@ The Supabase client is globally mocked in `vitest.setup.ts`. Tests focus on busi
 
 All pages are in `app/*/page.tsx` as client components (`"use client"`). Each page fetches its own data via the Supabase browser client on mount and subscribes to realtime changes. Root `/` redirects to `/command`.
 
-Key pages: `/command` (morning dashboard — personal stats, action items, pipeline snapshot, sortable project table), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual Kanban pipeline — smart column headers with stats/blocked/stuck counts, task-enriched cards with next task + stuck badges + funding badges, compact/detailed toggle, collapsible columns, per-column blocked/stuck filters, URL-persistent smart filters, mobile accordion layout), `/analytics` (6 tabs: Leadership, Pipeline Health, By PM, Funding, Cycle Times, Dealers), `/audit` (task compliance), `/audit-trail` (admin-only change log with sortable columns, filters, pagination at 50/page, and ProjectPanel integration), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns, powered by `funding_dashboard` Postgres view), `/inventory` (3-tab inventory hub: Project Materials, Purchase Orders, Warehouse — with filters, sorting, pagination, and PO status advancement), `/change-orders` (HCO/change order queue with 6-step workflow), `/documents` (file browser hub + `/documents/missing` missing docs report), `/reports` (AI-powered natural language query interface), `/legacy` (read-only lookup of 14,705 In Service legacy TriSMART projects), `/batch` (SLD batch design — upload or manually enter multiple project redesigns, configure target equipment, process string calculations and panel-fit estimates in bulk, download results), `/crew` (mobile-optimized daily crew view — shows scheduled jobs for the current week grouped by date, with job type badges, status dots, customer/address/equipment details, Google Maps links, and call/email buttons; uses `useSupabaseQuery` for projects/crews and realtime subscriptions), `/dashboard` (PM performance dashboard — shows the logged-in PM's portfolio metrics: active/blocked/critical counts, portfolio value, upcoming schedule, SLA health, and task breakdown; uses `useSupabaseQuery` for projects/tasks/crews), `/planset` (Duracell SLD planset generator — hardcoded reference design for PROJ-29857 with full equipment specs, string configurations, and SVG-rendered single-line diagram sheets), `/redesign` (system redesign calculator — enter existing and target system specs, calculates string sizing, voltage/current compatibility, panel-fit estimates per roof face, and generates downloadable DXF single-line diagrams), `/mobile/leadership` (mobile-first leadership dashboard — role-gated to Manager+, shows active projects, portfolio value, installs/M2/M3 funded this month, blocked count, pipeline stage distribution bar chart, PM performance table, avg sale-to-install and aging stats; auto-refreshes every 5 minutes), `/mobile/field` (mobile-first field operator view — shows today's scheduled jobs sorted by status, with job type badges, status progression buttons (Start Job / Mark Complete), one-tap call/navigate/notes actions, project search, project detail modal with customer info and note submission, auto-completes corresponding MicroGRID tasks when jobs are marked complete; realtime subscription on schedule table), `/mobile/scan` (mobile barcode scanner — camera-based barcode scanning via BarcodeDetector API with manual fallback, looks up warehouse stock items, supports checkout-to-project and check-in flows), `/vendors` (vendor/supplier directory — searchable table with category and equipment type filters, expandable inline edit, active/inactive toggle, summary cards by category; delete is super-admin-only), `/work-orders` (field work tracking — create, assign, and complete work orders with type-specific checklists, status flow draft/assigned/in_progress/complete/cancelled, crew assignment, customer signature collection, time tracking, and realtime updates; expandable row detail with checklist progress bar, notes, and ProjectPanel integration), `/warranty` (equipment warranty tracking — cross-project warranty list with status badges, filters, sorting, CSV export, claim management, and auto-populate from project equipment), `/fleet` (fleet/vehicle management -- track company vehicles with status lifecycle, crew/driver assignment, maintenance history, insurance/registration expiry alerts, odometer tracking, CSV export, sortable/filterable/paginated table with expandable detail rows), `/admin`, `/help` (topic-based knowledge base — 64 topics across 12 categories with search, sidebar navigation, accordion layout, "What's New" section, deep linking via URL hash, and related topic cross-references).
+Key pages: `/command` (morning dashboard — personal stats, action items, pipeline snapshot, sortable project table), `/queue` (PM-filtered task-based worklist with collapsible sections), `/pipeline` (visual Kanban pipeline — smart column headers with stats/blocked/stuck counts, task-enriched cards with next task + stuck badges + funding badges, compact/detailed toggle, collapsible columns, per-column blocked/stuck filters, URL-persistent smart filters, mobile accordion layout), `/analytics` (6 tabs: Leadership, Pipeline Health, By PM, Funding, Cycle Times, Dealers), `/audit` (task compliance), `/audit-trail` (admin-only change log with sortable columns, filters, pagination at 50/page, and ProjectPanel integration), `/schedule` (crew calendar), `/service`, `/funding` (M1/M2/M3 milestones with sortable columns, powered by `funding_dashboard` Postgres view), `/inventory` (3-tab inventory hub: Project Materials, Purchase Orders, Warehouse — with filters, sorting, pagination, and PO status advancement), `/change-orders` (HCO/change order queue with 6-step workflow), `/documents` (file browser hub + `/documents/missing` missing docs report), `/reports` (AI-powered natural language query interface), `/legacy` (read-only lookup of 14,705 In Service legacy TriSMART projects), `/batch` (SLD batch design — upload or manually enter multiple project redesigns, configure target equipment, process string calculations and panel-fit estimates in bulk, download results), `/crew` (mobile-optimized daily crew view — shows scheduled jobs for the current week grouped by date, with job type badges, status dots, customer/address/equipment details, Google Maps links, and call/email buttons; uses `useSupabaseQuery` for projects/crews and realtime subscriptions), `/dashboard` (PM performance dashboard — shows the logged-in PM's portfolio metrics: active/blocked/critical counts, portfolio value, upcoming schedule, SLA health, and task breakdown; uses `useSupabaseQuery` for projects/tasks/crews), `/planset` (Duracell SLD planset generator — hardcoded reference design for PROJ-29857 with full equipment specs, string configurations, and SVG-rendered single-line diagram sheets), `/redesign` (system redesign calculator — enter existing and target system specs, calculates string sizing, voltage/current compatibility, panel-fit estimates per roof face, and generates downloadable DXF single-line diagrams), `/mobile/leadership` (mobile-first leadership dashboard — role-gated to Manager+, shows active projects, portfolio value, installs/M2/M3 funded this month, blocked count, pipeline stage distribution bar chart, PM performance table, avg sale-to-install and aging stats; auto-refreshes every 5 minutes), `/mobile/field` (mobile-first field operator view — shows today's scheduled jobs sorted by status, with job type badges, status progression buttons (Start Job / Mark Complete), one-tap call/navigate/notes actions, project search, project detail modal with customer info and note submission, auto-completes corresponding MicroGRID tasks when jobs are marked complete; realtime subscription on schedule table), `/mobile/scan` (mobile barcode scanner — camera-based barcode scanning via BarcodeDetector API with manual fallback, looks up warehouse stock items, supports checkout-to-project and check-in flows), `/vendors` (vendor/supplier directory — searchable table with category and equipment type filters, expandable inline edit, active/inactive toggle, summary cards by category; delete is super-admin-only), `/work-orders` (field work tracking — create, assign, and complete work orders with type-specific checklists, status flow draft/assigned/in_progress/complete/cancelled, crew assignment, customer signature collection, time tracking, and realtime updates; expandable row detail with checklist progress bar, notes, and ProjectPanel integration), `/warranty` (equipment warranty tracking — cross-project warranty list with status badges, filters, sorting, CSV export, claim management, and auto-populate from project equipment), `/fleet` (fleet/vehicle management -- track company vehicles with status lifecycle, crew/driver assignment, maintenance history, insurance/registration expiry alerts, odometer tracking, CSV export, sortable/filterable/paginated table with expandable detail rows), `/permits` (permit portal — 1,633 AHJ records with portal URLs, masked credentials, filters by submission method/county/has-portal, CSV export, sortable columns, expandable detail rows; PermitPortalCard component appears inline on permit tasks in ProjectPanel), `/system` (super-admin-only system settings — Feature Flags, Calendar Sync, EDGE Integration, Audit Trail, Notification Rules, Reasons, Feedback, CRM Info, Release Notes; separated from Admin page), `/admin`, `/help` (topic-based knowledge base — 67 topics across 12 categories with search, sidebar navigation, accordion layout, "What's New" section, deep linking via URL hash, and related topic cross-references).
 
 ### API Layer
 
@@ -88,6 +88,7 @@ Pages should import from `@/lib/api` instead of querying Supabase directly. The 
 - `lib/tasks.ts` — single source of truth for task definitions, statuses, reasons, and cascade helper. Exports: `TASKS`, `TASK_STATUSES`, `STATUS_STYLE`, `PENDING_REASONS`, `REVISION_REASONS`, `ALL_TASKS_MAP`, `ALL_TASKS_FLAT`, `TASK_TO_STAGE`, `TASK_DATE_FIELDS` (11 task→project date mappings), `getSameStageDownstream()` (BFS for revision cascade), `AHJ_REQUIRED_TASKS` (AHJ-conditional task requirements), `isTaskRequired()` (checks if a task is required given an AHJ). Includes cycle detection at module load.
 - `lib/classify.ts` — extracted Command Center classification logic. Exports: `classify()` (projects → sections, used for compatibility), `cycleDays()`, `getSLA()`, `getStuckTasks()`. Types: `Section`, `Classified`, `TaskEntry`, `StuckTask`. The Command Center was redesigned from a 10-section urgency view to a morning dashboard with action items and sortable project table, but `classify()` is still available for other consumers.
 - `lib/hooks/` — reusable hook infrastructure (see [Hook Infrastructure](#hook-infrastructure) section below)
+- `lib/useFeatureFlags.ts` — `useFeatureFlag(key)`, `useFeatureFlags()`, `isFeatureEnabled()`, `clearFlagsCache()` (see [Feature Flags](#feature-flags) section below)
 - `lib/export-utils.ts` — CSV export with field picker (50+ fields, grouped)
 - `types/database.ts` — full TypeScript types for all Supabase tables
 - `components/Nav.tsx` — two-tier navigation bar. 6 primary links always visible (Command, Queue, Pipeline, Schedule, Funding, Analytics) + "More" dropdown for secondary pages (Service, Change Orders, Documents, Atlas, Redesign, Legacy). Audit Trail link in More dropdown for admins. Right-side slot for page controls.
@@ -230,6 +231,7 @@ Standalone page at `/audit-trail` (admin-only, guarded by `useCurrentUser().isAd
 - **calendar_settings** — per-crew Google Calendar config. Fields: `id` (UUID PK), `crew_id` (TEXT UNIQUE NOT NULL), `calendar_id` (TEXT — Google Calendar ID), `enabled` (BOOLEAN), `auto_sync` (BOOLEAN), `last_full_sync` (TIMESTAMPTZ), `created_at`. RLS: read all, write admin only.
 - **calendar_sync** — per-schedule-entry sync tracking. Fields: `id` (UUID PK), `schedule_id` (UUID NOT NULL), `calendar_id` (TEXT NOT NULL), `event_id` (TEXT NOT NULL), `crew_id` (TEXT), `last_synced_at` (TIMESTAMPTZ), `sync_status` (synced/pending/error), `error_message` (TEXT), `created_at`. UNIQUE on (schedule_id, calendar_id). Indexes on schedule_id, crew_id, sync_status. RLS: read/write all authenticated.
 - **ahjs**, **utilities** — reference data for permit authorities and utility companies
+- **feature_flags** — admin-toggleable feature flags. Fields: `id` (UUID PK), `flag_key` (TEXT UNIQUE), `label`, `description`, `enabled` (BOOLEAN), `rollout_percentage` (INTEGER 0-100), `allowed_roles` (TEXT[]), `allowed_org_ids` (TEXT[]), `created_at`, `updated_at`. 7 default flags seeded. Migration: `supabase/038-feature-flags.sql`.
 - **project_adders** — project adders/extras (e.g., EV charger, critter guard, ground mount). Fields: `id`, `project_id`, `name`, `price`, `quantity`, `created_at`. RLS open to all authenticated users. Migration: `supabase/013-adders.sql`. Contains 4,185 records imported from NetSuite.
 - **equipment_warranties** — per-project equipment warranty records. Fields: `id` (UUID PK), `project_id` (TEXT), `equipment_type` (panel/inverter/battery/optimizer), `manufacturer`, `model`, `serial_number`, `quantity`, `install_date`, `warranty_start_date`, `warranty_end_date`, `warranty_years`, `notes`, `created_at`, `updated_at`. Indexes on project_id, serial_number, warranty_end_date. RLS: SELECT/INSERT/UPDATE/DELETE for authenticated users. Migration: `supabase/034-warranty-tracking.sql`.
 - **warranty_claims** — per-warranty claim records. Fields: `id` (UUID PK), `warranty_id` (UUID FK -> equipment_warranties ON DELETE CASCADE), `project_id` (TEXT), `claim_number`, `status` (draft/submitted/approved/denied/completed), `issue_description`, `submitted_date`, `resolved_date`, `resolution_notes`, `replacement_serial`, `created_by`, `created_at`, `updated_at`. Indexes on warranty_id, project_id, status. RLS: SELECT/INSERT/UPDATE/DELETE for authenticated users. Migration: `supabase/034-warranty-tracking.sql`.
@@ -677,6 +679,7 @@ All in `supabase/`:
 - `035-fleet-management.sql` — Fleet vehicle management: `vehicles` table (vehicle details, status lifecycle, crew/driver assignment, insurance/registration expiry, odometer tracking) and `vehicle_maintenance` table (per-vehicle maintenance records with 6 service types, cost, vendor, next due date/odometer). Indexes on status, assigned_crew, vehicle_id, date, type. RLS: read/write for authenticated, vehicle delete for super_admin, maintenance delete for admin.
 - `036-custom-fields.sql` — Custom field system: `custom_field_definitions` table (admin-managed field definitions with 6 field types, options, defaults, sections, sort order) and `custom_field_values` table (per-project field values with upsert on project_id+field_id). Indexes on active+sort_order, project_id, field_id. RLS: definitions read-all/write-admin, values read-write-all.
 - `037-calendar-sync.sql` — Google Calendar sync: `calendar_settings` table (per-crew calendar config with enabled/auto_sync toggles) and `calendar_sync` table (per-schedule-entry sync tracking with event_id, status, error). Indexes on schedule_id, crew_id, sync_status. RLS: settings read-all/write-admin, sync read-write-all.
+- `038-feature-flags.sql` — Feature flags system: `feature_flags` table (admin-toggleable flags with rollout percentage, role restrictions, enabled state). Indexes on flag_key, enabled. RLS: SELECT for all authenticated, INSERT/UPDATE/DELETE for admin. 7 default flags seeded (atlas_reports, calendar_sync, warranty_tracking, fleet_management, custom_fields, permit_portal, barcode_scanning).
 - `seed-document-requirements.sql` — Seeds 23 document requirements across all 7 pipeline stages
 
 ### Legacy Projects
@@ -735,12 +738,14 @@ All in `scripts/`:
 
 All three planned consolidation targets from Session 15 have been completed in Session 16:
 
-**Admin page** — `app/admin/page.tsx` split into 21 components in `components/admin/`:
+**Admin page** — `app/admin/page.tsx` split into 23 components in `components/admin/` (shared across Admin and System pages):
 - `shared.tsx` — shared styles, types, and utility components (SectionShell, ModalShell, etc.)
 - `UsersManager.tsx`, `CrewsManager.tsx`, `AHJManager.tsx`, `UtilityManager.tsx`, `HOAManager.tsx`
 - `FinancierManager.tsx`, `ReasonsManager.tsx`, `NotificationRulesManager.tsx`, `QueueConfigManager.tsx`
 - `SLAManager.tsx`, `FeedbackManager.tsx`, `AuditTrailManager.tsx`, `PermissionMatrix.tsx`, `VendorManager.tsx`
-- `EmailManager.tsx`, `CustomFieldsManager.tsx`, `CRMInfo.tsx`, `ReleaseNotes.tsx`
+- `EmailManager.tsx`, `CustomFieldsManager.tsx`, `FeatureFlagManager.tsx`, `CalendarSyncManager.tsx`
+- `DocumentRequirementsManager.tsx`, `EquipmentManager.tsx`, `EdgeIntegrationManager.tsx`
+- `CRMInfo.tsx`, `ReleaseNotes.tsx`
 
 **ProjectPanel** — `components/project/FilesTab.tsx` extracted as standalone component.
 
@@ -927,6 +932,72 @@ Admin-defined dynamic fields that appear on every project's Info tab. Allows ext
 ### InfoTab Integration
 
 Custom fields render at the bottom of the project Info tab in a "Custom Fields" section. In view mode, values display as read-only (boolean as Yes/No, URLs as clickable links, dates formatted). In edit mode, inputs match the field type (toggle for boolean, dropdown for select, date picker, etc.). Values are auto-saved when exiting edit mode.
+
+## Permit Portal
+
+Standalone page at `/permits` providing centralized access to all 1,633 AHJ permit portal records. Data comes from the existing `ahjs` table.
+
+### Page Features
+
+- **Portal URLs** — clickable links to AHJ permit submission portals
+- **Masked credentials** — login usernames and passwords are masked by default; click the eye icon to reveal
+- **Inspection portals** — separate portal URLs and credentials for inspection submission
+- **Filters** — search (name, city, county), filter by submission method (`how_to_request`), filter by county, filter by has-portal (yes/no)
+- **Sortable columns** — name, county, max permit duration, project count
+- **Expandable detail rows** — full AHJ info including electric code, plans-on-site requirements, host type, and notes
+- **CSV export** — download filtered AHJ data
+- **Pagination** — 50 records per page
+
+### PermitPortalCard Component
+
+`components/project/PermitPortalCard.tsx` — inline card that appears on permit-related tasks in the ProjectPanel Tasks tab. Looks up the project's AHJ and shows portal URL, phone, credentials (masked with reveal), max duration, and submission method. Includes an "Open Portal" button for quick access during permit tasks.
+
+## Feature Flags
+
+Admin-toggleable feature flags for gradual rollout and feature gating without code deploys.
+
+### Database Table
+
+- **`feature_flags`** — Fields: `id` (UUID PK), `flag_key` (TEXT UNIQUE), `label` (TEXT), `description` (TEXT), `enabled` (BOOLEAN DEFAULT true), `rollout_percentage` (INTEGER 0-100, DEFAULT 100), `allowed_roles` (TEXT[], null = all roles), `allowed_org_ids` (TEXT[], future multi-tenant), `created_at`, `updated_at`. RLS: SELECT for all authenticated, INSERT/UPDATE/DELETE for admin. Migration: `supabase/038-feature-flags.sql`.
+- **7 default flags seeded**: atlas_reports, calendar_sync, warranty_tracking, fleet_management, custom_fields, permit_portal, barcode_scanning.
+
+### Hook
+
+`lib/useFeatureFlags.ts` exports:
+- **`useFeatureFlag(flagKey)`** — returns `{ enabled, loading }` for a single flag. Checks flag enabled state, role restrictions, and rollout percentage using deterministic user bucketing.
+- **`useFeatureFlags()`** — returns all flags with loading state.
+- **`isFeatureEnabled(flags, flagKey, userId?, userRole?)`** — pure function for server-side checks.
+- **`clearFlagsCache()`** — invalidate the in-memory cache after admin mutations.
+- **In-memory cache** with 5-minute TTL and request deduplication.
+
+### Admin Manager
+
+`components/admin/FeatureFlagManager.tsx` — manages flags in the System page. Toggle enabled/disabled, edit label/description, set rollout percentage (0-100), configure allowed roles, add new flags. Search and filter support.
+
+### Nav Gating
+
+Nav links can be conditionally shown based on flag state. Example: the Fleet link in the nav bar checks `useFeatureFlag('fleet_management')` before rendering.
+
+## Admin / System Page Split
+
+The original Admin page was split into two pages to reduce clutter:
+
+### Admin Page (`/admin`) — Admin+ role
+
+Manages operational reference data:
+- AHJ Manager (1,633 records), Utility Manager (203 records), HOA Manager (421 records)
+- Financier Manager, Equipment Catalog, Vendor Manager
+- Users, Crews, SLA Thresholds, Queue Config
+- Document Requirements, Custom Fields, Email Onboarding
+
+### System Page (`/system`) — Super Admin only
+
+Manages system-level configuration:
+- Feature Flags, Calendar Sync, EDGE Integration
+- Audit Trail, Notification Rules, Reasons Manager
+- Feedback, CRM Info, Release Notes
+
+Both pages use sidebar navigation from `components/admin/shared.tsx` — `ADMIN_SIDEBAR_ITEMS` and `SYSTEM_SIDEBAR_ITEMS` respectively.
 
 ## Permit Drop Off Notification
 
