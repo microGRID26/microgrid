@@ -36,12 +36,14 @@ CREATE INDEX IF NOT EXISTS idx_calendar_settings_crew_id ON calendar_settings(cr
 ALTER TABLE calendar_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calendar_sync ENABLE ROW LEVEL SECURITY;
 
--- calendar_settings: SELECT for all authenticated, INSERT/UPDATE for admin
+-- calendar_settings: SELECT for all authenticated, INSERT/UPDATE/DELETE for admin only
 CREATE POLICY "calendar_settings_select" ON calendar_settings FOR SELECT TO authenticated USING (true);
-CREATE POLICY "calendar_settings_insert" ON calendar_settings FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "calendar_settings_update" ON calendar_settings FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "calendar_settings_insert" ON calendar_settings FOR INSERT TO authenticated WITH CHECK (auth_is_admin());
+CREATE POLICY "calendar_settings_update" ON calendar_settings FOR UPDATE TO authenticated USING (auth_is_admin()) WITH CHECK (auth_is_admin());
+CREATE POLICY "calendar_settings_delete" ON calendar_settings FOR DELETE TO authenticated USING (auth_is_admin());
 
--- calendar_sync: SELECT/INSERT/UPDATE for all authenticated
+-- calendar_sync: SELECT/INSERT/UPDATE/DELETE for all authenticated (managed by sync API)
 CREATE POLICY "calendar_sync_select" ON calendar_sync FOR SELECT TO authenticated USING (true);
 CREATE POLICY "calendar_sync_insert" ON calendar_sync FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "calendar_sync_update" ON calendar_sync FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "calendar_sync_delete" ON calendar_sync FOR DELETE TO authenticated USING (true);

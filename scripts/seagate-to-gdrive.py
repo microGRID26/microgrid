@@ -97,7 +97,7 @@ def get_or_create_dest_folder(service):
     return DEST_FOLDER_ID
 
 
-def find_or_create_folder(service, name, parent_id, retries=3):
+def find_or_create_folder(service, name, parent_id, retries=5):
     """Find a folder by name under parent, or create it."""
     # Escape single quotes in folder names
     escaped_name = name.replace("'", "\\'")
@@ -124,14 +124,16 @@ def find_or_create_folder(service, name, parent_id, retries=3):
                 body=metadata, fields="id", supportsAllDrives=True,
             ).execute()
             return folder["id"]
-        except HttpError as e:
+        except (HttpError, TimeoutError, OSError, ConnectionError) as e:
+            wait = min(2 ** (attempt + 1), 30)
+            print(f"      Retry {attempt+1}/{retries} folder '{name}': {e} (wait {wait}s)", flush=True)
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)
+                time.sleep(wait)
             else:
                 raise
 
 
-def upload_file(service, local_path, parent_id, filename, retries=3):
+def upload_file(service, local_path, parent_id, filename, retries=5):
     """Upload a file. Skip if already exists."""
     escaped = filename.replace("'", "\\'")
     q = f"name = '{escaped}' and '{parent_id}' in parents and trashed = false"
@@ -160,12 +162,17 @@ def upload_file(service, local_path, parent_id, filename, retries=3):
             else:
                 print(f"      ERROR uploading {filename}: {e}", flush=True)
                 return "error"
-        except Exception as e:
+        except (TimeoutError, OSError, ConnectionError) as e:
+            wait = min(2 ** (attempt + 1), 30)
+            print(f"      Retry {attempt+1}/{retries} '{filename}': {e} (wait {wait}s)", flush=True)
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)
+                time.sleep(wait)
             else:
                 print(f"      ERROR uploading {filename}: {e}", flush=True)
                 return "error"
+        except Exception as e:
+            print(f"      ERROR uploading {filename}: {e}", flush=True)
+            return "error"
 
 
 # ── DISCOVER & COUNT ─────────────────────────────────────────────────────────

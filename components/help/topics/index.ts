@@ -27,6 +27,7 @@ export const CATEGORIES = [
 ]
 
 export const WHATS_NEW = [
+  { date: 'Mar 2026', title: 'Google Calendar Sync', topicId: 'calendar-sync' },
   { date: 'Mar 2026', title: 'Fleet Management', topicId: 'fleet-management' },
   { date: 'Mar 2026', title: 'Custom Fields', topicId: 'custom-fields' },
   { date: 'Mar 2026', title: 'Warranty Tracking', topicId: 'warranty-tracking' },

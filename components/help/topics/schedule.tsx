@@ -176,6 +176,46 @@ function FleetManagement() {
   )
 }
 
+function CalendarSync() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-2">Sync schedule entries to Google Calendar so crews see jobs on their phones. Managed in <span className="text-green-400 font-mono">Admin &gt; Calendar Sync</span>.</p>
+      <div className="space-y-2 text-xs">
+        <div>
+          <span className="text-gray-300 font-medium block mb-1">Setup</span>
+          {[
+            'Admin sets GOOGLE_CALENDAR_CREDENTIALS env var with a Google service account JSON',
+            'Enable sync per crew in the Admin portal Calendar Sync section',
+            'A Google Calendar is auto-created for each crew on first sync',
+          ].map((item, i) => (
+            <div key={i} className="flex items-start gap-2 text-gray-400">
+              <span className="text-gray-600 mt-0.5">&bull;</span>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+        <div>
+          <span className="text-gray-300 font-medium block mb-1">Features</span>
+          {[
+            'Manual "Sync Calendar" button on the Schedule page syncs the visible week',
+            'Per-crew "Sync Now" in Admin for full sync (last 30 days + future)',
+            'Auto-sync toggle per crew for automatic sync on schedule changes',
+            'Color-coded events by job type (blue=survey, green=install, amber=inspection, red=service)',
+            'Multi-day job support with correct start/end dates',
+            'Bidirectional: Google Calendar changes can update NOVA schedule via webhook',
+            'Blue calendar icon on synced job cards in the schedule grid',
+          ].map((item, i) => (
+            <div key={i} className="flex items-start gap-2 text-gray-400">
+              <span className="text-gray-600 mt-0.5">&bull;</span>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export const scheduleTopics: HelpTopicData[] = [
   {
     id: 'schedule-page',
@@ -184,7 +224,7 @@ export const scheduleTopics: HelpTopicData[] = [
     category: 'Schedule & Crews',
     keywords: ['schedule', 'calendar', 'crew', 'week', 'job', 'assign', 'install', 'survey', 'multi-day', 'end date'],
     tryItLink: '/schedule',
-    relatedTopics: ['crew-view'],
+    relatedTopics: ['crew-view', 'calendar-sync'],
     content: SchedulePage,
   },
   {
@@ -236,5 +276,14 @@ export const scheduleTopics: HelpTopicData[] = [
     tryItLink: '/fleet',
     relatedTopics: ['schedule-page', 'crew-view', 'work-orders'],
     content: FleetManagement,
+  },
+  {
+    id: 'calendar-sync',
+    title: 'Google Calendar Sync',
+    description: 'Sync crew schedules to Google Calendar for mobile access',
+    category: 'Schedule & Crews',
+    keywords: ['google', 'calendar', 'sync', 'crew', 'schedule', 'mobile', 'event', 'gcal', 'auto-sync', 'webhook'],
+    relatedTopics: ['schedule-page', 'crew-view', 'work-orders'],
+    content: CalendarSync,
   },
 ]

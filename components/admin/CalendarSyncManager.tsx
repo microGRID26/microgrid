@@ -54,9 +54,13 @@ export function CalendarSyncManager() {
       .limit(50)
     setRecentSyncs((syncData as CalendarSyncEntry[]) ?? [])
 
-    // Count synced entries per crew
+    // Count all synced entries per crew (separate query for accuracy)
+    const { data: allSyncData } = await supabase
+      .from('calendar_sync')
+      .select('crew_id, sync_status')
+      .eq('sync_status', 'synced')
     const counts: Record<string, number> = {}
-    for (const entry of ((syncData ?? []) as CalendarSyncEntry[])) {
+    for (const entry of ((allSyncData ?? []) as { crew_id: string | null; sync_status: string }[])) {
       if (entry.crew_id) {
         counts[entry.crew_id] = (counts[entry.crew_id] ?? 0) + 1
       }
@@ -179,6 +183,9 @@ export function CalendarSyncManager() {
                     <button
                       onClick={() => toggleEnabled(crew.id)}
                       disabled={!configured}
+                      aria-label={`${enabled ? 'Disable' : 'Enable'} calendar sync for ${crew.name}`}
+                      aria-checked={enabled}
+                      role="switch"
                       className={`w-10 h-5 rounded-full transition-colors relative ${
                         enabled ? 'bg-green-600' : 'bg-gray-600'
                       } ${!configured ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}

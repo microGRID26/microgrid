@@ -99,7 +99,12 @@ async function getAccessToken(): Promise<string | null> {
       encoder.encode(unsignedToken)
     )
 
-    const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    const sigBytes = new Uint8Array(signature)
+    let sigStr = ''
+    for (let i = 0; i < sigBytes.length; i++) {
+      sigStr += String.fromCharCode(sigBytes[i])
+    }
+    const signatureB64 = btoa(sigStr)
       .replace(/=/g, '')
       .replace(/\+/g, '-')
       .replace(/\//g, '_')

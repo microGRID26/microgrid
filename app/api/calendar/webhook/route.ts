@@ -1,15 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { timingSafeEqual } from 'crypto'
 import { listCalendarEvents } from '@/lib/google-calendar'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseKey = process.env.SUPABASE_SECRET_KEY
 
 function getServiceClient() {
+  if (!supabaseKey) throw new Error('SUPABASE_SECRET_KEY is required for calendar webhook')
   return createClient(supabaseUrl, supabaseKey)
 }
 
-const WEBHOOK_TOKEN = process.env.GOOGLE_CALENDAR_WEBHOOK_TOKEN ?? 'nova-calendar-sync'
+const WEBHOOK_TOKEN = process.env.GOOGLE_CALENDAR_WEBHOOK_TOKEN ?? ''
+
+/** Timing-safe token comparison to prevent timing attacks */
+function verifyToken(provided: string): boolean {
+  if (!WEBHOOK_TOKEN || !provided) return false
+  try {
+    const a = Buffer.from(provided, 'utf8')
+    const b = Buffer.from(WEBHOOK_TOKEN, 'utf8')
+    if (a.length !== b.length) return false
+    return timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
+}
 
 // ── GET: Health check ────────────────────────────────────────────────────────
 
@@ -30,8 +45,8 @@ export async function POST(req: NextRequest) {
   const resourceState = req.headers.get('x-goog-resource-state')
   const channelId = req.headers.get('x-goog-channel-id')
 
-  // Verify webhook token
-  if (channelToken !== WEBHOOK_TOKEN) {
+  // Verify webhook token (timing-safe comparison)
+  if (!channelToken || !verifyToken(channelToken)) {
     console.warn('Calendar webhook: invalid token')
     return NextResponse.json({ error: 'Invalid token' }, { status: 403 })
   }
@@ -45,6 +60,10 @@ export async function POST(req: NextRequest) {
   // 'exists' means events were changed
   if (resourceState !== 'exists') {
     return NextResponse.json({ status: 'ignored', resourceState })
+  }
+
+  if (!supabaseKey) {
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
   }
 
   const db = getServiceClient()
@@ -97,17 +116,15 @@ export async function POST(req: NextRequest) {
 
     let updated = 0
 
-    // Check each synced event for changes in the Google Calendar
+    // Collect tracked events that need schedule comparison
+    const trackedEvents: { eventId: string; scheduleId: string; syncId: string; newDate: string; newTime: string | null; newEndDate: string | null }[] = []
+
     for (const event of events) {
       const e = event as unknown as Record<string, unknown>
       const eventId = e.id as string
       const syncEntry = syncByEventId.get(eventId) as Record<string, unknown> | undefined
+      if (!syncEntry) continue
 
-      if (!syncEntry) continue // Event not tracked by us
-
-      const scheduleId = syncEntry.schedule_id as string
-
-      // Check if the event date/time changed in Google Calendar
       const startObj = e.start as Record<string, string> | undefined
       const endObj = e.end as Record<string, string> | undefined
       if (!startObj) continue
@@ -115,54 +132,64 @@ export async function POST(req: NextRequest) {
       const newDate = startObj.date ?? startObj.dateTime?.slice(0, 10)
       const newTime = startObj.dateTime ? startObj.dateTime.slice(11, 16) : null
 
-      // Calculate end_date for multi-day events
       let newEndDate: string | null = null
       if (endObj?.date) {
-        // All-day end dates are exclusive in Google Calendar, subtract 1 day
         const endDate = new Date(endObj.date + 'T00:00:00')
         endDate.setDate(endDate.getDate() - 1)
         const endStr = endDate.toISOString().slice(0, 10)
-        if (endStr !== newDate) {
-          newEndDate = endStr
-        }
+        if (endStr !== newDate) newEndDate = endStr
       }
 
       if (!newDate) continue
 
-      // Load current schedule entry
-      const { data: currentSched } = await db
+      trackedEvents.push({
+        eventId,
+        scheduleId: syncEntry.schedule_id as string,
+        syncId: syncEntry.id as string,
+        newDate,
+        newTime,
+        newEndDate,
+      })
+    }
+
+    // Batch-load all schedule entries at once (avoids N+1)
+    if (trackedEvents.length > 0) {
+      const scheduleIds = trackedEvents.map(t => t.scheduleId)
+      const { data: scheduleRows } = await db
         .from('schedule')
-        .select('date, time, end_date, notes')
-        .eq('id', scheduleId)
-        .single()
+        .select('id, date, time, end_date')
+        .in('id', scheduleIds)
 
-      if (!currentSched) continue
-      const curr = currentSched as Record<string, unknown>
+      const scheduleMap = new Map(
+        (scheduleRows ?? []).map((r: Record<string, unknown>) => [r.id as string, r])
+      )
 
-      // Check if anything changed
-      const dateChanged = curr.date !== newDate
-      const timeChanged = (curr.time ?? null) !== newTime
-      const endDateChanged = (curr.end_date ?? null) !== newEndDate
+      for (const tracked of trackedEvents) {
+        const curr = scheduleMap.get(tracked.scheduleId) as Record<string, unknown> | undefined
+        if (!curr) continue
 
-      if (dateChanged || timeChanged || endDateChanged) {
-        // Update the schedule entry
-        const updateFields: Record<string, unknown> = {}
-        if (dateChanged) updateFields.date = newDate
-        if (timeChanged) updateFields.time = newTime
-        if (endDateChanged) updateFields.end_date = newEndDate
+        const dateChanged = curr.date !== tracked.newDate
+        const timeChanged = (curr.time ?? null) !== tracked.newTime
+        const endDateChanged = (curr.end_date ?? null) !== tracked.newEndDate
 
-        const { error: updateErr } = await db
-          .from('schedule')
-          .update(updateFields)
-          .eq('id', scheduleId)
+        if (dateChanged || timeChanged || endDateChanged) {
+          const updateFields: Record<string, unknown> = {}
+          if (dateChanged) updateFields.date = tracked.newDate
+          if (timeChanged) updateFields.time = tracked.newTime
+          if (endDateChanged) updateFields.end_date = tracked.newEndDate
 
-        if (!updateErr) {
-          // Update sync timestamp
-          await db
-            .from('calendar_sync')
-            .update({ last_synced_at: new Date().toISOString() })
-            .eq('id', syncEntry.id)
-          updated++
+          const { error: updateErr } = await db
+            .from('schedule')
+            .update(updateFields)
+            .eq('id', tracked.scheduleId)
+
+          if (!updateErr) {
+            await db
+              .from('calendar_sync')
+              .update({ last_synced_at: new Date().toISOString() })
+              .eq('id', tracked.syncId)
+            updated++
+          }
         }
       }
     }

@@ -67,6 +67,7 @@ Centralized data access functions live in `lib/api/`:
 - `lib/api/warranties.ts` — `loadProjectWarranties`, `addWarranty`, `updateWarranty`, `deleteWarranty`, `loadWarrantyClaims`, `addClaim`, `updateClaim`, `loadExpiringWarranties`, `loadAllWarranties`, `loadOpenClaims`. Constants: `WARRANTY_EQUIPMENT_TYPES`, `CLAIM_STATUSES`. Types: `EquipmentWarranty`, `WarrantyClaim`, `WarrantyFilters`
 - `lib/api/fleet.ts` — `loadVehicles`, `loadVehicle`, `addVehicle`, `updateVehicle`, `deleteVehicle`, `loadVehicleMaintenance`, `addMaintenance`, `updateMaintenance`, `loadUpcomingMaintenance`. Constants: `VEHICLE_STATUSES`, `MAINTENANCE_TYPES`, `MAINTENANCE_TYPE_LABELS`, `STATUS_LABELS`. Types: `Vehicle`, `MaintenanceRecord`, `VehicleStatus`, `MaintenanceType`, `VehicleFilters`
 - `lib/api/custom-fields.ts` — `loadFieldDefinitions`, `addFieldDefinition`, `updateFieldDefinition`, `deleteFieldDefinition`, `loadProjectCustomFields`, `saveProjectCustomField`, `loadAllCustomFieldValues`. Constants: `FIELD_TYPES`. Types: `CustomFieldDefinition`, `CustomFieldValue`, `CustomFieldType`
+- `lib/api/calendar.ts` — `loadCalendarSettings`, `updateCalendarSettings`, `loadSyncStatus`, `upsertSyncEntry`, `deleteSyncEntry`, `loadRecentSyncEntries`, `isCalendarConfigured`. Constants: `JOB_TYPE_COLOR_ID`. Types: `CalendarSettings`, `CalendarSyncEntry`, `CalendarEvent`
 - `lib/api/index.ts` — barrel export for all of the above
 
 Pages should import from `@/lib/api` instead of querying Supabase directly. The API layer handles error logging, type casting, and consistent return shapes.
@@ -226,6 +227,8 @@ Standalone page at `/audit-trail` (admin-only, guarded by `useCurrentUser().isAd
 - **vehicle_maintenance** — per-vehicle maintenance history. Fields: `id` (UUID PK), `vehicle_id` (UUID FK -> vehicles ON DELETE CASCADE), `type` (oil_change/tire_rotation/brake_service/inspection/repair/other), `description`, `date`, `odometer`, `cost`, `vendor`, `next_due_date`, `next_due_odometer`, `performed_by`, `notes`, `created_at`. RLS: SELECT/INSERT/UPDATE for authenticated, DELETE for admin. Migration: `supabase/035-fleet-management.sql`.
 - **custom_field_definitions** — admin-defined custom fields. Fields: `id` (UUID PK), `field_name` (TEXT UNIQUE), `label`, `field_type` (text/number/date/select/boolean/url), `options` (JSONB), `required`, `default_value`, `section`, `sort_order`, `active`, `created_at`. RLS: SELECT for all, write for admin. Migration: `supabase/036-custom-fields.sql`.
 - **custom_field_values** — per-project custom field values. Fields: `id` (UUID PK), `project_id` (TEXT), `field_id` (UUID FK -> custom_field_definitions ON DELETE CASCADE), `value` (TEXT), `updated_at`. UNIQUE on `(project_id, field_id)`. RLS: SELECT/INSERT/UPDATE/DELETE for all authenticated. Migration: `supabase/036-custom-fields.sql`.
+- **calendar_settings** — per-crew Google Calendar config. Fields: `id` (UUID PK), `crew_id` (TEXT UNIQUE NOT NULL), `calendar_id` (TEXT — Google Calendar ID), `enabled` (BOOLEAN), `auto_sync` (BOOLEAN), `last_full_sync` (TIMESTAMPTZ), `created_at`. RLS: read all, write admin only.
+- **calendar_sync** — per-schedule-entry sync tracking. Fields: `id` (UUID PK), `schedule_id` (UUID NOT NULL), `calendar_id` (TEXT NOT NULL), `event_id` (TEXT NOT NULL), `crew_id` (TEXT), `last_synced_at` (TIMESTAMPTZ), `sync_status` (synced/pending/error), `error_message` (TEXT), `created_at`. UNIQUE on (schedule_id, calendar_id). Indexes on schedule_id, crew_id, sync_status. RLS: read/write all authenticated.
 - **ahjs**, **utilities** — reference data for permit authorities and utility companies
 - **project_adders** — project adders/extras (e.g., EV charger, critter guard, ground mount). Fields: `id`, `project_id`, `name`, `price`, `quantity`, `created_at`. RLS open to all authenticated users. Migration: `supabase/013-adders.sql`. Contains 4,185 records imported from NetSuite.
 - **equipment_warranties** — per-project equipment warranty records. Fields: `id` (UUID PK), `project_id` (TEXT), `equipment_type` (panel/inverter/battery/optimizer), `manufacturer`, `model`, `serial_number`, `quantity`, `install_date`, `warranty_start_date`, `warranty_end_date`, `warranty_years`, `notes`, `created_at`, `updated_at`. Indexes on project_id, serial_number, warranty_end_date. RLS: SELECT/INSERT/UPDATE/DELETE for authenticated users. Migration: `supabase/034-warranty-tracking.sql`.
@@ -570,6 +573,40 @@ EDGE_WEBHOOK_SECRET=shared-secret-between-nova-and-edge
 
 **Migration:** `supabase/028-edge-sync.sql` — `edge_sync_log` table with project_id, event_type, direction, payload (JSONB), status, response_code, error_message indexes.
 
+### Google Calendar Sync
+
+Bidirectional sync between the NOVA schedule and Google Calendar, so crews see their jobs on mobile.
+
+**Architecture:**
+- `lib/google-calendar.ts` — server-side Google Calendar API wrapper using service account credentials (JWT + Web Crypto for RS256 signing). Token cached with 60s buffer. Functions: `createCalendar`, `upsertCalendarEvent`, `deleteCalendarEvent`, `listCalendarEvents`, `watchCalendar`, `stopWatch`, `buildEventTitle`, `buildEventDescription`.
+- `lib/api/calendar.ts` — client/server API layer for `calendar_settings` and `calendar_sync` tables. Functions: `loadCalendarSettings`, `updateCalendarSettings`, `loadSyncStatus`, `upsertSyncEntry`, `deleteSyncEntry`, `loadRecentSyncEntries`, `isCalendarConfigured`. Exports `JOB_TYPE_COLOR_ID` mapping.
+- `app/api/calendar/sync/route.ts` — POST endpoint for syncing schedule entries to Google Calendar. Supports `sync` (batch), `delete`, and `full_sync` (per-crew) actions. Max batch size: 200. Requires `SUPABASE_SECRET_KEY`. GET endpoint for health check.
+- `app/api/calendar/webhook/route.ts` — POST endpoint receiving Google Calendar push notifications. Timing-safe token verification. Detects date/time changes in Google Calendar and updates the NOVA schedule. Requires `GOOGLE_CALENDAR_WEBHOOK_TOKEN` env var.
+- `components/admin/CalendarSyncManager.tsx` — Admin portal section showing connection status, per-crew enable/auto-sync toggles, Sync Now button, and recent sync activity table with error details.
+
+**Schedule page integration:**
+- "Sync Calendar" button appears when any crew has sync enabled
+- Blue calendar icon on synced job cards
+- Loads calendar settings and sync status on mount
+
+**Database tables:**
+- `calendar_settings` — per-crew config (crew_id UNIQUE, calendar_id, enabled, auto_sync, last_full_sync). RLS: read all, write admin.
+- `calendar_sync` — per-entry sync tracking (schedule_id + calendar_id UNIQUE, event_id, sync_status, error_message). RLS: read/write all authenticated.
+
+**Event formatting:**
+- Title: `[INSTALL] Customer Name - PROJ-12345`
+- Color-coded by job type: blueberry (survey), basil (install), banana (inspection), tomato (service)
+- Description includes crew name, notes, and link back to NOVA CRM
+- Multi-day jobs use correct all-day date ranges
+
+**Environment variables:**
+```
+GOOGLE_CALENDAR_CREDENTIALS={"type":"service_account",...}  # Full service account JSON
+GOOGLE_CALENDAR_WEBHOOK_TOKEN=<random-secret>               # For webhook verification
+```
+
+**Migration:** `supabase/037-calendar-sync.sql`
+
 ### Atlas (AI Reports)
 
 Natural language query interface at `/reports` (page: `app/reports/page.tsx`, API: `app/api/reports/chat/route.ts`). Branded as "Atlas" in the UI. Users type questions about project data in plain English, and Claude generates a Supabase query plan, executes it, and returns results in a sortable table.
@@ -639,6 +676,7 @@ All in `supabase/`:
 - `034-warranty-tracking.sql` — Equipment warranty tracking: `equipment_warranties` table (per-project warranty records with manufacturer, model, serial, dates) and `warranty_claims` table (per-warranty claims with status lifecycle). Indexes on project_id, serial_number, warranty_end_date, warranty_id, status. RLS: SELECT/INSERT/UPDATE/DELETE for authenticated users. Claims cascade on warranty delete.
 - `035-fleet-management.sql` — Fleet vehicle management: `vehicles` table (vehicle details, status lifecycle, crew/driver assignment, insurance/registration expiry, odometer tracking) and `vehicle_maintenance` table (per-vehicle maintenance records with 6 service types, cost, vendor, next due date/odometer). Indexes on status, assigned_crew, vehicle_id, date, type. RLS: read/write for authenticated, vehicle delete for super_admin, maintenance delete for admin.
 - `036-custom-fields.sql` — Custom field system: `custom_field_definitions` table (admin-managed field definitions with 6 field types, options, defaults, sections, sort order) and `custom_field_values` table (per-project field values with upsert on project_id+field_id). Indexes on active+sort_order, project_id, field_id. RLS: definitions read-all/write-admin, values read-write-all.
+- `037-calendar-sync.sql` — Google Calendar sync: `calendar_settings` table (per-crew calendar config with enabled/auto_sync toggles) and `calendar_sync` table (per-schedule-entry sync tracking with event_id, status, error). Indexes on schedule_id, crew_id, sync_status. RLS: settings read-all/write-admin, sync read-write-all.
 - `seed-document-requirements.sql` — Seeds 23 document requirements across all 7 pipeline stages
 
 ### Legacy Projects

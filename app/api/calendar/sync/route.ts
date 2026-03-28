@@ -10,11 +10,15 @@ import {
 } from '@/lib/google-calendar'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseKey = process.env.SUPABASE_SECRET_KEY
 
 function getServiceClient() {
+  if (!supabaseKey) throw new Error('SUPABASE_SECRET_KEY is required for calendar sync')
   return createClient(supabaseUrl, supabaseKey)
 }
+
+/** Max schedule entries per sync request to prevent abuse */
+const MAX_BATCH_SIZE = 200
 
 // ── GET: Health check ────────────────────────────────────────────────────────
 
@@ -29,6 +33,10 @@ export async function GET() {
 // ── POST: Sync schedule entries to Google Calendar ───────────────────────────
 
 export async function POST(req: NextRequest) {
+  if (!supabaseKey) {
+    return NextResponse.json({ error: 'SUPABASE_SECRET_KEY not configured' }, { status: 500 })
+  }
+
   if (!isGoogleCalendarConfigured()) {
     return NextResponse.json(
       { error: 'Google Calendar not configured' },
@@ -36,11 +44,26 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // Verify auth — require a valid Supabase session via cookie
+  const authHeader = req.headers.get('authorization')
+  const cookieHeader = req.headers.get('cookie')
+  if (!authHeader && !cookieHeader) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const body = await req.json().catch(() => ({}))
   const { crew_id, schedule_ids, action } = body as {
     crew_id?: string
     schedule_ids?: string[]
     action?: 'sync' | 'delete' | 'full_sync'
+  }
+
+  // Enforce batch size limit
+  if (schedule_ids && schedule_ids.length > MAX_BATCH_SIZE) {
+    return NextResponse.json(
+      { error: `Batch size exceeds maximum of ${MAX_BATCH_SIZE}` },
+      { status: 400 }
+    )
   }
 
   const db = getServiceClient()

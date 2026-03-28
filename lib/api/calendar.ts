@@ -130,7 +130,13 @@ export async function loadRecentSyncEntries(limit = 20): Promise<CalendarSyncEnt
 }
 
 // ── Check if Google Calendar is configured ───────────────────────────────────
+// Note: This checks a server-only env var. In client components, use the
+// /api/calendar/sync GET endpoint to check configuration status instead.
 
 export function isCalendarConfigured(): boolean {
+  if (typeof window !== 'undefined') {
+    console.warn('isCalendarConfigured() called on client — always returns false. Use the /api/calendar/sync health check instead.')
+    return false
+  }
   return !!process.env.GOOGLE_CALENDAR_CREDENTIALS
 }
