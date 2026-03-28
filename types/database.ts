@@ -64,6 +64,7 @@ export interface Project {
   consultant_email: string | null
   dealer: string | null
   follow_up_date: string | null
+  org_id: string | null
   created_at: string
 }
 
@@ -120,6 +121,7 @@ export interface Crew {
   battery_tech2: string | null
   battery_apprentice: string | null
   mpu_electrician: string | null
+  org_id: string | null
 }
 
 export interface Schedule {
@@ -248,6 +250,7 @@ export interface TaskReason {
   reason: string
   active: boolean
   sort_order: number
+  org_id: string | null
 }
 
 export type UserRole = 'super_admin' | 'admin' | 'finance' | 'manager' | 'user' | 'sales'
@@ -390,6 +393,7 @@ export interface NotificationRule {
   notify_role: string | null
   active: boolean
   created_by: string | null
+  org_id: string | null
   created_at: string
 }
 
@@ -402,6 +406,7 @@ export interface QueueSection {
   icon: string
   sort_order: number
   active: boolean
+  org_id: string | null
   created_at: string
 }
 
@@ -440,6 +445,7 @@ export interface DocumentRequirement {
   description: string | null
   sort_order: number
   active: boolean
+  org_id: string | null
   created_at: string
 }
 
@@ -499,6 +505,7 @@ export interface WarehouseStock {
   location: string | null
   barcode: string | null
   last_counted_at: string | null
+  org_id: string | null
   updated_at: string
 }
 
@@ -677,6 +684,7 @@ export interface Vendor {
   payment_terms: string | null
   notes: string | null
   active: boolean
+  org_id: string | null
   created_at: string
 }
 
