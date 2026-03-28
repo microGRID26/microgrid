@@ -6,6 +6,7 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ConstructionBanner } from '@/components/ConstructionBanner'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
+import { OrgSwitcher } from '@/components/OrgSwitcher'
 import { useFeatureFlags, isFeatureEnabled } from '@/lib/useFeatureFlags'
 
 // ── Shared nav for all pages ──────────────────────────────────────────────────
@@ -172,6 +173,9 @@ export function Nav({ active, right, onNewProject }: NavProps) {
 
           {/* Notification bell — hidden for sales users */}
           {!isSales && !loading && currentUser && <NotificationBell />}
+
+          {/* Org switcher — only renders for multi-org users */}
+          {!loading && currentUser && <OrgSwitcher />}
 
           {(!loading && currentUser?.isAdmin) && (
             <a href="/admin"

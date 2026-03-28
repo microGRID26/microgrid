@@ -13,11 +13,12 @@ import { ReasonsManager } from '@/components/admin/ReasonsManager'
 import { EdgeIntegrationManager } from '@/components/admin/EdgeIntegrationManager'
 import { CalendarSyncManager } from '@/components/admin/CalendarSyncManager'
 import { FeatureFlagManager } from '@/components/admin/FeatureFlagManager'
+import { OrgManager } from '@/components/admin/OrgManager'
 
 export default function SystemPage() {
   const { user: authUser, loading } = useCurrentUser()
   const isSuperAdmin = authUser?.isSuperAdmin ?? false
-  const [activeModule, setActiveModule] = useState<Module>('feature_flags')
+  const [activeModule, setActiveModule] = useState<Module>('organizations')
 
   if (loading) {
     return (
@@ -113,6 +114,7 @@ export default function SystemPage() {
             <h1 className="text-sm font-semibold text-white">{activeItem?.label}</h1>
           </div>
           <div className="flex-1 overflow-hidden p-6">
+            {activeModule === 'organizations' && <OrgManager isSuperAdmin={isSuperAdmin} />}
             {activeModule === 'feature_flags' && <FeatureFlagManager isSuperAdmin={isSuperAdmin} />}
             {activeModule === 'calendar_sync' && <CalendarSyncManager />}
             {activeModule === 'edge_integration' && <EdgeIntegrationManager />}
