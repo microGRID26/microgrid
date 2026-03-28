@@ -63,7 +63,7 @@ export function FeedbackButton() {
       <button
         data-feedback-trigger
         onClick={() => setOpen(true)}
-        className="fixed bottom-3 left-3 md:bottom-5 md:left-5 z-[90] flex items-center gap-2 px-2 py-2 md:px-3 bg-gray-800 border border-gray-700 rounded-lg
+        className="fixed bottom-3 right-3 z-[90] flex items-center gap-2 px-2 py-2 md:px-3 bg-gray-800/80 border border-gray-700 rounded-lg
                    text-gray-400 hover:text-white hover:border-gray-600 shadow-lg transition-colors text-xs"
       >
         <MessageSquarePlus className="w-4 h-4" />
