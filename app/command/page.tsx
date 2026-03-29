@@ -743,43 +743,46 @@ export default function CommandPage() {
     <div className="min-h-screen bg-gray-900 flex flex-col">
 
       {/* ── TOP NAV ──────────────────────────────────────────────────────── */}
-      <Nav active="Command" onNewProject={() => setShowNewProject(true)} right={<>
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search projects..."
-            aria-label="Search projects"
-            className="text-xs bg-gray-800 text-gray-200 border border-gray-700 rounded-md px-3 py-1.5 w-44 focus:outline-none focus:border-green-500 placeholder-gray-500"
-          />
-          {/* My Projects / All Projects toggle */}
-          <div className="flex items-center bg-gray-800 rounded-md border border-gray-700" role="group" aria-label="Project filter toggle">
-            <button
-              onClick={() => setPmFilter(currentUser?.id ?? 'all')}
-              disabled={userLoading}
-              aria-label="Show my projects"
-              aria-pressed={isMyProjects}
-              className={`text-xs px-3 py-1.5 rounded-l-md transition-colors disabled:opacity-50 ${isMyProjects ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
-            >
-              My Projects
-            </button>
-            <button
-              onClick={() => setPmFilter('all')}
-              disabled={userLoading}
-              aria-label="Show all projects"
-              aria-pressed={!isMyProjects}
-              className={`text-xs px-3 py-1.5 rounded-r-md transition-colors disabled:opacity-50 ${!isMyProjects ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
-            >
-              All
-            </button>
-          </div>
-          {!isMyProjects && (
-            <select value={pmFilter} onChange={e => setPmFilter(e.target.value)}
-              className="text-xs bg-gray-800 text-gray-300 border border-gray-700 rounded-md px-2 py-1.5">
-              <option value="all">All PMs</option>
-              {pms.map(pm => <option key={pm.id} value={pm.id}>{pm.name}</option>)}
-            </select>
-          )}
-          <span className="text-xs text-gray-500">
-            {activeProjects.length} active
-          </span>
+      <Nav active="Command" onNewProject={() => setShowNewProject(true)} />
+
+      {/* ── FILTER BAR ──────────────────────────────────────────────────── */}
+      <div className="bg-gray-950 border-b border-gray-800 px-4 py-2 flex flex-wrap items-center gap-2">
+        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search projects..."
+          aria-label="Search projects"
+          className="text-xs bg-gray-800 text-gray-200 border border-gray-700 rounded-md px-3 py-1.5 w-44 focus:outline-none focus:border-green-500 placeholder-gray-500"
+        />
+        <div className="flex items-center bg-gray-800 rounded-md border border-gray-700" role="group" aria-label="Project filter toggle">
+          <button
+            onClick={() => setPmFilter(currentUser?.id ?? 'all')}
+            disabled={userLoading}
+            aria-label="Show my projects"
+            aria-pressed={isMyProjects}
+            className={`text-xs px-3 py-1.5 rounded-l-md transition-colors disabled:opacity-50 ${isMyProjects ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+          >
+            My Projects
+          </button>
+          <button
+            onClick={() => setPmFilter('all')}
+            disabled={userLoading}
+            aria-label="Show all projects"
+            aria-pressed={!isMyProjects}
+            className={`text-xs px-3 py-1.5 rounded-r-md transition-colors disabled:opacity-50 ${!isMyProjects ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+          >
+            All
+          </button>
+        </div>
+        {!isMyProjects && (
+          <select value={pmFilter} onChange={e => setPmFilter(e.target.value)}
+            className="text-xs bg-gray-800 text-gray-300 border border-gray-700 rounded-md px-2 py-1.5">
+            <option value="all">All PMs</option>
+            {pms.map(pm => <option key={pm.id} value={pm.id}>{pm.name}</option>)}
+          </select>
+        )}
+        <span className="text-xs text-gray-500">
+          {activeProjects.length} active
+        </span>
+        <div className="ml-auto flex items-center gap-2">
           <button onClick={refresh} aria-label="Refresh data" className="text-xs text-gray-500 hover:text-white transition-colors">
             ↻ {minutesAgo}m ago
           </button>
@@ -791,7 +794,8 @@ export default function CommandPage() {
             </svg>
             Export
           </button>
-        </>} />
+        </div>
+      </div>
 
       {/* ── PERSONAL STATS ROW ─────────────────────────────────────────── */}
       <div className="bg-gray-900 border-b border-gray-800 px-4 py-3">
