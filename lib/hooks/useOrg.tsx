@@ -59,12 +59,10 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       }
 
       // Load user's org memberships with org details
-      const { data: memberships, error: memErr } = await supabase
+      const { data: memberships } = await supabase
         .from('org_memberships')
         .select('org_id, org_role, is_default')
-        .eq('user_id', data.user.id) as { data: Pick<OrgMembership, 'org_id' | 'org_role' | 'is_default'>[] | null; error: unknown }
-
-      console.log('[useOrg] auth uid:', data.user.id, 'memberships:', memberships?.length, 'error:', memErr)
+        .eq('user_id', data.user.id) as { data: Pick<OrgMembership, 'org_id' | 'org_role' | 'is_default'>[] | null }
 
       if (!mountedRef.current) return
 

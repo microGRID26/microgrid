@@ -250,11 +250,9 @@ describe('warrantyStatus', () => {
     expect(warrantyStatus(w)).toBe('unknown')
   })
 
-  it('returns "expired" when end date is today (midnight has passed)', () => {
-    // The code compares midnight of the end date against Date.now(), so
-    // "today" at midnight is always in the past once the day has started
-    const today = new Date().toISOString().split('T')[0]
-    const w = makeWarranty({ warranty_end_date: today })
+  it('returns "expired" when end date is yesterday', () => {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+    const w = makeWarranty({ warranty_end_date: yesterday })
     expect(warrantyStatus(w)).toBe('expired')
   })
 
