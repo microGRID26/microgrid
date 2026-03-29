@@ -430,10 +430,6 @@ export default function CommandPage() {
   // ── UI state ─────────────────────────────────────────────────────────────
   const [search, setSearch] = useState<string>('')
   const [showNewProject, setShowNewProject] = useState(false)
-  const [displayName, setDisplayName] = useState(() =>
-    typeof window !== 'undefined' ? localStorage.getItem('mg_display_name') ?? '' : ''
-  )
-  const [showNameInput, setShowNameInput] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [selectedTab, setSelectedTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files' | undefined>(undefined)
   const [lastRefresh, setLastRefresh] = useState(0)
@@ -795,18 +791,6 @@ export default function CommandPage() {
             </svg>
             Export
           </button>
-          {showNameInput ? (
-            <input autoFocus defaultValue={displayName}
-              onBlur={e => { const v = e.target.value.trim(); if(v){ localStorage.setItem('mg_display_name',v); setDisplayName(v); } setShowNameInput(false); }}
-              onKeyDown={e => { if(e.key==='Enter') (e.target as HTMLInputElement).blur(); if(e.key==='Escape') setShowNameInput(false); }}
-              className="text-xs bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 w-28 focus:outline-none focus:border-green-500"
-              placeholder="Your name"
-            />
-          ) : (
-            <button onClick={() => setShowNameInput(true)} aria-label="Edit display name" className="text-xs text-gray-500 hover:text-white">
-              {displayName || user?.email?.split('@')[0]}
-            </button>
-          )}
         </>} />
 
       {/* ── PERSONAL STATS ROW ─────────────────────────────────────────── */}
