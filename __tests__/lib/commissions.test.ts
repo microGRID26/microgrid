@@ -245,14 +245,14 @@ describe('loadCommissionRates', () => {
     expect(result).toEqual(MOCK_RATES)
   })
 
-  it('filters by orgId when provided', async () => {
+  it('filters by orgId when provided (includes null org_id)', async () => {
     const chain = mockChain({ data: MOCK_RATES, error: null })
     mockSupabase.from.mockReturnValue(chain)
 
     const { loadCommissionRates } = await import('@/lib/api/commissions')
     await loadCommissionRates('org-123')
 
-    expect(chain.eq).toHaveBeenCalledWith('org_id', 'org-123')
+    expect(chain.or).toHaveBeenCalledWith('org_id.eq.org-123,org_id.is.null')
   })
 
   it('does not filter by orgId when null', async () => {
@@ -704,7 +704,7 @@ describe('generateProjectCommissions', () => {
     // When orgId param is provided, it should use that
     await generateProjectCommissions('PROJ-00001', 'override-org')
     // The rates loading should use 'override-org'
-    expect(ratesChain.eq).toHaveBeenCalledWith('org_id', 'override-org')
+    expect(ratesChain.or).toHaveBeenCalledWith('org_id.eq.override-org,org_id.is.null')
   })
 })
 

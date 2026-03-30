@@ -118,7 +118,7 @@ export async function loadCommissionRates(orgId?: string | null, activeOnly = tr
     .order('sort_order', { ascending: true })
     .limit(100)
   if (activeOnly) q = q.eq('active', true)
-  if (orgId) q = q.eq('org_id', orgId)
+  if (orgId) q = q.or(`org_id.eq.${orgId},org_id.is.null`)
   const { data, error } = await q
   if (error) console.error('[loadCommissionRates]', error.message)
   return (data ?? []) as CommissionRate[]
