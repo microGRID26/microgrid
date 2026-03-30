@@ -71,7 +71,7 @@ export function NotificationRulesManager() {
     load()
   }
 
-  const RuleForm = () => (
+  const ruleForm = (
     <Modal title={editing ? 'Edit Notification Rule' : 'New Notification Rule'} onClose={() => { setEditing(null); setShowNew(false); setDraft({}) }}>
       <div className="flex flex-col gap-1">
         <label className="text-xs text-gray-400 font-medium">Task</label>
@@ -160,7 +160,7 @@ export function NotificationRulesManager() {
           </tbody>
         </table>
       </div>
-      {(showNew || editing) && <RuleForm />}
+      {(showNew || editing) && ruleForm}
     </div>
   )
 }

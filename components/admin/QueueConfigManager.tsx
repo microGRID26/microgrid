@@ -68,7 +68,7 @@ export function QueueConfigManager() {
     setDraft(d => ({ ...d, match_status: [...next].join(',') }))
   }
 
-  const SectionForm = () => (
+  const sectionForm = (
     <Modal title={editing ? 'Edit Queue Section' : 'New Queue Section'} onClose={() => { setEditing(null); setShowNew(false); setDraft({}) }}>
       <Input label="Label" value={draft.label ?? ''} onChange={v => setDraft(d => ({ ...d, label: v }))} />
       <div className="flex flex-col gap-1">
@@ -111,7 +111,7 @@ export function QueueConfigManager() {
       </div>
       <SaveBtn onClick={save} saving={saving} />
     </Modal>
-  )
+  );
 
   const COLOR_DOT: Record<string, string> = {
     blue: 'bg-blue-500', indigo: 'bg-indigo-500', purple: 'bg-purple-500',
@@ -171,7 +171,7 @@ export function QueueConfigManager() {
           </tbody>
         </table>
       </div>
-      {(showNew || editing) && <SectionForm />}
+      {(showNew || editing) && sectionForm}
     </div>
   )
 }
