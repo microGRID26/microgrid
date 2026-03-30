@@ -357,6 +357,66 @@ describe('role-based route access', () => {
       expect(hasAccess('/analytics', 'unknown_role')).toBe(false)
     })
   })
+
+  describe('R1 new route sub-path inheritance', () => {
+    it('/sales/settings inherits /sales admin requirement', () => {
+      expect(hasAccess('/sales/settings', 'sales')).toBe(false)
+      expect(hasAccess('/sales/settings', 'user')).toBe(false)
+      expect(hasAccess('/sales/settings', 'finance')).toBe(false)
+      expect(hasAccess('/sales/settings', 'manager')).toBe(false)
+      expect(hasAccess('/sales/settings', 'admin')).toBe(true)
+      expect(hasAccess('/sales/settings', 'super_admin')).toBe(true)
+    })
+
+    it('/invoices/create inherits /invoices finance requirement', () => {
+      expect(hasAccess('/invoices/create', 'sales')).toBe(false)
+      expect(hasAccess('/invoices/create', 'user')).toBe(false)
+      expect(hasAccess('/invoices/create', 'manager')).toBe(false)
+      expect(hasAccess('/invoices/create', 'finance')).toBe(true)
+      expect(hasAccess('/invoices/create', 'admin')).toBe(true)
+      expect(hasAccess('/invoices/create', 'super_admin')).toBe(true)
+    })
+
+    it('/engineering/assignments inherits /engineering manager requirement', () => {
+      expect(hasAccess('/engineering/assignments', 'sales')).toBe(false)
+      expect(hasAccess('/engineering/assignments', 'user')).toBe(false)
+      expect(hasAccess('/engineering/assignments', 'manager')).toBe(true)
+      expect(hasAccess('/engineering/assignments', 'finance')).toBe(true)
+      expect(hasAccess('/engineering/assignments', 'admin')).toBe(true)
+      expect(hasAccess('/engineering/assignments', 'super_admin')).toBe(true)
+    })
+
+    it('/commissions/calculator is auth-only (no role requirement)', () => {
+      expect(hasAccess('/commissions/calculator', 'sales')).toBe(true)
+      expect(hasAccess('/commissions/calculator', 'user')).toBe(true)
+      expect(hasAccess('/commissions/calculator', 'manager')).toBe(true)
+      expect(hasAccess('/commissions/calculator', 'finance')).toBe(true)
+      expect(hasAccess('/commissions/calculator', 'admin')).toBe(true)
+      expect(hasAccess('/commissions/calculator', 'super_admin')).toBe(true)
+    })
+  })
+
+  describe('unknown role fallback on new routes', () => {
+    it('unknown role (level 1) is blocked from /sales (admin, level 4)', () => {
+      expect(hasAccess('/sales', 'fabricated_role')).toBe(false)
+      expect(hasAccess('/sales/settings', 'fabricated_role')).toBe(false)
+    })
+
+    it('unknown role (level 1) is blocked from /invoices (finance, level 3)', () => {
+      expect(hasAccess('/invoices', 'fabricated_role')).toBe(false)
+      expect(hasAccess('/invoices/create', 'fabricated_role')).toBe(false)
+    })
+
+    it('unknown role (level 1) is blocked from /engineering (manager, level 2)', () => {
+      expect(hasAccess('/engineering', 'fabricated_role')).toBe(false)
+      expect(hasAccess('/engineering/assignments', 'fabricated_role')).toBe(false)
+    })
+
+    it('unknown role (level 1) can access /commissions (auth-only)', () => {
+      expect(hasAccess('/commissions', 'fabricated_role')).toBe(true)
+      expect(hasAccess('/commissions/calculator', 'fabricated_role')).toBe(true)
+    })
+  })
 })
 
 describe('middleware edge cases', () => {
