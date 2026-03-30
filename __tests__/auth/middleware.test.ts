@@ -37,6 +37,9 @@ const ROUTE_ROLE_REQUIREMENTS: { prefix: string; minLevel: number; label: string
   { prefix: '/audit-trail', minLevel: 2, label: 'manager' },
   { prefix: '/audit', minLevel: 2, label: 'manager' },
   { prefix: '/dashboard', minLevel: 2, label: 'manager' },
+  { prefix: '/sales', minLevel: 4, label: 'admin' },
+  { prefix: '/invoices', minLevel: 3, label: 'finance' },
+  { prefix: '/engineering', minLevel: 2, label: 'manager' },
 ]
 
 function isPublicRoute(pathname: string): boolean {
@@ -206,6 +209,114 @@ describe('role-based route access', () => {
         expect(hasAccess(route, 'sales')).toBe(false)
       })
     }
+  })
+
+  describe('/sales — admin+ only', () => {
+    it('allows super_admin', () => {
+      expect(hasAccess('/sales', 'super_admin')).toBe(true)
+    })
+
+    it('allows admin', () => {
+      expect(hasAccess('/sales', 'admin')).toBe(true)
+    })
+
+    it('blocks finance', () => {
+      expect(hasAccess('/sales', 'finance')).toBe(false)
+    })
+
+    it('blocks manager', () => {
+      expect(hasAccess('/sales', 'manager')).toBe(false)
+    })
+
+    it('blocks user', () => {
+      expect(hasAccess('/sales', 'user')).toBe(false)
+    })
+
+    it('blocks sales', () => {
+      expect(hasAccess('/sales', 'sales')).toBe(false)
+    })
+  })
+
+  describe('/invoices — finance+ only', () => {
+    it('allows super_admin', () => {
+      expect(hasAccess('/invoices', 'super_admin')).toBe(true)
+    })
+
+    it('allows admin', () => {
+      expect(hasAccess('/invoices', 'admin')).toBe(true)
+    })
+
+    it('allows finance', () => {
+      expect(hasAccess('/invoices', 'finance')).toBe(true)
+    })
+
+    it('blocks manager', () => {
+      expect(hasAccess('/invoices', 'manager')).toBe(false)
+    })
+
+    it('blocks user', () => {
+      expect(hasAccess('/invoices', 'user')).toBe(false)
+    })
+
+    it('blocks sales', () => {
+      expect(hasAccess('/invoices', 'sales')).toBe(false)
+    })
+  })
+
+  describe('/engineering — manager+ only', () => {
+    it('allows super_admin', () => {
+      expect(hasAccess('/engineering', 'super_admin')).toBe(true)
+    })
+
+    it('allows admin', () => {
+      expect(hasAccess('/engineering', 'admin')).toBe(true)
+    })
+
+    it('allows finance', () => {
+      expect(hasAccess('/engineering', 'finance')).toBe(true)
+    })
+
+    it('allows manager', () => {
+      expect(hasAccess('/engineering', 'manager')).toBe(true)
+    })
+
+    it('blocks user', () => {
+      expect(hasAccess('/engineering', 'user')).toBe(false)
+    })
+
+    it('blocks sales', () => {
+      expect(hasAccess('/engineering', 'sales')).toBe(false)
+    })
+  })
+
+  describe('/commissions — auth-only (custom page gate)', () => {
+    it('allows any authenticated role (no proxy-level role requirement)', () => {
+      expect(hasAccess('/commissions', 'user')).toBe(true)
+      expect(hasAccess('/commissions', 'sales')).toBe(true)
+      expect(hasAccess('/commissions', 'manager')).toBe(true)
+      expect(hasAccess('/commissions', 'finance')).toBe(true)
+      expect(hasAccess('/commissions', 'admin')).toBe(true)
+      expect(hasAccess('/commissions', 'super_admin')).toBe(true)
+    })
+  })
+
+  describe('cross-role access matrix', () => {
+    it('sales user (level 0) is blocked from /sales, /invoices, /engineering', () => {
+      expect(hasAccess('/sales', 'sales')).toBe(false)
+      expect(hasAccess('/invoices', 'sales')).toBe(false)
+      expect(hasAccess('/engineering', 'sales')).toBe(false)
+    })
+
+    it('finance user (level 3) can access /invoices but not /sales', () => {
+      expect(hasAccess('/invoices', 'finance')).toBe(true)
+      expect(hasAccess('/sales', 'finance')).toBe(false)
+    })
+
+    it('manager (level 2) can access /engineering but not /sales or /invoices', () => {
+      expect(hasAccess('/engineering', 'manager')).toBe(true)
+      expect(hasAccess('/sales', 'manager')).toBe(false)
+      expect(hasAccess('/invoices', 'manager')).toBe(false)
+    })
   })
 
   describe('auth-only routes (no role requirement)', () => {
