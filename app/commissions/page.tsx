@@ -1095,6 +1095,7 @@ export default function CommissionsPage() {
   const { user: currentUser, loading: userLoading } = useCurrentUser()
   const { orgId } = useOrg()
   const isAdmin = currentUser?.isAdmin ?? false
+  const isSales = currentUser?.isSales ?? false
 
   const [tab, setTab] = useState<Tab>('calculator')
   const [rates, setRates] = useState<CommissionRate[]>([])
@@ -1122,8 +1123,7 @@ export default function CommissionsPage() {
     )
   }
 
-  // Auth gate: any authenticated user can access (Calculator + Earnings + Leaderboard)
-  // Rate Card tab is admin-only (gated below in tab list)
+  // Auth gate: Admin sees everything. Sales sees only their own data. Others blocked.
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -1132,10 +1132,18 @@ export default function CommissionsPage() {
     )
   }
 
+  if (!isAdmin && !isSales) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-gray-400 text-sm">You don&apos;t have permission to view this page.</div>
+      </div>
+    )
+  }
+
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'calculator', label: 'Calculator', icon: <Calculator className="w-3.5 h-3.5" /> },
-    { key: 'earnings', label: 'Earnings', icon: <DollarSign className="w-3.5 h-3.5" /> },
-    { key: 'leaderboard', label: 'Leaderboard', icon: <Trophy className="w-3.5 h-3.5" /> },
+    { key: 'earnings', label: 'My Earnings', icon: <DollarSign className="w-3.5 h-3.5" /> },
+    ...(isAdmin ? [{ key: 'leaderboard' as Tab, label: 'Leaderboard', icon: <Trophy className="w-3.5 h-3.5" /> }] : []),
     ...(isAdmin ? [{ key: 'rates' as Tab, label: 'Rate Card', icon: <TrendingUp className="w-3.5 h-3.5" /> }] : []),
   ]
 
