@@ -412,6 +412,10 @@ export async function generateProjectCommissions(
       milestone: null,
       paid_at: null,
       notes: null,
+      admin_notes: null,
+      days_since_sale: null,
+      is_energy_community: false,
+      adder_deduction: 0,
       org_id: effectiveOrgId ?? null,
     })
     if (record) created.push(record)

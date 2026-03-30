@@ -660,6 +660,38 @@ export function InfoTab({ project, editMode, editDraft, setEditDraft, ahjInfo, u
               </>
             )}
             <EditRow label="Dealer" field="dealer" value={project.dealer} draft={editDraft} editing={editMode} onChange={setEditDraft} />
+            {/* Energy Community Toggle */}
+            <div className="flex gap-2 py-0.5 items-center">
+              <span className="text-gray-500 text-xs w-28 flex-shrink-0">Energy Community</span>
+              {editMode ? (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={('energy_community' in editDraft ? editDraft.energy_community : project.energy_community) ?? false}
+                    onClick={() => setEditDraft((d: any) => ({ ...d, energy_community: !('energy_community' in d ? d.energy_community : project.energy_community) }))}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                      ('energy_community' in editDraft ? editDraft.energy_community : project.energy_community) ? 'bg-green-600' : 'bg-gray-600'
+                    }`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      ('energy_community' in editDraft ? editDraft.energy_community : project.energy_community) ? 'translate-x-4.5' : 'translate-x-0.5'
+                    }`} />
+                  </button>
+                  <span className="text-xs text-gray-300">
+                    {('energy_community' in editDraft ? editDraft.energy_community : project.energy_community) ? 'Yes' : 'No'}
+                  </span>
+                </label>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {project.energy_community ? (
+                    <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-green-900/40 text-green-400 border border-green-800">EC</span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">No</span>
+                  )}
+                </div>
+              )}
+            </div>
           </Section>
           <Section title="Equipment">
             {!editMode ? (

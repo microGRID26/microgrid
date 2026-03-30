@@ -76,6 +76,8 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     consultant_email: null,
     dealer: null,
     follow_up_date: null,
+    energy_community: false,
+    org_id: null,
     created_at: '2026-01-01T00:00:00Z',
     ...overrides,
   }

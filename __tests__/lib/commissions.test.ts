@@ -54,6 +54,10 @@ const MOCK_RECORD = {
   milestone: null,
   paid_at: null,
   notes: null,
+  admin_notes: null,
+  days_since_sale: null,
+  is_energy_community: false,
+  adder_deduction: 0,
   org_id: null,
   created_at: '2026-03-28T12:00:00Z',
   updated_at: '2026-03-28T12:00:00Z',
@@ -404,6 +408,10 @@ describe('createCommissionRecord', () => {
       milestone: null,
       paid_at: null,
       notes: null,
+      admin_notes: null,
+      days_since_sale: null,
+      is_energy_community: false,
+      adder_deduction: 0,
       org_id: null,
     })
 
@@ -435,6 +443,10 @@ describe('createCommissionRecord', () => {
       milestone: null,
       paid_at: null,
       notes: null,
+      admin_notes: null,
+      days_since_sale: null,
+      is_energy_community: false,
+      adder_deduction: 0,
       org_id: null,
     })
 

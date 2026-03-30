@@ -64,6 +64,7 @@ export interface Project {
   consultant_email: string | null
   dealer: string | null
   follow_up_date: string | null
+  energy_community: boolean
   org_id: string | null
   created_at: string
 }
@@ -800,6 +801,10 @@ export interface CommissionRecord {
   milestone: string | null
   paid_at: string | null
   notes: string | null
+  admin_notes: string | null
+  days_since_sale: number | null
+  is_energy_community: boolean
+  adder_deduction: number
   org_id: string | null
   created_at: string
   updated_at: string
@@ -986,6 +991,38 @@ export interface OnboardingDocument {
   verified_by: string | null
   file_url: string | null
   notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type AdvanceStatus = 'pending' | 'approved' | 'paid' | 'clawed_back' | 'cancelled'
+
+export interface CommissionConfig {
+  id: string
+  config_key: string
+  value: string
+  description: string | null
+  org_id: string | null
+  updated_at: string
+}
+
+export interface CommissionAdvance {
+  id: string
+  project_id: string
+  rep_id: string | null
+  rep_name: string | null
+  role_key: string
+  amount: number
+  milestone: string
+  status: AdvanceStatus
+  self_generated: boolean
+  paid_at: string | null
+  clawback_date: string | null
+  clawback_reason: string | null
+  clawed_back_at: string | null
+  notes: string | null
+  admin_notes: string | null
+  org_id: string | null
   created_at: string
   updated_at: string
 }
@@ -1400,6 +1437,18 @@ export type Database = {
         Row: OnboardingDocument
         Insert: Omit<OnboardingDocument, 'id' | 'status' | 'created_at' | 'updated_at'> & { id?: string; status?: OnboardingDocStatus; created_at?: string; updated_at?: string }
         Update: Partial<OnboardingDocument>
+
+      }
+      commission_config: {
+        Row: CommissionConfig
+        Insert: Omit<CommissionConfig, 'id' | 'updated_at'> & { id?: string; updated_at?: string }
+        Update: Partial<CommissionConfig>
+
+      }
+      commission_advances: {
+        Row: CommissionAdvance
+        Insert: Omit<CommissionAdvance, 'id' | 'status' | 'self_generated' | 'created_at' | 'updated_at'> & { id?: string; status?: AdvanceStatus; self_generated?: boolean; created_at?: string; updated_at?: string }
+        Update: Partial<CommissionAdvance>
 
       }
     }
