@@ -870,8 +870,8 @@ export default function InvoicesPage() {
     )
   }
 
-  // Role gate: Manager+
-  if (currentUser && !currentUser.isManager) {
+  // Role gate: Admin or Finance
+  if (currentUser && !currentUser.isAdmin && !currentUser.isFinance) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-gray-400 text-sm">You don&apos;t have permission to view this page.</div>
