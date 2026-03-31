@@ -28,7 +28,7 @@ const PRIORITY_STYLE: Record<string, string> = {
 }
 
 // ── Sortable columns ─────────────────────────────────────────────────────────
-type SortColumn = 'status' | 'project' | 'issue' | 'pm' | 'created' | 'date' | 'priority'
+type SortColumn = 'status' | 'project' | 'issue' | 'pm' | 'created' | 'date' | 'priority' | 'category'
 
 const COLUMN_DEFS: { key: SortColumn; label: string }[] = [
   { key: 'status', label: 'Status' },
@@ -38,6 +38,7 @@ const COLUMN_DEFS: { key: SortColumn; label: string }[] = [
   { key: 'created', label: 'Created' },
   { key: 'date', label: 'Scheduled' },
   { key: 'priority', label: 'Priority' },
+  { key: 'category', label: 'Category' },
 ]
 
 function getSortValue(call: ServiceCall, col: SortColumn): string {
@@ -49,6 +50,7 @@ function getSortValue(call: ServiceCall, col: SortColumn): string {
     case 'created':  return call.created ?? ''
     case 'date':     return call.date ?? ''
     case 'priority': return call.priority === 'high' ? 'a' : call.priority === 'medium' ? 'b' : 'c'
+    case 'category': return call.ticket_category ?? 'service'
   }
 }
 
@@ -412,6 +414,12 @@ export default function ServicePage() {
                       ) : (
                         <span className="text-gray-600">&mdash;</span>
                       )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={cn('px-2 py-0.5 rounded text-[10px] font-medium',
+                        call.ticket_category === 'sales_related' ? 'bg-amber-900/40 text-amber-400' : 'bg-blue-900/40 text-blue-400')}>
+                        {call.ticket_category === 'sales_related' ? 'Sales' : 'Service'}
+                      </span>
                     </td>
                   </tr>
                 )

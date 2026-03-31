@@ -65,7 +65,7 @@ export default function InventoryPage() {
   const [poLineItems, setPOLineItems] = useState<Record<string, POLineItem[]>>({})
   const [poPage, setPOPage] = useState(1)
   const [toast, setToast] = useState<string | null>(null)
-  const [confirmAction, setConfirmAction] = useState<{ poId: string; newStatus: string } | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{ poId: string; newStatus: string; accurate?: boolean; discrepancy?: string } | null>(null)
 
   // ── Vendor contact lookup cache ────────────────────────────────────────────
   const [vendorInfoCache, setVendorInfoCache] = useState<Record<string, Vendor | null>>({})
@@ -143,6 +143,15 @@ export default function InventoryPage() {
   async function handleStatusAdvance(poId: string, newStatus: string) {
     if (poAdvancing) return
     setPOAdvancing(true)
+    // Save delivery accuracy when marking as delivered
+    if (newStatus === 'delivered' && confirmAction) {
+      const updates: Record<string, unknown> = {}
+      if (confirmAction.accurate !== undefined) updates.delivery_accurate = confirmAction.accurate
+      if (confirmAction.discrepancy) updates.delivery_discrepancy = confirmAction.discrepancy
+      if (Object.keys(updates).length > 0) {
+        await updatePurchaseOrder(poId, updates)
+      }
+    }
     setConfirmAction(null)
     const ok = await updatePurchaseOrderStatus(poId, newStatus)
     if (ok) {
@@ -554,6 +563,29 @@ export default function InventoryPage() {
                       <span className="block mt-2 text-amber-400">This will also mark all linked materials as delivered.</span>
                     )}
                   </p>
+                  {confirmAction.newStatus === 'delivered' && (
+                    <div className="mb-4 space-y-3 border-t border-gray-700 pt-3">
+                      <div className="text-[10px] text-gray-500 uppercase font-medium">Delivery Accuracy</div>
+                      <div className="flex gap-2">
+                        <button onClick={() => setConfirmAction(a => a ? { ...a, accurate: true } : a)}
+                          className={`flex-1 text-xs py-1.5 rounded border ${confirmAction.accurate === true ? 'bg-green-900/40 border-green-500 text-green-400' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}>
+                          All Correct
+                        </button>
+                        <button onClick={() => setConfirmAction(a => a ? { ...a, accurate: false } : a)}
+                          className={`flex-1 text-xs py-1.5 rounded border ${confirmAction.accurate === false ? 'bg-red-900/40 border-red-500 text-red-400' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}>
+                          Has Issues
+                        </button>
+                      </div>
+                      {confirmAction.accurate === false && (
+                        <input
+                          placeholder="Describe discrepancy (missing items, wrong qty, damage...)"
+                          value={confirmAction.discrepancy ?? ''}
+                          onChange={e => setConfirmAction(a => a ? { ...a, discrepancy: e.target.value } : a)}
+                          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-xs text-white placeholder-gray-500"
+                        />
+                      )}
+                    </div>
+                  )}
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setConfirmAction(null)} className="text-xs px-3 py-1.5 rounded bg-gray-700 text-gray-300 hover:bg-gray-600">Cancel</button>
                     <button
@@ -577,6 +609,52 @@ export default function InventoryPage() {
                 </div>
               ))}
             </div>
+
+            {/* #5+#6: Vendor Performance — cycle times + accuracy */}
+            {(() => {
+              const delivered = purchaseOrders.filter(p => p.status === 'delivered')
+              if (delivered.length === 0) return null
+              const byVendor = new Map<string, { count: number; totalDays: number; accurate: number; rated: number }>()
+              for (const po of delivered) {
+                const v = byVendor.get(po.vendor) ?? { count: 0, totalDays: 0, accurate: 0, rated: 0 }
+                v.count++
+                if (po.submitted_at && po.delivered_at) {
+                  v.totalDays += Math.round((new Date(po.delivered_at).getTime() - new Date(po.submitted_at).getTime()) / 86400000)
+                }
+                if (po.delivery_accurate === true) { v.accurate++; v.rated++ }
+                else if (po.delivery_accurate === false) { v.rated++ }
+                byVendor.set(po.vendor, v)
+              }
+              const vendors = [...byVendor.entries()].sort((a, b) => b[1].count - a[1].count)
+              return (
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <h4 className="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider">Vendor Delivery Performance</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {vendors.map(([name, v]) => (
+                      <div key={name} className="bg-gray-900 rounded-lg p-3">
+                        <div className="text-xs font-medium text-white truncate mb-2">{name}</div>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div>
+                            <div className="text-[10px] text-gray-500">POs</div>
+                            <div className="text-sm font-bold text-white">{v.count}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-gray-500">Avg Days</div>
+                            <div className="text-sm font-bold text-blue-400">{v.count > 0 ? Math.round(v.totalDays / v.count) : '\u2014'}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-gray-500">Accuracy</div>
+                            <div className={`text-sm font-bold ${v.rated > 0 ? (v.accurate / v.rated >= 0.9 ? 'text-green-400' : 'text-amber-400') : 'text-gray-500'}`}>
+                              {v.rated > 0 ? `${Math.round(v.accurate / v.rated * 100)}%` : '\u2014'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Filters */}
             <div className="flex flex-wrap gap-3 items-center">
@@ -765,6 +843,37 @@ export default function InventoryPage() {
                               <h4 className="text-xs font-semibold text-gray-400 mb-1">Notes</h4>
                               <p className="text-xs text-gray-300">{po.notes || 'No notes.'}</p>
                             </div>
+
+                            {/* #5: Cycle time + #6: Delivery accuracy */}
+                            {po.status === 'delivered' && (
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-gray-700">
+                                <div>
+                                  <span className="text-gray-500 text-xs block">Cycle Time</span>
+                                  <span className="text-white text-sm font-semibold">
+                                    {po.submitted_at && po.delivered_at
+                                      ? `${Math.round((new Date(po.delivered_at).getTime() - new Date(po.submitted_at).getTime()) / 86400000)}d`
+                                      : '\u2014'}
+                                  </span>
+                                  <span className="text-[10px] text-gray-500 block">submit → deliver</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500 text-xs block">Delivered</span>
+                                  <span className="text-white text-sm">{fmtDate(po.delivered_at)}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500 text-xs block">Accuracy</span>
+                                  {po.delivery_accurate === true && <span className="text-green-400 text-sm font-medium">All Correct</span>}
+                                  {po.delivery_accurate === false && <span className="text-red-400 text-sm font-medium">Has Issues</span>}
+                                  {po.delivery_accurate == null && <span className="text-gray-500 text-sm">Not rated</span>}
+                                </div>
+                                {po.delivery_discrepancy && (
+                                  <div>
+                                    <span className="text-gray-500 text-xs block">Discrepancy</span>
+                                    <span className="text-red-300 text-xs">{po.delivery_discrepancy}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
                             {/* Actions */}
                             <div className="flex items-center gap-2 pt-2 border-t border-gray-700">

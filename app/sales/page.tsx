@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { db } from '@/lib/db'
 import { Nav } from '@/components/Nav'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useOrg, useRealtimeSubscription } from '@/lib/hooks'
@@ -22,14 +24,14 @@ import {
 import { fmt$ } from '@/lib/utils'
 import type { PayScale, PayDistribution, SalesTeam, SalesRep, OnboardingRequirement, OnboardingDocument, RepStatus, OnboardingDocStatus } from '@/lib/api'
 import {
-  Users, UserPlus, DollarSign, PieChart, ClipboardCheck,
+  Users, UserPlus, DollarSign, PieChart, ClipboardCheck, Shield,
   ChevronDown, ChevronUp, Plus, X, Pencil, Trash2, Download,
   Search, AlertTriangle, CheckCircle, Clock, Mail,
 } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'teams' | 'personnel' | 'pay_scales' | 'distribution' | 'onboarding'
+type Tab = 'teams' | 'personnel' | 'pay_scales' | 'distribution' | 'onboarding' | 'compliance'
 type SortCol = 'last_name' | 'email' | 'team' | 'pay_scale' | 'role_key' | 'status' | 'hire_date'
 
 const TAB_ITEMS: { key: Tab; label: string; icon: React.ReactNode }[] = [
@@ -38,6 +40,7 @@ const TAB_ITEMS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: 'pay_scales', label: 'Pay Scales', icon: <DollarSign className="w-4 h-4" /> },
   { key: 'distribution', label: 'Distribution', icon: <PieChart className="w-4 h-4" /> },
   { key: 'onboarding', label: 'Onboarding', icon: <ClipboardCheck className="w-4 h-4" /> },
+  { key: 'compliance', label: 'Compliance', icon: <Shield className="w-4 h-4" /> },
 ]
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
@@ -183,6 +186,24 @@ function AddRepModal({ onClose, onSaved, orgId, teams, payScales }: {
   const [payScaleId, setPayScaleId] = useState('')
   const [roleKey, setRoleKey] = useState('energy_consultant')
   const [hireDate, setHireDate] = useState(new Date().toISOString().slice(0, 10))
+
+  // #15: Auto-set pay scale by role
+  const ROLE_PAY_SCALE: Record<string, string> = {
+    energy_consultant: 'Consultant',
+    energy_advisor: 'Consultant',
+    project_manager: 'Pro',
+    assistant_manager: 'Elite',
+    vp: 'Exclusive',
+    regional: 'Exclusive',
+  }
+  const handleRoleChange = (role: string) => {
+    setRoleKey(role)
+    const scaleName = ROLE_PAY_SCALE[role]
+    if (scaleName) {
+      const match = payScales.find(s => s.active && s.name === scaleName)
+      if (match) setPayScaleId(match.id)
+    }
+  }
   const [saving, setSaving] = useState(false)
 
   async function save() {
@@ -263,7 +284,7 @@ function AddRepModal({ onClose, onSaved, orgId, teams, payScales }: {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-400 font-medium block mb-1">Role</label>
-              <select value={roleKey} onChange={e => setRoleKey(e.target.value)}
+              <select value={roleKey} onChange={e => handleRoleChange(e.target.value)}
                 className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
                 <option value="energy_consultant">Energy Consultant</option>
                 <option value="energy_advisor">Energy Advisor</option>
@@ -320,6 +341,26 @@ function TeamsTab({ teams, reps, payScales, users, orgId, onRefresh }: {
   }, [payScales])
 
   const teamReps = useCallback((teamId: string) => reps.filter(r => r.team_id === teamId), [reps])
+
+  // #13: Team scorecard — load all commission records once
+  const [teamCommissions, setTeamCommissions] = useState<Map<string, { deals: number; total: number; paid: number }>>(new Map())
+  useEffect(() => {
+    loadCommissionRecords({}).then(records => {
+      const byTeam = new Map<string, { deals: number; total: number; paid: number }>()
+      for (const r of records) {
+        if (r.status === 'cancelled') continue
+        // Find the rep to get their team_id
+        const rep = reps.find(rep => rep.user_id === r.user_id)
+        if (!rep?.team_id) continue
+        const existing = byTeam.get(rep.team_id) ?? { deals: 0, total: 0, paid: 0 }
+        existing.deals++
+        existing.total += r.total_commission ?? 0
+        if (r.status === 'paid') existing.paid += r.total_commission ?? 0
+        byTeam.set(rep.team_id, existing)
+      }
+      setTeamCommissions(byTeam)
+    })
+  }, [reps])
 
   return (
     <div className="space-y-6">
@@ -384,6 +425,31 @@ function TeamsTab({ teams, reps, payScales, users, orgId, onRefresh }: {
                       </div>
                     ))}
                   </div>
+
+                  {/* #13: Team Scorecard */}
+                  {(() => {
+                    const tc = teamCommissions.get(team.id)
+                    return tc && tc.deals > 0 ? (
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        <div className="bg-gray-900/50 rounded p-2 text-center">
+                          <div className="text-[9px] text-gray-500 uppercase">Deals</div>
+                          <div className="text-sm font-bold text-white">{tc.deals}</div>
+                        </div>
+                        <div className="bg-gray-900/50 rounded p-2 text-center">
+                          <div className="text-[9px] text-gray-500 uppercase">Total</div>
+                          <div className="text-sm font-bold text-green-400">{fmt$(tc.total)}</div>
+                        </div>
+                        <div className="bg-gray-900/50 rounded p-2 text-center">
+                          <div className="text-[9px] text-gray-500 uppercase">Paid</div>
+                          <div className="text-sm font-bold text-emerald-400">{fmt$(tc.paid)}</div>
+                        </div>
+                        <div className="bg-gray-900/50 rounded p-2 text-center">
+                          <div className="text-[9px] text-gray-500 uppercase">Avg/Deal</div>
+                          <div className="text-sm font-bold text-blue-400">{fmt$(tc.total / tc.deals)}</div>
+                        </div>
+                      </div>
+                    ) : null
+                  })()}
 
                   {members.length === 0 ? (
                     <p className="text-xs text-gray-500">No members assigned</p>
@@ -812,6 +878,73 @@ function PersonnelTab({ reps, teams, payScales, requirements, orgId, isAdmin, on
                                 )
                               })()}
                             </div>
+                          </div>
+
+                          {/* #12: Rep Scorecard */}
+                          <div className="mt-3 pt-3 border-t border-gray-700/50">
+                            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                              {(() => {
+                                const cs = repCommissions.get(rep.id)
+                                const lastSale = cs?.projects?.filter(p => p.status !== 'cancelled').sort((a, b) => b.id.localeCompare(a.id))[0]
+                                return <>
+                                  <div className="bg-gray-800/50 rounded-lg p-2.5 text-center">
+                                    <div className="text-[10px] text-gray-500 uppercase">Deals</div>
+                                    <div className="text-lg font-bold text-white">{cs?.count ?? 0}</div>
+                                  </div>
+                                  <div className="bg-gray-800/50 rounded-lg p-2.5 text-center">
+                                    <div className="text-[10px] text-gray-500 uppercase">Total Earned</div>
+                                    <div className="text-lg font-bold text-green-400">{fmt$(cs?.total ?? 0)}</div>
+                                  </div>
+                                  <div className="bg-gray-800/50 rounded-lg p-2.5 text-center">
+                                    <div className="text-[10px] text-gray-500 uppercase">Paid</div>
+                                    <div className="text-lg font-bold text-emerald-400">{fmt$(cs?.paid ?? 0)}</div>
+                                  </div>
+                                  <div className="bg-gray-800/50 rounded-lg p-2.5 text-center">
+                                    <div className="text-[10px] text-gray-500 uppercase">Pending</div>
+                                    <div className="text-lg font-bold text-amber-400">{fmt$(cs?.pending ?? 0)}</div>
+                                  </div>
+                                  <div className="bg-gray-800/50 rounded-lg p-2.5 text-center">
+                                    <div className="text-[10px] text-gray-500 uppercase">Avg / Deal</div>
+                                    <div className="text-lg font-bold text-blue-400">{cs && cs.count > 0 ? fmt$(cs.total / cs.count) : '$0'}</div>
+                                  </div>
+                                </>
+                              })()}
+                            </div>
+                          </div>
+
+                          {/* #11: Notes Section */}
+                          <div className="mt-3 pt-3 border-t border-gray-700/50">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="text-[10px] uppercase text-gray-500 font-medium tracking-wider">Notes</h4>
+                            </div>
+                            {rep.notes ? (
+                              <div className="space-y-1 max-h-24 overflow-y-auto">
+                                {rep.notes.split('\n').filter(Boolean).map((line, i) => (
+                                  <p key={i} className="text-[11px] text-gray-400">{line}</p>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-gray-600">No notes yet</p>
+                            )}
+                            {isAdmin && editingRepId !== rep.id && (
+                              <div className="mt-2 flex gap-2" onClick={e => e.stopPropagation()}>
+                                <input
+                                  placeholder="Add a note..."
+                                  className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                                  onKeyDown={async (e) => {
+                                    if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
+                                      const input = e.target as HTMLInputElement
+                                      const stamp = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                                      const newNote = `[${stamp}] ${input.value.trim()}`
+                                      const updated = rep.notes ? `${newNote}\n${rep.notes}` : newNote
+                                      await updateSalesRep(rep.id, { notes: updated })
+                                      input.value = ''
+                                      onRefresh()
+                                    }
+                                  }}
+                                />
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1516,6 +1649,223 @@ function OnboardingTab({ reps, teams, requirements, onRefresh }: {
   )
 }
 
+// ── Compliance Tab (#14 + #10) ───────────────────────────────────────────────
+
+function ComplianceTab({ reps, isAdmin }: { reps: SalesRep[]; isAdmin: boolean }) {
+  const [licenses, setLicenses] = useState<any[]>([])
+  const [files, setFiles] = useState<Map<string, any[]>>(new Map())
+  const [search, setSearch] = useState('')
+  const [filterType, setFilterType] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
+  const [addRepId, setAddRepId] = useState('')
+  const [addType, setAddType] = useState('state_license')
+  const [addNumber, setAddNumber] = useState('')
+  const [addState, setAddState] = useState('')
+  const [addExpiry, setAddExpiry] = useState('')
+  const [addFileUrl, setAddFileUrl] = useState('')
+  const LICENSE_TYPES = ['state_license', 'certification', 'insurance', 'background_check', 'drug_test']
+  const STATUS_COLORS: Record<string, string> = {
+    active: 'bg-green-900/40 text-green-400',
+    expired: 'bg-red-900/40 text-red-400',
+    pending: 'bg-amber-900/40 text-amber-400',
+    revoked: 'bg-red-900/60 text-red-300',
+  }
+
+  useEffect(() => {
+    db().from('rep_licenses').select('*').order('expiry_date').limit(500).then(({ data }: any) => {
+      setLicenses(data ?? [])
+    })
+  }, [])
+
+  const repMap = useMemo(() => {
+    const m = new Map<string, SalesRep>()
+    reps.forEach(r => m.set(r.id, r))
+    return m
+  }, [reps])
+
+  const filtered = useMemo(() => {
+    let list = [...licenses]
+    if (search) {
+      const q = search.toLowerCase()
+      list = list.filter(l => {
+        const rep = repMap.get(l.rep_id)
+        return rep && `${rep.first_name} ${rep.last_name}`.toLowerCase().includes(q) || l.license_number?.toLowerCase().includes(q)
+      })
+    }
+    if (filterType) list = list.filter(l => l.license_type === filterType)
+    return list
+  }, [licenses, search, filterType, repMap])
+
+  // Expiry stats
+  const now = new Date()
+  const expiringSoon = licenses.filter(l => {
+    if (!l.expiry_date || l.status !== 'active') return false
+    const d = new Date(l.expiry_date)
+    const diff = (d.getTime() - now.getTime()) / 86400000
+    return diff <= 30 && diff > 0
+  })
+  const expired = licenses.filter(l => l.status === 'expired' || (l.expiry_date && new Date(l.expiry_date) < now && l.status === 'active'))
+
+  async function addLicense() {
+    if (!addRepId) return
+    await db().from('rep_licenses').insert({
+      rep_id: addRepId,
+      license_type: addType,
+      license_number: addNumber || null,
+      state: addState || null,
+      expiry_date: addExpiry || null,
+      file_url: addFileUrl || null,
+      status: 'active',
+    })
+    setShowAdd(false)
+    setAddRepId(''); setAddNumber(''); setAddState(''); setAddExpiry(''); setAddFileUrl('')
+    db().from('rep_licenses').select('*').order('expiry_date').limit(500).then(({ data }: any) => setLicenses(data ?? []))
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total Licenses" value={licenses.length} icon={<Shield className="w-5 h-5" />} accent="green" />
+        <StatCard label="Expiring (30d)" value={expiringSoon.length} icon={<AlertTriangle className="w-5 h-5" />} accent="amber" />
+        <StatCard label="Expired" value={expired.length} icon={<X className="w-5 h-5" />} accent="red" />
+        <StatCard label="Reps Tracked" value={new Set(licenses.map(l => l.rep_id)).size} icon={<Users className="w-5 h-5" />} accent="blue" />
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search rep name or license #..."
+            className="w-full pl-9 pr-3 py-1.5 bg-gray-800 border border-gray-700 rounded-md text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
+        </div>
+        <select value={filterType} onChange={e => setFilterType(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-xs text-white">
+          <option value="">All Types</option>
+          {LICENSE_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>)}
+        </select>
+        {isAdmin && (
+          <button onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white text-xs font-medium rounded-md">
+            <Plus className="w-3.5 h-3.5" /> Add License
+          </button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="bg-gray-800 rounded-lg overflow-hidden">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-gray-700 text-gray-400 text-left">
+              <th className="px-4 py-2 font-medium">Rep</th>
+              <th className="px-4 py-2 font-medium">Type</th>
+              <th className="px-4 py-2 font-medium">License #</th>
+              <th className="px-4 py-2 font-medium">State</th>
+              <th className="px-4 py-2 font-medium">Expiry</th>
+              <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium">File</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(l => {
+              const rep = repMap.get(l.rep_id)
+              const isExpiringSoon = l.expiry_date && l.status === 'active' && new Date(l.expiry_date) > now && (new Date(l.expiry_date).getTime() - now.getTime()) / 86400000 <= 30
+              return (
+                <tr key={l.id} className="border-b border-gray-700/50 hover:bg-gray-750">
+                  <td className="px-4 py-2 text-white font-medium">{rep ? `${rep.first_name} ${rep.last_name}` : 'Unknown'}</td>
+                  <td className="px-4 py-2 text-gray-300 capitalize">{l.license_type.replace(/_/g, ' ')}</td>
+                  <td className="px-4 py-2 text-gray-300 font-mono">{l.license_number ?? '\u2014'}</td>
+                  <td className="px-4 py-2 text-gray-300">{l.state ?? '\u2014'}</td>
+                  <td className={`px-4 py-2 ${isExpiringSoon ? 'text-amber-400 font-medium' : 'text-gray-300'}`}>
+                    {l.expiry_date ? fmtDate(l.expiry_date) : '\u2014'}
+                    {isExpiringSoon && <span className="ml-1 text-[10px]">&#9888;</span>}
+                  </td>
+                  <td className="px-4 py-2">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_COLORS[l.status] ?? 'bg-gray-700 text-gray-400'}`}>
+                      {l.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2">
+                    {l.file_url ? (
+                      <a href={l.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-[10px]">View</a>
+                    ) : '\u2014'}
+                  </td>
+                </tr>
+              )
+            })}
+            {filtered.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                {licenses.length === 0 ? 'No licenses tracked yet. Click "Add License" to start.' : 'No licenses match filters.'}
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Add License Modal */}
+      {showAdd && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowAdd(false)} />
+          <div className="relative bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+              <h2 className="text-sm font-semibold text-white">Add License / Certification</h2>
+              <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-white"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div>
+                <label className="text-xs text-gray-400 font-medium block mb-1">Sales Rep *</label>
+                <select value={addRepId} onChange={e => setAddRepId(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white">
+                  <option value="">Select rep...</option>
+                  {reps.filter(r => r.status !== 'terminated').map(r => <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-400 font-medium block mb-1">Type</label>
+                  <select value={addType} onChange={e => setAddType(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white">
+                    {LICENSE_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 font-medium block mb-1">License #</label>
+                  <input value={addNumber} onChange={e => setAddNumber(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-400 font-medium block mb-1">State</label>
+                  <input value={addState} onChange={e => setAddState(e.target.value)} placeholder="TX"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 font-medium block mb-1">Expiry Date</label>
+                  <input type="date" value={addExpiry} onChange={e => setAddExpiry(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 font-medium block mb-1">File URL (Google Drive / link)</label>
+                <input value={addFileUrl} onChange={e => setAddFileUrl(e.target.value)} placeholder="https://..."
+                  className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white" />
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-gray-800 flex justify-end gap-2">
+              <button onClick={() => setShowAdd(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
+              <button onClick={addLicense} disabled={!addRepId}
+                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-medium rounded-md">
+                Add License
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SalesPage() {
@@ -1635,6 +1985,7 @@ export default function SalesPage() {
             {tab === 'pay_scales' && <PayScalesTab payScales={payScales} orgId={orgId} isAdmin={isAdmin} onRefresh={loadAll} />}
             {tab === 'distribution' && <DistributionTab distribution={distribution} orgId={orgId} isAdmin={isAdmin} onRefresh={loadAll} />}
             {tab === 'onboarding' && <OnboardingTab reps={reps} teams={teams} requirements={requirements} onRefresh={loadAll} />}
+            {tab === 'compliance' && <ComplianceTab reps={reps} isAdmin={isAdmin} />}
           </>
         )}
       </div>

@@ -202,7 +202,37 @@ export interface ServiceCall {
   pm_id: string | null
   priority: string | null
   created_at: string
+  sales_rep_id: string | null
+  ticket_category: string | null
   project?: { name: string; city: string } | null
+}
+
+export interface RepLicense {
+  id: string
+  rep_id: string
+  license_type: string
+  license_number: string | null
+  state: string | null
+  issued_date: string | null
+  expiry_date: string | null
+  status: string
+  verified_by: string | null
+  verified_at: string | null
+  file_url: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface RepFile {
+  id: string
+  rep_id: string
+  file_type: string
+  file_name: string
+  file_url: string
+  uploaded_by: string | null
+  notes: string | null
+  created_at: string
 }
 
 export interface AHJ {
@@ -548,6 +578,8 @@ export interface PurchaseOrder {
   delivered_at: string | null
   tracking_number: string | null
   expected_delivery: string | null
+  delivery_accurate: boolean | null
+  delivery_discrepancy: string | null
 }
 
 export interface POLineItem {

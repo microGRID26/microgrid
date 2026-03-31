@@ -377,7 +377,7 @@ export async function loadPurchaseOrder(id: string): Promise<{ po: PurchaseOrder
  * Create a purchase order with line items.
  */
 export async function createPurchaseOrder(
-  po: Omit<PurchaseOrder, 'id' | 'created_at' | 'updated_at'>,
+  po: Omit<PurchaseOrder, 'id' | 'created_at' | 'updated_at' | 'delivery_accurate' | 'delivery_discrepancy'>,
   items: Omit<POLineItem, 'id' | 'po_id'>[]
 ): Promise<PurchaseOrderResult | null> {
   const supabase = db()
