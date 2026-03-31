@@ -451,7 +451,7 @@ function PersonnelTab({ reps, teams, payScales, requirements, orgId, onRefresh }
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [repDocs, setRepDocs] = useState<Map<string, OnboardingDocument[]>>(new Map())
-  const [repCommissions, setRepCommissions] = useState<Map<string, { total: number; paid: number; pending: number; count: number }>>(new Map())
+  const [repCommissions, setRepCommissions] = useState<Map<string, { total: number; paid: number; pending: number; count: number; projects: { id: string; amount: number; status: string }[] }>>(new Map())
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 50
 
@@ -473,14 +473,14 @@ function PersonnelTab({ reps, teams, payScales, requirements, orgId, onRefresh }
   }, [])
 
   const loadRepCommissions = useCallback(async (rep: SalesRep) => {
-    // Load commission records for this rep by name match
     const records = await loadCommissionRecords({ userId: rep.user_id ?? undefined })
-    const summary = { total: 0, paid: 0, pending: 0, count: records.length }
+    const summary = { total: 0, paid: 0, pending: 0, count: records.length, projects: [] as { id: string; amount: number; status: string }[] }
     for (const r of records) {
       if (r.status === 'cancelled') continue
       summary.total += r.total_commission ?? 0
       if (r.status === 'paid') summary.paid += r.total_commission ?? 0
       if (r.status === 'pending' || r.status === 'approved') summary.pending += r.total_commission ?? 0
+      summary.projects.push({ id: r.project_id, amount: r.total_commission ?? 0, status: r.status })
     }
     setRepCommissions(prev => new Map(prev).set(rep.id, summary))
   }, [])
@@ -717,6 +717,25 @@ function PersonnelTab({ reps, teams, payScales, requirements, orgId, onRefresh }
                                     <p><span className="text-gray-500">Total:</span> <span className="text-white font-medium">{fmt$(cs.total)}</span></p>
                                     <p><span className="text-gray-500">Paid:</span> <span className="text-green-400">{fmt$(cs.paid)}</span></p>
                                     <p><span className="text-gray-500">Pending:</span> <span className="text-amber-400">{fmt$(cs.pending)}</span></p>
+                                    {cs.projects.length > 0 && (
+                                      <div className="mt-2 pt-2 border-t border-gray-700/50 space-y-0.5">
+                                        <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Projects</p>
+                                        {cs.projects.slice(0, 8).map((p) => (
+                                          <div key={`${p.id}-${p.status}`} className="flex items-center justify-between">
+                                            <span className="text-blue-400 text-[10px]">{p.id}</span>
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-gray-300 text-[10px]">{fmt$(p.amount)}</span>
+                                              <span className={`text-[9px] px-1 rounded ${p.status === 'paid' ? 'bg-green-900/40 text-green-400' : p.status === 'pending' ? 'bg-amber-900/40 text-amber-400' : 'bg-gray-700 text-gray-400'}`}>
+                                                {p.status}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                        {cs.projects.length > 8 && (
+                                          <p className="text-[10px] text-gray-500">+ {cs.projects.length - 8} more</p>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 )
                               })()}

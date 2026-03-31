@@ -299,9 +299,44 @@ function CalculatorTab({ rates }: { rates: CommissionRate[] }) {
               </div>
               <p className="text-sm font-medium text-white">{fmt$(result.referral)}</p>
             </div>
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center justify-between pt-2 border-b border-gray-700/50 pb-3">
               <p className="text-base font-semibold text-white">Total Commission</p>
               <p className="text-xl font-bold text-green-400">{fmt$(result.total)}</p>
+            </div>
+
+            {/* Leadership Override Waterfall */}
+            <div className="mt-4">
+              <p className="text-[10px] text-gray-500 font-medium mb-2 uppercase tracking-wider">Leadership Override (Example)</p>
+              <div className="bg-gray-900 border border-gray-700/50 rounded-lg p-3 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Team Stack Rate</span>
+                  <span className="text-white">$0.40/W</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Rep Pay Scale (example)</span>
+                  <span className="text-amber-400">-$0.25/W</span>
+                </div>
+                <div className="flex justify-between border-t border-gray-700/50 pt-2">
+                  <span className="text-gray-300 font-medium">Override Per Watt</span>
+                  <span className="text-white font-medium">$0.15/W</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Override Pool ({result.watts.toLocaleString()} W)</span>
+                  <span className="text-green-400 font-medium">{fmt$(result.watts * 0.15)}</span>
+                </div>
+                <div className="mt-2 pt-2 border-t border-gray-700/50 space-y-1">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Distribution Split</p>
+                  {[
+                    { role: 'EC', pct: 40 }, { role: 'EA', pct: 40 }, { role: 'Incentive', pct: 2 },
+                    { role: 'PM', pct: 3 }, { role: 'Asst Mgr', pct: 3 }, { role: 'VP', pct: 3 }, { role: 'Regional', pct: 9 },
+                  ].map(d => (
+                    <div key={d.role} className="flex justify-between">
+                      <span className="text-gray-400">{d.role} ({d.pct}%)</span>
+                      <span className="text-gray-300">{fmt$(result.watts * 0.15 * d.pct / 100)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -604,11 +639,14 @@ function EarningsTab({ orgId, rates: loadedRates }: { orgId: string | null; rate
       {/* Hero Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <HeroCard
-          label="Total Earned"
-          value={fmt$(allTimeSummary?.totalEarned ?? 0)}
+          label="YTD Earned"
+          value={fmt$((function() {
+            const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString()
+            return records.filter(r => r.status !== 'cancelled' && r.created_at >= yearStart).reduce((s, r) => s + (r.total_commission ?? 0), 0)
+          })())}
           icon={<DollarSign className="w-6 h-6" />}
           accent="green"
-          subtitle="All time"
+          subtitle={`${new Date().getFullYear()} year to date`}
         />
         <HeroCard
           label="This Month"
@@ -682,6 +720,39 @@ function EarningsTab({ orgId, rates: loadedRates }: { orgId: string | null; rate
           <Download className="w-3.5 h-3.5" />
           CSV
         </button>
+        {isAdmin && (
+          <button
+            onClick={() => {
+              // Payroll export: group by user, sum totals for the current period
+              const byUser = new Map<string, { name: string; deals: number; solar: number; adder: number; referral: number; total: number }>()
+              for (const r of filtered) {
+                if (r.status === 'cancelled') continue
+                const key = r.user_name ?? r.user_id ?? 'Unknown'
+                const existing = byUser.get(key) ?? { name: key, deals: 0, solar: 0, adder: 0, referral: 0, total: 0 }
+                existing.deals++
+                existing.solar += r.solar_commission ?? 0
+                existing.adder += r.adder_commission ?? 0
+                existing.referral += r.referral_commission ?? 0
+                existing.total += r.total_commission ?? 0
+                byUser.set(key, existing)
+              }
+              const headers = ['Rep Name', 'Deals', 'Solar Commission', 'Adder Commission', 'Referral Commission', 'Total', 'Period']
+              const rows = Array.from(byUser.values()).sort((a, b) => b.total - a.total).map(u => [
+                u.name, String(u.deals), u.solar.toFixed(2), u.adder.toFixed(2), u.referral.toFixed(2), u.total.toFixed(2), period
+              ])
+              const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+              const blob = new Blob([csv], { type: 'text/csv' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url; a.download = `payroll-${period}-${new Date().toISOString().split('T')[0]}.csv`; a.click()
+              URL.revokeObjectURL(url)
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-800 border border-green-700 text-green-300 hover:text-white hover:bg-green-700 rounded-md transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Payroll CSV
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -1396,6 +1467,33 @@ function AdvancesTab({ orgId }: { orgId: string | null }) {
     load()
   }
 
+  const handleBulkApprove = async () => {
+    const pending = advances.filter(a => a.status === 'pending')
+    if (pending.length === 0) return
+    if (!confirm(`Approve all ${pending.length} pending advances (${fmt$(summary.pendingAmount)})?`)) return
+    let ok = 0; let fail = 0
+    for (const a of pending) {
+      const success = await updateAdvance(a.id, { status: 'approved' })
+      if (success) ok++; else fail++
+    }
+    showToast(fail > 0 ? `${ok} approved, ${fail} failed` : `${ok} advances approved`)
+    load()
+  }
+
+  const handleBulkPay = async () => {
+    const approved = advances.filter(a => a.status === 'approved')
+    if (approved.length === 0) return
+    if (!confirm(`Pay all ${approved.length} approved advances (${fmt$(summary.approvedAmount)})?`)) return
+    const now = new Date().toISOString()
+    let ok = 0; let fail = 0
+    for (const a of approved) {
+      const success = await updateAdvance(a.id, { status: 'paid', paid_at: now })
+      if (success) ok++; else fail++
+    }
+    showToast(fail > 0 ? `${ok} paid, ${fail} failed` : `${ok} advances marked as paid`)
+    load()
+  }
+
   const getDeadlineStyle = (clawbackDate: string | null): string => {
     if (!clawbackDate) return ''
     const deadlineDate = new Date(clawbackDate)
@@ -1450,6 +1548,30 @@ function AdvancesTab({ orgId }: { orgId: string | null }) {
           subtitle={`${summary.clawedBackCount} advances`}
         />
       </div>
+
+      {/* Bulk Actions */}
+      {(summary.pendingCount > 0 || summary.approvedCount > 0) && (
+        <div className="flex items-center gap-2">
+          {summary.pendingCount > 0 && (
+            <button
+              onClick={handleBulkApprove}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-800 border border-blue-700 text-blue-300 hover:text-white hover:bg-blue-700 rounded-md transition-colors"
+            >
+              <CheckCircle className="w-3.5 h-3.5" />
+              Approve All ({summary.pendingCount})
+            </button>
+          )}
+          {summary.approvedCount > 0 && (
+            <button
+              onClick={handleBulkPay}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-800 border border-green-700 text-green-300 hover:text-white hover:bg-green-700 rounded-md transition-colors"
+            >
+              <Banknote className="w-3.5 h-3.5" />
+              Pay All Approved ({summary.approvedCount})
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
