@@ -125,42 +125,40 @@ export function FundingTab({ data }: { data: AnalyticsData }) {
             sub={`${analytics.m3Pct}% · ${analytics.m3UnfundedCount} unfunded`} color="text-green-400"
             onClick={() => setDrillDown({ title: 'M3 Funded Projects', projects: projects.filter(p => analytics.m3FundedIds.has(p.id)) })} />
           <MetricCard label="Avg Install->M2" value={analytics.avgM2Days !== null ? `${analytics.avgM2Days}d` : '—'} sub="days to fund" color="text-blue-400" />
+          <MetricCard label="Avg PTO->M3" value={analytics.avgM3Days !== null ? `${analytics.avgM3Days}d` : '—'} sub="days to fund" color="text-blue-400" />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <MetricCard label="Avg PTO->M3" value={analytics.avgM3Days !== null ? `${analytics.avgM3Days}d` : '—'} sub="days to fund" color="text-blue-400" />
-      </div>
-
-      {/* Funding by financier */}
-      <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-        <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-4">Funded Amount by Financier</div>
-        {analytics.finFundingArr.length === 0 && <div className="text-xs text-gray-500">No funding data</div>}
-        {analytics.finFundingArr.map(f => (
-          <div key={f.financier} className="flex items-center gap-3 py-1.5">
-            <div className="text-xs text-gray-400 w-32 flex-shrink-0 truncate">{f.financier}</div>
-            <div className="flex-1 bg-gray-700 rounded-full h-2">
-              <div className="bg-amber-500 h-2 rounded-full transition-all" style={{ width: `${Math.round(f.amount / analytics.maxFinFunding * 100)}%` }} />
-            </div>
-            <div className="text-xs text-gray-300 font-mono w-24 text-right">{fmt$(f.amount)}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* NF codes */}
-      <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-        <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-4">Nonfunded Code Frequency</div>
-        {analytics.nfCodesArr.length === 0 && <div className="text-xs text-gray-500">No nonfunded codes</div>}
-        <div className="space-y-1">
-          {analytics.nfCodesArr.slice(0, 15).map(nf => (
-            <div key={nf.code} className="flex items-center gap-3 py-1">
-              <div className="text-xs text-gray-400 w-40 flex-shrink-0 truncate font-mono">{nf.code}</div>
+      {/* Financier + NF codes side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+          <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-4">Funded Amount by Financier</div>
+          {analytics.finFundingArr.length === 0 && <div className="text-xs text-gray-500">No funding data</div>}
+          {analytics.finFundingArr.filter(f => f.amount > 0).slice(0, 10).map(f => (
+            <div key={f.financier} className="flex items-center gap-3 py-1.5">
+              <div className="text-xs text-gray-400 w-28 flex-shrink-0 truncate">{f.financier}</div>
               <div className="flex-1 bg-gray-700 rounded-full h-2">
-                <div className="bg-red-500/70 h-2 rounded-full transition-all" style={{ width: `${Math.round(nf.count / (analytics.nfCodesArr[0]?.count || 1) * 100)}%` }} />
+                <div className="bg-amber-500 h-2 rounded-full transition-all" style={{ width: `${Math.round(f.amount / analytics.maxFinFunding * 100)}%` }} />
               </div>
-              <div className="text-xs text-gray-300 font-mono w-8 text-right">{nf.count}</div>
+              <div className="text-xs text-gray-300 font-mono w-20 text-right">{fmt$(f.amount)}</div>
             </div>
           ))}
+        </div>
+
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+          <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-4">Top Nonfunded Codes</div>
+          {analytics.nfCodesArr.length === 0 && <div className="text-xs text-gray-500">No nonfunded codes</div>}
+          <div className="space-y-1">
+            {analytics.nfCodesArr.slice(0, 10).map(nf => (
+              <div key={nf.code} className="flex items-center gap-3 py-1">
+                <div className="text-xs text-gray-400 w-20 flex-shrink-0 truncate font-mono">{nf.code}</div>
+                <div className="flex-1 bg-gray-700 rounded-full h-2">
+                  <div className="bg-red-500/70 h-2 rounded-full transition-all" style={{ width: `${Math.round(nf.count / (analytics.nfCodesArr[0]?.count || 1) * 100)}%` }} />
+                </div>
+                <div className="text-xs text-gray-300 font-mono w-8 text-right">{nf.count}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
