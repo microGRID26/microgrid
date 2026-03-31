@@ -419,6 +419,25 @@ export function useProjectTasks(opts: UseProjectTasksOptions): UseProjectTasksRe
       }
     }
 
+    // ── Email notification for stuck tasks ─────────────────────────────
+    if (status === 'Pending Resolution' || status === 'Revision Required') {
+      const taskName = ALL_TASKS_MAP[taskId] ?? taskId
+      const reason = taskReasons[taskId] ?? ''
+      fetch('/api/notifications/stuck-task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: pid,
+          projectName: project.name,
+          taskName,
+          status,
+          reason,
+          pmEmail: userEmail,
+          pmName: currentUser,
+        }),
+      }).catch(() => {}) // fire-and-forget
+    }
+
     // ── Auto-clear blocker when task resolves (only if auto-set) ─────────
     if (status !== 'Pending Resolution' && status !== 'Revision Required' && !cascadeResets) {
       // Only clear blockers that were auto-set (prefixed with pause icon)

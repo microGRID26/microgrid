@@ -9,6 +9,8 @@ import { addNote } from '@/lib/api/notes'
 import { upsertTaskState, insertTaskHistory } from '@/lib/api/tasks'
 import { useRealtimeSubscription } from '@/lib/hooks'
 import { loadProjectWorkOrders, updateWorkOrderStatus, toggleChecklistItem, updateWorkOrder, loadWorkOrder } from '@/lib/api/work-orders'
+import { getOpenEntry, clockIn, clockOut } from '@/lib/api/time-entries'
+import type { TimeEntry } from '@/lib/api/time-entries'
 import type { WorkOrder, WOChecklistItem } from '@/lib/api/work-orders'
 import type { Project, Schedule } from '@/types/database'
 
@@ -652,6 +654,11 @@ export default function FieldPage() {
   const [detailProject, setDetailProject] = useState<Project | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
+  // Clock in/out
+  const [openTimeEntry, setOpenTimeEntry] = useState<TimeEntry | null>(null)
+  const [clockLoading, setClockLoading] = useState(false)
+  const [clockElapsed, setClockElapsed] = useState('')
+
   // Crew info
   const [crewName, setCrewName] = useState<string | null>(null)
   const [crewMap, setCrewMap] = useState<Record<string, string>>({})
@@ -691,6 +698,83 @@ export default function FieldPage() {
     }
     if (!userLoading) loadCrews()
   }, [userLoading, currentUser?.name])
+
+  // Load open time entry on mount
+  useEffect(() => {
+    if (currentUser?.id) {
+      getOpenEntry(currentUser.id).then(entry => {
+        if (entry) setOpenTimeEntry(entry)
+      })
+    }
+  }, [currentUser?.id])
+
+  // Elapsed time ticker
+  useEffect(() => {
+    if (!openTimeEntry) { setClockElapsed(''); return }
+    const tick = () => {
+      const mins = Math.floor((Date.now() - new Date(openTimeEntry.clock_in).getTime()) / 60000)
+      const h = Math.floor(mins / 60)
+      const m = mins % 60
+      setClockElapsed(h > 0 ? `${h}h ${m}m` : `${m}m`)
+    }
+    tick()
+    const iv = setInterval(tick, 30000)
+    return () => clearInterval(iv)
+  }, [openTimeEntry])
+
+  const handleClockIn = useCallback(async (jobProjectId?: string, jobType?: string) => {
+    if (!currentUser?.id) return
+    setClockLoading(true)
+    // Get GPS location
+    let lat: number | null = null
+    let lng: number | null = null
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
+      )
+      lat = pos.coords.latitude
+      lng = pos.coords.longitude
+    } catch { /* GPS optional */ }
+
+    const entry = await clockIn({
+      user_id: currentUser.id,
+      user_name: currentUser.name,
+      project_id: jobProjectId ?? null,
+      clock_in_lat: lat,
+      clock_in_lng: lng,
+      job_type: jobType ?? null,
+    })
+    if (entry) {
+      setOpenTimeEntry(entry)
+      setToast({ message: 'Clocked in', type: 'success' })
+    } else {
+      setToast({ message: 'Clock-in failed', type: 'error' })
+    }
+    setClockLoading(false)
+  }, [currentUser?.id, currentUser?.name])
+
+  const handleClockOut = useCallback(async () => {
+    if (!openTimeEntry) return
+    setClockLoading(true)
+    let lat: number | null = null
+    let lng: number | null = null
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
+      )
+      lat = pos.coords.latitude
+      lng = pos.coords.longitude
+    } catch { /* GPS optional */ }
+
+    const ok = await clockOut(openTimeEntry.id, { clock_out_lat: lat, clock_out_lng: lng })
+    if (ok) {
+      setOpenTimeEntry(null)
+      setToast({ message: 'Clocked out', type: 'success' })
+    } else {
+      setToast({ message: 'Clock-out failed', type: 'error' })
+    }
+    setClockLoading(false)
+  }, [openTimeEntry])
 
   // Load today's schedule
   const loadJobs = useCallback(async () => {
@@ -974,6 +1058,45 @@ export default function FieldPage() {
         </div>
         <div className="text-sm text-gray-400 mt-1">{todayFormatted}</div>
       </header>
+
+      {/* Clock In/Out Bar */}
+      <div className={cn(
+        'px-4 py-3 flex items-center justify-between border-b flex-shrink-0',
+        openTimeEntry ? 'bg-green-900/30 border-green-800' : 'bg-gray-900 border-gray-800'
+      )}>
+        {openTimeEntry ? (
+          <>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-sm font-medium text-green-300">Clocked In</span>
+                <span className="text-sm text-green-400 font-mono">{clockElapsed}</span>
+              </div>
+              {openTimeEntry.project_id && (
+                <div className="text-[11px] text-green-500/70 mt-0.5">{openTimeEntry.project_id}</div>
+              )}
+            </div>
+            <button
+              onClick={handleClockOut}
+              disabled={clockLoading}
+              className="min-h-[44px] px-5 bg-red-700 hover:bg-red-600 text-white text-sm font-semibold rounded-xl active:scale-95 transition-all disabled:opacity-50"
+            >
+              {clockLoading ? 'Saving...' : 'Clock Out'}
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="text-sm text-gray-400">Not clocked in</div>
+            <button
+              onClick={() => handleClockIn()}
+              disabled={clockLoading}
+              className="min-h-[44px] px-5 bg-green-700 hover:bg-green-600 text-white text-sm font-semibold rounded-xl active:scale-95 transition-all disabled:opacity-50"
+            >
+              {clockLoading ? 'Saving...' : 'Clock In'}
+            </button>
+          </>
+        )}
+      </div>
 
       {/* Search bar */}
       <div className="bg-gray-950 border-b border-gray-800 px-4 py-3 flex-shrink-0 relative">

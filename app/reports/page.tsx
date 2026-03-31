@@ -6,7 +6,8 @@ import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { fmt$, fmtDate, cn } from '@/lib/utils'
 import type { Project } from '@/types/database'
-import { loadProjectById } from '@/lib/api'
+import { loadProjectById, loadSavedQueries, saveQuery, deleteSavedQuery, recordQueryRun } from '@/lib/api'
+import type { SavedQuery } from '@/lib/api'
 import {
   Send,
   Download,
@@ -15,6 +16,11 @@ import {
   MessageSquare,
   Loader2,
   Sparkles,
+  Bookmark,
+  BookmarkPlus,
+  Trash2,
+  Clock,
+  Share2,
 } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -295,6 +301,13 @@ export default function ReportsPage() {
   const chatEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Saved queries
+  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([])
+  const [showSaved, setShowSaved] = useState(false)
+  const [saveModalQuery, setSaveModalQuery] = useState<string | null>(null)
+  const [saveName, setSaveName] = useState('')
+  const [saveShared, setSaveShared] = useState(false)
+
   // Role gate: Manager+ only (Manager, Finance, Admin, Super Admin)
   if (!userLoading && currentUser && !currentUser.isManager) {
     return (
@@ -318,6 +331,43 @@ export default function ReportsPage() {
   // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus()
+  }, [])
+
+  // Load saved queries on mount
+  useEffect(() => {
+    if (currentUser?.id) {
+      loadSavedQueries(currentUser.id).then(setSavedQueries)
+    }
+  }, [currentUser?.id])
+
+  const handleSaveQuery = useCallback(async () => {
+    if (!saveModalQuery || !saveName.trim() || !currentUser?.id) return
+    const result = await saveQuery({
+      name: saveName.trim(),
+      query_text: saveModalQuery,
+      created_by: currentUser.id,
+      created_by_name: currentUser.name,
+      shared: saveShared,
+    })
+    if (result) {
+      setSavedQueries(prev => [result, ...prev])
+    }
+    setSaveModalQuery(null)
+    setSaveName('')
+    setSaveShared(false)
+  }, [saveModalQuery, saveName, saveShared, currentUser?.id, currentUser?.name])
+
+  const handleRunSaved = useCallback(async (sq: SavedQuery) => {
+    setShowSaved(false)
+    sendMessage(sq.query_text)
+    recordQueryRun(sq.id)
+    setSavedQueries(prev => prev.map(q => q.id === sq.id ? { ...q, run_count: q.run_count + 1, last_run_at: new Date().toISOString() } : q))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleDeleteSaved = useCallback(async (id: string) => {
+    await deleteSavedQuery(id)
+    setSavedQueries(prev => prev.filter(q => q.id !== id))
   }, [])
 
   // Load a project by ID for ProjectPanel
@@ -403,13 +453,84 @@ export default function ReportsPage() {
 
       <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full px-4">
         {/* Header */}
-        <div className="pt-6 pb-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-green-400" />
-            <h1 className="text-xl font-semibold">Atlas</h1>
+        <div className="pt-6 pb-4 flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-green-400" />
+              <h1 className="text-xl font-semibold">Atlas</h1>
+            </div>
+            <p className="text-gray-400 text-sm mt-1">AI-powered project reports — ask me anything</p>
           </div>
-          <p className="text-gray-400 text-sm mt-1">AI-powered project reports — ask me anything</p>
+          {savedQueries.length > 0 && (
+            <button
+              onClick={() => setShowSaved(!showSaved)}
+              className={cn(
+                'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors',
+                showSaved ? 'bg-green-900/40 text-green-400 border border-green-700' : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+              )}
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              Saved ({savedQueries.length})
+            </button>
+          )}
         </div>
+
+        {/* Saved queries panel */}
+        {showSaved && savedQueries.length > 0 && (
+          <div className="mb-4 bg-gray-800/50 border border-gray-700 rounded-xl p-4">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Saved Queries</h3>
+            <div className="space-y-1.5">
+              {savedQueries.map(sq => (
+                <div key={sq.id} className="flex items-center justify-between group bg-gray-900/50 rounded-lg px-3 py-2 hover:bg-gray-900">
+                  <button
+                    onClick={() => handleRunSaved(sq)}
+                    className="flex-1 text-left text-sm text-gray-200 hover:text-white"
+                  >
+                    <span className="font-medium">{sq.name}</span>
+                    {sq.shared && <Share2 className="w-3 h-3 inline ml-1.5 text-blue-400" />}
+                    <span className="text-[10px] text-gray-500 ml-2">
+                      {sq.run_count > 0 ? `${sq.run_count} runs` : 'Never run'}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSaved(sq.id)}
+                    className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 p-1 transition-opacity"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Save query modal */}
+        {saveModalQuery && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-md">
+              <h3 className="text-sm font-semibold text-white mb-4">Save Query</h3>
+              <p className="text-xs text-gray-400 mb-3 truncate">&ldquo;{saveModalQuery}&rdquo;</p>
+              <input
+                type="text"
+                value={saveName}
+                onChange={e => setSaveName(e.target.value)}
+                placeholder="Report name..."
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-green-500 outline-none mb-3"
+                autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') handleSaveQuery() }}
+              />
+              <label className="flex items-center gap-2 text-xs text-gray-400 mb-4 cursor-pointer">
+                <input type="checkbox" checked={saveShared} onChange={e => setSaveShared(e.target.checked)} className="rounded" />
+                Share with team
+              </label>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setSaveModalQuery(null)} className="text-xs text-gray-400 hover:text-white px-3 py-1.5">Cancel</button>
+                <button onClick={handleSaveQuery} disabled={!saveName.trim()} className="text-xs bg-green-700 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg disabled:opacity-50">Save</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Chat area */}
         <div className="flex-1 overflow-auto pb-4">
@@ -435,8 +556,15 @@ export default function ReportsPage() {
             <div className="space-y-1 pt-2">
               {messages.map(msg =>
                 msg.role === 'user' ? (
-                  /* User message - right aligned green bubble */
-                  <div key={msg.id} className="flex justify-end mb-4">
+                  /* User message - right aligned green bubble with save button */
+                  <div key={msg.id} className="flex justify-end mb-4 group/msg">
+                    <button
+                      onClick={() => setSaveModalQuery(msg.content)}
+                      className="opacity-0 group-hover/msg:opacity-100 text-gray-500 hover:text-green-400 p-1 mr-1 transition-opacity self-center"
+                      title="Save this query"
+                    >
+                      <BookmarkPlus className="w-3.5 h-3.5" />
+                    </button>
                     <div className="bg-green-900/30 border border-green-800 rounded-xl px-4 py-2.5 max-w-[70%]">
                       <p className="text-sm text-green-100">{msg.content}</p>
                     </div>
