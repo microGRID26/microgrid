@@ -67,11 +67,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ sent: false, reason: 'No PM email found' })
   }
 
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://microgrid-crm.vercel.app'
   const isRevision = status === 'Revision Required'
   const statusColor = isRevision ? '#f59e0b' : '#ef4444'
   const statusLabel = isRevision ? 'Revision Required' : 'Pending Resolution'
-  const firstName = name.split(' ')[0]
+  const firstName = esc(name?.split(' ')[0] ?? 'PM')
+  const safeProjectName = esc(projectName ?? '')
+  const safeTaskName = esc(taskName ?? '')
+  const safeReason = reason ? esc(reason) : ''
+  const safeProjectId = encodeURIComponent(projectId)
 
   const html = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 560px; margin: 0 auto; background: #111827; color: #e5e7eb; padding: 32px; border-radius: 12px; border: 1px solid #1f2937;">
@@ -82,17 +87,17 @@ export async function POST(req: Request) {
       <div style="border-top: 1px solid #1f2937; padding-top: 20px;">
         <p style="margin: 0 0 12px; font-size: 14px;">Hi ${firstName},</p>
         <p style="margin: 0 0 16px; font-size: 14px;">
-          A task on <strong style="color: white;">${projectName}</strong> needs your attention:
+          A task on <strong style="color: white;">${safeProjectName}</strong> needs your attention:
         </p>
         <div style="background: #1f2937; border-radius: 8px; padding: 16px; margin: 16px 0; border-left: 4px solid ${statusColor};">
-          <div style="font-size: 13px; font-weight: 600; color: white; margin-bottom: 4px;">${taskName}</div>
+          <div style="font-size: 13px; font-weight: 600; color: white; margin-bottom: 4px;">${safeTaskName}</div>
           <div style="font-size: 12px;">
             <span style="color: ${statusColor}; font-weight: 600;">${statusLabel}</span>
-            ${reason ? `<span style="color: #9ca3af;"> — ${reason}</span>` : ''}
+            ${safeReason ? `<span style="color: #9ca3af;"> — ${safeReason}</span>` : ''}
           </div>
         </div>
         <div style="margin-top: 20px;">
-          <a href="${appUrl}/queue?search=${projectId}" style="background: #1D9E75; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+          <a href="${appUrl}/queue?search=${safeProjectId}" style="background: #1D9E75; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
             View in Queue
           </a>
         </div>

@@ -151,11 +151,11 @@ export function useNotifications(filterPrefs?: NotificationFilterPrefs) {
     // Sort newest first
     notifs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
-    // Apply user preferences filter
+    // Apply user preferences filter (default to showing if pref is undefined)
     const filtered = filterPrefs ? notifs.filter(n => {
-      if (n.type === 'blocked' && filterPrefs.blocked === false) return false
-      if (n.type === 'revision' && filterPrefs.stuck_tasks === false) return false
-      if (n.type === 'mention' && filterPrefs.mentions === false) return false
+      if (n.type === 'blocked' && filterPrefs.blocked !== undefined && !filterPrefs.blocked) return false
+      if (n.type === 'revision' && filterPrefs.stuck_tasks !== undefined && !filterPrefs.stuck_tasks) return false
+      if (n.type === 'mention' && filterPrefs.mentions !== undefined && !filterPrefs.mentions) return false
       return true
     }) : notifs
 

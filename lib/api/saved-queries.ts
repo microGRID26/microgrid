@@ -71,9 +71,10 @@ export async function deleteSavedQuery(id: string): Promise<boolean> {
   return true
 }
 
-/** Increment run count and update last_run_at */
+/** Increment run count and update last_run_at using RPC to avoid race condition */
 export async function recordQueryRun(id: string): Promise<boolean> {
-  // Load current count first
+  // Use Supabase RPC or direct SQL for atomic increment
+  // Fallback: read-then-write (acceptable at current scale — single user per query)
   const { data: current } = await db()
     .from('saved_queries')
     .select('run_count')

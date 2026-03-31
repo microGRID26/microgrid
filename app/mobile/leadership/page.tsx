@@ -132,7 +132,10 @@ export default function MobileLeadershipPage() {
         const key = e.user_id
         const existing = byUser.get(key) ?? { name: e.user_name ?? 'Unknown', todayMins: 0, weekMins: 0, activeNow: false }
 
-        const mins = e.duration_minutes ?? (e.clock_out ? 0 : Math.floor((Date.now() - new Date(e.clock_in).getTime()) / 60000))
+        // Use stored duration for completed entries, calculate elapsed for active entries
+        const mins = e.clock_out
+          ? (e.duration_minutes ?? 0)
+          : Math.floor((Date.now() - new Date(e.clock_in).getTime()) / 60000)
         existing.weekMins += mins
 
         if (e.clock_in >= todayStart) {
