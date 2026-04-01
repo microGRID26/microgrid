@@ -40,8 +40,15 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const { user: currentUser } = useCurrentUser()
   const edgeSync = useEdgeSync()
   const [project, setProject] = useState<Project>(initialProject)
-  const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files' | 'materials' | 'warranty' | 'tickets' | 'ntp'>(initialTab ?? 'tasks')
-  useEffect(() => { if (initialTab) setTab(initialTab) }, [initialTab])
+  const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'tickets' | 'details'>(
+    initialTab === 'bom' || initialTab === 'materials' || initialTab === 'warranty' || initialTab === 'files' || initialTab === 'ntp' ? 'details' : (initialTab as any) ?? 'tasks'
+  )
+  const [detailSections, setDetailSections] = useState<Set<string>>(new Set(initialTab === 'ntp' ? ['ntp'] : initialTab === 'bom' ? ['bom'] : initialTab === 'materials' ? ['materials'] : initialTab === 'warranty' ? ['warranty'] : initialTab === 'files' ? ['files'] : []))
+  useEffect(() => {
+    if (!initialTab) return
+    const mapped = ['bom', 'materials', 'warranty', 'files', 'ntp'].includes(initialTab) ? 'details' : initialTab
+    setTab(mapped as any)
+  }, [initialTab])
   const [notes, setNotes] = useState<Note[]>([])
   const [newNote, setNewNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -656,14 +663,10 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
         <div className="flex border-b border-gray-800 flex-shrink-0 bg-gray-950">
           {([
             { id: 'tasks', label: `Tasks${stuckCount ? ` (${stuckCount} stuck)` : ''}`, stuck: stuckCount > 0 },
-            { id: 'ntp', label: 'NTP', stuck: false },
             { id: 'notes', label: `Notes${notes.length ? ` (${notes.length})` : ''}`, stuck: false },
             { id: 'info',  label: 'Info', stuck: false },
-            { id: 'bom',   label: 'BOM', stuck: false },
-            { id: 'materials', label: 'Materials', stuck: false },
-            { id: 'warranty', label: 'Warranty', stuck: false },
             { id: 'tickets', label: 'Tickets', stuck: false },
-            { id: 'files', label: 'Files', stuck: false },
+            { id: 'details', label: 'Details', stuck: false },
           ] as const).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`px-5 py-3 text-sm font-medium transition-colors ${
@@ -703,11 +706,6 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
           )}
 
 
-          {/* NTP */}
-          {tab === 'ntp' && (
-            <NTPTab project={project} />
-          )}
-
           {/* NOTES */}
           {tab === 'notes' && (
             <NotesTab notes={notes} newNote={newNote} setNewNote={setNewNote} addNote={addNote} deleteNote={deleteNote} saving={saving} folderUrl={folderUrl} projectId={pid} currentUserName={currentUser?.name} />
@@ -737,20 +735,44 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
             />
           )}
 
-          {/* BOM */}
-          {tab === 'bom' && <BomTab project={project} />}
-
-          {/* MATERIALS */}
-          {tab === 'materials' && <MaterialsTab project={project} />}
-
-          {/* WARRANTY */}
-          {tab === 'warranty' && <WarrantyTab project={project} />}
-
           {/* TICKETS */}
           {tab === 'tickets' && <TicketsTab projectId={project.id} />}
 
-          {/* FILES */}
-          {tab === 'files' && <FilesTab folderUrl={folderUrl} projectId={pid} currentStage={project.stage} />}
+          {/* DETAILS — combined NTP + BOM + Materials + Warranty + Files */}
+          {tab === 'details' && (
+            <div className="flex-1 overflow-y-auto p-5 space-y-2">
+              {[
+                { key: 'ntp', label: 'NTP', content: <NTPTab project={project} /> },
+                { key: 'bom', label: 'BOM', content: <BomTab project={project} /> },
+                { key: 'materials', label: 'Materials', content: <MaterialsTab project={project} /> },
+                { key: 'warranty', label: 'Warranty', content: <WarrantyTab project={project} /> },
+                { key: 'files', label: 'Files', content: <FilesTab folderUrl={folderUrl} projectId={pid} currentStage={project.stage} /> },
+              ].map(section => {
+                const isOpen = detailSections.has(section.key)
+                return (
+                  <div key={section.key} className="border border-gray-700 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setDetailSections(prev => {
+                        const next = new Set(prev)
+                        if (next.has(section.key)) next.delete(section.key)
+                        else next.add(section.key)
+                        return next
+                      })}
+                      className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-800 hover:bg-gray-750 transition-colors"
+                    >
+                      <span className="text-sm font-medium text-white">{section.label}</span>
+                      <span className="text-gray-500 text-xs">{isOpen ? '▼' : '▶'}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="border-t border-gray-700">
+                        {section.content}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 

@@ -153,6 +153,8 @@ export function TasksTab({
   // ── Load reasons from database (fallback to hardcoded) ───────────────────
   const [dbPendingReasons, setDbPendingReasons] = useState<Record<string, string[]> | null>(null)
   const [dbRevisionReasons, setDbRevisionReasons] = useState<Record<string, string[]> | null>(null)
+  const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set())
+  const [batchMode, setBatchMode] = useState(false)
 
   useEffect(() => {
     // db() needed: chaining .then().catch() requires a true Promise (typed PromiseLike lacks .catch)
@@ -313,6 +315,22 @@ export function TasksTab({
                   <span className="text-xs text-red-400 font-medium">{sc.stuck} stuck</span>
                 )}
                 <span className="text-xs text-gray-500 ml-auto">{pct}%</span>
+                <button onClick={() => { setBatchMode(!batchMode); setBatchSelected(new Set()) }}
+                  className={`text-[10px] px-2 py-0.5 rounded ml-2 ${batchMode ? 'bg-green-900/40 text-green-400' : 'bg-gray-700 text-gray-400 hover:text-white'}`}>
+                  {batchMode ? 'Cancel' : 'Select'}
+                </button>
+                {batchMode && batchSelected.size > 0 && (
+                  <button onClick={async () => {
+                    for (const taskId of batchSelected) {
+                      await updateTaskStatus(taskId, 'Complete')
+                    }
+                    setBatchSelected(new Set())
+                    setBatchMode(false)
+                  }}
+                    className="text-[10px] px-2 py-0.5 bg-green-700 hover:bg-green-600 text-white rounded ml-1">
+                    Mark {batchSelected.size} Complete
+                  </button>
+                )}
               </div>
               {/* Progress bar */}
               <div className="mt-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
@@ -365,6 +383,13 @@ export function TasksTab({
                           rowStyle(status)
                         } ${locked ? 'opacity-40' : ''}`}
                       >
+                        {/* Batch checkbox */}
+                        {batchMode && !locked && status !== 'Complete' && (
+                          <input type="checkbox" checked={batchSelected.has(task.id)}
+                            onChange={() => setBatchSelected(prev => { const next = new Set(prev); if (next.has(task.id)) next.delete(task.id); else next.add(task.id); return next })}
+                            onClick={e => e.stopPropagation()}
+                            className="w-3.5 h-3.5 rounded border-gray-600 bg-gray-800 text-green-500 flex-shrink-0" />
+                        )}
                         {/* Required indicator */}
                         <div className="w-3 flex-shrink-0 text-center">
                           {isTaskRequired(task, project.ahj) && <span className="text-green-500 text-xs font-bold">*</span>}
