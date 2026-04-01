@@ -51,6 +51,7 @@ interface RampProject {
   id: string; name: string; city: string | null; address: string | null; zip: string | null
   ahj: string | null; stage: string; module: string | null; inverter: string | null; battery: string | null
   systemkw: number | null; contract: number | null; pm: string | null; blocker: string | null
+  financier: string | null
   tier: Tier; lat: number; lng: number
   distanceMiles: number; driveMinutes: number
   readiness: ProjectReadiness | null; readinessScore: number
@@ -99,11 +100,11 @@ export default function RampUpPage() {
     setSchedule(sched)
     setScheduledIds(schedIds)
 
-    // Load install + inspection stage projects
+    // Load ALL active projects (every stage — if install_done is Complete, filtered below)
     let q = db().from('projects')
-      .select('id, name, city, address, zip, ahj, stage, module, inverter, battery, systemkw, contract, pm, blocker')
-      .in('stage', ['install', 'inspection'])
+      .select('id, name, city, address, zip, ahj, stage, module, inverter, battery, systemkw, contract, pm, blocker, financier')
       .not('disposition', 'in', '("In Service","Loyalty","Cancelled")')
+      .not('stage', 'eq', 'complete')
       .limit(2000)
     if (orgId) q = q.eq('org_id', orgId)
     const { data: rawProjects } = await q
@@ -809,7 +810,7 @@ export default function RampUpPage() {
                   </div>
                 </div>
                 <div className="text-[10px] text-gray-500 mt-1">
-                  {p.city} · {p.distanceMiles}mi from warehouse · {p.systemkw}kW · {fmt$(Number(p.contract) || 0)} · AHJ: {p.ahj}
+                  <span className="capitalize text-gray-300">{p.stage}</span> · {p.city} · {p.distanceMiles}mi · {p.systemkw}kW · {fmt$(Number(p.contract) || 0)} · {p.financier ?? '—'} · AHJ: {p.ahj}
                 </div>
                 {/* Readiness checklist */}
                 <div className="flex flex-wrap gap-2 mt-2">
