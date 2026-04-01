@@ -476,6 +476,17 @@ export async function updatePurchaseOrderStatus(id: string, status: string): Pro
       console.error('[updatePurchaseOrderStatus] delivery update errors:', deliveryErrors.join('; '))
       return false
     }
+
+    // Auto-update project readiness: equipment_ready = true
+    const { data: po } = await supabase.from('purchase_orders').select('project_id').eq('id', id).single()
+    if (po?.project_id) {
+      const { data: existing } = await supabase.from('project_readiness').select('id').eq('project_id', po.project_id).maybeSingle()
+      if (existing) {
+        await supabase.from('project_readiness').update({ equipment_ready: true }).eq('project_id', po.project_id)
+      } else {
+        await supabase.from('project_readiness').insert({ project_id: po.project_id, equipment_ready: true, readiness_score: 20 })
+      }
+    }
   }
 
   return true

@@ -148,6 +148,17 @@ export async function reviewNTPRequest(
     console.error('[reviewNTPRequest]', error.message)
     return null
   }
+
+  // Auto-update project readiness when NTP is approved
+  if (status === 'approved' && data?.project_id) {
+    const { data: existing } = await supabase.from('project_readiness').select('id').eq('project_id', data.project_id).maybeSingle()
+    if (existing) {
+      await supabase.from('project_readiness').update({ ntp_approved: true }).eq('project_id', data.project_id)
+    } else {
+      await supabase.from('project_readiness').insert({ project_id: data.project_id, ntp_approved: true, readiness_score: 20 })
+    }
+  }
+
   return data as NTPRequest
 }
 
