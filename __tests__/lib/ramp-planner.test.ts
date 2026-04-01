@@ -287,9 +287,11 @@ describe('autoReadiness', () => {
 })
 
 describe('tierFromScore', () => {
-  it('score 100 = tier 1', () => expect(tierFromScore(100)).toBe(1))
-  it('score 60 = tier 1', () => expect(tierFromScore(60)).toBe(1))
-  it('score 59 = tier 2', () => expect(tierFromScore(59)).toBe(2))
+  it('score 100 with all clear = tier 1', () => expect(tierFromScore(100, true, true)).toBe(1))
+  it('score 60 with all clear = tier 1', () => expect(tierFromScore(60, true, true)).toBe(1))
+  it('score 70 but missing redesign = tier 2 (hard blocker)', () => expect(tierFromScore(70, true, false)).toBe(2))
+  it('score 80 but missing permit = tier 2 (hard blocker)', () => expect(tierFromScore(80, false, true)).toBe(2))
+  it('score 59 = tier 2', () => expect(tierFromScore(59, true, true)).toBe(2))
   it('score 40 = tier 2', () => expect(tierFromScore(40)).toBe(2))
   it('score 39 = tier 3', () => expect(tierFromScore(39)).toBe(3))
   it('score 20 = tier 3', () => expect(tierFromScore(20)).toBe(3))

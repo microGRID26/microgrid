@@ -161,7 +161,7 @@ export default function RampUpPage() {
       const readiness = dbReadiness ?? autoR as any
       const readinessScore = computeReadinessScore(readiness)
       // Tier derived from readiness score
-      const tier = tierFromScore(readinessScore)
+      const tier = tierFromScore(readinessScore, readiness?.permit_clear ?? false, readiness?.redesign_complete ?? false)
 
       allMapped.push({
         ...p,
@@ -494,7 +494,13 @@ export default function RampUpPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold flex items-center gap-2"><Target className="w-5 h-5 text-green-400" /> Install Ramp-Up Planner</h1>
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <Target className="w-5 h-5 text-green-400" /> Install Ramp-Up Planner
+              {!showGuide && (
+                <button onClick={() => { setShowGuide(true); localStorage.removeItem('mg_rampup_guide_dismissed') }}
+                  className="text-[10px] bg-gray-800 text-gray-400 hover:text-white px-2 py-0.5 rounded-full ml-2" title="Show instructions">?</button>
+              )}
+            </h1>
             <p className="text-xs text-gray-500 mt-1">
               {crewNames.length} crews × {config?.installs_per_crew_per_week ?? 2} installs/week = {crewNames.length * (config?.installs_per_crew_per_week ?? 2)} installs/week
               <span className="ml-2 text-gray-600">| Ramp: {getWeekLabel(rampStart)}</span>

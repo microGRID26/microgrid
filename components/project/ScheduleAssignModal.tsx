@@ -60,6 +60,7 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
   const [installOpen, setInstallOpen] = useState(false)
   const [projectSearch, setProjectSearch] = useState('')
   const [projectResults, setProjectResults] = useState<Project[]>([])
+  const [driveUrl, setDriveUrl] = useState<string | null>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -333,13 +334,33 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
           <div>
             <label className={labelCls}>Project *</label>
             {selectedProject ? (
-              <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-2 border border-green-600">
-                <div className="flex-1">
+              <div className="bg-gray-800 rounded-lg px-3 py-2 border border-green-600 space-y-1.5">
+                <div className="flex items-center justify-between">
                   <div className="text-xs font-medium text-white">{selectedProject.name}</div>
-                  <div className="text-xs text-gray-400">{selectedProject.id} - {selectedProject.city}</div>
+                  <button onClick={() => { setSelectedProject(null); set('project_id', ''); setDriveUrl(null) }}
+                    className="text-gray-500 hover:text-white text-xs">x</button>
                 </div>
-                <button onClick={() => { setSelectedProject(null); set('project_id', '') }}
-                  className="text-gray-500 hover:text-white text-xs">x</button>
+                <div className="text-[10px] text-gray-400">{selectedProject.id} · {selectedProject.city}{selectedProject.zip ? `, ${selectedProject.zip}` : ''}</div>
+                {selectedProject.address && (
+                  <div className="text-[10px] text-gray-300">
+                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${selectedProject.address}, ${selectedProject.city} TX ${selectedProject.zip ?? ''}`)}`}
+                      target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">
+                      {selectedProject.address}
+                    </a>
+                  </div>
+                )}
+                {selectedProject.phone && (
+                  <div className="text-[10px] text-gray-300">
+                    <a href={`tel:${selectedProject.phone}`} className="text-blue-400 hover:text-blue-300">{selectedProject.phone}</a>
+                  </div>
+                )}
+                {driveUrl && (
+                  <div className="text-[10px]">
+                    <a href={driveUrl} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300">
+                      Open Planset Folder →
+                    </a>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="relative">
@@ -353,7 +374,12 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
                 {projectResults.length > 0 && (
                   <div className="absolute top-full left-0 right-0 bg-gray-800 border border-gray-700 rounded-lg mt-1 z-10 overflow-hidden">
                     {projectResults.map(p => (
-                      <div key={p.id} onClick={() => { setSelectedProject(p); setProjectSearch(''); setProjectResults([]) }}
+                      <div key={p.id} onClick={() => {
+                        setSelectedProject(p); setProjectSearch(''); setProjectResults([])
+                        // Load Google Drive folder URL
+                        supabase.from('project_folders').select('folder_url').eq('project_id', p.id).maybeSingle()
+                          .then(({ data }: any) => setDriveUrl(data?.folder_url ?? null))
+                      }}
                         className="px-3 py-2 hover:bg-gray-700 cursor-pointer">
                         <div className="text-xs font-medium text-white">{p.name}</div>
                         <div className="text-xs text-gray-400">{p.id} - {p.city}</div>

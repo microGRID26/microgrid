@@ -80,8 +80,11 @@ export const TIER_INFO: Record<Tier, TierInfo> = {
   4: { tier: 4, label: 'Not Ready', description: 'Readiness 0-19', color: 'red', minScore: 0 },
 }
 
-export function tierFromScore(score: number): Tier {
-  if (score >= 60) return 1
+// Tier 1 requires BOTH permit_clear AND redesign_complete as hard blockers
+// Even with a high score, missing either one drops you to Tier 2+
+export function tierFromScore(score: number, permitClear?: boolean, redesignComplete?: boolean): Tier {
+  const hasHardBlockers = permitClear === false || redesignComplete === false
+  if (score >= 60 && !hasHardBlockers) return 1
   if (score >= 40) return 2
   if (score >= 20) return 3
   return 4
