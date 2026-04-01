@@ -23,7 +23,8 @@ export default function LoginPage() {
           <span className="text-white font-bold text-xl">M</span>
         </div>
         <h1 className="text-white text-2xl font-bold mb-1">MicroGRID</h1>
-        <p className="text-gray-400 text-sm mb-8">Solar Project Management</p>
+        <p className="text-gray-400 text-sm">Operating System</p>
+        <p className="text-gray-500 text-xs mb-8">Powered by EDGE</p>
         <button
           onClick={signInWithGoogle}
           disabled={loading}
