@@ -41,9 +41,11 @@ const DEFAULTS: LiveStats = {
 export default function InfographicPage() {
   const { user } = useCurrentUser()
   const isSales = user?.isSales ?? false
+  const isMicrogridEmployee = user?.email?.endsWith('@gomicrogridenergy.com') ?? false
   const isAdmin = user?.isAdmin ?? false
   const isSuperAdmin = user?.isSuperAdmin ?? false
-  const canSeeTechnical = isAdmin || isSuperAdmin
+  const TECHNICAL_EMAILS = ['greg@gomicrogridenergy.com', 'greg@energydevelopmentgroup.com', 'mark@gomicrogridenergy.com', 'zach@gomicrogridenergy.com', 'paul@gomicrogridenergy.com']
+  const canSeeTechnical = TECHNICAL_EMAILS.includes(user?.email ?? '')
   const [tab, setTab] = useState<Tab>(isSales ? 'sales' : 'leadership')
   const [stats, setStats] = useState<LiveStats>(DEFAULTS)
 
@@ -104,7 +106,7 @@ export default function InfographicPage() {
             <div className="flex bg-gray-800 rounded-lg p-0.5 print:hidden">
               {!isSales && ([
                 { key: 'leadership' as Tab, label: 'Leadership' },
-                { key: 'sales' as Tab, label: 'Sales' },
+                ...(isMicrogridEmployee ? [{ key: 'sales' as Tab, label: 'Sales' }] : []),
                 { key: 'inside_ops' as Tab, label: 'Inside Ops' },
                 { key: 'field_ops' as Tab, label: 'Field Ops' },
                 { key: 'journey' as Tab, label: 'Customer Journey' },
@@ -266,17 +268,17 @@ export default function InfographicPage() {
               <h2 className="text-xl font-bold mb-4">Your Daily Workflow</h2>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                 {[
-                  { step: '1', name: 'Command Center', desc: 'Action items, stuck tasks, follow-ups, today\'s schedule', color: '#1D9E75' },
-                  { step: '2', name: 'Queue', desc: 'Prioritized worklist — smart filters, inline actions', color: '#3b82f6' },
-                  { step: '3', name: 'Update Tasks', desc: 'Change status, add notes, set follow-ups, resolve blockers', color: '#f59e0b' },
-                  { step: '4', name: 'Schedule', desc: 'Confirm jobs, assign crews, batch complete installs', color: '#8b5cf6' },
-                  { step: '5', name: 'Tickets', desc: 'Handle issues, track SLA, resolve complaints', color: '#ec4899' },
+                  { step: '1', name: 'Command Center', desc: 'Action items, stuck tasks, follow-ups, today\'s schedule', color: '#1D9E75', href: '/command' },
+                  { step: '2', name: 'Queue', desc: 'Prioritized worklist — smart filters, inline actions', color: '#3b82f6', href: '/queue' },
+                  { step: '3', name: 'Pipeline', desc: 'Visual Kanban board — change status, add notes, set follow-ups', color: '#f59e0b', href: '/pipeline' },
+                  { step: '4', name: 'Schedule', desc: 'Confirm jobs, assign crews, batch complete installs', color: '#8b5cf6', href: '/schedule' },
+                  { step: '5', name: 'Tickets', desc: 'Handle issues, track SLA, resolve complaints', color: '#ec4899', href: '/tickets' },
                 ].map(s => (
-                  <div key={s.step} className="rounded-xl p-5 text-center border" style={{ backgroundColor: `${s.color}08`, borderColor: `${s.color}30` }}>
+                  <a key={s.step} href={s.href} className="rounded-xl p-5 text-center border block hover:opacity-80 transition-opacity" style={{ backgroundColor: `${s.color}08`, borderColor: `${s.color}30` }}>
                     <div className="text-3xl font-black" style={{ color: s.color }}>{s.step}</div>
                     <div className="text-sm font-bold text-white mt-2">{s.name}</div>
                     <div className="text-[10px] text-gray-500 mt-1">{s.desc}</div>
-                  </div>
+                  </a>
                 ))}
               </div>
             </div>
@@ -385,17 +387,17 @@ export default function InfographicPage() {
               <h2 className="text-xl font-bold mb-4">Your Mobile Tools</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { name: 'Crew View', desc: 'See your scheduled jobs for the week. Customer name, address, phone, equipment specs, job type. Sorted by date.', color: '#1D9E75' },
-                  { name: 'One-Tap Navigation', desc: 'Tap any address to open Google Maps with driving directions. Tap phone to call the customer.', color: '#3b82f6' },
-                  { name: 'Job Checklists', desc: '5 checklist templates: Install (9 items), Inspection (5), Service (4), Survey (4), Repair (6). Check items as you complete them.', color: '#f59e0b' },
-                  { name: 'Clock In/Out', desc: 'GPS-tracked time tracking. Clock in when you arrive, clock out when done. Hours automatically logged.', color: '#8b5cf6' },
-                  { name: 'Barcode Scanner', desc: 'Scan warehouse stock barcodes with your phone camera. Check out equipment to a project. Check in returns.', color: '#ec4899' },
-                  { name: 'Report Issues', desc: 'Create a ticket from the field. Photo attachment, priority, category. Ops gets notified immediately.', color: '#ef4444' },
+                  { name: 'Crew View', desc: 'See your scheduled jobs for the week. Customer name, address, phone, equipment specs, job type.', color: '#1D9E75', href: '/crew' },
+                  { name: 'One-Tap Navigation', desc: 'Tap any address to open Google Maps with driving directions. Tap phone to call the customer.', color: '#3b82f6', href: '/crew' },
+                  { name: 'Job Checklists', desc: '5 checklist templates: Install (9 items), Inspection (5), Service (4), Survey (4), Repair (6).', color: '#f59e0b', href: '/work-orders' },
+                  { name: 'Clock In/Out', desc: 'GPS-tracked time tracking. Clock in when you arrive, clock out when done. Hours automatically logged.', color: '#8b5cf6', href: '/mobile/field' },
+                  { name: 'Barcode Scanner', desc: 'Scan warehouse stock barcodes with your phone camera. Check out equipment to a project.', color: '#ec4899', href: '/mobile/scan' },
+                  { name: 'Report Issues', desc: 'Create a ticket from the field. Priority, category. Ops gets notified immediately.', color: '#ef4444', href: '/tickets' },
                 ].map(t => (
-                  <div key={t.name} className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-                    <h3 className="text-sm font-bold" style={{ color: t.color }}>{t.name}</h3>
+                  <a key={t.name} href={t.href} className="bg-gray-800 rounded-xl p-5 border border-gray-700 block hover:opacity-80 transition-opacity">
+                    <h3 className="text-sm font-bold" style={{ color: t.color }}>{t.name} →</h3>
                     <p className="text-xs text-gray-400 mt-1">{t.desc}</p>
-                  </div>
+                  </a>
                 ))}
               </div>
             </div>
@@ -479,10 +481,10 @@ export default function InfographicPage() {
                   { step: 1, who: 'Your Deal', action: 'Contract enters the pipeline. Your commission is calculated and tracked from this moment.', color: '#3b82f6' },
                   { step: 2, who: 'Survey', action: 'Site survey gets scheduled. The faster this happens, the faster you get paid.', color: '#1D9E75' },
                   { step: 3, who: 'Design', action: 'Engineering designs the system and gets stamps. Any change orders are tracked so you know if the deal changes.', color: '#8b5cf6' },
-                  { step: 4, who: 'NTP', action: 'Notice to Proceed approved. Your M1 advance becomes available.', color: '#22c55e' },
-                  { step: 5, who: 'Permits', action: 'Permits submitted. This is the waiting game — the system tracks every AHJ deadline and follows up automatically.', color: '#f59e0b' },
-                  { step: 6, who: 'Install', action: 'Crew installs the system. When complete, M2 funding is triggered automatically — no action needed from you.', color: '#f97316' },
-                  { step: 7, who: 'Funded', action: 'Inspections pass, PTO received, M3 funded. Your full commission hits. Check your Earnings Dashboard anytime.', color: '#1D9E75' },
+                  { step: 4, who: 'Approved', action: 'Notice to Proceed approved. Your deal is greenlit for installation.', color: '#22c55e' },
+                  { step: 5, who: 'Permits', action: 'Permits submitted. This is the waiting game — the system tracks every deadline and follows up automatically.', color: '#f59e0b' },
+                  { step: 6, who: 'Install', action: 'Crew installs the system. When complete, your first commission payment is triggered automatically.', color: '#f97316' },
+                  { step: 7, who: 'Paid', action: 'Inspections pass, system goes live, final funding hits. Your full commission is paid out. Check your Earnings Dashboard anytime.', color: '#1D9E75' },
                 ].map(s => (
                   <div key={s.step} className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 border border-gray-700">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold" style={{ backgroundColor: `${s.color}20`, color: s.color }}>{s.step}</div>
@@ -518,22 +520,27 @@ export default function InfographicPage() {
                 </div>
                 <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
                   <h3 className="text-sm font-bold text-amber-400 mb-3">Pay Scale Tiers</h3>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {[
-                      ['Consultant', '$0.20/W', 'Entry level'],
-                      ['Pro', '$0.25/W', 'Experienced'],
-                      ['Elite', '$0.30/W', 'Top performer'],
-                      ['Exclusive', '$0.40/W', 'Leadership'],
-                    ].map(([tier, rate, desc]) => (
-                      <div key={tier} className="flex items-center justify-between text-xs">
-                        <span className="text-white font-medium">{tier}</span>
-                        <span className="text-green-400 font-bold">{rate}</span>
-                        <span className="text-gray-500">{desc}</span>
+                      { tier: 'Consultant', rate: '$0.20/W', desc: 'Entry level', pct: 50 },
+                      { tier: 'Pro', rate: '$0.25/W', desc: 'Experienced', pct: 63 },
+                      { tier: 'Elite', rate: '$0.30/W', desc: 'Top performer', pct: 75 },
+                      { tier: 'Exclusive', rate: '$0.40/W', desc: 'Leadership', pct: 100 },
+                    ].map(t => (
+                      <div key={t.tier}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-white font-medium w-20">{t.tier}</span>
+                          <span className="text-gray-500 text-[10px] flex-1 text-center">{t.desc}</span>
+                          <span className="text-green-400 font-bold w-16 text-right">{t.rate}</span>
+                        </div>
+                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-green-600 to-green-400" style={{ width: `${t.pct}%` }} />
+                        </div>
                       </div>
                     ))}
                   </div>
                   <div className="mt-3 pt-3 border-t border-gray-700 text-[10px] text-gray-500">
-                    M1 advance available at NTP · Auto-assigned by role · Clawback rules apply
+                    Auto-assigned by role · Tier upgrades based on performance
                   </div>
                 </div>
               </div>
@@ -544,17 +551,17 @@ export default function InfographicPage() {
               <h2 className="text-xl font-bold mb-4">Your Tools</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {[
-                  { name: 'Commission Calculator', desc: 'Enter system size + adders → see your payout breakdown by role', color: '#1D9E75' },
-                  { name: 'Earnings Dashboard', desc: 'YTD earnings, deal history, pending vs paid commissions', color: '#3b82f6' },
-                  { name: 'Leaderboard', desc: 'Team rankings by commission, deals, kW sold with period filters', color: '#f59e0b' },
-                  { name: 'Onboarding Tracker', desc: 'License, W-9, ICA, background check status all in one place', color: '#8b5cf6' },
-                  { name: 'Spark Proposals', desc: 'Create customer proposals with roof design, pricing, and e-signature', color: '#ec4899' },
-                  { name: 'Rep Scorecard', desc: 'Deals, total earned, paid, pending, average per deal', color: '#06b6d4' },
+                  { name: 'Commission Calculator', desc: 'Enter system size + adders → see your payout breakdown by role', color: '#1D9E75', href: '/commissions' },
+                  { name: 'Earnings Dashboard', desc: 'YTD earnings, deal history, pending vs paid commissions', color: '#3b82f6', href: '/commissions' },
+                  { name: 'Leaderboard', desc: 'Team rankings by commission, deals, kW sold with period filters', color: '#f59e0b', href: '/commissions' },
+                  { name: 'Onboarding Tracker', desc: 'License, W-9, ICA, background check status all in one place', color: '#8b5cf6', href: '/sales' },
+                  { name: 'Spark Proposals', desc: 'Create customer proposals with roof design, pricing, and e-signature', color: '#ec4899', href: 'https://spark-portal.vercel.app' },
+                  { name: 'Rep Scorecard', desc: 'Deals, total earned, paid, pending, average per deal', color: '#06b6d4', href: '/sales' },
                 ].map(t => (
-                  <div key={t.name} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                    <h3 className="text-xs font-bold" style={{ color: t.color }}>{t.name}</h3>
+                  <a key={t.name} href={t.href} className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-opacity-100 transition-colors block" style={{ borderColor: `${t.color}30` }}>
+                    <h3 className="text-xs font-bold" style={{ color: t.color }}>{t.name} →</h3>
                     <p className="text-[10px] text-gray-400 mt-1">{t.desc}</p>
-                  </div>
+                  </a>
                 ))}
               </div>
             </div>
