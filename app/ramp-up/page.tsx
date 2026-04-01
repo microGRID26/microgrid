@@ -420,15 +420,18 @@ export default function RampUpPage() {
   }
 
   // Auto-fill week — assign top clustered suggestions to all empty slots
+  const [autoFilling, setAutoFilling] = useState(false)
   const handleAutoFill = async () => {
-    if (!config) return
+    if (!config || autoFilling) return
+    setAutoFilling(true)
     let filled = 0
+    let failed = 0
     for (const [crew, crewProjects] of crewSuggestions.entries()) {
       const crewSlots = weekSchedule.filter(s => s.crew_name === crew).length
       const maxSlots = config.installs_per_crew_per_week ?? 2
       for (let i = 0; i < Math.min(crewProjects.length, maxSlots - crewSlots); i++) {
         const p = crewProjects[i]
-        await scheduleProject({
+        const result = await scheduleProject({
           project_id: p.id,
           crew_name: crew,
           scheduled_week: selectedWeek,
@@ -439,9 +442,12 @@ export default function RampUpPage() {
           drive_minutes: p.driveMinutes ?? null,
           created_by: user?.name,
         })
-        filled++
+        if (result) filled++
+        else failed++
       }
     }
+    setAutoFilling(false)
+    if (failed > 0) alert(`Filled ${filled} slots, ${failed} failed`)
     if (filled > 0) loadAll()
   }
 
@@ -452,6 +458,9 @@ export default function RampUpPage() {
       return sum + (Number(p?.contract) || 0)
     }, 0)
   }, [weekSchedule, projects])
+
+  // HTML escape for print template
+  const esc = (s: string | null | undefined) => (s ?? '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
   // Print crew sheet
   const handlePrint = () => {
@@ -472,17 +481,18 @@ export default function RampUpPage() {
     @media print{body{padding:0}}</style></head><body>
     <h1>MicroGRID — Install Schedule: ${getWeekLabel(selectedWeek)}</h1>
     <p style="color:#666;font-size:12px">Warehouse: ${config?.warehouse_address ?? ''}</p>
-    ${printData.map(c => `<h2>${c.crew} (${c.jobs.length} jobs)</h2>
+    ${printData.map(c => `<h2>${esc(c.crew)} (${c.jobs.length} jobs)</h2>
     ${c.jobs.map((j: any, i: number) => `<div class="job">
-      <div><span class="label">Job ${i + 1}:</span> <span class="value">${j.name}</span> <span style="color:#666">(${j.id})</span></div>
+      <div><span class="label">Job ${i + 1}:</span> <span class="value">${esc(j.name)}</span> <span style="color:#666">(${esc(j.id)})</span></div>
       <div><span class="label">Date:</span> ${j.date ? new Date(j.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'TBD'}</div>
-      <div><span class="label">Address:</span> <span class="value">${j.address ?? '—'}, ${j.city ?? ''}</span></div>
-      <div><span class="label">Phone:</span> ${j.phone ?? '—'}</div>
+      <div><span class="label">Address:</span> <span class="value">${esc(j.address)}, ${esc(j.city)}</span></div>
+      <div><span class="label">Phone:</span> ${esc(j.phone)}</div>
       <div><span class="label">System:</span> ${j.systemkw ?? '—'} kW</div>
     </div>`).join('')}`).join('')}
     </body></html>`
     const win = window.open('', '_blank')
     if (win) { win.document.write(html); win.document.close(); win.print() }
+    else alert('Popup blocked — please allow popups for this site to print crew sheets.')
   }
 
   const openProject = async (id: string) => {
@@ -646,8 +656,8 @@ export default function RampUpPage() {
                 {weekRevenue > 0 && <span className="text-green-400 font-medium ml-2">{fmt$(weekRevenue)}</span>}
               </span>
               {crewSuggestions.size > 0 && weekSchedule.length < crewNames.length * (config?.installs_per_crew_per_week ?? 2) && (
-                <button onClick={handleAutoFill} className="text-[10px] px-3 py-1 bg-green-700 hover:bg-green-600 text-white rounded-md font-medium ml-2">
-                  Auto-Fill Week
+                <button onClick={handleAutoFill} disabled={autoFilling} className="text-[10px] px-3 py-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded-md font-medium ml-2">
+                  {autoFilling ? 'Filling...' : 'Auto-Fill Week'}
                 </button>
               )}
               {weekSchedule.length > 0 && (
