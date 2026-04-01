@@ -5,18 +5,18 @@ import { Nav } from '@/components/Nav'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useOrg } from '@/lib/hooks'
 import { fmtDate, fmt$, cn, STAGE_LABELS } from '@/lib/utils'
-import { loadProjectById } from '@/lib/api'
+import { loadProjectById, loadActiveCrews } from '@/lib/api'
 import { db } from '@/lib/db'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import type { Project } from '@/types/database'
 import {
   classifyTier, haversineDistance, estimateDriveMinutes,
-  computeReadinessScore, computePriorityScore, optimizeRoute,
+  computeReadinessScore, computePriorityScore, optimizeRoute, autoReadiness,
   getMonday, getWeekLabel, getNextWeeks,
   loadRampConfig, loadAllReadiness, loadAllSchedule, loadScheduledProjectIds,
   scheduleProject, updateScheduleEntry, completeScheduleEntry, cancelScheduleEntry,
   upsertReadiness,
-  TIER_INFO, RAMP_STATUS_COLORS,
+  TIER_INFO, RAMP_STATUS_COLORS, READINESS_WEIGHTS,
 } from '@/lib/api/ramp-planner'
 import type { Tier, RampConfig, ProjectReadiness, RampScheduleEntry, RoutePoint } from '@/lib/api/ramp-planner'
 import { Calendar, MapPin, Truck, ChevronLeft, ChevronRight, Check, X, Zap, AlertTriangle, Target } from 'lucide-react'
@@ -63,6 +63,9 @@ export default function RampUpPage() {
   const [selectedWeek, setSelectedWeek] = useState(getMonday(new Date()))
   const [panelProject, setPanelProject] = useState<Project | null>(null)
   const [tab, setTab] = useState<'planner' | 'queue' | 'timeline'>('planner')
+  const [tierFilter, setTierFilter] = useState<Tier | null>(null)
+  const [queueSearch, setQueueSearch] = useState('')
+  const [expandedProject, setExpandedProject] = useState<string | null>(null)
 
   // Load everything
   const loadAll = useCallback(async () => {
@@ -104,8 +107,11 @@ export default function RampUpPage() {
 
       const tier = classifyTier(p.ahj, p.module, p.inverter, p.battery)
       const dist = haversineDistance(cfg.warehouse_lat, cfg.warehouse_lng, coords[0], coords[1])
-      const readiness = readinessMap.get(p.id) ?? null
-      const readinessScore = readiness ? computeReadinessScore(readiness) : (tier === 1 ? 60 : 0)
+      // Use DB readiness if exists, otherwise auto-compute from project properties
+      const dbReadiness = readinessMap.get(p.id)
+      const autoR = autoReadiness(p.ahj, p.module, p.inverter, p.battery)
+      const readiness = dbReadiness ?? autoR as any
+      const readinessScore = computeReadinessScore(readiness)
 
       allMapped.push({
         ...p,
@@ -160,15 +166,26 @@ export default function RampUpPage() {
   const weekSchedule = useMemo(() => schedule.filter(s => s.scheduled_week === selectedWeek && s.status !== 'cancelled'), [schedule, selectedWeek])
   const weeks = useMemo(() => getNextWeeks(16), [])
 
-  // Auto-suggest top projects for the week
+  // Load real crews from DB
+  const [crews, setCrews] = useState<{ id: string; name: string }[]>([])
+  useEffect(() => {
+    loadActiveCrews().then((r: any) => setCrews((r.data ?? r ?? []).map((cr: any) => ({ id: cr.id, name: cr.name }))))
+  }, [])
+  const crewNames = crews.map(c => c.name)
+
+  // Auto-suggest top projects for the week — only projects with readiness >= 35
   const suggestions = useMemo(() => {
     if (!config) return []
     const slotsNeeded = config.crews_count * config.installs_per_crew_per_week
     const weekAlready = weekSchedule.length
     const remaining = slotsNeeded - weekAlready
     if (remaining <= 0) return []
-    return unscheduled.filter(p => p.tier === 1).slice(0, Math.max(remaining * 2, 8))
-  }, [unscheduled, config, weekSchedule])
+    // Show Tier 1 first, then Tier 2 if not enough Tier 1
+    const pool = unscheduled
+      .filter(p => (tierFilter ? p.tier === tierFilter : p.tier <= 2) && p.readinessScore >= 35)
+      .slice(0, remaining + 4) // Show a few extras for choice
+    return pool
+  }, [unscheduled, config, weekSchedule, tierFilter])
 
   // Handlers
   const handleSchedule = async (projectId: string, crewName: string, slot: number) => {
@@ -200,9 +217,19 @@ export default function RampUpPage() {
   }
 
   const handleReadinessToggle = async (projectId: string, field: string, current: boolean) => {
-    const readiness = projects.find(p => p.id === projectId)?.readiness ?? {}
-    await upsertReadiness(projectId, { ...readiness, [field]: !current } as any, user?.name)
-    loadAll()
+    const project = projects.find(p => p.id === projectId)
+    if (!project) return
+    // Build full readiness from either DB or auto-computed values
+    const base = project.readiness ?? autoReadiness(project.ahj, project.module, project.inverter, project.battery)
+    const updated = { ...base, [field]: !current }
+    await upsertReadiness(projectId, updated as any, user?.name)
+    // Optimistic update — don't wait for full reload
+    setProjects(prev => prev.map(p => {
+      if (p.id !== projectId) return p
+      const newReadiness = { ...p.readiness, ...updated } as any
+      const newScore = computeReadinessScore(newReadiness)
+      return { ...p, readiness: newReadiness, readinessScore: newScore }
+    }))
   }
 
   const openProject = async (id: string) => {
@@ -252,7 +279,9 @@ export default function RampUpPage() {
         {/* Tier Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {([1, 2, 3, 4] as Tier[]).map(tier => (
-            <div key={tier} className={cn('rounded-lg p-3 border', TIER_COLORS[tier], TIER_BG[tier])}>
+            <div key={tier} onClick={() => { setTierFilter(tierFilter === tier ? null : tier); setTab('queue') }}
+              className={cn('rounded-lg p-3 border cursor-pointer transition-opacity', TIER_COLORS[tier], TIER_BG[tier],
+                tierFilter && tierFilter !== tier && 'opacity-40')}>
               <div className="flex items-center justify-between">
                 <span className={cn('text-xs font-semibold', TIER_TEXT[tier])}>Tier {tier}: {TIER_INFO[tier].label}</span>
                 <span className="text-lg font-bold text-white">{tierCounts[tier].count}</span>
@@ -294,8 +323,8 @@ export default function RampUpPage() {
             </div>
 
             {/* Crew schedules */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {['Crew A', 'Crew B'].map(crew => {
+            <div className={cn('grid gap-4', crewNames.length <= 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4')}>
+              {crewNames.map(crew => {
                 const crewJobs = weekSchedule.filter(s => s.crew_name === crew)
                 return (
                   <div key={crew} className="bg-gray-800 rounded-lg p-4">
@@ -391,10 +420,18 @@ export default function RampUpPage() {
                           <div className="text-[9px] text-gray-500">score</div>
                         </div>
                         <div className="flex gap-1">
-                          <button onClick={() => handleSchedule(p.id, 'Crew A', (weekSchedule.filter(s => s.crew_name === 'Crew A').length) + 1)}
-                            className="text-[10px] px-2 py-1 bg-green-900/40 text-green-400 rounded hover:opacity-80">+ Crew A</button>
-                          <button onClick={() => handleSchedule(p.id, 'Crew B', (weekSchedule.filter(s => s.crew_name === 'Crew B').length) + 1)}
-                            className="text-[10px] px-2 py-1 bg-blue-900/40 text-blue-400 rounded hover:opacity-80">+ Crew B</button>
+                          {crewNames.map((crew, ci) => {
+                            const crewSlots = weekSchedule.filter(s => s.crew_name === crew).length
+                            const maxSlots = config?.installs_per_crew_per_week ?? 2
+                            if (crewSlots >= maxSlots) return null
+                            return (
+                              <button key={crew} onClick={() => handleSchedule(p.id, crew, crewSlots + 1)}
+                                className={cn('text-[10px] px-2 py-1 rounded hover:opacity-80',
+                                  ci % 2 === 0 ? 'bg-green-900/40 text-green-400' : 'bg-blue-900/40 text-blue-400')}>
+                                + {crew}
+                              </button>
+                            )
+                          })}
                         </div>
                       </div>
                     </div>
@@ -407,9 +444,34 @@ export default function RampUpPage() {
 
         {/* ── READINESS QUEUE TAB ───────────────────────────────────────── */}
         {tab === 'queue' && (
-          <div className="space-y-2">
-            <p className="text-xs text-gray-500">Tier 1 projects sorted by priority score. Toggle readiness items to update scores.</p>
-            {unscheduled.filter(p => p.tier === 1).map(p => (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 max-w-md">
+                <input value={queueSearch} onChange={e => setQueueSearch(e.target.value)}
+                  placeholder="Search name, city, project ID..."
+                  className="w-full pl-3 pr-3 py-1.5 bg-gray-800 border border-gray-700 rounded-md text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
+              </div>
+              <div className="flex gap-1">
+                {([1, 2, 3, 4] as Tier[]).map(t => (
+                  <button key={t} onClick={() => setTierFilter(tierFilter === t ? null : t)}
+                    className={cn('text-[10px] px-2 py-1 rounded border', tierFilter === t ? `${TIER_BG[t]} ${TIER_TEXT[t]} ${TIER_COLORS[t]}` : 'border-gray-700 text-gray-500')}>
+                    T{t} ({tierCounts[t].count})
+                  </button>
+                ))}
+                {tierFilter && <button onClick={() => setTierFilter(null)} className="text-[10px] text-gray-400 ml-1">All</button>}
+              </div>
+              <span className="text-[10px] text-gray-500 ml-auto">
+                {unscheduled.filter(p => (!tierFilter || p.tier === tierFilter) && (!queueSearch || p.name.toLowerCase().includes(queueSearch.toLowerCase()) || p.id.toLowerCase().includes(queueSearch.toLowerCase()) || (p.city ?? '').toLowerCase().includes(queueSearch.toLowerCase()))).length} projects
+              </span>
+            </div>
+            {unscheduled.filter(p => {
+              if (tierFilter && p.tier !== tierFilter) return false
+              if (queueSearch) {
+                const q = queueSearch.toLowerCase()
+                if (!p.name.toLowerCase().includes(q) && !p.id.toLowerCase().includes(q) && !(p.city ?? '').toLowerCase().includes(q)) return false
+              }
+              return true
+            }).map(p => (
               <div key={p.id} className="bg-gray-800 rounded-lg p-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -426,25 +488,24 @@ export default function RampUpPage() {
                 </div>
                 {/* Readiness checklist */}
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {[
-                    { key: 'equipment_ready', label: 'Equipment' },
-                    { key: 'homeowner_confirmed', label: 'Homeowner' },
-                    { key: 'permit_clear', label: 'Permit' },
-                    { key: 'utility_approved', label: 'Utility' },
-                    { key: 'hoa_approved', label: 'HOA' },
-                    { key: 'redesign_complete', label: 'Redesign' },
-                    { key: 'crew_available', label: 'Crew' },
-                  ].map(item => {
-                    const checked = (p.readiness as any)?.[item.key] ?? false
+                  {READINESS_WEIGHTS.map(item => {
+                    const checked = (p.readiness as any)?.[item.field] ?? false
                     return (
-                      <button key={item.key} onClick={() => handleReadinessToggle(p.id, item.key, checked)}
+                      <button key={item.field} onClick={(e) => { e.stopPropagation(); handleReadinessToggle(p.id, item.field, checked) }}
                         className={cn('text-[10px] px-2 py-0.5 rounded border transition-colors',
                           checked ? 'bg-green-900/40 border-green-700 text-green-400' : 'bg-gray-900 border-gray-700 text-gray-500 hover:text-gray-300')}>
-                        {checked && <Check className="w-2.5 h-2.5 inline mr-0.5" />}{item.label}
+                        {checked ? <Check className="w-2.5 h-2.5 inline mr-0.5" /> : <X className="w-2.5 h-2.5 inline mr-0.5 opacity-30" />}
+                        {item.label} <span className="text-[8px] opacity-60">({item.weight}pt)</span>
                       </button>
                     )
                   })}
-                  <span className="text-[10px] text-gray-600 ml-auto">Readiness: {p.readinessScore}/100</span>
+                  {/* Readiness bar */}
+                  <div className="ml-auto flex items-center gap-2">
+                    <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${p.readinessScore}%`, backgroundColor: p.readinessScore >= 80 ? '#22c55e' : p.readinessScore >= 50 ? '#f59e0b' : '#ef4444' }} />
+                    </div>
+                    <span className={cn('text-[10px] font-bold', p.readinessScore >= 80 ? 'text-green-400' : p.readinessScore >= 50 ? 'text-amber-400' : 'text-red-400')}>{p.readinessScore}/100</span>
+                  </div>
                 </div>
               </div>
             ))}

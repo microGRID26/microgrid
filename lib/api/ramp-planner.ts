@@ -124,21 +124,40 @@ export function estimateDriveMinutes(miles: number): number {
 // ── Readiness Score ──────────────────────────────────────────────────────────
 // 0-100 based on checklist items. Each item has a weight.
 
+export const READINESS_WEIGHTS = [
+  { field: 'equipment_ready', label: 'Equipment', weight: 20 },
+  { field: 'homeowner_confirmed', label: 'Homeowner', weight: 20 },
+  { field: 'permit_clear', label: 'Permit', weight: 20 },
+  { field: 'utility_approved', label: 'Utility', weight: 15 },
+  { field: 'hoa_approved', label: 'HOA', weight: 10 },
+  { field: 'redesign_complete', label: 'Redesign', weight: 10 },
+  { field: 'crew_available', label: 'Crew', weight: 5 },
+] as const
+
 export function computeReadinessScore(r: Partial<ProjectReadiness>): number {
-  const weights = [
-    { field: 'equipment_ready', weight: 20 },
-    { field: 'homeowner_confirmed', weight: 20 },
-    { field: 'permit_clear', weight: 20 },
-    { field: 'utility_approved', weight: 15 },
-    { field: 'hoa_approved', weight: 10 },
-    { field: 'redesign_complete', weight: 10 },
-    { field: 'crew_available', weight: 5 },
-  ]
   let score = 0
-  for (const w of weights) {
+  for (const w of READINESS_WEIGHTS) {
     if ((r as any)[w.field] === true) score += w.weight
   }
   return score
+}
+
+// Auto-compute initial readiness from project properties
+// County AHJ → permit_clear = true (no permit needed)
+// Non-ecoflow → redesign_complete = true (no redesign needed)
+// crew_available defaults to true
+export function autoReadiness(ahj: string | null, module: string | null, inverter: string | null, battery: string | null): Partial<ProjectReadiness> {
+  const isCounty = (ahj ?? '').toLowerCase().includes('county')
+  const isEcoflow = [module, inverter, battery].some(f => (f ?? '').toLowerCase().includes('ecoflow'))
+  return {
+    equipment_ready: false,
+    homeowner_confirmed: false,
+    permit_clear: isCounty,       // County = no permit needed
+    utility_approved: false,
+    hoa_approved: true,            // Default true — most projects don't have HOA issues
+    redesign_complete: !isEcoflow, // Non-ecoflow = no redesign needed
+    crew_available: true,
+  }
 }
 
 // ── Priority Score ───────────────────────────────────────────────────────────

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   classifyTier, haversineDistance, estimateDriveMinutes,
   computeReadinessScore, computePriorityScore, optimizeRoute,
-  getMonday, getWeekLabel, getNextWeeks,
-  TIER_INFO, RAMP_STATUSES,
+  getMonday, getWeekLabel, getNextWeeks, autoReadiness,
+  TIER_INFO, RAMP_STATUSES, READINESS_WEIGHTS,
 } from '@/lib/api/ramp-planner'
 
 // ── Tier Classification ──────────────────────────────────────────────────────
@@ -244,6 +244,43 @@ describe('getNextWeeks', () => {
       const diff = new Date(weeks[i]).getTime() - new Date(weeks[i - 1]).getTime()
       expect(diff).toBe(7 * 24 * 60 * 60 * 1000)
     }
+  })
+})
+
+// ── Auto Readiness ───────────────────────────────────────────────────────────
+
+describe('autoReadiness', () => {
+  it('county + non-ecoflow: permit + redesign + hoa + crew = 45', () => {
+    const r = autoReadiness('Harris County', 'Q.PEAK', 'SolarEdge', null)
+    expect(r.permit_clear).toBe(true)
+    expect(r.redesign_complete).toBe(true)
+    expect(r.hoa_approved).toBe(true)
+    expect(r.crew_available).toBe(true)
+    expect(r.equipment_ready).toBe(false)
+    expect(r.homeowner_confirmed).toBe(false)
+    expect(computeReadinessScore(r as any)).toBe(45) // permit=20, hoa=10, redesign=10, crew=5
+  })
+
+  it('city + ecoflow: only hoa + crew = 15', () => {
+    const r = autoReadiness('Houston city', 'Q.PEAK', 'EcoFlow Delta', null)
+    expect(r.permit_clear).toBe(false)
+    expect(r.redesign_complete).toBe(false)
+    expect(r.hoa_approved).toBe(true)
+    expect(computeReadinessScore(r as any)).toBe(15) // hoa=10, crew=5
+  })
+
+  it('county + ecoflow: permit + hoa + crew = 35', () => {
+    const r = autoReadiness('Fort Bend County', null, null, 'EcoFlow Battery')
+    expect(r.permit_clear).toBe(true)
+    expect(r.redesign_complete).toBe(false)
+    expect(computeReadinessScore(r as any)).toBe(35) // permit=20, hoa=10, crew=5
+  })
+})
+
+describe('READINESS_WEIGHTS', () => {
+  it('weights sum to 100', () => {
+    const total = READINESS_WEIGHTS.reduce((sum, w) => sum + w.weight, 0)
+    expect(total).toBe(100)
   })
 })
 
