@@ -216,6 +216,24 @@ export async function createTicket(ticket: Partial<Ticket>): Promise<Ticket | nu
 }
 
 export async function updateTicket(id: string, updates: Partial<Ticket>): Promise<boolean> {
+  // Check if assigned_to is changing — notify the new assignee
+  if (updates.assigned_to) {
+    const existing = await loadTicket(id)
+    if (existing && existing.assigned_to !== updates.assigned_to) {
+      // Look up the user ID for the new assignee
+      const { data: users } = await db().from('users').select('id').eq('name', updates.assigned_to).limit(1)
+      if (users?.[0]) {
+        await db().from('mention_notifications').insert({
+          project_id: existing.project_id ?? 'TICKET',
+          mentioned_user_id: users[0].id,
+          mentioned_by: 'System',
+          message: `Ticket ${existing.ticket_number} assigned to you: ${existing.title}`,
+        })
+        // Trigger notification refresh
+        // (client-side dispatch handled by caller)
+      }
+    }
+  }
   const { error } = await db().from('tickets').update(updates).eq('id', id)
   if (error) { console.error('[updateTicket]', error.message); return false }
   return true

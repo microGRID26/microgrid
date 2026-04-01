@@ -18,7 +18,7 @@ export async function loadScheduleByDateRange(startDate: string, endDate: string
   if (entries.length > 0) {
     const projectIds = [...new Set(entries.map(e => e.project_id).filter(Boolean))]
     if (projectIds.length > 0) {
-      const { data: projects } = await db().from('projects').select('id, name, city').in('id', projectIds).limit(2000)
+      const { data: projects } = await db().from('projects').select('id, name, city, address, zip, phone, systemkw, module, inverter, battery').in('id', projectIds).limit(2000)
       const projectMap = new Map((projects ?? []).map((p: any) => [p.id, p]))
       for (const entry of entries) {
         entry.project = projectMap.get(entry.project_id) ?? null

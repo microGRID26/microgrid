@@ -506,9 +506,22 @@ export default function SchedulePage() {
                             </div>
                             <div className="text-xs font-semibold truncate max-w-32">{projectData?.name ?? job.project_id}</div>
                             <div className="text-xs opacity-70 uppercase tracking-wide">{JOB_LABELS[job.job_type] ?? job.job_type}</div>
-                            {projectData?.city && <div className="text-xs opacity-60">{projectData.city}</div>}
-                            {pmName && <div className="text-xs opacity-50 truncate">{pmName}</div>}
-                            {job.notes && <div className="text-xs opacity-60 truncate">{job.notes}</div>}
+                            {projectData?.city && (
+                              <div className="text-xs opacity-60">
+                                {(projectData as any).address ? (
+                                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${(projectData as any).address}, ${projectData.city} TX ${(projectData as any).zip ?? ''}`)}`}
+                                    target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                                    className="hover:underline">{projectData.city}</a>
+                                ) : projectData.city}
+                              </div>
+                            )}
+                            {(projectData as any)?.phone && (
+                              <a href={`tel:${(projectData as any).phone}`} onClick={e => e.stopPropagation()}
+                                className="text-[10px] opacity-60 hover:opacity-100 hover:underline block">{(projectData as any).phone}</a>
+                            )}
+                            {(projectData as any)?.systemkw && <div className="text-[10px] opacity-50">{(projectData as any).systemkw} kW</div>}
+                            {pmName && <div className="text-[10px] opacity-50 truncate">{pmName}</div>}
+                            {job.notes && <div className="text-[10px] opacity-60 truncate italic">{job.notes}</div>}
                           </div>
                         )
                       })}

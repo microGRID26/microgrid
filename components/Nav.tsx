@@ -6,6 +6,7 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { ConstructionBanner } from '@/components/ConstructionBanner'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
+import { GlobalSearch } from '@/components/GlobalSearch'
 import { OrgSwitcher } from '@/components/OrgSwitcher'
 import { useFeatureFlags, isFeatureEnabled } from '@/lib/useFeatureFlags'
 
@@ -228,6 +229,9 @@ export function Nav({ active, right, onNewProject }: NavProps) {
 
           {/* Notification bell — hidden for sales users */}
           {!isSales && !loading && currentUser && <NotificationBell />}
+
+          {/* Global search */}
+          {!loading && currentUser && <GlobalSearch />}
 
           {(!loading && currentUser?.isAdmin) && (
             <a href="/admin"
