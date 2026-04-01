@@ -116,7 +116,7 @@ export default function RampUpPage() {
     // Load task states to determine real readiness + filter out already-installed
     const { data: taskStates } = await db().from('task_state')
       .select('project_id, task_id, status')
-      .in('task_id', ['install_done', 'sched_install', 'inventory', 'util_permit', 'city_permit', 'hoa', 'eng_approval', 'stamps'])
+      .in('task_id', ['install_done', 'sched_install', 'inventory', 'util_permit', 'city_permit', 'hoa', 'eng_approval', 'stamps', 'ntp', 'quote_ext_scope'])
       .limit(50000)
     const taskMap = new Map<string, Map<string, string>>()
     for (const t of (taskStates ?? []) as any[]) {
@@ -154,16 +154,22 @@ export default function RampUpPage() {
       const autoR = autoReadiness(p.ahj, p.module, p.inverter, p.battery, permitRequired)
       // Enhance auto-readiness with actual task completion data
       if (!dbReadiness && tasks) {
+        if (tasks.get('ntp') === 'Complete') (autoR as any).ntp_approved = true
         if (tasks.get('inventory') === 'Complete') (autoR as any).equipment_ready = true
         if (tasks.get('util_permit') === 'Complete') (autoR as any).utility_approved = true
         if (tasks.get('hoa') === 'Complete') (autoR as any).hoa_approved = true
+        // Extended scope: if status is anything other than 'Not Ready' or 'Complete', it's blocking
+        const extScope = tasks.get('quote_ext_scope')
+        if (extScope && extScope !== 'Not Ready' && extScope !== 'Complete') {
+          (autoR as any).ext_scope_clear = false
+        }
         // Redesign is NEVER auto-checked — must be manually confirmed
         // Old TriSMART engineering/stamps don't count under MicroGRID
       }
       const readiness = (dbReadiness ?? autoR) as ProjectReadiness
       const readinessScore = computeReadinessScore(readiness)
       // Tier derived from readiness score
-      const tier = tierFromScore(readinessScore, readiness?.permit_clear ?? false, readiness?.redesign_complete ?? false)
+      const tier = tierFromScore(readinessScore, readiness)
 
       allMapped.push({
         ...p,
@@ -416,7 +422,7 @@ export default function RampUpPage() {
       if (p.id !== projectId) return p
       const newReadiness = { ...p.readiness, ...updated } as any
       const newScore = computeReadinessScore(newReadiness)
-      const newTier = tierFromScore(newScore, newReadiness.permit_clear ?? false, newReadiness.redesign_complete ?? false)
+      const newTier = tierFromScore(newScore, newReadiness)
       return { ...p, readiness: newReadiness, readinessScore: newScore, tier: newTier }
     }))
   }

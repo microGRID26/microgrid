@@ -24,7 +24,6 @@ export const TASKS: Record<string, { id: string; name: string; pre: string[]; re
     { id: 'wp1',             name: 'WP1',                     pre: ['scope'],         req: false },
     { id: 'prod_add',        name: 'Production Addendum',     pre: ['scope'],         req: false },
     { id: 'new_ia',          name: 'Create New IA',           pre: ['scope'],         req: false },
-    { id: 'reroof',          name: 'Reroof Procedure',        pre: ['scope'],         req: false },
     { id: 'onsite_redesign', name: 'OnSite Redesign',         pre: ['scope'],         req: false },
     { id: 'quote_ext_scope', name: 'Quote — Extended Scope',  pre: ['scope'],         req: false },
   ],

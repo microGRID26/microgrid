@@ -15,13 +15,13 @@ import { db } from '@/lib/db'
 export interface ProjectReadiness {
   id: string
   project_id: string
-  equipment_ready: boolean
-  homeowner_confirmed: boolean
+  ntp_approved: boolean
+  redesign_complete: boolean
+  ext_scope_clear: boolean
   permit_clear: boolean
+  equipment_ready: boolean
   utility_approved: boolean
   hoa_approved: boolean
-  redesign_complete: boolean
-  crew_available: boolean
   blocker_notes: string | null
   readiness_score: number
   updated_at: string
@@ -80,11 +80,15 @@ export const TIER_INFO: Record<Tier, TierInfo> = {
   4: { tier: 4, label: 'Not Ready', description: 'Readiness 0-19', color: 'red', minScore: 0 },
 }
 
-// Tier 1 requires BOTH permit_clear AND redesign_complete as hard blockers
-// Even with a high score, missing either one drops you to Tier 2+
-export function tierFromScore(score: number, permitClear?: boolean, redesignComplete?: boolean): Tier {
-  const hasHardBlockers = permitClear === false || redesignComplete === false
-  if (score >= 60 && !hasHardBlockers) return 1
+// Tier 1 requires ALL hard blockers to be cleared (NTP, Redesign, Ext Scope)
+// Even with a high score, any hard blocker unchecked drops to Tier 2+
+export function tierFromScore(score: number, readiness?: Partial<ProjectReadiness>): Tier {
+  if (score >= 60 && readiness) {
+    const hasHardBlocker = READINESS_WEIGHTS.some(w =>
+      w.hardBlocker && (readiness as any)[w.field] !== true
+    )
+    if (!hasHardBlocker) return 1
+  }
   if (score >= 40) return 2
   if (score >= 20) return 3
   return 4
@@ -140,12 +144,13 @@ export function estimateDriveMinutes(miles: number): number {
 // 0-100 based on checklist items. Each item has a weight.
 
 export const READINESS_WEIGHTS = [
-  { field: 'permit_clear', label: 'Permit Clear', weight: 25 },
-  { field: 'redesign_complete', label: 'Redesign Done', weight: 25 },
-  { field: 'equipment_ready', label: 'Equipment', weight: 20 },
-  { field: 'utility_approved', label: 'Utility', weight: 15 },
-  { field: 'hoa_approved', label: 'HOA', weight: 10 },
-  { field: 'crew_available', label: 'Crew', weight: 5 },
+  { field: 'ntp_approved', label: 'NTP Approved', weight: 25, hardBlocker: true },
+  { field: 'redesign_complete', label: 'Redesign Done', weight: 20, hardBlocker: true },
+  { field: 'ext_scope_clear', label: 'Ext Scope Clear', weight: 15, hardBlocker: true },
+  { field: 'permit_clear', label: 'Permit Clear', weight: 15, hardBlocker: false },
+  { field: 'equipment_ready', label: 'Equipment', weight: 15, hardBlocker: false },
+  { field: 'utility_approved', label: 'Utility', weight: 5, hardBlocker: false },
+  { field: 'hoa_approved', label: 'HOA', weight: 5, hardBlocker: false },
 ] as const
 
 export function computeReadinessScore(r: Partial<ProjectReadiness>): number {
@@ -164,14 +169,14 @@ export function autoReadiness(ahj: string | null, module: string | null, inverte
   const needsPermit = permitRequired !== undefined
     ? permitRequired
     : !(ahj ?? '').toLowerCase().includes('county')
-  const isEcoflow = [module, inverter, battery].some(f => (f ?? '').toLowerCase().includes('ecoflow'))
   return {
-    equipment_ready: false,
+    ntp_approved: false,           // Must be explicitly approved
+    redesign_complete: false,      // Nothing redesigned yet under MicroGRID transition
+    ext_scope_clear: true,         // Default true — most projects don't have extended scope issues
     permit_clear: !needsPermit,    // No permit needed = auto-clear
+    equipment_ready: false,
     utility_approved: false,
     hoa_approved: true,            // Default true — most projects don't have HOA issues
-    redesign_complete: false,      // Nothing redesigned yet under MicroGRID transition
-    crew_available: false,         // No crews assigned yet — must be manually confirmed
   }
 }
 

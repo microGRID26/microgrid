@@ -99,29 +99,38 @@ describe('computeReadinessScore', () => {
 
   it('all true = 100', () => {
     expect(computeReadinessScore({
-      permit_clear: true,
+      ntp_approved: true,
       redesign_complete: true,
+      ext_scope_clear: true,
+      permit_clear: true,
       equipment_ready: true,
       utility_approved: true,
       hoa_approved: true,
-      crew_available: true,
     })).toBe(100)
   })
 
-  it('permit clear alone = 25', () => {
-    expect(computeReadinessScore({ permit_clear: true })).toBe(25)
+  it('ntp alone = 25', () => {
+    expect(computeReadinessScore({ ntp_approved: true })).toBe(25)
   })
 
-  it('redesign alone = 25', () => {
-    expect(computeReadinessScore({ redesign_complete: true })).toBe(25)
+  it('redesign alone = 20', () => {
+    expect(computeReadinessScore({ redesign_complete: true })).toBe(20)
   })
 
-  it('equipment alone = 20', () => {
-    expect(computeReadinessScore({ equipment_ready: true })).toBe(20)
+  it('ext_scope alone = 15', () => {
+    expect(computeReadinessScore({ ext_scope_clear: true })).toBe(15)
   })
 
-  it('crew_available alone = 5', () => {
-    expect(computeReadinessScore({ crew_available: true })).toBe(5)
+  it('permit alone = 15', () => {
+    expect(computeReadinessScore({ permit_clear: true })).toBe(15)
+  })
+
+  it('equipment alone = 15', () => {
+    expect(computeReadinessScore({ equipment_ready: true })).toBe(15)
+  })
+
+  it('hoa alone = 5', () => {
+    expect(computeReadinessScore({ hoa_approved: true })).toBe(5)
   })
 })
 
@@ -258,40 +267,47 @@ describe('getNextWeeks', () => {
 // ── Auto Readiness ───────────────────────────────────────────────────────────
 
 describe('autoReadiness', () => {
-  it('county + non-ecoflow: permit + hoa = 35 (no crew, no redesign)', () => {
+  it('county: ext_scope + permit + hoa = 35', () => {
     const r = autoReadiness('Harris County', 'Q.PEAK', 'SolarEdge', null)
+    expect(r.ntp_approved).toBe(false)
     expect(r.permit_clear).toBe(true)
     expect(r.redesign_complete).toBe(false)
+    expect(r.ext_scope_clear).toBe(true)
     expect(r.hoa_approved).toBe(true)
-    expect(r.crew_available).toBe(false)
     expect(r.equipment_ready).toBe(false)
-    expect(computeReadinessScore(r as any)).toBe(35) // permit=25, hoa=10
+    expect(computeReadinessScore(r as any)).toBe(35) // ext_scope=15, permit=15, hoa=5
   })
 
-  it('city + ecoflow: hoa only = 10', () => {
+  it('city: ext_scope + hoa = 20', () => {
     const r = autoReadiness('Houston city', 'Q.PEAK', 'EcoFlow Delta', null)
+    expect(r.ntp_approved).toBe(false)
     expect(r.permit_clear).toBe(false)
-    expect(r.redesign_complete).toBe(false)
-    expect(r.crew_available).toBe(false)
+    expect(r.ext_scope_clear).toBe(true)
     expect(r.hoa_approved).toBe(true)
-    expect(computeReadinessScore(r as any)).toBe(10) // hoa=10
+    expect(computeReadinessScore(r as any)).toBe(20) // ext_scope=15, hoa=5
   })
 
-  it('county + ecoflow: permit + hoa = 35', () => {
+  it('county + ecoflow: ext_scope + permit + hoa = 35', () => {
     const r = autoReadiness('Fort Bend County', null, null, 'EcoFlow Battery')
     expect(r.permit_clear).toBe(true)
+    expect(r.ext_scope_clear).toBe(true)
     expect(r.redesign_complete).toBe(false)
-    expect(r.crew_available).toBe(false)
-    expect(computeReadinessScore(r as any)).toBe(35) // permit=25, hoa=10
+    expect(computeReadinessScore(r as any)).toBe(35) // ext_scope=15, permit=15, hoa=5
   })
 })
 
 describe('tierFromScore', () => {
-  it('score 100 with all clear = tier 1', () => expect(tierFromScore(100, true, true)).toBe(1))
-  it('score 60 with all clear = tier 1', () => expect(tierFromScore(60, true, true)).toBe(1))
-  it('score 70 but missing redesign = tier 2 (hard blocker)', () => expect(tierFromScore(70, true, false)).toBe(2))
-  it('score 80 but missing permit = tier 2 (hard blocker)', () => expect(tierFromScore(80, false, true)).toBe(2))
-  it('score 59 = tier 2', () => expect(tierFromScore(59, true, true)).toBe(2))
+  const allClear = { ntp_approved: true, redesign_complete: true, ext_scope_clear: true } as any
+  const missingNTP = { ntp_approved: false, redesign_complete: true, ext_scope_clear: true } as any
+  const missingRedesign = { ntp_approved: true, redesign_complete: false, ext_scope_clear: true } as any
+  const missingExtScope = { ntp_approved: true, redesign_complete: true, ext_scope_clear: false } as any
+
+  it('score 100 with all hard blockers clear = tier 1', () => expect(tierFromScore(100, allClear)).toBe(1))
+  it('score 60 with all clear = tier 1', () => expect(tierFromScore(60, allClear)).toBe(1))
+  it('score 70 but missing NTP = tier 2 (hard blocker)', () => expect(tierFromScore(70, missingNTP)).toBe(2))
+  it('score 80 but missing redesign = tier 2 (hard blocker)', () => expect(tierFromScore(80, missingRedesign)).toBe(2))
+  it('score 75 but ext scope open = tier 2 (hard blocker)', () => expect(tierFromScore(75, missingExtScope)).toBe(2))
+  it('score 59 = tier 2', () => expect(tierFromScore(59, allClear)).toBe(2))
   it('score 40 = tier 2', () => expect(tierFromScore(40)).toBe(2))
   it('score 39 = tier 3', () => expect(tierFromScore(39)).toBe(3))
   it('score 20 = tier 3', () => expect(tierFromScore(20)).toBe(3))
