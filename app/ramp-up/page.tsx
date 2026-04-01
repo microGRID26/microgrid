@@ -5,7 +5,7 @@ import { Nav } from '@/components/Nav'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useOrg } from '@/lib/hooks'
 import { fmtDate, fmt$, cn, STAGE_LABELS } from '@/lib/utils'
-import { loadProjectById, loadActiveCrews } from '@/lib/api'
+import { loadProjectById, loadActiveCrews, upsertTaskState, insertTaskHistory } from '@/lib/api'
 import { db } from '@/lib/db'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import type { Project } from '@/types/database'
@@ -282,14 +282,85 @@ export default function RampUpPage() {
     loadAll()
   }
 
-  const handleComplete = async (id: string) => {
-    await completeScheduleEntry(id)
+  // Confirm → create real schedule entry so it shows on Schedule page
+  const handleConfirm = async (entry: RampScheduleEntry) => {
+    const project = projects.find(p => p.id === entry.project_id)
+    if (!project) return
+
+    // Find crew ID from crew name
+    const crew = allCrews.find(c => c.name === entry.crew_name)
+    const installDate = entry.scheduled_day ?? selectedWeek
+
+    // Create schedule entry in the main schedule table
+    await db().from('schedule').insert({
+      project_id: entry.project_id,
+      crew_id: crew?.id ?? entry.crew_name?.toLowerCase().replace(/\s/g, ''),
+      job_type: 'install',
+      date: installDate,
+      status: 'Scheduled',
+      notes: `Ramp-up planner: ${entry.crew_name}, Week of ${getWeekLabel(entry.scheduled_week)}`,
+      pm: project.pm,
+      pm_id: null,
+    })
+
+    // Update ramp schedule status
+    await updateScheduleEntry(entry.id, { status: 'confirmed', scheduled_day: installDate })
+    loadAll()
+  }
+
+  // Complete → mark install_done task as Complete on the project
+  const handleComplete = async (entry: RampScheduleEntry) => {
+    // Complete the ramp schedule entry
+    await completeScheduleEntry(entry.id)
+
+    // Complete the install_done task on the project (triggers automation chain)
+    const today = new Date().toISOString().slice(0, 10)
+    await upsertTaskState({
+      project_id: entry.project_id,
+      task_id: 'install_done',
+      status: 'Complete',
+      completed_date: today,
+    })
+
+    // Log to task history
+    await insertTaskHistory({
+      project_id: entry.project_id,
+      task_id: 'install_done',
+      status: 'Complete',
+      changed_by: user?.name ?? 'Ramp Planner',
+    })
+
+    // Update schedule entry status to Complete
+    const crew = allCrews.find(c => c.name === entry.crew_name)
+    if (crew) {
+      await db().from('schedule')
+        .update({ status: 'Complete' })
+        .eq('project_id', entry.project_id)
+        .eq('crew_id', crew.id)
+        .eq('job_type', 'install')
+    }
+
     loadAll()
   }
 
   const handleCancel = async (id: string) => {
     const reason = prompt('Reason for cancellation:')
     if (reason === null) return
+
+    // Also remove from main schedule
+    const entry = schedule.find(s => s.id === id)
+    if (entry) {
+      const crew = allCrews.find(c => c.name === entry.crew_name)
+      if (crew) {
+        await db().from('schedule')
+          .delete()
+          .eq('project_id', entry.project_id)
+          .eq('crew_id', crew.id)
+          .eq('job_type', 'install')
+          .eq('status', 'Scheduled')
+      }
+    }
+
     await cancelScheduleEntry(id, reason)
     loadAll()
   }
@@ -456,11 +527,11 @@ export default function RampUpPage() {
                               </div>
                               <div className="flex gap-2 mt-2">
                                 {job.status === 'planned' && (
-                                  <button onClick={() => updateScheduleEntry(job.id, { status: 'confirmed' }).then(loadAll)}
+                                  <button onClick={() => handleConfirm(job)}
                                     className="text-[10px] px-2 py-0.5 bg-indigo-900/40 text-indigo-400 rounded hover:opacity-80">Confirm</button>
                                 )}
                                 {(job.status === 'planned' || job.status === 'confirmed') && (
-                                  <button onClick={() => handleComplete(job.id)}
+                                  <button onClick={() => handleComplete(job)}
                                     className="text-[10px] px-2 py-0.5 bg-green-900/40 text-green-400 rounded hover:opacity-80"><Check className="w-3 h-3 inline" /> Complete</button>
                                 )}
                                 <button onClick={() => handleCancel(job.id)}
