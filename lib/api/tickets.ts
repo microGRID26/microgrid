@@ -160,10 +160,18 @@ export function getValidTransitions(current: string): string[] {
 export async function generateTicketNumber(): Promise<string> {
   const d = new Date()
   const prefix = `TKT-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
-  const { data } = await db().from('tickets').select('ticket_number').like('ticket_number', `${prefix}%`).order('ticket_number', { ascending: false }).limit(1)
-  const last = (data as any)?.[0]?.ticket_number
-  const seq = last ? parseInt(last.slice(-3)) + 1 : 1
-  return `${prefix}-${String(seq).padStart(3, '0')}`
+  // Retry up to 3x on collision (race condition mitigation)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data } = await db().from('tickets').select('ticket_number').like('ticket_number', `${prefix}%`).order('ticket_number', { ascending: false }).limit(1)
+    const last = (data ?? [])[0] as { ticket_number: string } | undefined
+    const seq = last ? parseInt(last.ticket_number.slice(-3)) + 1 + attempt : 1 + attempt
+    const number = `${prefix}-${String(seq).padStart(3, '0')}`
+    // Check if number already exists
+    const { data: existing } = await db().from('tickets').select('id').eq('ticket_number', number).limit(1)
+    if (!(existing ?? []).length) return number
+  }
+  // Fallback: append timestamp milliseconds
+  return `${prefix}-${String(Date.now() % 1000).padStart(3, '0')}`
 }
 
 // ── CRUD ─────────────────────────────────────────────────────────────────────

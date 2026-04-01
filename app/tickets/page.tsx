@@ -92,7 +92,7 @@ export default function TicketsPage() {
   }, [orgId])
 
   useEffect(() => { loadAll() }, [loadAll])
-  useEffect(() => { loadUsers().then(r => setUsers((r.data ?? []).map((x: any) => ({ id: x.id, name: x.name })))) }, [])
+  useEffect(() => { loadUsers().then(r => setUsers((r.data ?? []).map((x: any) => ({ id: x.id, name: x.name })))).catch(() => {}) }, [])
 
   // Realtime — auto-refresh on ticket changes
   useRealtimeSubscription('tickets' as any, { onChange: loadAll, debounceMs: 500 })
@@ -165,22 +165,25 @@ export default function TicketsPage() {
   }, [])
 
   const saveEdit = useCallback(async () => {
-    if (!editingId) return
-    const ticket = tickets.find(t => t.id === editingId)
+    if (!editingId || !user?.name) return
+    // Fetch fresh ticket to avoid stale comparison
+    const { loadTicket } = await import('@/lib/api/tickets')
+    const ticket = await loadTicket(editingId)
     if (!ticket) return
     // Log changes to history
     const fields = ['title', 'priority', 'category', 'assigned_to', 'assigned_team'] as const
     for (const f of fields) {
       const oldVal = ticket[f] ?? null
-      const newVal = (editDraft as any)[f] ?? null
+      const newVal = editDraft[f as keyof typeof editDraft] as string | null ?? null
       if (oldVal !== newVal) {
-        await addTicketHistory(editingId, f, oldVal, newVal, userName ?? 'System', user?.id)
+        await addTicketHistory(editingId, f, oldVal, newVal, user.name, user.id)
       }
     }
-    await updateTicket(editingId, editDraft)
+    const ok = await updateTicket(editingId, editDraft)
+    if (!ok) { alert('Failed to save changes'); return }
     setEditingId(null)
     loadAll()
-  }, [editingId, editDraft, tickets, userName, user, loadAll])
+  }, [editingId, editDraft, user, loadAll])
 
   // Add comment
   const handleAddComment = useCallback(async () => {
