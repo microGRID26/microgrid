@@ -537,18 +537,21 @@ export default function InfographicPage() {
               <h2 className="text-xl font-bold mb-4">How You Get Paid</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-                  <h3 className="text-sm font-bold text-green-400 mb-3">Commission Structure</h3>
-                  <div className="space-y-2">
+                  <h3 className="text-sm font-bold text-green-400 mb-3">Your Sales Toolkit</h3>
+                  <div className="space-y-3">
                     {[
-                      ['Energy Consultant', 'Per-watt rate based on pay scale tier'],
-                      ['Energy Advisor', 'Per-watt rate (same tier structure)'],
-                      ['Adder Commission', 'Percentage of adder revenue'],
-                      ['Referral Bonus', 'Flat fee per qualified referral'],
-                      ['EC Bonus', 'Enhanced rate for Energy Community projects'],
-                    ].map(([role, desc]) => (
-                      <div key={role} className="flex justify-between text-xs">
-                        <span className="text-white font-medium">{role}</span>
-                        <span className="text-gray-400">{desc}</span>
+                      { icon: '📋', label: 'Spark Proposal Tool', desc: 'AI roof design + instant pricing' },
+                      { icon: '📊', label: 'Earnings Dashboard', desc: 'Track commissions on every deal' },
+                      { icon: '🏆', label: 'Leaderboard', desc: 'See where you rank vs the team' },
+                      { icon: '📍', label: 'Project Map', desc: 'Visualize your pipeline by location' },
+                      { icon: '🎓', label: 'Training Hub', desc: '30-day onboarding + product knowledge' },
+                    ].map(t => (
+                      <div key={t.label} className="flex items-center gap-3">
+                        <span className="text-lg">{t.icon}</span>
+                        <div>
+                          <div className="text-xs font-medium text-white">{t.label}</div>
+                          <div className="text-[10px] text-gray-500">{t.desc}</div>
+                        </div>
                       </div>
                     ))}
                   </div>
