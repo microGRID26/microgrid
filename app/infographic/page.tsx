@@ -6,8 +6,7 @@ import { db } from '@/lib/db'
 import { fmt$ } from '@/lib/utils'
 import { Printer } from 'lucide-react'
 
-type Tab = 'leadership' | 'operations' | 'technical'
-// Tab labels for display
+type Tab = 'leadership' | 'operations' | 'sales' | 'journey' | 'technical'
 
 interface PipelineStage { stage: string; count: number; value: number; label: string; color: string }
 interface LiveStats {
@@ -94,7 +93,13 @@ export default function InfographicPage() {
           <h1 className="text-3xl font-bold"><span className="text-green-400 print:text-green-700">MicroGRID</span> Infographic</h1>
           <div className="flex items-center gap-2">
             <div className="flex bg-gray-800 rounded-lg p-0.5 print:hidden">
-              {([{ key: 'leadership' as Tab, label: 'Leadership' }, { key: 'operations' as Tab, label: 'Operations' }, { key: 'technical' as Tab, label: 'Technical' }]).map(t => (
+              {([
+                { key: 'leadership' as Tab, label: 'Leadership' },
+                { key: 'operations' as Tab, label: 'Operations' },
+                { key: 'sales' as Tab, label: 'Sales' },
+                { key: 'journey' as Tab, label: 'Customer Journey' },
+                { key: 'technical' as Tab, label: 'Technical' },
+              ]).map(t => (
                 <button key={t.key} onClick={() => setTab(t.key)} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${tab === t.key ? 'bg-green-700 text-white' : 'text-gray-400 hover:text-white'}`}>{t.label}</button>
               ))}
             </div>
@@ -325,6 +330,213 @@ export default function InfographicPage() {
                   <div key={i} className="flex items-start gap-3 py-2">
                     <div className="w-6 h-6 rounded-full bg-green-700 flex items-center justify-center flex-shrink-0 text-xs font-bold">{i + 1}</div>
                     <span className="text-sm text-gray-300 pt-0.5">{step}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ SALES ═══ */}
+        {tab === 'sales' && (
+          <div className="space-y-12">
+            {/* Commission pipeline */}
+            <div>
+              <h2 className="text-xl font-bold mb-4">Your Commission Pipeline</h2>
+              <div className="flex items-center gap-1 overflow-x-auto pb-2">
+                {[
+                  { step: 'Contract Signed', desc: 'Deal enters pipeline', color: '#3b82f6', icon: '📝' },
+                  { step: 'NTP Approved', desc: 'Notice to proceed', color: '#8b5cf6', icon: '✅' },
+                  { step: 'M1 Advance', desc: 'First payment available', color: '#1D9E75', icon: '💵' },
+                  { step: 'Install Complete', desc: 'System on the roof', color: '#f97316', icon: '🔨' },
+                  { step: 'M2 Funded', desc: 'Second milestone paid', color: '#22c55e', icon: '💰' },
+                  { step: 'PTO Received', desc: 'Permission to operate', color: '#06b6d4', icon: '⚡' },
+                  { step: 'M3 Funded', desc: 'Final payment', color: '#1D9E75', icon: '🎉' },
+                ].map((s, i) => (
+                  <div key={s.step} className="flex items-center flex-shrink-0">
+                    <div className="rounded-xl px-4 py-4 text-center min-w-[120px] border" style={{ backgroundColor: `${s.color}10`, borderColor: `${s.color}40` }}>
+                      <div className="text-xl mb-1">{s.icon}</div>
+                      <div className="text-[10px] font-bold" style={{ color: s.color }}>{s.step}</div>
+                      <div className="text-[9px] text-gray-500 mt-0.5">{s.desc}</div>
+                    </div>
+                    {i < 6 && <span className="mx-1 text-gray-600">→</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* What happens after you submit */}
+            <div>
+              <h2 className="text-xl font-bold mb-2">What Happens After You Submit a Deal</h2>
+              <p className="text-sm text-gray-500 mb-4">You close the sale. Here's what ops does with it — automatically.</p>
+              <div className="space-y-2">
+                {[
+                  { step: 1, who: 'System', action: 'Project created in MicroGRID with all customer data, equipment specs, and adders', color: '#3b82f6' },
+                  { step: 2, who: 'System', action: 'Google Drive folder created with 16 subfolders for documents', color: '#3b82f6' },
+                  { step: 3, who: 'PM', action: 'Site survey scheduled. Crew goes to the home, measures roof, checks electrical.', color: '#1D9E75' },
+                  { step: 4, who: 'Engineering', action: 'System designed — panel layout, string sizing, structural analysis. Stamps applied.', color: '#8b5cf6' },
+                  { step: 5, who: 'Ops', action: 'Permits submitted to AHJ. Utility interconnection application filed.', color: '#f59e0b' },
+                  { step: 6, who: 'Crew', action: 'Installation scheduled. Equipment delivered. Crew installs system.', color: '#f97316' },
+                  { step: 7, who: 'System', action: 'M2 funding auto-triggered. Inspections scheduled. PTO submitted. M3 follows.', color: '#22c55e' },
+                ].map(s => (
+                  <div key={s.step} className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 border border-gray-700">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold" style={{ backgroundColor: `${s.color}20`, color: s.color }}>{s.step}</div>
+                    <div className="flex-1">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded mr-2" style={{ backgroundColor: `${s.color}20`, color: s.color }}>{s.who}</span>
+                      <span className="text-xs text-gray-300">{s.action}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* How you get paid */}
+            <div>
+              <h2 className="text-xl font-bold mb-4">How You Get Paid</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+                  <h3 className="text-sm font-bold text-green-400 mb-3">Commission Structure</h3>
+                  <div className="space-y-2">
+                    {[
+                      ['Energy Consultant', 'Per-watt rate based on pay scale tier'],
+                      ['Energy Advisor', 'Per-watt rate (same tier structure)'],
+                      ['Adder Commission', 'Percentage of adder revenue'],
+                      ['Referral Bonus', 'Flat fee per qualified referral'],
+                      ['EC Bonus', 'Enhanced rate for Energy Community projects'],
+                    ].map(([role, desc]) => (
+                      <div key={role} className="flex justify-between text-xs">
+                        <span className="text-white font-medium">{role}</span>
+                        <span className="text-gray-400">{desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+                  <h3 className="text-sm font-bold text-amber-400 mb-3">Pay Scale Tiers</h3>
+                  <div className="space-y-2">
+                    {[
+                      ['Consultant', '$0.20/W', 'Entry level'],
+                      ['Pro', '$0.25/W', 'Experienced'],
+                      ['Elite', '$0.30/W', 'Top performer'],
+                      ['Exclusive', '$0.40/W', 'Leadership'],
+                    ].map(([tier, rate, desc]) => (
+                      <div key={tier} className="flex items-center justify-between text-xs">
+                        <span className="text-white font-medium">{tier}</span>
+                        <span className="text-green-400 font-bold">{rate}</span>
+                        <span className="text-gray-500">{desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-gray-700 text-[10px] text-gray-500">
+                    M1 advance available at NTP · Auto-assigned by role · Clawback rules apply
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Rep tools */}
+            <div>
+              <h2 className="text-xl font-bold mb-4">Your Tools</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  { name: 'Commission Calculator', desc: 'Enter system size + adders → see your payout breakdown by role', color: '#1D9E75' },
+                  { name: 'Earnings Dashboard', desc: 'YTD earnings, deal history, pending vs paid commissions', color: '#3b82f6' },
+                  { name: 'Leaderboard', desc: 'Team rankings by commission, deals, kW sold with period filters', color: '#f59e0b' },
+                  { name: 'Onboarding Tracker', desc: 'License, W-9, ICA, background check status all in one place', color: '#8b5cf6' },
+                  { name: 'Spark Proposals', desc: 'Create customer proposals with roof design, pricing, and e-signature', color: '#ec4899' },
+                  { name: 'Rep Scorecard', desc: 'Deals, total earned, paid, pending, average per deal', color: '#06b6d4' },
+                ].map(t => (
+                  <div key={t.name} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <h3 className="text-xs font-bold" style={{ color: t.color }}>{t.name}</h3>
+                    <p className="text-[10px] text-gray-400 mt-1">{t.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ CUSTOMER JOURNEY ═══ */}
+        {tab === 'journey' && (
+          <div className="space-y-12">
+            {/* Hero */}
+            <div className="text-center py-4">
+              <h2 className="text-2xl font-bold">The Homeowner Experience</h2>
+              <p className="text-sm text-gray-500 mt-1">From contract signing to powering their home — here's what the customer experiences at every step.</p>
+            </div>
+
+            {/* Timeline */}
+            <div className="relative">
+              <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 via-green-500 to-emerald-500 hidden md:block" />
+              {[
+                { stage: 'Contract Signed', days: 'Day 0', customer: 'Signs proposal via Spark. Chooses financing. Picks equipment package.', ops: 'Project created automatically. Drive folder generated. Welcome call scheduled.', color: '#3b82f6', icon: '📝' },
+                { stage: 'Site Survey', days: 'Day 3-5', customer: 'Crew visits home. Takes measurements and photos. Checks electrical panel.', ops: 'Survey data uploaded. Engineering design initiated. HOA check if applicable.', color: '#8b5cf6', icon: '📐' },
+                { stage: 'Design & Engineering', days: 'Day 5-15', customer: 'Receives system design for approval. Reviews panel layout and equipment.', ops: 'String sizing, structural analysis, planset generation. Stamps applied.', color: '#ec4899', icon: '📋' },
+                { stage: 'Permitting', days: 'Day 15-45', customer: 'Waits for city/county approval. May need HOA sign-off.', ops: 'Permit submitted to AHJ. Utility interconnection filed. NTP processed. This is often the longest wait.', color: '#f59e0b', icon: '🏛️' },
+                { stage: 'Installation', days: 'Day 45-55', customer: 'Crew arrives. Panels go on the roof. Inverter and battery installed. 1-2 day process.', ops: 'Equipment delivered from warehouse. Crew scheduled via ramp planner. Quality checklist completed.', color: '#f97316', icon: '🔨' },
+                { stage: 'Inspection', days: 'Day 55-70', customer: 'City inspector visits. Utility inspection scheduled. Customer does not need to be home for most.', ops: 'Inspections scheduled and tracked. Any failures create tickets. Re-inspection if needed.', color: '#06b6d4', icon: '🔍' },
+                { stage: 'PTO & In Service', days: 'Day 70-90', customer: 'System turned on! Monitoring activated. Customer sees solar production on their app.', ops: 'PTO received from utility. Monitoring configured. M3 funding triggered. Project complete.', color: '#22c55e', icon: '⚡' },
+              ].map((s, i) => (
+                <div key={s.stage} className="relative pl-0 md:pl-20 pb-8">
+                  <div className="hidden md:flex absolute left-5 top-2 w-7 h-7 rounded-full items-center justify-center text-sm border-2 border-gray-950" style={{ backgroundColor: s.color }}>{s.icon}</div>
+                  <div className="bg-gray-800 rounded-xl p-5 border border-gray-700 ml-0">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="md:hidden text-xl">{s.icon}</span>
+                      <h3 className="text-base font-bold" style={{ color: s.color }}>{s.stage}</h3>
+                      <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded">{s.days}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-[10px] text-gray-500 uppercase font-bold mb-1">What the Customer Sees</div>
+                        <p className="text-xs text-gray-300">{s.customer}</p>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-gray-500 uppercase font-bold mb-1">What Happens Behind the Scenes</div>
+                        <p className="text-xs text-gray-400">{s.ops}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Where delays happen */}
+            <div>
+              <h2 className="text-xl font-bold mb-4">Where Delays Happen & How We Prevent Them</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {[
+                  { blocker: 'Permit rejection', stage: 'Permitting', fix: 'AHJ database with 1,633 records — portal URLs, requirements, and notes from past submissions. Tickets auto-created on rejection.', color: '#f59e0b' },
+                  { blocker: 'Equipment not delivered', stage: 'Installation', fix: 'Purchase order tracking with vendor performance metrics. Delivery accuracy tracking. Auto-alerts on delays.', color: '#f97316' },
+                  { blocker: 'Failed inspection', stage: 'Inspection', fix: 'Ticket auto-created with SLA timer. Re-inspection scheduled. Blocker auto-set on project.', color: '#06b6d4' },
+                  { blocker: 'Utility PTO delay', stage: 'PTO', fix: 'Utility tracking with application numbers. Follow-up reminders. Escalation to utility rep.', color: '#22c55e' },
+                  { blocker: 'HOA not approved', stage: 'Design', fix: 'HOA database with contacts. Auto-tracked in task system. Follow-up dates with notifications.', color: '#ec4899' },
+                  { blocker: 'Customer unreachable', stage: 'Any', fix: 'Follow-up dates surface on Command Center. Overdue notifications in bell. PM sees it every morning.', color: '#ef4444' },
+                ].map(b => (
+                  <div key={b.blocker} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ backgroundColor: `${b.color}20`, color: b.color }}>{b.stage}</span>
+                      <span className="text-xs font-bold text-white">{b.blocker}</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400">{b.fix}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* The numbers */}
+            <div>
+              <h2 className="text-xl font-bold mb-4">By the Numbers</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { value: '~90', unit: 'days', label: 'Avg Sale to In-Service', color: '#1D9E75' },
+                  { value: '~55', unit: 'days', label: 'Avg Sale to Install', color: '#3b82f6' },
+                  { value: '7', unit: 'stages', label: 'Automated Pipeline', color: '#f59e0b' },
+                  { value: '30+', unit: 'tasks', label: 'Per Project Tracked', color: '#8b5cf6' },
+                ].map(n => (
+                  <div key={n.label} className="bg-gray-800 rounded-xl p-5 text-center border border-gray-700">
+                    <div className="text-3xl font-black" style={{ color: n.color }}>{n.value}</div>
+                    <div className="text-xs text-gray-400">{n.unit}</div>
+                    <div className="text-[10px] text-gray-500 mt-1">{n.label}</div>
                   </div>
                 ))}
               </div>
