@@ -61,6 +61,7 @@ function TicketsPageInner() {
   // UI state
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [page, setPage] = useState(1)
 
   // Expanded ticket state
@@ -124,7 +125,8 @@ function TicketsPageInner() {
 
   // Create ticket
   const handleCreate = useCallback(async () => {
-    if (!createForm.title.trim()) return
+    if (!createForm.title.trim() || creating) return
+    setCreating(true)
     const ticket = await createTicket({
       title: createForm.title.trim(),
       description: createForm.description.trim() || null,
@@ -146,7 +148,8 @@ function TicketsPageInner() {
       setProjectResults([])
       loadAll()
     }
-  }, [createForm, orgId, userName, user, loadAll])
+    setCreating(false)
+  }, [createForm, orgId, userName, user, creating, loadAll])
 
   // Status change — show resolution modal for 'resolved'
   const handleStatusChange = useCallback(async (ticketId: string, newStatus: string) => {
@@ -883,9 +886,9 @@ function TicketsPageInner() {
             </div>
             <div className="px-5 py-3 border-t border-gray-800 flex justify-end gap-2">
               <button onClick={() => setShowCreate(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
-              <button onClick={handleCreate} disabled={!createForm.title.trim()}
+              <button onClick={handleCreate} disabled={creating || !createForm.title.trim()}
                 className="px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-xs font-medium rounded-md">
-                Create Ticket
+                {creating ? 'Creating...' : 'Create Ticket'}
               </button>
             </div>
           </div>

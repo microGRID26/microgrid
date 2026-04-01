@@ -160,6 +160,23 @@ export function NewProjectModal({ onClose, onCreated, existingIds, pms }: Props)
     setSaving(true)
     setError(null)
 
+    // Check for duplicate address
+    const addr = form.address.trim().toLowerCase()
+    if (addr) {
+      const { data: dupes } = await db().from('projects')
+        .select('id, name, address')
+        .ilike('address', `%${escapeIlike(addr)}%`)
+        .not('disposition', 'in', '("Cancelled")')
+        .limit(5)
+      if (dupes && dupes.length > 0) {
+        const names = dupes.map((d: any) => `${d.id} (${d.name})`).join(', ')
+        if (!confirm(`A project at a similar address already exists:\n${names}\n\nCreate anyway?`)) {
+          setSaving(false)
+          return
+        }
+      }
+    }
+
     const id = nextProjectId(existingIds)
     const today = new Date().toISOString().slice(0, 10)
 
