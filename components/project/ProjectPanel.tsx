@@ -178,6 +178,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     if (!ahjEdit) return
     setRefSaving(true)
     const { error } = await supabase.from('ahjs').update({
+      permit_required: ahjEdit.permit_required ?? true,
       permit_phone: ahjEdit.permit_phone,
       permit_website: ahjEdit.permit_website,
       max_duration: ahjEdit.max_duration,
@@ -762,6 +763,16 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
               <button onClick={() => setAhjEdit(null)} className="text-gray-500 hover:text-white text-lg">×</button>
             </div>
             <div className="space-y-3">
+              <div className="flex items-center gap-3 bg-gray-800/50 rounded-lg px-3 py-2">
+                <label className="text-xs text-gray-400">Permit Required</label>
+                <button onClick={() => setAhjEdit((d: any) => ({ ...d, permit_required: !d.permit_required }))}
+                  className={`w-10 h-5 rounded-full transition-colors relative ${ahjEdit.permit_required !== false ? 'bg-amber-500' : 'bg-green-500'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${ahjEdit.permit_required !== false ? 'left-0.5' : 'left-5'}`} />
+                </button>
+                <span className={`text-xs font-medium ${ahjEdit.permit_required !== false ? 'text-amber-400' : 'text-green-400'}`}>
+                  {ahjEdit.permit_required !== false ? 'Yes' : 'No'}
+                </span>
+              </div>
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Permit Phone</label>
                 <input value={ahjEdit.permit_phone ?? ''} onChange={e => setAhjEdit((d: any) => ({ ...d, permit_phone: e.target.value || null }))}

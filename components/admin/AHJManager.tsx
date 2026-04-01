@@ -37,6 +37,7 @@ export function AHJManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     setSaving(true)
     const { error } = await supabase.from('ahjs').update({
       name: draft.name,
+      permit_required: (draft as any).permit_required ?? true,
       permit_phone: draft.permit_phone,
       permit_website: draft.permit_website,
       max_duration: draft.max_duration,
@@ -152,6 +153,16 @@ export function AHJManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       {editing && (
         <Modal title={`Edit AHJ — ${editing.name}`} onClose={() => setEditing(null)}>
           <Input label="Name" value={draft.name ?? ''} onChange={v => setDraft(d => ({ ...d, name: v }))} />
+          <div className="flex items-center gap-3 py-1">
+            <label className="text-xs text-gray-400">Permit Required</label>
+            <button onClick={() => setDraft(d => ({ ...d, permit_required: !(d as any).permit_required } as any))}
+              className={`w-10 h-5 rounded-full transition-colors relative ${(draft as any).permit_required !== false ? 'bg-amber-500' : 'bg-green-500'}`}>
+              <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${(draft as any).permit_required !== false ? 'left-0.5' : 'left-5'}`} />
+            </button>
+            <span className={`text-xs font-medium ${(draft as any).permit_required !== false ? 'text-amber-400' : 'text-green-400'}`}>
+              {(draft as any).permit_required !== false ? 'Yes — permit needed' : 'No — no permit needed'}
+            </span>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Permit Phone" value={draft.permit_phone ?? ''} onChange={v => setDraft(d => ({ ...d, permit_phone: v }))} />
             <Input label="Max Duration (days)" value={String(draft.max_duration ?? '')} onChange={v => setDraft(d => ({ ...d, max_duration: v ? Number(v) : null }))} type="number" />
