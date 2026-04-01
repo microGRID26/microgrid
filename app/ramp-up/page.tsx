@@ -83,7 +83,7 @@ export default function RampUpPage() {
     if (typeof window === 'undefined') return true
     return localStorage.getItem('mg_rampup_guide_dismissed') !== 'true'
   })
-  const [tierFilter, setTierFilter] = useState<Tier | null>(null)
+  const [tierFilter, setTierFilter] = useState<Set<Tier>>(new Set())
   const [queueSearch, setQueueSearch] = useState('')
   const [expandedProject, setExpandedProject] = useState<string | null>(null)
   const [stageFilter, setStageFilter] = useState('')
@@ -595,9 +595,12 @@ export default function RampUpPage() {
         {/* Tier Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {([1, 2, 3, 4] as Tier[]).map(tier => (
-            <div key={tier} onClick={() => { setTierFilter(tierFilter === tier ? null : tier); setTab('queue') }}
+            <div key={tier} onClick={() => {
+                setTierFilter(prev => { const next = new Set(prev); if (next.has(tier)) next.delete(tier); else next.add(tier); return next })
+                setTab('queue')
+              }}
               className={cn('rounded-lg p-3 border cursor-pointer transition-opacity', TIER_COLORS[tier], TIER_BG[tier],
-                tierFilter && tierFilter !== tier && 'opacity-40')}>
+                tierFilter.size > 0 && !tierFilter.has(tier) && 'opacity-40')}>
               <div className="flex items-center justify-between">
                 <span className={cn('text-xs font-semibold', TIER_TEXT[tier])}>Tier {tier}: {TIER_INFO[tier].label}</span>
                 <span className="text-lg font-bold text-white">{tierCounts[tier].count}</span>
@@ -631,7 +634,7 @@ export default function RampUpPage() {
         <div className="flex gap-4 border-b border-gray-700">
           {([
             { key: 'planner', label: 'Week Planner', icon: <Calendar className="w-3.5 h-3.5" /> },
-            { key: 'queue', label: `Readiness Queue (${unscheduled.filter(p => p.tier === 1).length} Tier 1)`, icon: <Zap className="w-3.5 h-3.5" /> },
+            { key: 'queue', label: `Readiness Queue (${unscheduled.length})`, icon: <Zap className="w-3.5 h-3.5" /> },
             { key: 'timeline', label: '30/60/90 Timeline', icon: <Truck className="w-3.5 h-3.5" /> },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
@@ -937,16 +940,16 @@ export default function RampUpPage() {
               </select>
               <div className="flex gap-1">
                 {([1, 2, 3, 4] as Tier[]).map(t => (
-                  <button key={t} onClick={() => setTierFilter(tierFilter === t ? null : t)}
-                    className={cn('text-[10px] px-2 py-1 rounded border', tierFilter === t ? `${TIER_BG[t]} ${TIER_TEXT[t]} ${TIER_COLORS[t]}` : 'border-gray-700 text-gray-500')}>
+                  <button key={t} onClick={() => setTierFilter(prev => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next })}
+                    className={cn('text-[10px] px-2 py-1 rounded border', tierFilter.has(t) ? `${TIER_BG[t]} ${TIER_TEXT[t]} ${TIER_COLORS[t]}` : 'border-gray-700 text-gray-500')}>
                     T{t} ({tierCounts[t].count})
                   </button>
                 ))}
-                {(tierFilter || stageFilter || financierFilter) && <button onClick={() => { setTierFilter(null); setStageFilter(''); setFinancierFilter('') }} className="text-[10px] text-gray-400 ml-1">Clear</button>}
+                {(tierFilter.size > 0 || stageFilter || financierFilter) && <button onClick={() => { setTierFilter(new Set()); setStageFilter(''); setFinancierFilter('') }} className="text-[10px] text-gray-400 ml-1">Clear</button>}
               </div>
               <span className="text-[10px] text-gray-500 ml-auto">
                 {unscheduled.filter(p => {
-                  if (tierFilter && p.tier !== tierFilter) return false
+                  if (tierFilter.size > 0 && !tierFilter.has(p.tier)) return false
                   if (stageFilter && p.stage !== stageFilter) return false
                   if (financierFilter && p.financier !== financierFilter) return false
                   if (queueSearch) { const q = queueSearch.toLowerCase(); if (!p.name.toLowerCase().includes(q) && !p.id.toLowerCase().includes(q) && !(p.city ?? '').toLowerCase().includes(q)) return false }
@@ -955,7 +958,7 @@ export default function RampUpPage() {
               </span>
             </div>
             {unscheduled.filter(p => {
-              if (tierFilter && p.tier !== tierFilter) return false
+              if (tierFilter.size > 0 && !tierFilter.has(p.tier)) return false
               if (stageFilter && p.stage !== stageFilter) return false
               if (financierFilter && p.financier !== financierFilter) return false
               if (queueSearch) {
