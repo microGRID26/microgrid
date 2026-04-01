@@ -10,7 +10,7 @@ import { db } from '@/lib/db'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import type { Project } from '@/types/database'
 import {
-  classifyTier, haversineDistance, estimateDriveMinutes,
+  classifyTier, tierFromScore, haversineDistance, estimateDriveMinutes,
   computeReadinessScore, computePriorityScore, optimizeRoute, autoReadiness,
   getMonday, getWeekLabel, getNextWeeks,
   loadRampConfig, loadAllReadiness, loadAllSchedule, loadScheduledProjectIds,
@@ -143,10 +143,9 @@ export default function RampUpPage() {
       if (tasks?.get('install_done') === 'Complete') continue
 
       const permitRequired = p.ahj ? ahjPermitMap.get(p.ahj) : undefined
-      const tier = classifyTier(p.ahj, p.module, p.inverter, p.battery, permitRequired)
       const dist = haversineDistance(cfg.warehouse_lat, cfg.warehouse_lng, coords[0], coords[1])
 
-      // Build readiness from DB row OR auto-compute from task states + project properties
+      // Build readiness from DB row OR auto-compute from project properties + task data
       const dbReadiness = readinessMap.get(p.id)
       const autoR = autoReadiness(p.ahj, p.module, p.inverter, p.battery, permitRequired)
       // Enhance auto-readiness with actual task completion data
@@ -158,6 +157,8 @@ export default function RampUpPage() {
       }
       const readiness = dbReadiness ?? autoR as any
       const readinessScore = computeReadinessScore(readiness)
+      // Tier derived from readiness score
+      const tier = tierFromScore(readinessScore)
 
       allMapped.push({
         ...p,
@@ -255,10 +256,10 @@ export default function RampUpPage() {
     const weekAlready = weekSchedule.length
     const remaining = slotsNeeded - weekAlready
     if (remaining <= 0) return []
-    // Show Tier 1 first, then Tier 2 if not enough Tier 1
+    // Sort by priority score and show top candidates
     const pool = unscheduled
-      .filter(p => (tierFilter ? p.tier === tierFilter : p.tier <= 2) && p.readinessScore >= 35)
-      .slice(0, remaining + 4) // Show a few extras for choice
+      .filter(p => p.readinessScore >= 35)
+      .slice(0, remaining + 4)
     return pool
   }, [unscheduled, config, weekSchedule, tierFilter])
 
@@ -364,9 +365,6 @@ export default function RampUpPage() {
               </div>
               <div className="text-[10px] text-gray-400 mt-1">{TIER_INFO[tier].description}</div>
               <div className="text-xs text-gray-300 mt-1">{fmt$(tierCounts[tier].value)}</div>
-              {TIER_INFO[tier].blockers.length > 0 && (
-                <div className="text-[9px] text-gray-500 mt-1">{TIER_INFO[tier].blockers[0]}</div>
-              )}
             </div>
           ))}
         </div>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  classifyTier, haversineDistance, estimateDriveMinutes,
+  classifyTier, tierFromScore, haversineDistance, estimateDriveMinutes,
   computeReadinessScore, computePriorityScore, optimizeRoute,
   getMonday, getWeekLabel, getNextWeeks, autoReadiness,
   TIER_INFO, RAMP_STATUSES, READINESS_WEIGHTS,
@@ -99,25 +99,29 @@ describe('computeReadinessScore', () => {
 
   it('all true = 100', () => {
     expect(computeReadinessScore({
-      equipment_ready: true,
       permit_clear: true,
-      utility_approved: true,
       redesign_complete: true,
+      equipment_ready: true,
+      utility_approved: true,
       hoa_approved: true,
       crew_available: true,
     })).toBe(100)
-  })
-
-  it('equipment alone = 25', () => {
-    expect(computeReadinessScore({ equipment_ready: true })).toBe(25)
   })
 
   it('permit clear alone = 25', () => {
     expect(computeReadinessScore({ permit_clear: true })).toBe(25)
   })
 
-  it('crew_available alone = 10', () => {
-    expect(computeReadinessScore({ crew_available: true })).toBe(10)
+  it('redesign alone = 25', () => {
+    expect(computeReadinessScore({ redesign_complete: true })).toBe(25)
+  })
+
+  it('equipment alone = 20', () => {
+    expect(computeReadinessScore({ equipment_ready: true })).toBe(20)
+  })
+
+  it('crew_available alone = 5', () => {
+    expect(computeReadinessScore({ crew_available: true })).toBe(5)
   })
 })
 
@@ -254,30 +258,41 @@ describe('getNextWeeks', () => {
 // ── Auto Readiness ───────────────────────────────────────────────────────────
 
 describe('autoReadiness', () => {
-  it('county + non-ecoflow: permit + hoa + crew = 45 (no homeowner, redesign always false)', () => {
+  it('county + non-ecoflow: permit + hoa + crew = 40 (redesign always false)', () => {
     const r = autoReadiness('Harris County', 'Q.PEAK', 'SolarEdge', null)
     expect(r.permit_clear).toBe(true)
     expect(r.redesign_complete).toBe(false)
     expect(r.hoa_approved).toBe(true)
     expect(r.crew_available).toBe(true)
     expect(r.equipment_ready).toBe(false)
-    expect(computeReadinessScore(r as any)).toBe(45) // permit=25, hoa=10, crew=10
+    expect(computeReadinessScore(r as any)).toBe(40) // permit=25, hoa=10, crew=5
   })
 
-  it('city + ecoflow: hoa + crew = 20', () => {
+  it('city + ecoflow: hoa + crew = 15', () => {
     const r = autoReadiness('Houston city', 'Q.PEAK', 'EcoFlow Delta', null)
     expect(r.permit_clear).toBe(false)
     expect(r.redesign_complete).toBe(false)
     expect(r.hoa_approved).toBe(true)
-    expect(computeReadinessScore(r as any)).toBe(20) // hoa=10, crew=10
+    expect(computeReadinessScore(r as any)).toBe(15) // hoa=10, crew=5
   })
 
-  it('county + ecoflow: permit + hoa + crew = 45', () => {
+  it('county + ecoflow: permit + hoa + crew = 40', () => {
     const r = autoReadiness('Fort Bend County', null, null, 'EcoFlow Battery')
     expect(r.permit_clear).toBe(true)
     expect(r.redesign_complete).toBe(false)
-    expect(computeReadinessScore(r as any)).toBe(45) // permit=25, hoa=10, crew=10
+    expect(computeReadinessScore(r as any)).toBe(40) // permit=25, hoa=10, crew=5
   })
+})
+
+describe('tierFromScore', () => {
+  it('score 100 = tier 1', () => expect(tierFromScore(100)).toBe(1))
+  it('score 60 = tier 1', () => expect(tierFromScore(60)).toBe(1))
+  it('score 59 = tier 2', () => expect(tierFromScore(59)).toBe(2))
+  it('score 40 = tier 2', () => expect(tierFromScore(40)).toBe(2))
+  it('score 39 = tier 3', () => expect(tierFromScore(39)).toBe(3))
+  it('score 20 = tier 3', () => expect(tierFromScore(20)).toBe(3))
+  it('score 19 = tier 4', () => expect(tierFromScore(19)).toBe(4))
+  it('score 0 = tier 4', () => expect(tierFromScore(0)).toBe(4))
 })
 
 describe('READINESS_WEIGHTS', () => {

@@ -69,14 +69,22 @@ export interface TierInfo {
   label: string
   description: string
   color: string
-  blockers: string[]
+  minScore: number
 }
 
+// Tiers are now derived from readiness score, not fixed AHJ/equipment combos
 export const TIER_INFO: Record<Tier, TierInfo> = {
-  1: { tier: 1, label: 'Ready Now', description: 'County AHJ + Non-Ecoflow', color: 'green', blockers: [] },
-  2: { tier: 2, label: 'Needs Redesign', description: 'County AHJ + Ecoflow → Duracell', color: 'amber', blockers: ['Ecoflow → Duracell redesign'] },
-  3: { tier: 3, label: 'Needs Repermit', description: 'City AHJ + Non-Ecoflow', color: 'blue', blockers: ['New engineering + permit resubmission (1-30 days)'] },
-  4: { tier: 4, label: 'Needs Both', description: 'City AHJ + Ecoflow', color: 'red', blockers: ['Redesign + repermit'] },
+  1: { tier: 1, label: 'Ready to Schedule', description: 'Readiness 60+', color: 'green', minScore: 60 },
+  2: { tier: 2, label: 'Almost Ready', description: 'Readiness 40-59', color: 'amber', minScore: 40 },
+  3: { tier: 3, label: 'Needs Work', description: 'Readiness 20-39', color: 'blue', minScore: 20 },
+  4: { tier: 4, label: 'Not Ready', description: 'Readiness 0-19', color: 'red', minScore: 0 },
+}
+
+export function tierFromScore(score: number): Tier {
+  if (score >= 60) return 1
+  if (score >= 40) return 2
+  if (score >= 20) return 3
+  return 4
 }
 
 export const RAMP_STATUSES = ['planned', 'confirmed', 'in_progress', 'completed', 'cancelled', 'rescheduled'] as const
@@ -129,12 +137,12 @@ export function estimateDriveMinutes(miles: number): number {
 // 0-100 based on checklist items. Each item has a weight.
 
 export const READINESS_WEIGHTS = [
-  { field: 'equipment_ready', label: 'Equipment', weight: 25 },
-  { field: 'permit_clear', label: 'Permit', weight: 25 },
+  { field: 'permit_clear', label: 'Permit Clear', weight: 25 },
+  { field: 'redesign_complete', label: 'Redesign Done', weight: 25 },
+  { field: 'equipment_ready', label: 'Equipment', weight: 20 },
   { field: 'utility_approved', label: 'Utility', weight: 15 },
-  { field: 'redesign_complete', label: 'Redesign', weight: 15 },
   { field: 'hoa_approved', label: 'HOA', weight: 10 },
-  { field: 'crew_available', label: 'Crew', weight: 10 },
+  { field: 'crew_available', label: 'Crew', weight: 5 },
 ] as const
 
 export function computeReadinessScore(r: Partial<ProjectReadiness>): number {
