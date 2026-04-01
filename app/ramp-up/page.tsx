@@ -139,16 +139,13 @@ export default function RampUpPage() {
 
     // First pass: compute distances
     for (const p of rawProjects as any[]) {
-      if (!p.zip) continue
-      const coords = zipCache.get(p.zip)
-      if (!coords) continue
-
       // Skip projects where install is already complete
       const tasks = taskMap.get(p.id)
       if (tasks?.get('install_done') === 'Complete') continue
 
+      const coords = p.zip ? zipCache.get(p.zip) : null
       const permitRequired = p.ahj ? ahjPermitMap.get(p.ahj) : undefined
-      const dist = haversineDistance(cfg.warehouse_lat, cfg.warehouse_lng, coords[0], coords[1])
+      const dist = coords ? haversineDistance(cfg.warehouse_lat, cfg.warehouse_lng, coords[0], coords[1]) : 50 // Default 50mi if no coords
 
       // Build readiness from DB row OR auto-compute from project properties + task data
       const dbReadiness = readinessMap.get(p.id)
@@ -169,8 +166,8 @@ export default function RampUpPage() {
       allMapped.push({
         ...p,
         tier,
-        lat: coords[0],
-        lng: coords[1],
+        lat: coords ? coords[0] : 0,
+        lng: coords ? coords[1] : 0,
         distanceMiles: Math.round(dist * 10) / 10,
         driveMinutes: estimateDriveMinutes(dist),
         readiness,
