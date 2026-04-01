@@ -60,7 +60,13 @@ export default function RampUpPage() {
   const [scheduledIds, setScheduledIds] = useState<Set<string>>(new Set())
   const [config, setConfig] = useState<RampConfig | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedWeek, setSelectedWeek] = useState(getMonday(new Date()))
+  // Ramp starts 5 weeks from now
+  const rampStart = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 35) // 5 weeks
+    return getMonday(d)
+  }, [])
+  const [selectedWeek, setSelectedWeek] = useState(rampStart)
   const [panelProject, setPanelProject] = useState<Project | null>(null)
   const [tab, setTab] = useState<'planner' | 'queue' | 'timeline'>('planner')
   const [tierFilter, setTierFilter] = useState<Tier | null>(null)
@@ -195,14 +201,43 @@ export default function RampUpPage() {
 
   const unscheduled = useMemo(() => projects.filter(p => !scheduledIds.has(p.id)), [projects, scheduledIds])
   const weekSchedule = useMemo(() => schedule.filter(s => s.scheduled_week === selectedWeek && s.status !== 'cancelled'), [schedule, selectedWeek])
-  const weeks = useMemo(() => getNextWeeks(16), [])
+  const weeks = useMemo(() => {
+    // Start from ramp start date, 16 weeks
+    const result: string[] = []
+    const start = new Date(rampStart + 'T12:00:00')
+    for (let i = 0; i < 16; i++) {
+      const d = new Date(start)
+      d.setDate(d.getDate() + i * 7)
+      result.push(getMonday(d))
+    }
+    return result
+  }, [rampStart])
 
   // Load real crews from DB
-  const [crews, setCrews] = useState<{ id: string; name: string }[]>([])
+  const [allCrews, setAllCrews] = useState<{ id: string; name: string }[]>([])
   useEffect(() => {
-    loadActiveCrews().then((r: any) => setCrews((r.data ?? r ?? []).map((cr: any) => ({ id: cr.id, name: cr.name }))))
+    loadActiveCrews().then((r: any) => setAllCrews((r.data ?? r ?? []).map((cr: any) => ({ id: cr.id, name: cr.name }))))
   }, [])
-  const crewNames = crews.map(c => c.name)
+
+  // Crew ramp: 2 crews weeks 1-2, +1 every 2 weeks after
+  const getActiveCrewCount = useCallback((week: string): number => {
+    const weekIdx = weeks.indexOf(week)
+    if (weekIdx < 0) return 2
+    const base = 2
+    const extra = Math.floor(weekIdx / 2) // +1 crew every 2 weeks
+    return Math.min(base + extra, allCrews.length || 4)
+  }, [weeks, allCrews])
+
+  const crewNames = useMemo(() => {
+    const count = getActiveCrewCount(selectedWeek)
+    // Prioritize HOU crews first, then DFW
+    const sorted = [...allCrews].sort((a, b) => {
+      if (a.name.startsWith('HOU') && !b.name.startsWith('HOU')) return -1
+      if (!a.name.startsWith('HOU') && b.name.startsWith('HOU')) return 1
+      return a.name.localeCompare(b.name)
+    })
+    return sorted.slice(0, count).map(c => c.name)
+  }, [allCrews, selectedWeek, getActiveCrewCount])
 
   // Auto-suggest top projects for the week — only projects with readiness >= 35
   const suggestions = useMemo(() => {
@@ -301,8 +336,9 @@ export default function RampUpPage() {
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2"><Target className="w-5 h-5 text-green-400" /> Install Ramp-Up Planner</h1>
             <p className="text-xs text-gray-500 mt-1">
-              {config ? `${config.crews_count} crews × ${config.installs_per_crew_per_week} installs/week = ${config.crews_count * config.installs_per_crew_per_week} installs/week` : 'Loading...'}
-              {config && <span className="ml-2 text-gray-600">| Warehouse: {config.warehouse_address}</span>}
+              {crewNames.length} crews × {config?.installs_per_crew_per_week ?? 2} installs/week = {crewNames.length * (config?.installs_per_crew_per_week ?? 2)} installs/week
+              <span className="ml-2 text-gray-600">| Ramp: {getWeekLabel(rampStart)}</span>
+              <span className="ml-2 text-gray-600">| Warehouse: {config?.warehouse_address ?? '...'}</span>
             </p>
           </div>
         </div>
@@ -350,7 +386,7 @@ export default function RampUpPage() {
               <span className="text-sm font-semibold text-white min-w-[180px] text-center">{getWeekLabel(selectedWeek)}</span>
               <button onClick={nextWeek} disabled={weekIdx >= weeks.length - 1} className="p-1 text-gray-400 hover:text-white disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
               <span className="text-[10px] text-gray-500">Week {weekIdx + 1} of {weeks.length}</span>
-              <span className="text-[10px] text-gray-500 ml-auto">{weekSchedule.length} / {(config?.crews_count ?? 2) * (config?.installs_per_crew_per_week ?? 2)} slots filled</span>
+              <span className="text-[10px] text-gray-500 ml-auto">{weekSchedule.length} / {crewNames.length * (config?.installs_per_crew_per_week ?? 2)} slots filled · {crewNames.length} crews active</span>
             </div>
 
             {/* Crew schedules */}

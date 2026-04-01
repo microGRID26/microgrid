@@ -157,7 +157,7 @@ export function autoReadiness(ahj: string | null, module: string | null, inverte
   const isEcoflow = [module, inverter, battery].some(f => (f ?? '').toLowerCase().includes('ecoflow'))
   return {
     equipment_ready: false,
-    homeowner_confirmed: false,
+    homeowner_confirmed: true,     // Projects in pipeline = homeowner already confirmed
     permit_clear: !needsPermit,    // No permit needed = auto-clear
     utility_approved: false,
     hoa_approved: true,            // Default true — most projects don't have HOA issues

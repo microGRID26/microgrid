@@ -258,30 +258,32 @@ describe('getNextWeeks', () => {
 // ── Auto Readiness ───────────────────────────────────────────────────────────
 
 describe('autoReadiness', () => {
-  it('county + non-ecoflow: permit + redesign + hoa + crew = 45', () => {
+  it('county + non-ecoflow: homeowner + permit + hoa + redesign + crew = 65', () => {
     const r = autoReadiness('Harris County', 'Q.PEAK', 'SolarEdge', null)
     expect(r.permit_clear).toBe(true)
     expect(r.redesign_complete).toBe(true)
     expect(r.hoa_approved).toBe(true)
     expect(r.crew_available).toBe(true)
+    expect(r.homeowner_confirmed).toBe(true)
     expect(r.equipment_ready).toBe(false)
-    expect(r.homeowner_confirmed).toBe(false)
-    expect(computeReadinessScore(r as any)).toBe(45) // permit=20, hoa=10, redesign=10, crew=5
+    expect(computeReadinessScore(r as any)).toBe(65) // homeowner=20, permit=20, hoa=10, redesign=10, crew=5
   })
 
-  it('city + ecoflow: only hoa + crew = 15', () => {
+  it('city + ecoflow: homeowner + hoa + crew = 35', () => {
     const r = autoReadiness('Houston city', 'Q.PEAK', 'EcoFlow Delta', null)
     expect(r.permit_clear).toBe(false)
     expect(r.redesign_complete).toBe(false)
+    expect(r.homeowner_confirmed).toBe(true)
     expect(r.hoa_approved).toBe(true)
-    expect(computeReadinessScore(r as any)).toBe(15) // hoa=10, crew=5
+    expect(computeReadinessScore(r as any)).toBe(35) // homeowner=20, hoa=10, crew=5
   })
 
-  it('county + ecoflow: permit + hoa + crew = 35', () => {
+  it('county + ecoflow: homeowner + permit + hoa + crew = 55', () => {
     const r = autoReadiness('Fort Bend County', null, null, 'EcoFlow Battery')
     expect(r.permit_clear).toBe(true)
     expect(r.redesign_complete).toBe(false)
-    expect(computeReadinessScore(r as any)).toBe(35) // permit=20, hoa=10, crew=5
+    expect(r.homeowner_confirmed).toBe(true)
+    expect(computeReadinessScore(r as any)).toBe(55) // homeowner=20, permit=20, hoa=10, crew=5
   })
 })
 
