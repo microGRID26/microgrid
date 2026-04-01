@@ -519,28 +519,25 @@ export default function InfographicPage() {
                   </div>
                 </div>
                 <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-                  <h3 className="text-sm font-bold text-amber-400 mb-3">Pay Scale Tiers</h3>
+                  <h3 className="text-sm font-bold text-amber-400 mb-3">How Your Deal Tracks</h3>
                   <div className="space-y-3">
                     {[
-                      { tier: 'Consultant', rate: '$0.20/W', desc: 'Entry level', pct: 50 },
-                      { tier: 'Pro', rate: '$0.25/W', desc: 'Experienced', pct: 63 },
-                      { tier: 'Elite', rate: '$0.30/W', desc: 'Top performer', pct: 75 },
-                      { tier: 'Exclusive', rate: '$0.40/W', desc: 'Leadership', pct: 100 },
+                      { label: 'Deal Submitted', icon: '📝', desc: 'Commission calculated instantly' },
+                      { label: 'Install Complete', icon: '🔨', desc: 'First payment triggered' },
+                      { label: 'System Live', icon: '⚡', desc: 'Final payment processed' },
+                      { label: 'Earnings Dashboard', icon: '📊', desc: 'Track every dollar, every deal' },
                     ].map(t => (
-                      <div key={t.tier}>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-white font-medium w-20">{t.tier}</span>
-                          <span className="text-gray-500 text-[10px] flex-1 text-center">{t.desc}</span>
-                          <span className="text-green-400 font-bold w-16 text-right">{t.rate}</span>
-                        </div>
-                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-gradient-to-r from-green-600 to-green-400" style={{ width: `${t.pct}%` }} />
+                      <div key={t.label} className="flex items-center gap-3">
+                        <span className="text-xl">{t.icon}</span>
+                        <div>
+                          <div className="text-xs font-medium text-white">{t.label}</div>
+                          <div className="text-[10px] text-gray-500">{t.desc}</div>
                         </div>
                       </div>
                     ))}
                   </div>
                   <div className="mt-3 pt-3 border-t border-gray-700 text-[10px] text-gray-500">
-                    Auto-assigned by role · Tier upgrades based on performance
+                    Your pay scale is in your profile · Talk to your manager about tier upgrades
                   </div>
                 </div>
               </div>
