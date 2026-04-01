@@ -173,6 +173,11 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
       return
     }
 
+    // WiFi reminder for install jobs
+    if (form.job_type === 'install' && !installDetails.wifi_info) {
+      if (!confirm('WiFi Info is not filled out. The crew will need WiFi access for monitoring setup.\n\nContinue without WiFi info?')) return
+    }
+
     const record: Record<string, any> = {
       crew_id: form.crew_id,
       project_id: pid,
@@ -193,7 +198,6 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
       record.electrical_notes = installDetails.electrical_notes || null
       record.wind_speed = installDetails.wind_speed || null
       record.risk_category = installDetails.risk_category || null
-      record.travel_adder = installDetails.travel_adder || null
       record.wifi_info = installDetails.wifi_info || null
       record.msp_upgrade = installDetails.msp_upgrade || null
     }
@@ -454,6 +458,7 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
                         <option value="">Select...</option>
                         <option value="Single Story">Single Story</option>
                         <option value="Two Story">Two Story</option>
+                        <option value="Split Level">Split Level</option>
                         <option value="Three Story">Three Story</option>
                       </select>
                     </div>
@@ -496,16 +501,6 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
                         <option value="D">D</option>
                       </select>
                     </div>
-                  </div>
-                  <div>
-                    <label className={labelCls}>Travel Adder</label>
-                    <select className={inputCls} value={installDetails.travel_adder} onChange={e => setInstall('travel_adder', e.target.value)}>
-                      <option value="">Select...</option>
-                      <option value="0-60 miles">0-60 miles</option>
-                      <option value="61-120 miles">61-120 miles</option>
-                      <option value="121-180 miles">121-180 miles</option>
-                      <option value="180+ miles">180+ miles</option>
-                    </select>
                   </div>
                   <div>
                     <label className={labelCls}>Electrical Notes</label>
