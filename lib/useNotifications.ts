@@ -34,7 +34,6 @@ interface MentionRow {
   message: string | null
   created_at: string
   read: boolean
-  project: { name: string } | null
 }
 
 export interface NotificationFilterPrefs {
@@ -127,7 +126,7 @@ export function useNotifications(filterPrefs?: NotificationFilterPrefs) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const { data: mentions } = await supabase
       .from('mention_notifications')
-      .select('id, project_id, mentioned_by, message, created_at, read, project:projects(name)')
+      .select('id, project_id, mentioned_by, message, created_at, read')
       .eq('mentioned_user_id', user.id)
       .gte('created_at', thirtyDaysAgo.toISOString())
       .order('created_at', { ascending: false })
@@ -136,14 +135,13 @@ export function useNotifications(filterPrefs?: NotificationFilterPrefs) {
     if (mentions) {
       mentions.forEach((m: MentionRow) => {
         const isTicketMention = m.project_id === 'TICKET'
-        const projName = isTicketMention ? 'Ticket' : (m.project?.name ?? m.project_id)
         notifs.push({
           id: `mention-${m.id}`,
           type: 'mention' as const,
           title: `@Mentioned by ${m.mentioned_by}`,
-          message: isTicketMention ? (m.message?.slice(0, 100) ?? '') : `${projName} (${m.project_id}): ${m.message?.slice(0, 80) ?? ''}`,
+          message: isTicketMention ? (m.message?.slice(0, 100) ?? '') : `${m.project_id}: ${m.message?.slice(0, 80) ?? ''}`,
           projectId: isTicketMention ? '' : m.project_id,
-          projectName: projName,
+          projectName: isTicketMention ? 'Ticket' : m.project_id,
           timestamp: m.created_at,
           read: m.read, // DB is source of truth
         })
