@@ -148,7 +148,7 @@ function MoreDropdown({ active, isAdmin, userId, userRole }: { active: string; i
         More <ChevronDown className="w-3 h-3" />
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 min-w-[180px] py-1">
+        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-[9999] min-w-[180px] py-1 max-h-[80vh] overflow-y-auto">
           {visibleSections.map((section, si) => (
             <div key={section.section}>
               {si > 0 && <div className="border-t border-gray-700/50 my-1" />}
@@ -207,7 +207,7 @@ export function Nav({ active, right, onNewProject }: NavProps) {
 
   return (
     <>
-      <nav className="bg-gray-950 border-b border-gray-800 flex items-center gap-2 px-4 py-2 sticky top-0 z-50 flex-shrink-0">
+      <nav className="bg-gray-950 border-b border-gray-800 flex items-center gap-2 px-4 py-2 sticky top-0 z-[9998] flex-shrink-0">
         <span className="text-green-400 font-bold text-base mr-2">MicroGRID</span>
 
         {/* Desktop nav links */}
