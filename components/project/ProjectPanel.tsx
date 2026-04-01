@@ -16,6 +16,7 @@ import { FilesTab } from './FilesTab'
 import { MaterialsTab } from './MaterialsTab'
 import { NTPTab } from './NTPTab'
 import { WarrantyTab } from './WarrantyTab'
+import { TicketsTab } from './TicketsTab'
 import { ScheduleAssignModal } from './ScheduleAssignModal'
 import { createWorkOrderFromProject } from '@/lib/api/work-orders'
 
@@ -39,7 +40,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const { user: currentUser } = useCurrentUser()
   const edgeSync = useEdgeSync()
   const [project, setProject] = useState<Project>(initialProject)
-  const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files' | 'materials' | 'warranty' | 'ntp'>(initialTab ?? 'tasks')
+  const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'bom' | 'files' | 'materials' | 'warranty' | 'tickets' | 'ntp'>(initialTab ?? 'tasks')
   useEffect(() => { if (initialTab) setTab(initialTab) }, [initialTab])
   const [notes, setNotes] = useState<Note[]>([])
   const [newNote, setNewNote] = useState('')
@@ -660,6 +661,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
             { id: 'bom',   label: 'BOM', stuck: false },
             { id: 'materials', label: 'Materials', stuck: false },
             { id: 'warranty', label: 'Warranty', stuck: false },
+            { id: 'tickets', label: 'Tickets', stuck: false },
             { id: 'files', label: 'Files', stuck: false },
           ] as const).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
@@ -742,6 +744,9 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
 
           {/* WARRANTY */}
           {tab === 'warranty' && <WarrantyTab project={project} />}
+
+          {/* TICKETS */}
+          {tab === 'tickets' && <TicketsTab projectId={project.id} />}
 
           {/* FILES */}
           {tab === 'files' && <FilesTab folderUrl={folderUrl} projectId={pid} currentStage={project.stage} />}

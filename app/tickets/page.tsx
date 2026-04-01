@@ -6,7 +6,7 @@ import { Pagination } from '@/components/Pagination'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useOrg } from '@/lib/hooks'
 import { fmtDate, cn } from '@/lib/utils'
-import { loadProjectById, loadUsers } from '@/lib/api'
+import { loadProjectById, loadUsers, searchProjects } from '@/lib/api'
 import {
   loadTickets, createTicket, updateTicket, updateTicketStatus,
   loadTicketComments, addTicketComment, loadTicketHistory, addTicketHistory,
@@ -45,6 +45,8 @@ export default function TicketsPage() {
   const [filterPriority, setFilterPriority] = useState('')
   const [sortCol, setSortCol] = useState<'created_at' | 'priority' | 'status' | 'category'>('created_at')
   const [sortAsc, setSortAsc] = useState(false)
+  const [filterSLA, setFilterSLA] = useState(false)
+  const [filterResolved, setFilterResolved] = useState(false)
 
   // UI state
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -77,6 +79,9 @@ export default function TicketsPage() {
     title: '', description: '', category: 'service', subcategory: '',
     priority: 'normal', source: 'internal', project_id: '', assigned_to: '',
   })
+  const [projectSearch, setProjectSearch] = useState('')
+  const [projectResults, setProjectResults] = useState<{ id: string; name: string }[]>([])
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -92,7 +97,7 @@ export default function TicketsPage() {
   }, [orgId])
 
   useEffect(() => { loadAll() }, [loadAll])
-  useEffect(() => { loadUsers().then(r => setUsers((r.data ?? []).map((x: any) => ({ id: x.id, name: x.name })))).catch(() => {}) }, [])
+  useEffect(() => { loadUsers('gomicrogridenergy.com').then(r => setUsers((r.data ?? []).map((x: any) => ({ id: x.id, name: x.name })))).catch(() => {}) }, [])
 
   // Realtime — auto-refresh on ticket changes
   useRealtimeSubscription('tickets' as any, { onChange: loadAll, debounceMs: 500 })
@@ -210,6 +215,8 @@ export default function TicketsPage() {
     if (filterStatus) list = list.filter(t => t.status === filterStatus)
     if (filterCategory) list = list.filter(t => t.category === filterCategory)
     if (filterPriority) list = list.filter(t => t.priority === filterPriority)
+    if (filterSLA) list = list.filter(t => { const s = getSLAStatus(t); return !['resolved', 'closed'].includes(t.status) && (s.response === 'breached' || s.resolution === 'breached') })
+    if (filterResolved) list = list.filter(t => t.resolved_at && t.resolved_at.slice(0, 10) === new Date().toISOString().slice(0, 10))
 
     list.sort((a, b) => {
       let cmp = 0
@@ -226,7 +233,7 @@ export default function TicketsPage() {
       return sortAsc ? cmp : -cmp
     })
     return list
-  }, [tickets, search, filterStatus, filterCategory, filterPriority, sortCol, sortAsc])
+  }, [tickets, search, filterStatus, filterCategory, filterPriority, filterSLA, filterResolved, sortCol, sortAsc])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -309,11 +316,11 @@ export default function TicketsPage() {
             <div className="text-xs text-gray-400">Critical / Urgent</div>
             <div className={cn('text-2xl font-bold mt-1', criticalCount > 0 ? 'text-amber-400' : 'text-white')}>{criticalCount}</div>
           </div>
-          <div className="bg-gray-800 rounded-lg p-3">
+          <div className={cn('bg-gray-800 rounded-lg p-3 cursor-pointer border', filterSLA ? 'border-red-500/50' : 'border-transparent hover:border-gray-600')} onClick={() => setFilterSLA(!filterSLA)}>
             <div className="text-xs text-gray-400">SLA Breached</div>
             <div className={cn('text-2xl font-bold mt-1', slaBreachedCount > 0 ? 'text-red-400' : 'text-white')}>{slaBreachedCount}</div>
           </div>
-          <div className="bg-gray-800 rounded-lg p-3">
+          <div className={cn('bg-gray-800 rounded-lg p-3 cursor-pointer border', filterResolved ? 'border-green-500/50' : 'border-transparent hover:border-gray-600')} onClick={() => setFilterResolved(!filterResolved)}>
             <div className="text-xs text-gray-400">Resolved Today</div>
             <div className="text-2xl font-bold text-green-400 mt-1">{resolvedToday}</div>
           </div>
@@ -342,8 +349,8 @@ export default function TicketsPage() {
             <option value="">All Priorities</option>
             {TICKET_PRIORITIES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
           </select>
-          {(filterStatus || filterCategory || filterPriority || search) && (
-            <button onClick={() => { setFilterStatus(''); setFilterCategory(''); setFilterPriority(''); setSearch('') }}
+          {(filterStatus || filterCategory || filterPriority || search || filterSLA || filterResolved) && (
+            <button onClick={() => { setFilterStatus(''); setFilterCategory(''); setFilterPriority(''); setSearch(''); setFilterSLA(false); setFilterResolved(false) }}
               className="text-xs text-gray-400 hover:text-white">Clear All</button>
           )}
         </div>
@@ -433,9 +440,9 @@ export default function TicketsPage() {
                         </td>
                         <td className="px-4 py-2.5 text-gray-300 truncate max-w-[100px]">{t.assigned_to ?? <span className="text-gray-600">&mdash;</span>}</td>
                         <td className="px-4 py-2.5">
-                          <div className="flex gap-1">
-                            <span className={cn('w-2 h-2 rounded-full mt-0.5', sla.response === 'ok' ? 'bg-green-500' : sla.response === 'warning' ? 'bg-amber-500' : 'bg-red-500')} title={`Response: ${sla.response}`} />
-                            <span className={cn('w-2 h-2 rounded-full mt-0.5', sla.resolution === 'ok' ? 'bg-green-500' : sla.resolution === 'warning' ? 'bg-amber-500' : 'bg-red-500')} title={`Resolution: ${sla.resolution}`} />
+                          <div className="flex gap-1" title={`Response: ${sla.response} (${t.sla_response_hours}h target)\nResolution: ${sla.resolution} (${t.sla_resolution_hours}h target)`}>
+                            <span className={cn('w-2.5 h-2.5 rounded-full', sla.response === 'ok' ? 'bg-green-500' : sla.response === 'warning' ? 'bg-amber-500' : 'bg-red-500')} />
+                            <span className={cn('w-2.5 h-2.5 rounded-full', sla.resolution === 'ok' ? 'bg-green-500' : sla.resolution === 'warning' ? 'bg-amber-500' : 'bg-red-500')} />
                           </div>
                         </td>
                         <td className="px-4 py-2.5 text-gray-400">{ageStr}</td>
@@ -545,9 +552,11 @@ export default function TicketsPage() {
                                     <div key={c.id} className={cn('rounded-lg p-2.5 text-xs', c.is_internal ? 'bg-amber-900/20 border border-amber-700/30' : 'bg-gray-800')}>
                                       <div className="flex justify-between mb-1">
                                         <span className="text-white font-medium">{c.author}</span>
-                                        <span className="text-gray-500 text-[10px]">{fmtDate(c.created_at)}</span>
+                                        <span className="text-gray-500 text-[10px]">{new Date(c.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
                                       </div>
-                                      <p className="text-gray-300 whitespace-pre-wrap">{c.message}</p>
+                                      <p className="text-gray-300 whitespace-pre-wrap">{c.message.split(/(@[A-Z][a-z]+ [A-Z][a-z]+)/g).map((part, i) =>
+                                        part.startsWith('@') ? <span key={i} className="text-green-400 font-medium">{part}</span> : <React.Fragment key={i}>{part}</React.Fragment>
+                                      )}</p>
                                       {c.is_internal && <span className="text-[9px] text-amber-400 font-medium mt-1 block">INTERNAL NOTE</span>}
                                     </div>
                                   ))}
@@ -678,10 +687,36 @@ export default function TicketsPage() {
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-400 font-medium block mb-1">Project ID (optional)</label>
-                <input value={createForm.project_id} onChange={e => setCreateForm(f => ({ ...f, project_id: e.target.value }))}
-                  placeholder="PROJ-XXXXX"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-blue-500" />
+                <label className="text-xs text-gray-400 font-medium block mb-1">Project (search by name or ID)</label>
+                <div className="relative">
+                  <input value={projectSearch || createForm.project_id}
+                    onChange={async e => {
+                      const v = e.target.value
+                      setProjectSearch(v)
+                      setCreateForm(f => ({ ...f, project_id: '' }))
+                      if (v.length >= 2) {
+                        const results = await searchProjects(v)
+                        setProjectResults(results.slice(0, 8))
+                        setShowProjectDropdown(true)
+                      } else {
+                        setShowProjectDropdown(false)
+                      }
+                    }}
+                    onFocus={() => projectResults.length > 0 && setShowProjectDropdown(true)}
+                    placeholder="Search project name or PROJ-XXXXX..."
+                    className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500" />
+                  {showProjectDropdown && projectResults.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-700 rounded-md shadow-xl max-h-48 overflow-y-auto">
+                      {projectResults.map(p => (
+                        <button key={p.id} onClick={() => { setCreateForm(f => ({ ...f, project_id: p.id })); setProjectSearch(`${p.name} (${p.id})`); setShowProjectDropdown(false) }}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-gray-700 transition-colors">
+                          <span className="text-green-400 font-mono">{p.id}</span>
+                          <span className="text-gray-300 ml-2">{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="text-xs text-gray-400 font-medium block mb-1">Assign To</label>
