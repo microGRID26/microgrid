@@ -126,7 +126,7 @@ export default function InfographicPage() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold"><span className="text-green-400 print:text-green-700">MicroGRID</span> Infographic</h1>
           <div className="flex items-center gap-2">
-            <div className="flex bg-gray-800 rounded-lg p-0.5 print:hidden">
+            <div className="flex bg-gray-800 rounded-lg p-0.5 print:hidden overflow-x-auto max-w-[70vw]">
               {!isSales && ([
                 { key: 'leadership' as Tab, label: 'Leadership' },
                 ...(isMicrogridEmployee ? [{ key: 'sales' as Tab, label: 'Sales' }] : []),
@@ -229,7 +229,7 @@ export default function InfographicPage() {
             <div>
               <h2 className="text-xs text-gray-500 uppercase tracking-wider mb-4 font-semibold">Install Ramp-Up Forecast</h2>
               <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 print:border-gray-300 print:bg-gray-50">
-                <div className="grid grid-cols-4 gap-6 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
                   {[
                     { period: 'Month 1', crews: 2, installs: 16, revenue: '$700K', color: '#1D9E75' },
                     { period: 'Month 2', crews: 4, installs: 32, revenue: '$1.4M', color: '#3b82f6' },
@@ -803,7 +803,7 @@ export default function InfographicPage() {
 
             {/* Code quality bar */}
             <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-              <div className="grid grid-cols-4 gap-6 text-center">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
                 <div><div className="text-2xl font-bold text-green-400">9.5/10</div><div className="text-[10px] text-gray-400">Quality Rating</div></div>
                 <div><div className="text-2xl font-bold text-green-400">10</div><div className="text-[10px] text-gray-400">`as any` casts left</div></div>
                 <div><div className="text-2xl font-bold text-green-400">200+</div><div className="text-[10px] text-gray-400">API Functions</div></div>
