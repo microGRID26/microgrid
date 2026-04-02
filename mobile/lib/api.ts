@@ -4,7 +4,7 @@ import { supabase } from './supabase'
 import Constants from 'expo-constants'
 import type { CustomerAccount, CustomerProject, StageHistoryEntry, CustomerScheduleEntry, CustomerTicket, TicketComment } from './types'
 
-const API_BASE = Constants.expoConfig?.extra?.apiBaseUrl ?? 'https://nova.gomicrogridenergy.com'
+const API_BASE = 'https://microgrid-crm.vercel.app'
 
 // Customer-safe fields only
 const PROJECT_FIELDS = 'id, name, address, city, zip, stage, stage_date, sale_date, survey_scheduled_date, survey_date, city_permit_date, utility_permit_date, install_scheduled_date, install_complete_date, city_inspection_date, utility_inspection_date, pto_date, in_service_date, module, module_qty, inverter, inverter_qty, battery, battery_qty, systemkw, financier, disposition'
@@ -140,7 +140,10 @@ export async function sendAtlasMessage(
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('Not authenticated')
 
-  const res = await fetch(`${API_BASE}/api/portal/chat`, {
+  const url = `${API_BASE}/api/portal/chat`
+  console.log('[atlas] POST', url)
+
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -149,7 +152,11 @@ export async function sendAtlasMessage(
     body: JSON.stringify({ messages }),
   })
 
-  if (!res.ok) throw new Error('Chat failed')
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => 'unknown')
+    console.error('[atlas] error:', res.status, errorText)
+    throw new Error(`Chat failed: ${res.status}`)
+  }
   const data = await res.json()
   return data.response
 }

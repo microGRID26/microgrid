@@ -84,8 +84,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  // Look up customer account
-  const { data: account } = await supabase
+  // Look up customer account using service role to bypass RLS
+  // (Bearer token auth doesn't set auth.uid() for the server client)
+  const serviceKey = process.env.SUPABASE_SECRET_KEY
+  const serviceClient = serviceKey
+    ? (await import('@supabase/supabase-js')).createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
+    : supabase
+  const { data: account } = await serviceClient
     .from('customer_accounts')
     .select('id, project_id, name, status')
     .eq('auth_user_id', user.id)
@@ -105,13 +110,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Load project context (customer-safe fields only)
-  const { data: project } = await supabase
+  const { data: project } = await serviceClient
     .from('projects')
     .select('id, name, address, city, zip, stage, stage_date, sale_date, survey_scheduled_date, survey_date, city_permit_date, utility_permit_date, install_scheduled_date, install_complete_date, city_inspection_date, utility_inspection_date, pto_date, in_service_date, module, module_qty, inverter, inverter_qty, battery, battery_qty, systemkw, financier, disposition')
     .eq('id', account.project_id)
     .single()
 
-  const { data: scheduleData } = await supabase
+  const { data: scheduleData } = await serviceClient
     .from('schedule')
     .select('job_type, date, end_date, time, status, arrival_window')
     .eq('project_id', account.project_id)
@@ -119,7 +124,7 @@ export async function POST(request: NextRequest) {
     .order('date')
     .limit(5)
 
-  const { data: timeline } = await supabase
+  const { data: timeline } = await serviceClient
     .from('stage_history')
     .select('stage, entered')
     .eq('project_id', account.project_id)
