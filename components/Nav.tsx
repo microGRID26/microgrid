@@ -40,7 +40,6 @@ const MORE_SECTIONS: LinkSection[] = [
   {
     section: 'Operations',
     links: [
-      { label: 'Ops Dashboard', href: '/ops' },
       { label: 'Work Orders',   href: '/work-orders' },
       { label: 'Change Orders', href: '/change-orders' },
       { label: 'Engineering',   href: '/engineering' },
