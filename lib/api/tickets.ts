@@ -309,6 +309,10 @@ export async function addTicketComment(ticketId: string, author: string, authorI
   if (ticket && !ticket.first_response_at) {
     await updateTicket(ticketId, { first_response_at: new Date().toISOString() } as any)
   }
+
+  // Touch updated_at so mobile badge can detect new activity
+  await db().from('tickets').update({ updated_at: new Date().toISOString() }).eq('id', ticketId)
+
   return true
 }
 

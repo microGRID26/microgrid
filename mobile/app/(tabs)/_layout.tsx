@@ -17,24 +17,12 @@ export default function TabLayout() {
       if (!acct) return
       const lastSeen = await SecureStore.getItemAsync('mg_support_seen') ?? '2000-01-01T00:00:00Z'
 
-      // Get all tickets for this project
-      const { data: tickets } = await supabase
-        .from('tickets')
-        .select('id')
-        .eq('project_id', acct.project_id)
-        .not('status', 'in', '("closed")')
-
-      if (!tickets?.length) { setUnreadCount(0); return }
-
-      // Check each ticket for new non-customer comments since last seen
-      const ticketIds = tickets.map((t: any) => t.id)
+      // Count tickets updated since last time customer viewed Support tab
       const { count } = await supabase
-        .from('ticket_comments')
+        .from('tickets')
         .select('id', { count: 'exact', head: true })
-        .in('ticket_id', ticketIds)
-        .neq('author', acct.name)
-        .eq('is_internal', false)
-        .gt('created_at', lastSeen)
+        .eq('project_id', acct.project_id)
+        .gt('updated_at', lastSeen)
 
       setUnreadCount(count ?? 0)
     } catch (err) {
