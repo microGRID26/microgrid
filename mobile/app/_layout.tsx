@@ -68,7 +68,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="ticket/[id]" options={{ presentation: 'modal', headerShown: true, headerTitle: 'Ticket Detail' }} />
+        <Stack.Screen name="ticket/[id]" options={{ presentation: 'card', headerShown: false, animation: 'slide_from_right' }} />
       </Stack>
     </ThemeContext.Provider>
   )

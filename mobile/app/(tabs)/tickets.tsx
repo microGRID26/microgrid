@@ -1,11 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, TextInput, RefreshControl, ActivityIndicator, Modal, KeyboardAvoidingView, Platform } from 'react-native'
+import { useRouter } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { theme, useThemeColors } from '../../lib/theme'
-import { getCustomerAccount, loadTickets, createTicket, loadComments, addComment } from '../../lib/api'
-import { TICKET_CATEGORIES } from '../../lib/constants'
-import type { CustomerAccount, CustomerTicket, TicketComment } from '../../lib/types'
+import { supabase } from '../../lib/supabase'
+import { getCustomerAccount, loadTickets, createTicket } from '../../lib/api'
+import type { CustomerAccount, CustomerTicket } from '../../lib/types'
+
+// Quick issue templates — one tap to create
+const QUICK_ISSUES = [
+  { icon: 'alert-circle', title: 'My system isn\'t producing power', category: 'service', color: '#C53030' },
+  { icon: 'dollar-sign', title: 'Billing question', category: 'billing', color: '#C4922A' },
+  { icon: 'calendar', title: 'Schedule a service visit', category: 'service', color: '#2563EB' },
+  { icon: 'tool', title: 'Report damage or issue', category: 'installation', color: '#C4922A' },
+  { icon: 'shield', title: 'Warranty question', category: 'warranty', color: '#1D7A5F' },
+]
 
 function getStatusConfig(colors: any): Record<string, { label: string; color: string }> {
   return {
@@ -22,15 +32,13 @@ function getStatusConfig(colors: any): Record<string, { label: string; color: st
 
 export default function TicketsScreen() {
   const colors = useThemeColors()
+  const router = useRouter()
   const [account, setAccount] = useState<CustomerAccount | null>(null)
   const [tickets, setTickets] = useState<CustomerTicket[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [comments, setComments] = useState<TicketComment[]>([])
-  const [newComment, setNewComment] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('service')
@@ -46,12 +54,21 @@ export default function TicketsScreen() {
 
   useEffect(() => { load() }, [load])
 
-  // Auto-refresh every 15 seconds for real-time status updates
+  // Realtime subscription for ticket changes
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (account) loadTickets(account.project_id).then(setTickets)
-    }, 15000)
-    return () => clearInterval(interval)
+    if (!account) return
+    const channel = supabase
+      .channel('customer-tickets')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'tickets',
+      }, () => {
+        if (account) loadTickets(account.project_id).then(setTickets)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [account])
 
   const onRefresh = useCallback(async () => {
@@ -60,11 +77,14 @@ export default function TicketsScreen() {
     setRefreshing(false)
   }, [load])
 
-  const handleCreate = async () => {
-    if (!account || !title.trim()) return
+  const handleCreate = async (t?: string, cat?: string) => {
+    if (!account) return
+    const ticketTitle = t ?? title.trim()
+    const ticketCat = cat ?? category
+    if (!ticketTitle) return
     setCreating(true)
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    const ticket = await createTicket(account.project_id, title.trim(), description.trim(), category, account.name)
+    const ticket = await createTicket(account.project_id, ticketTitle, t ? '' : description.trim(), ticketCat, account.name)
     setCreating(false)
     if (ticket) {
       setTickets(prev => [ticket, ...prev])
@@ -73,7 +93,23 @@ export default function TicketsScreen() {
       setDescription('')
       setCategory('service')
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      // Navigate to the new ticket
+      router.push({ pathname: '/ticket/[id]', params: { id: ticket.id, title: ticket.title, status: ticket.status, description: '', created_at: ticket.created_at } })
     }
+  }
+
+  const openTicket = (ticket: CustomerTicket) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    router.push({
+      pathname: '/ticket/[id]',
+      params: {
+        id: ticket.id,
+        title: ticket.title,
+        status: ticket.status,
+        description: ticket.description ?? '',
+        created_at: ticket.created_at,
+      },
+    })
   }
 
   if (loading) {
@@ -85,6 +121,7 @@ export default function TicketsScreen() {
   }
 
   const openCount = tickets.filter(t => !['resolved', 'closed'].includes(t.status)).length
+  const statusMap = getStatusConfig(colors)
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -97,69 +134,94 @@ export default function TicketsScreen() {
           <View>
             <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text, fontFamily: 'Inter_700Bold' }}>Support</Text>
             <Text style={{ fontSize: 12, color: colors.textMuted, fontFamily: 'Inter_400Regular' }}>
-              {openCount > 0 ? `${openCount} open request${openCount > 1 ? 's' : ''}` : 'No open requests'}
+              {openCount > 0 ? `${openCount} open request${openCount > 1 ? 's' : ''}` : 'All clear'}
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => setShowCreate(true)}
-            activeOpacity={0.8}
+          <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.8}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 6,
               backgroundColor: colors.accent, borderRadius: theme.radius.xl,
               paddingHorizontal: 16, paddingVertical: 10,
-            }}
-          >
+            }}>
             <Feather name="plus" size={16} color={colors.accentText} />
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentText, fontFamily: 'Inter_600SemiBold' }}>
-              New Request
+              New
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Ticket list */}
-        <View style={{ marginTop: 16, gap: 8 }}>
-          {tickets.length === 0 ? (
-            <View style={{
-              backgroundColor: colors.surface, borderRadius: theme.radius.xl,
-              padding: 32, alignItems: 'center',
-              borderWidth: 1, borderColor: colors.borderLight,
-            }}>
-              <Feather name="message-square" size={40} color={colors.border} />
-              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text, marginTop: 12, fontFamily: 'Inter_500Medium' }}>
-                No support requests yet
-              </Text>
-              <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, textAlign: 'center', fontFamily: 'Inter_400Regular' }}>
-                Tap &quot;New Request&quot; if you need help.
-              </Text>
-            </View>
-          ) : tickets.map(ticket => {
-            const statusMap = getStatusConfig(colors)
-            const status = statusMap[ticket.status] ?? statusMap.open
-            const isExpanded = expandedId === ticket.id
-            return (
-              <View key={ticket.id}>
-                <TouchableOpacity activeOpacity={0.7}
-                  onPress={async () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                    if (isExpanded) {
-                      setExpandedId(null)
-                    } else {
-                      setExpandedId(ticket.id)
-                      const c = await loadComments(ticket.id)
-                      setComments(c)
-                    }
-                  }}
+        {/* Quick issue templates */}
+        {tickets.length === 0 && (
+          <View style={{ marginTop: 20 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary, fontFamily: 'Inter_600SemiBold', marginBottom: 10 }}>
+              How can we help?
+            </Text>
+            <View style={{ gap: 8 }}>
+              {QUICK_ISSUES.map(qi => (
+                <TouchableOpacity key={qi.title} activeOpacity={0.7}
+                  onPress={() => handleCreate(qi.title, qi.category)}
+                  disabled={creating}
                   style={{
-                    backgroundColor: colors.surface, borderRadius: isExpanded ? theme.radius.xl : theme.radius.xl,
-                    borderBottomLeftRadius: isExpanded ? 0 : theme.radius.xl,
-                    borderBottomRightRadius: isExpanded ? 0 : theme.radius.xl,
-                    padding: 16, borderWidth: 1, borderColor: isExpanded ? colors.accent : colors.borderLight,
-                    borderBottomWidth: isExpanded ? 0 : 1,
+                    flexDirection: 'row', alignItems: 'center', gap: 12,
+                    backgroundColor: colors.surface, borderRadius: theme.radius.xl,
+                    padding: 16, borderWidth: 1, borderColor: colors.borderLight,
                     ...theme.shadow.card,
                   }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <View style={{
+                    width: 36, height: 36, borderRadius: 18,
+                    backgroundColor: qi.color + '15', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Feather name={qi.icon as any} size={18} color={qi.color} />
+                  </View>
+                  <Text style={{ fontSize: 14, color: colors.text, fontFamily: 'Inter_500Medium', flex: 1 }}>
+                    {qi.title}
+                  </Text>
+                  <Feather name="chevron-right" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Ticket list */}
+        {tickets.length > 0 && (
+          <View style={{ marginTop: 16, gap: 8 }}>
+            {/* Quick issues row when tickets exist */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+              <View style={{ flexDirection: 'row', gap: 8, paddingRight: 16 }}>
+                {QUICK_ISSUES.slice(0, 3).map(qi => (
+                  <TouchableOpacity key={qi.title} activeOpacity={0.7}
+                    onPress={() => handleCreate(qi.title, qi.category)}
+                    disabled={creating}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 6,
+                      backgroundColor: colors.surface, borderRadius: theme.radius.pill,
+                      paddingHorizontal: 12, paddingVertical: 8,
+                      borderWidth: 1, borderColor: colors.borderLight,
+                    }}>
+                    <Feather name={qi.icon as any} size={12} color={qi.color} />
+                    <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Inter_500Medium' }}>
+                      {qi.title.length > 20 ? qi.title.slice(0, 20) + '...' : qi.title}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            {tickets.map(ticket => {
+              const status = statusMap[ticket.status] ?? statusMap.open
+              const isResolved = ticket.status === 'resolved' || ticket.status === 'closed'
+              return (
+                <TouchableOpacity key={ticket.id} activeOpacity={0.7} onPress={() => openTicket(ticket)}
+                  style={{
+                    backgroundColor: colors.surface, borderRadius: theme.radius.xl,
+                    padding: 16, borderWidth: 1, borderColor: colors.borderLight,
+                    opacity: isResolved ? 0.6 : 1,
+                    ...theme.shadow.card,
+                  }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text, fontFamily: 'Inter_500Medium' }} numberOfLines={isExpanded ? undefined : 1}>
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text, fontFamily: 'Inter_500Medium' }} numberOfLines={1}>
                         {ticket.title}
                       </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
@@ -176,98 +238,16 @@ export default function TicketsScreen() {
                         </Text>
                       </View>
                     </View>
-                    <Feather name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+                    <Feather name="chevron-right" size={16} color={colors.textMuted} />
                   </View>
                 </TouchableOpacity>
-
-                {/* Expanded detail with comments */}
-                {isExpanded && (
-                  <View style={{
-                    backgroundColor: colors.surfaceAlt, borderWidth: 1, borderTopWidth: 0,
-                    borderColor: colors.accent,
-                    borderBottomLeftRadius: theme.radius.xl, borderBottomRightRadius: theme.radius.xl,
-                    padding: 16,
-                  }}>
-                    {ticket.description ? (
-                      <Text style={{ fontSize: 13, color: colors.textSecondary, fontFamily: 'Inter_400Regular', marginBottom: 12 }}>
-                        {ticket.description}
-                      </Text>
-                    ) : null}
-
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, fontFamily: 'Inter_600SemiBold' }}>
-                      Conversation
-                    </Text>
-
-                    {comments.length === 0 ? (
-                      <Text style={{ fontSize: 12, color: colors.textMuted, fontFamily: 'Inter_400Regular' }}>
-                        No messages yet
-                      </Text>
-                    ) : (
-                      <View style={{ gap: 8, maxHeight: 200 }}>
-                        {comments.map(c => (
-                          <View key={c.id} style={{ backgroundColor: colors.surface, borderRadius: theme.radius.lg, padding: 12 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                              <Text style={{ fontSize: 10, fontWeight: '500', color: colors.accent, fontFamily: 'Inter_500Medium' }}>{c.author}</Text>
-                              <Text style={{ fontSize: 10, color: colors.textMuted }}>
-                                {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                              </Text>
-                            </View>
-                            <Text style={{ fontSize: 13, color: colors.text, fontFamily: 'Inter_400Regular', marginTop: 4 }}>{c.message}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-
-                    {/* Reply input */}
-                    {!['resolved', 'closed'].includes(ticket.status) && (
-                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-                        <TextInput
-                          value={newComment}
-                          onChangeText={setNewComment}
-                          placeholder="Type a reply..."
-                          placeholderTextColor={colors.textMuted}
-                          style={{
-                            flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-                            borderRadius: theme.radius.xl, paddingHorizontal: 12, paddingVertical: 10,
-                            fontSize: 14, color: colors.text, fontFamily: 'Inter_400Regular',
-                          }}
-                          returnKeyType="send"
-                          onSubmitEditing={async () => {
-                            if (!newComment.trim() || !account) return
-                            await addComment(ticket.id, newComment.trim(), account.name)
-                            setNewComment('')
-                            const c = await loadComments(ticket.id)
-                            setComments(c)
-                          }}
-                        />
-                        <TouchableOpacity
-                          onPress={async () => {
-                            if (!newComment.trim() || !account) return
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                            await addComment(ticket.id, newComment.trim(), account.name)
-                            setNewComment('')
-                            const c = await loadComments(ticket.id)
-                            setComments(c)
-                          }}
-                          disabled={!newComment.trim()}
-                          style={{
-                            backgroundColor: colors.accent, borderRadius: theme.radius.xl,
-                            width: 44, height: 44, alignItems: 'center', justifyContent: 'center',
-                            opacity: !newComment.trim() ? 0.3 : 1,
-                          }}>
-                          <Feather name="send" size={16} color={colors.accentText} />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </View>
-            )
-          })}
-        </View>
+              )
+            })}
+          </View>
+        )}
       </ScrollView>
 
-      {/* Create ticket modal */}
+      {/* Custom create modal */}
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: colors.bg }}>
           <View style={{ padding: 16, paddingTop: 20 }}>
@@ -283,12 +263,9 @@ export default function TicketsScreen() {
             <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginBottom: 6, fontFamily: 'Inter_500Medium' }}>
               What do you need help with?
             </Text>
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
+            <TextInput value={title} onChangeText={setTitle}
               placeholder="Describe your issue briefly"
-              placeholderTextColor={colors.textMuted}
-              autoFocus
+              placeholderTextColor={colors.textMuted} autoFocus
               style={{
                 backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
                 borderRadius: theme.radius.xl, paddingHorizontal: 16, paddingVertical: 14,
@@ -299,56 +276,22 @@ export default function TicketsScreen() {
             <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 16, marginBottom: 6, fontFamily: 'Inter_500Medium' }}>
               Details (optional)
             </Text>
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
+            <TextInput value={description} onChangeText={setDescription}
               placeholder="Provide additional details..."
-              placeholderTextColor={colors.textMuted}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
+              placeholderTextColor={colors.textMuted} multiline numberOfLines={4} textAlignVertical="top"
               style={{
                 backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
                 borderRadius: theme.radius.xl, paddingHorizontal: 16, paddingVertical: 14,
-                fontSize: 14, color: colors.text, fontFamily: 'Inter_400Regular',
-                minHeight: 100,
+                fontSize: 14, color: colors.text, fontFamily: 'Inter_400Regular', minHeight: 100,
               }}
             />
 
-            <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 16, marginBottom: 6, fontFamily: 'Inter_500Medium' }}>
-              Category
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {TICKET_CATEGORIES.map(cat => (
-                <TouchableOpacity key={cat.value} onPress={() => setCategory(cat.value)}
-                  style={{
-                    paddingHorizontal: 14, paddingVertical: 8,
-                    borderRadius: theme.radius.pill,
-                    backgroundColor: category === cat.value ? colors.accent : colors.surface,
-                    borderWidth: 1,
-                    borderColor: category === cat.value ? colors.accent : colors.border,
-                  }}>
-                  <Text style={{
-                    fontSize: 13, fontWeight: '500',
-                    color: category === cat.value ? colors.accentText : colors.textSecondary,
-                    fontFamily: 'Inter_500Medium',
-                  }}>
-                    {cat.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TouchableOpacity
-              onPress={handleCreate}
-              disabled={creating || !title.trim()}
-              activeOpacity={0.8}
+            <TouchableOpacity onPress={() => handleCreate()} disabled={creating || !title.trim()} activeOpacity={0.8}
               style={{
                 backgroundColor: colors.accent, borderRadius: theme.radius.xl,
                 paddingVertical: 14, marginTop: 24, alignItems: 'center',
                 opacity: creating || !title.trim() ? 0.5 : 1,
-              }}
-            >
+              }}>
               {creating ? (
                 <ActivityIndicator color={colors.accentText} />
               ) : (
