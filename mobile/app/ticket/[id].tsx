@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingVi
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
+import * as SecureStore from 'expo-secure-store'
 import { theme, useThemeColors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
 import { loadComments, addComment, getCustomerAccount } from '../../lib/api'
@@ -54,6 +55,8 @@ export default function TicketDetailScreen() {
       ])
       setComments(c as any[])
       if (acct) setCustomerName(acct.name)
+      // Mark as read — clears the Support tab badge
+      await SecureStore.setItemAsync('mg_support_seen', new Date().toISOString())
     } catch (err) {
       console.error('[ticket detail] load failed:', err)
     }

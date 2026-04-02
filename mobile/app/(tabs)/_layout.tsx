@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { AppState } from 'react-native'
 import { Tabs } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { useThemeColors, theme } from '../../lib/theme'
@@ -14,11 +15,10 @@ export default function TabLayout() {
   const checkUnread = useCallback(async () => {
     try {
       const acct = await getCustomerAccount()
-      if (!acct) return
+      if (!acct) { console.log('[badge] no account'); return }
       const lastSeen = await SecureStore.getItemAsync('mg_support_seen') ?? '2000-01-01T00:00:00Z'
 
-      // Count tickets updated since last time customer viewed Support tab
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from('tickets')
         .select('id', { count: 'exact', head: true })
         .eq('project_id', acct.project_id)
@@ -38,7 +38,11 @@ export default function TabLayout() {
   useEffect(() => {
     checkUnread()
     const interval = setInterval(checkUnread, 30000)
-    return () => clearInterval(interval)
+    // Also re-check when app comes to foreground (returning from ticket detail)
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') checkUnread()
+    })
+    return () => { clearInterval(interval); sub.remove() }
   }, [checkUnread])
 
   return (
@@ -62,12 +66,9 @@ export default function TabLayout() {
         },
       }}
       screenListeners={{
-        tabPress: (e) => {
+        tabPress: () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-          // Clear badge when Support tab is tapped
-          if (e.target?.startsWith('tickets')) {
-            markSeen()
-          }
+          checkUnread()
         },
       }}
     >
