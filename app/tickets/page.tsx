@@ -773,17 +773,44 @@ function TicketsPageInner() {
                                     </div>
                                   ))}
                                   <div className="mt-2">
-                                    <MentionNoteInput
-                                      compact
-                                      placeholder={commentInternal ? "Internal note (hidden from customer)..." : "Reply to customer... Type @ to mention someone"}
-                                      projectId={t.project_id ?? ''}
-                                      currentUserName={userName ?? 'Unknown'}
-                                      onSubmit={async (text) => {
-                                        await addTicketComment(t.id, userName ?? 'Unknown', user?.id, text, commentInternal)
-                                        const c = await loadTicketComments(t.id)
-                                        setComments(c)
-                                      }}
-                                    />
+                                    <div className="flex gap-2 items-end">
+                                      <div className="flex-1">
+                                        <MentionNoteInput
+                                          compact
+                                          placeholder={commentInternal ? "Internal note (hidden from customer)..." : "Reply to customer... Type @ to mention someone"}
+                                          projectId={t.project_id ?? ''}
+                                          currentUserName={userName ?? 'Unknown'}
+                                          onSubmit={async (text) => {
+                                            await addTicketComment(t.id, userName ?? 'Unknown', user?.id, text, commentInternal)
+                                            const c = await loadTicketComments(t.id)
+                                            setComments(c)
+                                          }}
+                                        />
+                                      </div>
+                                      <label className="flex items-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium bg-gray-800 text-gray-400 hover:text-white cursor-pointer transition-colors mb-[1px]">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        Photo
+                                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                                          const file = e.target.files?.[0]
+                                          if (!file) return
+                                          const fileName = `${t.id}/${Date.now()}.${file.name.split('.').pop() ?? 'jpg'}`
+                                          const supabaseClient = (await import('@/lib/supabase/client')).createClient()
+                                          const { error: uploadErr } = await supabaseClient.storage
+                                            .from('ticket-attachments')
+                                            .upload(fileName, file, { contentType: file.type })
+                                          if (uploadErr) { console.error('[upload]', uploadErr); return }
+                                          const { data: urlData } = supabaseClient.storage
+                                            .from('ticket-attachments')
+                                            .getPublicUrl(fileName)
+                                          await addTicketComment(t.id, userName ?? 'Unknown', user?.id, '📷 Photo', commentInternal, urlData.publicUrl)
+                                          const c = await loadTicketComments(t.id)
+                                          setComments(c)
+                                          e.target.value = ''
+                                        }} />
+                                      </label>
+                                    </div>
                                     <div className="flex items-center gap-2 mt-1.5">
                                       <button
                                         onClick={() => setCommentInternal(!commentInternal)}

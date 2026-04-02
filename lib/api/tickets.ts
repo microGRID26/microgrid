@@ -305,8 +305,8 @@ export async function loadTicketComments(ticketId: string): Promise<TicketCommen
   return (data ?? []) as TicketComment[]
 }
 
-export async function addTicketComment(ticketId: string, author: string, authorId: string | undefined, message: string, isInternal = false): Promise<boolean> {
-  const { error } = await db().from('ticket_comments').insert({ ticket_id: ticketId, author, author_id: authorId, message, is_internal: isInternal })
+export async function addTicketComment(ticketId: string, author: string, authorId: string | undefined, message: string, isInternal = false, imageUrl?: string): Promise<boolean> {
+  const { error } = await db().from('ticket_comments').insert({ ticket_id: ticketId, author, author_id: authorId, message, is_internal: isInternal, image_url: imageUrl ?? null })
   if (error) { console.error('[addTicketComment]', error.message); return false }
 
   // Auto-set first_response_at if this is the first comment
