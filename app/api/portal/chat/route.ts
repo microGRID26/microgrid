@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
   // (Bearer token auth doesn't set auth.uid() for the server client)
   const serviceKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
   const serviceClient = serviceKey
-    ? (await import('@supabase/supabase-js')).createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
+    ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
     : supabase
   const { data: account } = await serviceClient
     .from('customer_accounts')
@@ -159,9 +160,10 @@ export async function POST(request: NextRequest) {
       .join('')
 
     return NextResponse.json({ response: text })
-  } catch (err) {
-    console.error('[portal chat] Claude error:', err)
-    return NextResponse.json({ error: 'Unable to process your question right now. Please try again.' }, { status: 500 })
+  } catch (err: any) {
+    console.error('[portal chat] error:', err?.message ?? err, err?.status, err?.error)
+    const detail = process.env.NODE_ENV !== 'production' ? `: ${err?.message}` : ''
+    return NextResponse.json({ error: `Unable to process your question right now${detail}` }, { status: 500 })
   }
 }
 
