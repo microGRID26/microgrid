@@ -759,9 +759,16 @@ function TicketsPageInner() {
                                           )}
                                         </div>
                                       </div>
-                                      <p className="text-gray-300 whitespace-pre-wrap">{c.message.split(/(@[A-Z][a-z]+ [A-Z][a-z]+)/g).map((part, i) =>
-                                        part.startsWith('@') ? <span key={i} className="text-green-400 font-medium">{part}</span> : <React.Fragment key={i}>{part}</React.Fragment>
-                                      )}</p>
+                                      {(c as any).image_url && (
+                                        <a href={(c as any).image_url} target="_blank" rel="noopener noreferrer">
+                                          <img src={(c as any).image_url} alt="Attachment" className="max-w-[200px] rounded-lg mt-1 mb-1 cursor-pointer hover:opacity-80" />
+                                        </a>
+                                      )}
+                                      {!(c as any).image_url && (
+                                        <p className="text-gray-300 whitespace-pre-wrap">{c.message.split(/(@[A-Z][a-z]+ [A-Z][a-z]+)/g).map((part, i) =>
+                                          part.startsWith('@') ? <span key={i} className="text-green-400 font-medium">{part}</span> : <React.Fragment key={i}>{part}</React.Fragment>
+                                        )}</p>
+                                      )}
                                       {c.is_internal && <span className="text-[9px] text-amber-400 font-medium mt-1 block">INTERNAL NOTE — not visible to customer</span>}
                                     </div>
                                   ))}

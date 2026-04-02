@@ -145,7 +145,7 @@ export default function TicketDetailScreen() {
 
     const imageUrl = await uploadTicketPhoto(result.assets[0].uri, id)
     if (imageUrl) {
-      await addComment(id, `[Photo attached]`, customerName)
+      await addComment(id, `📷 Photo`, customerName, imageUrl)
       const c = await loadComments(id)
       setComments(c)
     }
@@ -169,7 +169,7 @@ export default function TicketDetailScreen() {
 
     const imageUrl = await uploadTicketPhoto(result.assets[0].uri, id)
     if (imageUrl) {
-      await addComment(id, `[Photo attached]`, customerName)
+      await addComment(id, `📷 Photo`, customerName, imageUrl)
       const c = await loadComments(id)
       setComments(c)
     }
@@ -268,12 +268,19 @@ export default function TicketDetailScreen() {
                           MicroGRID Support
                         </Text>
                       )}
+                      {(c as any).image_url ? (
+                        <Image
+                          source={{ uri: (c as any).image_url }}
+                          style={{ width: 200, height: 200, borderRadius: 12, marginTop: 4 }}
+                          resizeMode="cover"
+                        />
+                      ) : null}
                       <Text style={{
                         fontSize: 14, lineHeight: 20,
                         color: isCustomer ? colors.accentText : colors.text,
                         fontFamily: 'Inter_400Regular',
                       }}>
-                        {c.message}
+                        {(c as any).image_url ? '' : c.message}
                       </Text>
                     </View>
                     <Text style={{ fontSize: 9, color: colors.textMuted, textAlign: isCustomer ? 'right' : 'left', marginTop: 2, marginHorizontal: 4 }}>

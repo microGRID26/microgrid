@@ -123,7 +123,7 @@ export async function createTicket(
 export async function loadComments(ticketId: string): Promise<TicketComment[]> {
   const { data } = await supabase
     .from('ticket_comments')
-    .select('id, ticket_id, author, message, created_at')
+    .select('id, ticket_id, author, message, image_url, created_at')
     .eq('ticket_id', ticketId)
     .order('created_at', { ascending: true })
     .limit(200)
@@ -131,10 +131,10 @@ export async function loadComments(ticketId: string): Promise<TicketComment[]> {
   return (data ?? []) as TicketComment[]
 }
 
-export async function addComment(ticketId: string, message: string, author: string): Promise<boolean> {
+export async function addComment(ticketId: string, message: string, author: string, imageUrl?: string): Promise<boolean> {
   const { error } = await supabase
     .from('ticket_comments')
-    .insert({ ticket_id: ticketId, author, message, is_internal: false })
+    .insert({ ticket_id: ticketId, author, message, is_internal: false, image_url: imageUrl ?? null })
 
   return !error
 }
