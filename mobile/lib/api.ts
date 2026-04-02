@@ -141,10 +141,21 @@ export async function addComment(ticketId: string, message: string, author: stri
 
 // ── Photo Upload ────────────────────────────────────────────────────────────
 
+const MIME_MAP: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+  gif: 'image/gif', heic: 'image/heic',
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  csv: 'text/csv', txt: 'text/plain',
+}
+
 export async function uploadTicketPhoto(uri: string, ticketId: string): Promise<string | null> {
   try {
     const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg'
-    const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg'
+    const mimeType = MIME_MAP[ext] ?? 'application/octet-stream'
     const fileName = `${ticketId}/${Date.now()}.${ext}`
 
     // Read file as base64 via fetch + arraybuffer (works on iOS/Android)
