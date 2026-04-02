@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import * as SecureStore from 'expo-secure-store'
 import * as ImagePicker from 'expo-image-picker'
+import * as DocumentPicker from 'expo-document-picker'
 import { theme, useThemeColors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
 import { loadComments, addComment, getCustomerAccount, uploadTicketPhoto } from '../../lib/api'
@@ -176,6 +177,31 @@ export default function TicketDetailScreen() {
     setUploading(false)
   }
 
+  const handleDocument = async () => {
+    if (!id) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/*', 'image/*'],
+      copyToCacheDirectory: true,
+    })
+
+    if (result.canceled || !result.assets?.[0]) return
+    setUploading(true)
+    const asset = result.assets[0]
+    const ext = asset.name.split('.').pop() ?? 'file'
+    const isImage = asset.mimeType?.startsWith('image/') ?? false
+
+    const imageUrl = await uploadTicketPhoto(asset.uri, id)
+    if (imageUrl) {
+      const label = isImage ? '📷 Photo' : `📎 ${asset.name}`
+      await addComment(id, label, customerName, imageUrl)
+      const c = await loadComments(id)
+      setComments(c)
+    }
+    setUploading(false)
+  }
+
   const isResolved = currentStatus === 'resolved' || currentStatus === 'closed'
   const createdDate = created_at ? new Date(created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
   const statusColor = STATUS_COLORS[currentStatus] ?? colors.textMuted
@@ -252,15 +278,16 @@ export default function TicketDetailScreen() {
               {/* Comments as conversation bubbles */}
               {comments.map(c => {
                 const isCustomer = c.author === customerName
+                const hasAttachment = !!(c as any).image_url
                 return (
                   <View key={c.id} style={{ alignSelf: isCustomer ? 'flex-end' : 'flex-start', maxWidth: '85%', marginBottom: 8 }}>
                     <View style={{
-                      backgroundColor: isCustomer ? colors.accent : colors.surface,
+                      backgroundColor: hasAttachment ? colors.surface : (isCustomer ? colors.accent : colors.surface),
                       borderRadius: theme.radius.xl,
                       borderBottomRightRadius: isCustomer ? 4 : theme.radius.xl,
                       borderBottomLeftRadius: isCustomer ? theme.radius.xl : 4,
-                      paddingHorizontal: 16, paddingVertical: 12,
-                      borderWidth: isCustomer ? 0 : 1, borderColor: colors.borderLight,
+                      paddingHorizontal: hasAttachment ? 4 : 16, paddingVertical: hasAttachment ? 4 : 12,
+                      borderWidth: 1, borderColor: colors.borderLight,
                       ...theme.shadow.card,
                     }}>
                       {!isCustomer && (
@@ -268,20 +295,28 @@ export default function TicketDetailScreen() {
                           MicroGRID Support
                         </Text>
                       )}
-                      {(c as any).image_url ? (
+                      {(c as any).image_url && (c as any).image_url.match(/\.(jpg|jpeg|png|webp|gif|heic)$/i) ? (
                         <Image
                           source={{ uri: (c as any).image_url }}
-                          style={{ width: 200, height: 200, borderRadius: 12, marginTop: 4 }}
+                          style={{ width: 200, height: 200, borderRadius: 12 }}
                           resizeMode="cover"
                         />
-                      ) : null}
-                      <Text style={{
-                        fontSize: 14, lineHeight: 20,
-                        color: isCustomer ? colors.accentText : colors.text,
-                        fontFamily: 'Inter_400Regular',
-                      }}>
-                        {(c as any).image_url ? '' : c.message}
-                      </Text>
+                      ) : (c as any).image_url ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Feather name="file" size={16} color={isCustomer ? colors.accentText : colors.accent} />
+                          <Text style={{ fontSize: 13, color: isCustomer ? colors.accentText : colors.accent, fontFamily: 'Inter_500Medium' }}>
+                            {c.message.replace('📎 ', '')}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text style={{
+                          fontSize: 14, lineHeight: 20,
+                          color: isCustomer ? colors.accentText : colors.text,
+                          fontFamily: 'Inter_400Regular',
+                        }}>
+                          {c.message}
+                        </Text>
+                      )}
                     </View>
                     <Text style={{ fontSize: 9, color: colors.textMuted, textAlign: isCustomer ? 'right' : 'left', marginTop: 2, marginHorizontal: 4 }}>
                       {new Date(c.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
@@ -351,6 +386,11 @@ export default function TicketDetailScreen() {
             <TouchableOpacity onPress={handlePhoto} activeOpacity={0.6} disabled={uploading}
               style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', opacity: uploading ? 0.3 : 1 }}>
               <Feather name="image" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+            {/* Document/file button */}
+            <TouchableOpacity onPress={handleDocument} activeOpacity={0.6} disabled={uploading}
+              style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', opacity: uploading ? 0.3 : 1 }}>
+              <Feather name="paperclip" size={20} color={colors.textMuted} />
             </TouchableOpacity>
             <TextInput
               value={newComment}

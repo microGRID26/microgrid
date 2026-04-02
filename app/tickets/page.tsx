@@ -759,12 +759,19 @@ function TicketsPageInner() {
                                           )}
                                         </div>
                                       </div>
-                                      {(c as any).image_url && (
+                                      {(c as any).image_url && (c as any).image_url.match(/\.(jpg|jpeg|png|webp|gif|heic)$/i) ? (
                                         <a href={(c as any).image_url} target="_blank" rel="noopener noreferrer">
                                           <img src={(c as any).image_url} alt="Attachment" className="max-w-[200px] rounded-lg mt-1 mb-1 cursor-pointer hover:opacity-80" />
                                         </a>
-                                      )}
-                                      {!(c as any).image_url && (
+                                      ) : (c as any).image_url ? (
+                                        <a href={(c as any).image_url} target="_blank" rel="noopener noreferrer"
+                                          className="flex items-center gap-2 mt-1 mb-1 px-3 py-2 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors">
+                                          <svg className="w-4 h-4 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                          </svg>
+                                          <span className="text-blue-400 text-xs font-medium truncate">{c.message.replace('📎 ', '')}</span>
+                                        </a>
+                                      ) : (
                                         <p className="text-gray-300 whitespace-pre-wrap">{c.message.split(/(@[A-Z][a-z]+ [A-Z][a-z]+)/g).map((part, i) =>
                                           part.startsWith('@') ? <span key={i} className="text-green-400 font-medium">{part}</span> : <React.Fragment key={i}>{part}</React.Fragment>
                                         )}</p>
@@ -789,13 +796,14 @@ function TicketsPageInner() {
                                       </div>
                                       <label className="flex items-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium bg-gray-800 text-gray-400 hover:text-white cursor-pointer transition-colors mb-[1px]">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                                         </svg>
-                                        Photo
-                                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                                        Attach
+                                        <input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" className="hidden" onChange={async (e) => {
                                           const file = e.target.files?.[0]
                                           if (!file) return
-                                          const fileName = `${t.id}/${Date.now()}.${file.name.split('.').pop() ?? 'jpg'}`
+                                          const ext = file.name.split('.').pop() ?? 'file'
+                                          const fileName = `${t.id}/${Date.now()}.${ext}`
                                           const supabaseClient = (await import('@/lib/supabase/client')).createClient()
                                           const { error: uploadErr } = await supabaseClient.storage
                                             .from('ticket-attachments')
@@ -804,7 +812,9 @@ function TicketsPageInner() {
                                           const { data: urlData } = supabaseClient.storage
                                             .from('ticket-attachments')
                                             .getPublicUrl(fileName)
-                                          await addTicketComment(t.id, userName ?? 'Unknown', user?.id, '📷 Photo', commentInternal, urlData.publicUrl)
+                                          const isImage = file.type.startsWith('image/')
+                                          const label = isImage ? '📷 Photo' : `📎 ${file.name}`
+                                          await addTicketComment(t.id, userName ?? 'Unknown', user?.id, label, commentInternal, urlData.publicUrl)
                                           const c = await loadTicketComments(t.id)
                                           setComments(c)
                                           e.target.value = ''
