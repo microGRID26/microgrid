@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
 
   // Look up customer account using service role to bypass RLS
   // (Bearer token auth doesn't set auth.uid() for the server client)
-  const serviceKey = process.env.SUPABASE_SECRET_KEY
+  const serviceKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
   const serviceClient = serviceKey
     ? (await import('@supabase/supabase-js')).createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
     : supabase
