@@ -167,8 +167,8 @@ function OpsContent({ embedded }: { embedded: boolean }) {
           <Cell v={batteryKwh.toLocaleString()} l="Battery kWh" />
           <Cell v={fmt$(totalVal)} l="Total Value" color="text-green-400"
             onClick={() => setDrillDown(`All ${category}`, p => arr.some(a => a.id === p.id))} />
-          <Cell v={fmt$(avg(arr, p => Number(p.contract) || 0))} l="Avg Value" />
-          <Cell v={(avg(arr, p => Number(p.systemkw) || 0)).toFixed(1)} l="Avg kW" />
+          <Cell v={fmt$(Math.round(avg(arr, p => Number(p.contract) || 0)))} l="Avg Value" />
+          <Cell v={`${Math.round(avg(arr, p => Number(p.systemkw) || 0))}`} l="Avg kW" />
         </div>
       </div>
     )
