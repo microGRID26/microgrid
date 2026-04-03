@@ -6,6 +6,8 @@ import * as Haptics from 'expo-haptics'
 import * as SecureStore from 'expo-secure-store'
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
+import * as FileSystem from 'expo-file-system'
+import * as Sharing from 'expo-sharing'
 import { theme, useThemeColors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
 import { loadComments, addComment, getCustomerAccount, uploadTicketPhoto } from '../../lib/api'
@@ -305,7 +307,22 @@ export default function TicketDetailScreen() {
                         />
                       ) : hasFile ? (
                         <TouchableOpacity
-                          onPress={() => { Linking.openURL(c.image_url!).catch(() => {}) }}
+                          onPress={async () => {
+                            try {
+                              // Download file locally then open native share sheet
+                              const url = c.image_url!
+                              const ext = url.split('.').pop()?.split('?')[0] ?? 'file'
+                              const localUri = FileSystem.cacheDirectory + `attachment_${Date.now()}.${ext}`
+                              const { uri } = await FileSystem.downloadAsync(url, localUri)
+                              if (await Sharing.isAvailableAsync()) {
+                                await Sharing.shareAsync(uri)
+                              } else {
+                                Linking.openURL(url).catch(() => {})
+                              }
+                            } catch {
+                              Linking.openURL(c.image_url!).catch(() => {})
+                            }
+                          }}
                           activeOpacity={0.7}
                           style={{ width: 220, paddingVertical: 6 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
