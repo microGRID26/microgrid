@@ -87,11 +87,16 @@ export function Executive({ data }: { data: AnalyticsData }) {
 
       {/* Hero: 5 headline numbers */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <MetricCard label="Portfolio" value={fmt$(metrics.totalPortfolio)} sub={`${active.length} active projects`} />
-        <MetricCard label="Cash Collectable" value={fmt$(metrics.cashCollectable)} sub={`${metrics.m1Count + metrics.m2Count + metrics.m3Count} milestones`} color="text-green-400" />
-        <MetricCard label="Revenue Collected" value={fmt$(metrics.revenueCollected)} sub="M2 + M3 this period" color="text-blue-400" />
-        <MetricCard label="Avg Cycle Time" value={`${metrics.avgCycle}d`} sub="Sale → Install" color={metrics.avgCycle > 60 ? 'text-amber-400' : 'text-green-400'} />
-        <MetricCard label="90-Day Forecast" value={fmt$(metrics.next90Value)} sub={`${metrics.next90.length} projects`} color="text-purple-400" />
+        <MetricCard label="Portfolio" value={fmt$(metrics.totalPortfolio)} sub={`${active.length} active projects`}
+          formula="SUM of contract values for all active projects (non-cancelled, non-in-service, non-loyalty). Excludes completed projects." />
+        <MetricCard label="Cash Collectable" value={fmt$(metrics.cashCollectable)} sub={`${metrics.m1Count + metrics.m2Count + metrics.m3Count} milestones`} color="text-green-400"
+          formula={`M1: Projects with sale_date, M1 not yet funded or submitted (${metrics.m1Count} × ${fmt$(metrics.m1Collectable)})\nM2: Projects with install complete, M2 not funded/submitted (${metrics.m2Count} × ${fmt$(metrics.m2Collectable)})\nM3: Projects with PTO date, M3 not funded/submitted (${metrics.m3Count} × ${fmt$(metrics.m3Collectable)})`} />
+        <MetricCard label="Revenue Collected" value={fmt$(metrics.revenueCollected)} sub="M2 + M3 this period" color="text-blue-400"
+          formula={`SUM of M2 amounts where m2_funded_date falls in selected period (${fmt$(metrics.m2Val)})\n+ SUM of M3 amounts where m3_funded_date falls in selected period (${fmt$(metrics.m3Val)})\n\nOnly counts milestones actually marked as funded with a date in the period.`} />
+        <MetricCard label="Avg Cycle Time" value={`${metrics.avgCycle}d`} sub="Sale → Install" color={metrics.avgCycle > 60 ? 'text-amber-400' : 'text-green-400'}
+          formula="Average days between sale_date and install_complete_date for all projects that have both dates. Projects still in progress are excluded. Target: <45 days." />
+        <MetricCard label="90-Day Forecast" value={fmt$(metrics.next90Value)} sub={`${metrics.next90.length} projects`} color="text-purple-400"
+          formula={`Projects where estimated days-to-completion ≤ 90 based on stage:\n• Evaluation: 56 days remaining\n• Survey: 50 days\n• Design: 44 days\n• Permit: 31 days\n• Install: 10 days\n• Inspection: 17 days\n\nSUM of contract values for qualifying projects.`} />
       </div>
 
       {/* Cash collectable breakdown */}

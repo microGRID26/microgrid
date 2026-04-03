@@ -78,22 +78,42 @@ export interface AnalyticsData {
 
 // ── Shared components ───────────────────────────────────────────────────────
 
-export function MetricCard({ label, value, sub, color, onClick }: {
-  label: string; value: string; sub?: string; color?: string; onClick?: () => void
+export function MetricCard({ label, value, sub, color, onClick, formula }: {
+  label: string; value: string; sub?: string; color?: string; onClick?: () => void; formula?: string
 }) {
+  const [showFormula, setShowFormula] = useState(false)
   return (
     <div
-      className={`bg-gray-800 rounded-xl p-4 border border-gray-700 ${onClick ? 'cursor-pointer hover:border-gray-500 hover:bg-gray-750 transition-colors' : ''}`}
+      className={`bg-gray-800 rounded-xl p-4 border border-gray-700 relative ${onClick ? 'cursor-pointer hover:border-gray-500 hover:bg-gray-750 transition-colors' : ''}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
       aria-label={onClick ? `${label}: ${value}` : undefined}
     >
-      <div className="text-xs text-gray-400 mb-1">{label}</div>
+      <div className="flex items-center gap-1 mb-1">
+        <span className="text-xs text-gray-400">{label}</span>
+        {formula && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowFormula(!showFormula) }}
+            className="text-gray-600 hover:text-gray-400 transition-colors"
+            aria-label={`How ${label} is calculated`}
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        )}
+      </div>
       <div className={`text-2xl font-bold font-mono ${color ?? 'text-white'}`}>{value}</div>
       {sub && <div className="text-xs text-gray-500 mt-1">{sub}</div>}
       {onClick && <div className="text-[10px] text-gray-600 mt-1">Click to view</div>}
+      {showFormula && formula && (
+        <div className="absolute z-50 top-full left-0 mt-1 bg-gray-900 border border-gray-600 rounded-lg p-3 shadow-xl max-w-xs" onClick={e => e.stopPropagation()}>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-1">How this is calculated</div>
+          <div className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed">{formula}</div>
+        </div>
+      )}
     </div>
   )
 }

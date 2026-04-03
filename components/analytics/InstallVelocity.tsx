@@ -122,16 +122,21 @@ export function InstallVelocity({ data }: { data: AnalyticsData }) {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <MetricCard label={`Installs (${PERIOD_LABELS[period]})`} value={String(metrics.installs.length)}
           sub={fmt$(metrics.installs.reduce((s, p) => s + (Number(p.contract) || 0), 0))} color="text-green-400"
-          onClick={() => setDrillDown({ title: 'Installs This Period', projects: metrics.installs })} />
-        <MetricCard label="Install Rate" value={`${metrics.installsPerWeek}/wk`} sub="Last 4 weeks avg" color="text-blue-400" />
+          onClick={() => setDrillDown({ title: 'Installs This Period', projects: metrics.installs })}
+          formula="Projects where install_complete_date (or stage_date for completed projects) falls within the selected time period." />
+        <MetricCard label="Install Rate" value={`${metrics.installsPerWeek}/wk`} sub="Last 4 weeks avg" color="text-blue-400"
+          formula="Count of installs completed in the last 28 days ÷ 4 weeks. This is a rolling average, not a snapshot." />
         <MetricCard label="Ready to Schedule" value={String(metrics.readyToInstall.length)}
           sub="sched_install = Ready To Start" color="text-amber-400"
-          onClick={() => setDrillDown({ title: 'Ready to Schedule (sched_install Ready)', projects: metrics.readyToInstall })} />
+          onClick={() => setDrillDown({ title: 'Ready to Schedule (sched_install Ready)', projects: metrics.readyToInstall })}
+          formula="Projects where the 'Schedule Installation' task has status 'Ready To Start' in the task_state table. This means all prerequisite tasks (permits, equipment, etc.) are complete." />
         <MetricCard label="Scheduled / In Progress" value={String(metrics.inProgressInstall.length)}
           sub={metrics.blockedInstall.length > 0 ? `${metrics.blockedInstall.length} stuck` : 'None stuck'} color="text-blue-400"
-          onClick={() => setDrillDown({ title: 'Install Scheduled/In Progress', projects: metrics.inProgressInstall })} />
+          onClick={() => setDrillDown({ title: 'Install Scheduled/In Progress', projects: metrics.inProgressInstall })}
+          formula="Projects where sched_install task is 'In Progress' or 'Scheduled'. These are actively being worked or have a date set." />
         <MetricCard label="Backlog" value={`${metrics.backlogWeeks} wks`}
-          sub={`${metrics.preInstall.length} pre-install projects`} color={metrics.backlogWeeks > 12 ? 'text-red-400' : 'text-gray-300'} />
+          sub={`${metrics.preInstall.length} pre-install projects`} color={metrics.backlogWeeks > 12 ? 'text-red-400' : 'text-gray-300'}
+          formula={`Ready to Schedule (${metrics.readyToInstall.length}) ÷ Install Rate (${metrics.installsPerWeek}/wk) = ${metrics.backlogWeeks} weeks to clear.\n\nPre-install: ${metrics.preInstall.length} projects in evaluation, survey, design, or permit stages.`} />
       </div>
 
       {/* Cycle times */}

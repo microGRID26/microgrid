@@ -122,13 +122,16 @@ export default function AnalyticsPage() {
           <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
           <span className="hidden sm:inline">Refresh</span>
         </button>
-        <select value={period} onChange={e => handlePeriodChange(e.target.value as Period)}
-          aria-label="Time period"
-          className="text-xs bg-gray-800 text-gray-300 border border-gray-700 rounded-md px-2 py-1.5">
+        <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-0.5">
           {(Object.entries(PERIOD_LABELS) as [Period, string][]).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
+            <button key={k} onClick={() => handlePeriodChange(k)}
+              className={`text-xs px-2.5 py-1.5 rounded-md transition-colors whitespace-nowrap ${
+                period === k ? 'bg-green-700 text-white font-medium' : 'text-gray-400 hover:text-white'
+              }`}>
+              {v}
+            </button>
           ))}
-        </select>
+        </div>
         {period === 'custom' && (
           <div className="flex items-center gap-1.5">
             <input type="date" value={customFrom} onChange={e => handleCustomDateChange(e.target.value, customTo)}
