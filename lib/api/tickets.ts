@@ -296,7 +296,7 @@ export async function updateTicketStatus(
 
 export async function loadTicketComments(ticketId: string): Promise<TicketComment[]> {
   const { data, error } = await db().from('ticket_comments')
-    .select('id, ticket_id, author, author_id, message, is_internal, created_at')
+    .select('id, ticket_id, author, author_id, message, is_internal, image_url, created_at')
     .eq('ticket_id', ticketId)
     .is('deleted_at', null)
     .order('created_at', { ascending: true })
@@ -345,7 +345,7 @@ export async function deleteTicketComment(commentId: string, deletedBy: string):
 
 export async function loadDeletedComments(ticketId: string): Promise<TicketComment[]> {
   const { data, error } = await db().from('ticket_comments')
-    .select('id, ticket_id, author, author_id, message, is_internal, created_at')
+    .select('id, ticket_id, author, author_id, message, is_internal, image_url, created_at')
     .eq('ticket_id', ticketId)
     .not('deleted_at', 'is', null)
     .order('created_at', { ascending: true })

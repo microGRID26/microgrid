@@ -220,7 +220,7 @@ export async function loadTicketComments(ticketId: string): Promise<TicketCommen
   // RLS policy already filters out is_internal=true for customers
   const { data, error } = await db()
     .from('ticket_comments')
-    .select('id, ticket_id, author, message, created_at')
+    .select('id, ticket_id, author, message, image_url, created_at')
     .eq('ticket_id', ticketId)
     .order('created_at', { ascending: true })
     .limit(200)

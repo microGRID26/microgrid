@@ -120,6 +120,8 @@ export default function TicketsScreen() {
     })
   }
 
+  const statusMap = useMemo(() => getStatusConfig(colors), [colors])
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg }}>
@@ -129,7 +131,6 @@ export default function TicketsScreen() {
   }
 
   const openCount = tickets.filter(t => !['resolved', 'closed'].includes(t.status)).length
-  const statusMap = useMemo(() => getStatusConfig(colors), [colors])
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
