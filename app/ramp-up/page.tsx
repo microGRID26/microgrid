@@ -366,7 +366,7 @@ export default function RampUpPage() {
     const crew = allCrews.find(c => c.name === crewName)
     if (crew) {
       const installDate = selectedWeek // Monday of the selected week
-      await db().from('schedule').insert({
+      const { error: schedInsertErr } = await db().from('schedule').insert({
         id: crypto.randomUUID(),
         project_id: projectId,
         crew_id: crew.id,
@@ -374,8 +374,9 @@ export default function RampUpPage() {
         date: installDate,
         status: 'scheduled',
         notes: `Ramp-up: ${crewName}, Week of ${getWeekLabel(selectedWeek)}`,
-        pm: project.pm,
-      }).then(({ error }: any) => { if (error) console.error('[ramp→schedule]', error.message) })
+        pm: user?.name ?? project.pm,
+      })
+      if (schedInsertErr) console.error('[ramp→schedule] FAILED:', schedInsertErr.message, schedInsertErr)
     }
     loadAll()
   }
@@ -507,7 +508,7 @@ export default function RampUpPage() {
           // Also write to main schedule table
           const crewObj = allCrews.find(c => c.name === crew)
           if (crewObj) {
-            await db().from('schedule').insert({
+            const { error: afErr } = await db().from('schedule').insert({
               id: crypto.randomUUID(),
               project_id: p.id,
               crew_id: crewObj.id,
@@ -515,8 +516,9 @@ export default function RampUpPage() {
               date: selectedWeek,
               status: 'scheduled',
               notes: `Ramp-up auto-fill: ${crew}`,
-              pm: p.pm,
-            }).then(({ error: e }: any) => { if (e) console.error('[ramp→schedule]', e.message) })
+              pm: user?.name ?? p.pm,
+            })
+            if (afErr) console.error('[ramp→schedule auto-fill] FAILED:', afErr.message, afErr)
           }
         } else failed++
       }
@@ -840,7 +842,7 @@ export default function RampUpPage() {
                     const { error: insertErr } = await db().from('schedule').insert({
                       id: crypto.randomUUID(), project_id: entry.project_id, crew_id: crew.id,
                       job_type: 'install', date: installDate, status: 'scheduled',
-                      notes: `Ramp-up sync: ${entry.crew_name}`, pm: project.pm,
+                      notes: `Ramp-up sync: ${entry.crew_name}`, pm: user?.name ?? project.pm,
                     })
                     if (insertErr) { console.error('[sync] insert failed:', insertErr.message, { project_id: entry.project_id, crew_id: crew.id, date: installDate }) }
                     else synced++
