@@ -312,7 +312,15 @@ export default function TicketDetailScreen() {
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={{ fontSize: 13, color: colors.text, fontFamily: 'Inter_500Medium' }} numberOfLines={2}>
-                              {c.message.replace(/📎\s*/, '')}
+                              {(() => {
+                                const cleaned = c.message.replace(/📎\s*/, '').replace(/📷\s*/, '').trim()
+                                if (cleaned && cleaned !== 'Photo' && cleaned !== '[Photo attached]') return cleaned
+                                // Derive filename from URL
+                                const urlParts = (c.image_url ?? '').split('/')
+                                const rawName = urlParts[urlParts.length - 1]?.split('?')[0] ?? 'File'
+                                const ext = rawName.split('.').pop() ?? ''
+                                return ext ? `Document.${ext}` : 'Attached file'
+                              })()}
                             </Text>
                             <Text style={{ fontSize: 10, color: colors.textMuted, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
                               Tap to open file
