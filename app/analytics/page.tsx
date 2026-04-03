@@ -70,12 +70,22 @@ export default function AnalyticsPage() {
 
   const loading = projLoading || fundLoading || taskLoading
 
-  const active = useMemo(() => projects.filter(p => p.stage !== 'complete'), [projects])
-  const complete = useMemo(() => projects.filter(p => p.stage === 'complete'), [projects])
+  // Exclude test projects from all analytics calculations
+  const isTestProject = (p: { id: string; name?: string | null; dealer?: string | null; consultant?: string | null }) => {
+    const name = (p.name ?? '').toLowerCase()
+    return name.startsWith('test') || name.includes('test ') || name.includes(' test') ||
+      p.id?.startsWith('PROJ-TEST') ||
+      (p.dealer ?? '').toLowerCase() === 'microgrid' ||
+      (p.consultant ?? '').toLowerCase() === 'superman'
+  }
+  const realProjects = useMemo(() => projects.filter(p => !isTestProject(p)), [projects])
+
+  const active = useMemo(() => realProjects.filter(p => p.stage !== 'complete'), [realProjects])
+  const complete = useMemo(() => realProjects.filter(p => p.stage === 'complete'), [realProjects])
 
   const analyticsData: AnalyticsData = useMemo(() => ({
-    projects, active, complete, funding, taskMap, period,
-  }), [projects, active, complete, funding, taskMap, period])
+    projects: realProjects, active, complete, funding, taskMap, period,
+  }), [realProjects, active, complete, funding, taskMap, period])
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true)
