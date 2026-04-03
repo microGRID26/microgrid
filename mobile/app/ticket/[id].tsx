@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { View, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Keyboard } from 'react-native'
+import { View, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Keyboard, Linking } from 'react-native'
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
@@ -278,15 +278,17 @@ export default function TicketDetailScreen() {
               {/* Comments as conversation bubbles */}
               {comments.map(c => {
                 const isCustomer = c.author === customerName
-                const hasAttachment = !!(c as any).image_url
+                const hasImage = !!c.image_url && /\.(jpg|jpeg|png|webp|gif|heic)$/i.test(c.image_url)
+                const hasFile = !!c.image_url && !hasImage
+                const hasAttachment = hasImage || hasFile
                 return (
                   <View key={c.id} style={{ alignSelf: isCustomer ? 'flex-end' : 'flex-start', maxWidth: '85%', marginBottom: 8 }}>
                     <View style={{
-                      backgroundColor: hasAttachment ? colors.surface : (isCustomer ? colors.accent : colors.surface),
+                      backgroundColor: hasImage ? colors.surface : (isCustomer ? colors.accent : colors.surface),
                       borderRadius: theme.radius.xl,
                       borderBottomRightRadius: isCustomer ? 4 : theme.radius.xl,
                       borderBottomLeftRadius: isCustomer ? theme.radius.xl : 4,
-                      paddingHorizontal: hasAttachment ? 4 : 16, paddingVertical: hasAttachment ? 4 : 12,
+                      paddingHorizontal: hasImage ? 4 : 14, paddingVertical: hasImage ? 4 : 10,
                       borderWidth: 1, borderColor: colors.borderLight,
                       ...theme.shadow.card,
                     }}>
@@ -295,19 +297,27 @@ export default function TicketDetailScreen() {
                           MicroGRID Support
                         </Text>
                       )}
-                      {(c as any).image_url && (c as any).image_url.match(/\.(jpg|jpeg|png|webp|gif|heic)$/i) ? (
+                      {hasImage ? (
                         <Image
-                          source={{ uri: (c as any).image_url }}
+                          source={{ uri: c.image_url! }}
                           style={{ width: 200, height: 200, borderRadius: 12 }}
                           resizeMode="cover"
                         />
-                      ) : (c as any).image_url ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <Feather name="file" size={16} color={isCustomer ? colors.accentText : colors.accent} />
-                          <Text style={{ fontSize: 13, color: isCustomer ? colors.accentText : colors.accent, fontFamily: 'Inter_500Medium' }}>
-                            {c.message.replace('📎 ', '')}
-                          </Text>
-                        </View>
+                      ) : hasFile ? (
+                        <TouchableOpacity
+                          onPress={() => { Linking.openURL(c.image_url!) }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}>
+                          <Feather name="file-text" size={18} color={colors.accent} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 13, color: isCustomer ? colors.accentText : colors.text, fontFamily: 'Inter_500Medium' }} numberOfLines={2}>
+                              {c.message.replace(/📎\s*/, '')}
+                            </Text>
+                            <Text style={{ fontSize: 10, color: colors.textMuted, fontFamily: 'Inter_400Regular', marginTop: 1 }}>
+                              Tap to download
+                            </Text>
+                          </View>
+                          <Feather name="download" size={14} color={colors.textMuted} />
+                        </TouchableOpacity>
                       ) : (
                         <Text style={{
                           fontSize: 14, lineHeight: 20,
