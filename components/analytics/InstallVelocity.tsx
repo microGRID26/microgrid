@@ -76,6 +76,7 @@ export function InstallVelocity({ data }: { data: AnalyticsData }) {
         label: d.toLocaleDateString('en-US', { month: 'short' }),
         count: mps.length,
         value: mps.reduce((s, p) => s + (Number(p.contract) || 0), 0),
+        projects: mps,
       }
     })
     const maxMonth = Math.max(...months.map(m => m.count), 1)
@@ -162,9 +163,10 @@ export function InstallVelocity({ data }: { data: AnalyticsData }) {
         <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-4">Monthly Installs — 6 Month Trend</div>
         <div className="flex items-end gap-2 h-40">
           {metrics.months.map(m => (
-            <div key={m.label} className="flex-1 flex flex-col items-center gap-1">
+            <div key={m.label} className={`flex-1 flex flex-col items-center gap-1 ${m.count > 0 ? 'cursor-pointer' : ''}`}
+              onClick={() => m.count > 0 && setDrillDown({ title: `Installs — ${m.label}`, projects: m.projects })}>
               <div className="w-full bg-gray-700 rounded-t relative" style={{ height: `${Math.max((m.count / metrics.maxMonth) * 100, m.count > 0 ? 8 : 2)}%` }}>
-                <div className="absolute inset-0 rounded-t bg-green-600" />
+                <div className={`absolute inset-0 rounded-t bg-green-600 ${m.count > 0 ? 'hover:bg-green-500' : ''} transition-colors`} />
                 {m.count > 0 && <div className="absolute -top-5 inset-x-0 text-center text-xs font-bold text-white">{m.count}</div>}
               </div>
               <div className="text-[10px] text-gray-500">{m.label}</div>

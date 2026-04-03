@@ -136,7 +136,8 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      {/* Period picker + refresh — below tabs */}
+      {/* Period picker + refresh — only for non-Ops tabs (Ops has its own) */}
+      {tab !== 'ops' && (
       <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-0.5">
           {(Object.entries(PERIOD_LABELS) as [Period, string][]).map(([k, v]) => (
@@ -165,6 +166,7 @@ export default function AnalyticsPage() {
           <span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-6" role="tabpanel" id={`panel-${tab}`} aria-label={TAB_LABELS[tab]}>
         {tab === 'executive' && <Executive data={analyticsData} />}
