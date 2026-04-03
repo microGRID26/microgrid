@@ -354,41 +354,52 @@ export default function RampUpPage() {
       crew_name: crewName,
       scheduled_week: selectedWeek,
       slot,
-      status: 'planned',
+      status: 'confirmed',
       priority_score: project.priorityScore ?? 0,
       distance_miles: project.distanceMiles ?? null,
       drive_minutes: project.driveMinutes ?? null,
       created_by: user?.name,
     })
     if (!result) { setToast({ message: 'Failed to schedule project', type: 'error' }); setTimeout(() => setToast(null), 3000); return }
+
+    // Also write to main schedule table so it appears on the Schedule page
+    const crew = allCrews.find(c => c.name === crewName)
+    if (crew) {
+      const installDate = selectedWeek // Monday of the selected week
+      await db().from('schedule').insert({
+        id: crypto.randomUUID(),
+        project_id: projectId,
+        crew_id: crew.id,
+        job_type: 'install',
+        date: installDate,
+        status: 'scheduled',
+        notes: `Ramp-up: ${crewName}, Week of ${getWeekLabel(selectedWeek)}`,
+        pm: project.pm,
+      }).then(({ error }: any) => { if (error) console.error('[ramp→schedule]', error.message) })
+    }
     loadAll()
   }
 
-  // Confirm → create real schedule entry so it shows on Schedule page
+  // Confirm → update install date on the main schedule entry (already created on assign)
   const handleConfirm = async (entry: RampScheduleEntry) => {
     const project = projects.find(p => p.id === entry.project_id)
     if (!project) return
 
-    // Find crew ID from crew name
     const crew = allCrews.find(c => c.name === entry.crew_name)
     const installDate = entry.scheduled_day ?? selectedWeek
 
-    // Create schedule entry in the main schedule table
-    if (!crew) { setToast({ message: `Crew "${entry.crew_name}" not found in database`, type: 'error' }); setTimeout(() => setToast(null), 3000); return }
-    const schedId = crypto.randomUUID()
-    const { error: schedErr } = await db().from('schedule').insert({
-      id: schedId,
-      project_id: entry.project_id,
-      crew_id: crew.id,
-      job_type: 'install',
-      date: installDate,
-      status: 'scheduled',
-      notes: `Ramp-up planner: ${entry.crew_name}, Week of ${getWeekLabel(entry.scheduled_week)}`,
-      pm: project.pm,
-    })
-    if (schedErr) { console.error('Schedule insert failed:', schedErr); setToast({ message: 'Failed to create schedule entry', type: 'error' }); setTimeout(() => setToast(null), 3000); return }
+    // Update the schedule table entry date if user changed it via date picker
+    if (crew) {
+      await db().from('schedule')
+        .update({ date: installDate, status: 'confirmed' })
+        .eq('project_id', entry.project_id)
+        .eq('crew_id', crew.id)
+        .eq('job_type', 'install')
+        .gte('date', entry.scheduled_week)
+        .then(({ error: e }: any) => { if (e) console.error('[confirm→schedule]', e.message) })
+    }
 
-    // Update ramp schedule status
+    // Update ramp schedule status + date
     await updateScheduleEntry(entry.id, { status: 'confirmed', scheduled_day: installDate })
     loadAll()
   }
@@ -485,14 +496,29 @@ export default function RampUpPage() {
           crew_name: crew,
           scheduled_week: selectedWeek,
           slot: crewSlots + i + 1,
-          status: 'planned',
+          status: 'confirmed',
           priority_score: p.priorityScore ?? 0,
           distance_miles: p.distanceMiles ?? null,
           drive_minutes: p.driveMinutes ?? null,
           created_by: user?.name,
         })
-        if (result) filled++
-        else failed++
+        if (result) {
+          filled++
+          // Also write to main schedule table
+          const crewObj = allCrews.find(c => c.name === crew)
+          if (crewObj) {
+            await db().from('schedule').insert({
+              id: crypto.randomUUID(),
+              project_id: p.id,
+              crew_id: crewObj.id,
+              job_type: 'install',
+              date: selectedWeek,
+              status: 'scheduled',
+              notes: `Ramp-up auto-fill: ${crew}`,
+              pm: p.pm,
+            }).then(({ error: e }: any) => { if (e) console.error('[ramp→schedule]', e.message) })
+          }
+        } else failed++
       }
     }
     setAutoFilling(false)
