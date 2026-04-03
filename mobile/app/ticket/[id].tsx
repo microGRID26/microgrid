@@ -306,27 +306,27 @@ export default function TicketDetailScreen() {
                       ) : hasFile ? (
                         <TouchableOpacity
                           onPress={() => { Linking.openURL(c.image_url!).catch(() => {}) }}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}>
-                          <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.accent + '20', alignItems: 'center', justifyContent: 'center' }}>
-                            <Feather name="file-text" size={18} color={colors.accent} />
+                          activeOpacity={0.7}
+                          style={{ width: 220, paddingVertical: 6 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                            <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: colors.accent + '20', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                              <Feather name="file-text" size={16} color={colors.accent} />
+                            </View>
+                            <Feather name="download" size={14} color={colors.accent} />
                           </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 13, color: colors.text, fontFamily: 'Inter_500Medium' }} numberOfLines={2}>
-                              {(() => {
-                                const cleaned = c.message.replace(/📎\s*/, '').replace(/📷\s*/, '').trim()
-                                if (cleaned && cleaned !== 'Photo' && cleaned !== '[Photo attached]') return cleaned
-                                // Derive filename from URL
-                                const urlParts = (c.image_url ?? '').split('/')
-                                const rawName = urlParts[urlParts.length - 1]?.split('?')[0] ?? 'File'
-                                const ext = rawName.split('.').pop() ?? ''
-                                return ext ? `Document.${ext}` : 'Attached file'
-                              })()}
-                            </Text>
-                            <Text style={{ fontSize: 10, color: colors.textMuted, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
-                              Tap to open file
-                            </Text>
-                          </View>
-                          <Feather name="download" size={16} color={colors.accent} />
+                          <Text style={{ fontSize: 13, color: colors.text, fontFamily: 'Inter_500Medium' }} numberOfLines={2}>
+                            {(() => {
+                              const cleaned = c.message.replace(/📎\s*/, '').replace(/📷\s*/, '').trim()
+                              if (cleaned && cleaned !== 'Photo' && cleaned !== '[Photo attached]') return cleaned
+                              const urlParts = (c.image_url ?? '').split('/')
+                              const rawName = urlParts[urlParts.length - 1]?.split('?')[0] ?? 'File'
+                              const ext = rawName.split('.').pop() ?? ''
+                              return ext ? `Document.${ext}` : 'Attached file'
+                            })()}
+                          </Text>
+                          <Text style={{ fontSize: 10, color: colors.textMuted, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+                            Tap to open file
+                          </Text>
                         </TouchableOpacity>
                       ) : (
                         <Text style={{
