@@ -170,7 +170,7 @@ Email domain whitelist: `@gomicrogridenergy.com`, `@energydevelopmentgroup.com`,
 - `schedule` table now has `org_id` column (migration 072, applied)
 - 8 page/component files still exceed 1000 lines (7 largest were split in S26)
 - Job costing tables exist (migration 071, applied) but no data capture UI yet
-- Planset generator (`/planset`) is data-driven but needs BOM sheet, project data page, and conductor schedule formatting to match reference PDF
+- Planset generator (`/planset`) produces 8 sheets (PV-1 through PV-8) with project selector, Duracell defaults, and redesign bridge. Missing: compliance certs, battery mode letter, equipment elevation (photo), OSR (manual)
 
 ## Co-Author Convention
 
