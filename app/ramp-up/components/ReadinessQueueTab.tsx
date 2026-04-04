@@ -91,7 +91,7 @@ export function ReadinessQueueTab({
           {/* Readiness checklist */}
           <div className="flex flex-wrap gap-2 mt-2">
             {READINESS_WEIGHTS.map(item => {
-              const checked = p.readiness ? (p.readiness as any)[item.field] === true : false
+              const checked = p.readiness ? (p.readiness as unknown as Record<string, boolean | undefined>)[item.field] === true : false
               return (
                 <button key={item.field} onClick={(e) => { e.stopPropagation(); handleReadinessToggle(p.id, item.field, checked) }}
                   className={cn('text-[10px] px-2 py-0.5 rounded border transition-colors',

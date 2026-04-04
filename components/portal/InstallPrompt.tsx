@@ -5,14 +5,17 @@ import { Download, X, Share } from 'lucide-react'
 
 export function InstallPrompt() {
   const [show, setShow] = useState(false)
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  // BeforeInstallPromptEvent is non-standard (Chrome/Edge only), not in lib.dom.d.ts
+  interface BeforeInstallPromptEvent extends Event { prompt: () => void; userChoice: Promise<{ outcome: string }> }
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
     // Check if already installed as PWA
+    // Non-standard Safari property for detecting standalone mode
     const standalone = window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as any).standalone === true
+      || (window.navigator as unknown as { standalone?: boolean }).standalone === true
     setIsStandalone(standalone)
     if (standalone) return
 
@@ -20,14 +23,14 @@ export function InstallPrompt() {
     const dismissed = localStorage.getItem('mg_install_dismissed')
     if (dismissed && Date.now() - parseInt(dismissed) < 7 * 86400000) return
 
-    // Detect iOS
-    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
+    // Detect iOS — MSStream is a non-standard IE/Edge property used to exclude non-iOS
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream
     setIsIOS(ios)
 
     // Android/Chrome: listen for beforeinstallprompt
     const handler = (e: Event) => {
       e.preventDefault()
-      setDeferredPrompt(e)
+      setDeferredPrompt(e as BeforeInstallPromptEvent)
       setShow(true)
     }
     window.addEventListener('beforeinstallprompt', handler)

@@ -68,7 +68,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   interface FinancierInfoData { phone: string | null; website: string | null; contact_name: string | null; contact_email: string | null; notes: string | null }
   // Reference entity edit records use index signature because they map to multiple DB tables
   // (AHJs, utilities, HOAs, financiers) with varying schemas.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- index typed as any because values flow directly into form input value props (string/number/boolean)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- values flow into form input value props with varying types
   type RefEditRecord = { id: string; [key: string]: any }
   interface StageHistoryEntry { id: string; project_id: string; stage: string; entered: string }
   interface ServiceCallEntry { id: string; project_id: string; created_at: string; [key: string]: unknown }

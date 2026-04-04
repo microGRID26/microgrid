@@ -53,7 +53,7 @@ export function PermissionMatrix({ isSuperAdmin }: { isSuperAdmin?: boolean }) {
   const cycleAccess = async (feature: string, role: string) => {
     if (!isSuperAdmin) return
     const current = getAccess(feature, role)
-    const idx = ACCESS_OPTIONS.indexOf(current as any)
+    const idx = (ACCESS_OPTIONS as readonly string[]).indexOf(current)
     const next = ACCESS_OPTIONS[(idx + 1) % ACCESS_OPTIONS.length]
     const existing = rows.find(r => r.feature === feature && r.role === role)
     if (existing) {

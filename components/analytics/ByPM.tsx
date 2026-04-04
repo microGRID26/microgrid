@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { fmt$, daysAgo, SLA_THRESHOLDS, STAGE_LABELS, STAGE_ORDER } from '@/lib/utils'
 import {
   MetricCard, PeriodBar, ExportButton, downloadCSV, SortHeader, useSortable, ProjectListModal,
-  inRange, PERIOD_LABELS, type AnalyticsData,
+  inRange, PERIOD_LABELS, type AnalyticsData, type Period,
 } from './shared'
 import type { Project } from '@/types/database'
 
@@ -87,19 +87,19 @@ function PMStageBreakdown({ projects, sorted, onDrill }: { projects: Project[]; 
   )
 }
 
-function PMActivity({ projects, sorted, period, onDrill }: { projects: Project[]; sorted: PMRow[]; period: string; onDrill: PMDrillFn }) {
+function PMActivity({ projects, sorted, period, onDrill }: { projects: Project[]; sorted: PMRow[]; period: Period; onDrill: PMDrillFn }) {
   const data = useMemo(() => {
     const now = new Date()
     return sorted.map(pm => {
       const ps = projects.filter(p => p.pm_id === pm.pmId)
       // Tasks advanced: projects that changed stage in period (use stage_date as proxy)
-      const tasksAdvanced = ps.filter(p => inRange(p.stage_date, period as any)).length
+      const tasksAdvanced = ps.filter(p => inRange(p.stage_date, period)).length
       // Follow-ups completed: projects with follow_up_date in the past
       const followUps = ps.filter(p => {
-        const fud = (p as any).follow_up_date
+        const fud = p.follow_up_date
         if (!fud) return false
         const d = new Date(fud + 'T00:00:00')
-        return d <= now && inRange(fud, period as any)
+        return d <= now && inRange(fud, period)
       }).length
       // Blockers cleared: projects that had blocker cleared recently (proxy: non-blocked in active pipeline)
       const activePs = ps.filter(p => p.stage !== 'complete' && p.disposition !== 'Cancelled')

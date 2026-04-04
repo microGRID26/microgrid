@@ -106,11 +106,12 @@ export default function MapPage() {
       const { data } = await q
       if (!data) { setLoading(false); return }
 
-      const zips = [...new Set((data as any[]).map(p => p.zip).filter(Boolean))]
+      const typedData = data as { id: string; name: string; city: string | null; address: string | null; zip: string | null; stage: string; pm: string | null; blocker: string | null; systemkw: number | null }[]
+      const zips = [...new Set(typedData.map(p => p.zip).filter((z): z is string => Boolean(z)))]
       await Promise.all(zips.map(z => geocodeZip(z)))
 
       const mapped: MapProject[] = []
-      for (const p of data as any[]) {
+      for (const p of typedData) {
         if (!p.zip) continue
         const coords = zipCache.get(p.zip)
         if (!coords) continue

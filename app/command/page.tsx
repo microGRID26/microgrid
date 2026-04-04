@@ -618,8 +618,7 @@ export default function CommandPage() {
     const year = now.getFullYear()
     const month = now.getMonth()
     return filtered.filter(p => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const d = (p as any).install_complete_date
+      const d = p.install_complete_date
       if (!d) return false
       const dt = new Date(d + 'T00:00:00')
       return dt.getFullYear() === year && dt.getMonth() === month

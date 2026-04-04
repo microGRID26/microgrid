@@ -85,7 +85,7 @@ export const TIER_INFO: Record<Tier, TierInfo> = {
 export function tierFromScore(score: number, readiness?: Partial<ProjectReadiness>): Tier {
   if (score >= 60 && readiness) {
     const hasHardBlocker = READINESS_WEIGHTS.some(w =>
-      w.hardBlocker && (readiness as any)[w.field] !== true
+      w.hardBlocker && (readiness as Record<string, boolean | undefined>)[w.field] !== true
     )
     if (!hasHardBlocker) return 1
   }
@@ -156,7 +156,7 @@ export const READINESS_WEIGHTS = [
 export function computeReadinessScore(r: Partial<ProjectReadiness>): number {
   let score = 0
   for (const w of READINESS_WEIGHTS) {
-    if ((r as any)[w.field] === true) score += w.weight
+    if ((r as Record<string, boolean | undefined>)[w.field] === true) score += w.weight
   }
   return score
 }

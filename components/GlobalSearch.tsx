@@ -20,7 +20,7 @@ export function GlobalSearch() {
         .select('id, name, city, stage')
         .or(`name.ilike.%${escaped}%,id.ilike.%${escaped}%,city.ilike.%${escaped}%`)
         .limit(8)
-      if (!stale && data) setResults(data as any[])
+      if (!stale && data) setResults(data as { id: string; name: string; city: string | null; stage: string }[])
     }, 200)
     return () => { stale = true; clearTimeout(timer) }
   }, [query])

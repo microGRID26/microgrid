@@ -315,8 +315,9 @@ async function executeQuery(plan: QueryPlan) {
   const effectiveLimit = Math.min(limit || 200, MAX_RESULTS)
 
   // Build the query
+  // Dynamic table/column access — table name comes from AI query plan, not typed in Database schema
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any).from(table).select(select, { count: 'exact' })
+  let query = (supabase as unknown as { from: (t: string) => any }).from(table).select(select, { count: 'exact' })
 
   // Apply filters
   for (const f of filters) {

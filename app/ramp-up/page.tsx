@@ -335,6 +335,7 @@ export default function RampUpPage() {
         status: 'scheduled',
         notes: `Ramp-up: ${crewName}, Week of ${getWeekLabel(selectedWeek)}`,
         pm: user?.name ?? project.pm,
+        org_id: orgId ?? null,
       })
       if (schedInsertErr) console.error('[ramp→schedule] FAILED:', schedInsertErr.message, schedInsertErr)
     }
@@ -477,6 +478,7 @@ export default function RampUpPage() {
               status: 'scheduled',
               notes: `Ramp-up auto-fill: ${crew}`,
               pm: user?.name ?? p.pm,
+              org_id: orgId ?? null,
             })
             if (afErr) console.error('[ramp→schedule auto-fill] FAILED:', afErr.message, afErr)
           }
@@ -714,6 +716,7 @@ export default function RampUpPage() {
             loadAll={loadAll}
             userName={user?.name}
             allCrews={allCrews}
+            orgId={orgId}
           />
         )}
 

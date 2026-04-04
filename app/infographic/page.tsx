@@ -68,7 +68,7 @@ export default function InfographicPage() {
       if (!projects) { setLoading(false); return }
       const byStage: Record<string, { count: number; value: number }> = {}
       let totalValue = 0
-      for (const p of projects as any[]) {
+      for (const p of projects as { stage: string; contract: number | null }[]) {
         if (!byStage[p.stage]) byStage[p.stage] = { count: 0, value: 0 }
         byStage[p.stage].count++
         const v = Number(p.contract) || 0

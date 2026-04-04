@@ -26,8 +26,8 @@ export async function GET(request: Request) {
 
   // Auto-provision user row on first login
   if (user?.email) {
-    // as any: RPC function not in Database types
-    const { error: provisionError } = await (supabase as any).rpc('provision_user', {
+    // RPC function not in generated Database types — cast to call untyped .rpc()
+    const { error: provisionError } = await (supabase as unknown as { rpc: (fn: string, params: Record<string, string>) => Promise<{ error: { message: string } | null }> }).rpc('provision_user', {
       p_email: user.email,
       p_name: user.user_metadata?.full_name ?? user.email.split('@')[0],
     })

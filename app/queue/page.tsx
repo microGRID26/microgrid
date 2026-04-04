@@ -265,10 +265,10 @@ function QueuePage() {
       db().from('financiers').select('name, display_name').limit(500),
     ]).then(([ahjRes, finRes]) => {
       const ahjMap = new Map<string, string>()
-      for (const a of (ahjRes.data ?? []) as any[]) { if (a.display_name) ahjMap.set(a.name, a.display_name) }
+      for (const a of (ahjRes.data ?? []) as { name: string; display_name: string | null }[]) { if (a.display_name) ahjMap.set(a.name, a.display_name) }
       setAhjDisplayNames(ahjMap)
       const finMap = new Map<string, string>()
-      for (const f of (finRes.data ?? []) as any[]) { if (f.display_name) finMap.set(f.name, f.display_name) }
+      for (const f of (finRes.data ?? []) as { name: string; display_name: string | null }[]) { if (f.display_name) finMap.set(f.name, f.display_name) }
       setFinancierDisplayNames(finMap)
     }).catch(err => console.error('[display_name] load failed:', err))
   }, [])

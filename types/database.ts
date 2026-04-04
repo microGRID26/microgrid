@@ -149,6 +149,7 @@ export interface Schedule {
   travel_adder: string | null
   wifi_info: string | null
   msp_upgrade: string | null
+  org_id: string | null
 }
 
 export interface ProjectFunding {

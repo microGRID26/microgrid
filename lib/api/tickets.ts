@@ -312,7 +312,7 @@ export async function addTicketComment(ticketId: string, author: string, authorI
   // Auto-set first_response_at if this is the first comment
   const ticket = await loadTicket(ticketId)
   if (ticket && !ticket.first_response_at) {
-    await updateTicket(ticketId, { first_response_at: new Date().toISOString() } as any)
+    await updateTicket(ticketId, { first_response_at: new Date().toISOString() })
   }
 
   // Touch updated_at so mobile badge can detect new activity

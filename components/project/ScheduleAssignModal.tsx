@@ -227,6 +227,7 @@ export function ScheduleAssignModal({ crewId, date, scheduleId, projectId, jobTy
       time: form.time || null,
       notes: form.notes || null,
       status: form.status,
+      org_id: selectedProject?.org_id ?? null,
     }
     // Include install detail fields when job_type is install
     if (form.job_type === 'install') {

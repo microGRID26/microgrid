@@ -193,7 +193,7 @@ export function JobBriefPanel({ scheduleId, onClose, onEdit, onOpenProject }: Pr
               <Row label="Utility" value={p.utility} />
               <Row label="AHJ" value={p.ahj} />
               <Row label="ESID" value={p.esid} />
-              <Row label="Meter #" value={(p as any).meter_number} />
+              <Row label="Meter #" value={p.meter_number} />
             </Section>
           )}
 

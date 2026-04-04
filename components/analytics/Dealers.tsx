@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { fmt$, daysAgo } from '@/lib/utils'
 import {
   MetricCard, PeriodBar, ExportButton, downloadCSV, SortHeader, useSortable, ProjectListModal,
-  inRange, PERIOD_LABELS, type AnalyticsData,
+  inRange, PERIOD_LABELS, type AnalyticsData, type Period,
 } from './shared'
 import type { Project } from '@/types/database'
 
@@ -33,13 +33,13 @@ interface RepRow {
 
 type DrillSetter = (d: { title: string; projects: Project[] } | null) => void
 
-function SalesByStage({ projects, period, onDrill }: { projects: Project[]; period: string; onDrill: DrillSetter }) {
+function SalesByStage({ projects, period, onDrill }: { projects: Project[]; period: Period; onDrill: DrillSetter }) {
   const rows = useMemo(() => {
-    const soldPs = projects.filter(p => inRange(p.sale_date, period as any))
+    const soldPs = projects.filter(p => inRange(p.sale_date, period))
     const soldValue = soldPs.reduce((s, p) => s + (Number(p.contract) || 0), 0)
     const soldAvg = soldPs.length > 0 ? Math.round(soldValue / soldPs.length) : 0
     const soldKw = soldPs.length > 0 ? Math.round((soldPs.reduce((s, p) => s + (Number(p.systemkw) || 0), 0) / soldPs.length) * 100) / 100 : 0
-    const soldBatteries = soldPs.filter(p => (p as any).battery_count > 0 || (p as any).has_battery).length
+    const soldBatteries = soldPs.filter(p => (p.battery_qty ?? 0) > 0).length
 
     const pipelinePs = projects.filter(p => p.stage !== 'complete' && p.disposition !== 'Cancelled' && p.disposition !== 'In Service')
     const pipeValue = pipelinePs.reduce((s, p) => s + (Number(p.contract) || 0), 0)
@@ -53,7 +53,7 @@ function SalesByStage({ projects, period, onDrill }: { projects: Project[]; peri
         }, 0) / pipelinePs.filter(p => p.sale_date).length || 0)
       : 0
 
-    const installedPs = projects.filter(p => inRange(p.install_complete_date, period as any))
+    const installedPs = projects.filter(p => inRange(p.install_complete_date, period))
     const instValue = installedPs.reduce((s, p) => s + (Number(p.contract) || 0), 0)
     const instAvg = installedPs.length > 0 ? Math.round(instValue / installedPs.length) : 0
     const instKw = installedPs.length > 0 ? Math.round((installedPs.reduce((s, p) => s + (Number(p.systemkw) || 0), 0) / installedPs.length) * 100) / 100 : 0
@@ -102,11 +102,11 @@ function SalesByStage({ projects, period, onDrill }: { projects: Project[]; peri
   )
 }
 
-function SalesByCity({ projects, period, onDrill }: { projects: Project[]; period: string; onDrill: DrillSetter }) {
+function SalesByCity({ projects, period, onDrill }: { projects: Project[]; period: Period; onDrill: DrillSetter }) {
   const rows = useMemo(() => {
     const cityMap = new Map<string, Project[]>()
     projects.forEach(p => {
-      const city = (p as any).city || 'Unknown'
+      const city = p.city || 'Unknown'
       const arr = cityMap.get(city) || []
       arr.push(p)
       cityMap.set(city, arr)
@@ -166,11 +166,11 @@ function SalesByCity({ projects, period, onDrill }: { projects: Project[]; perio
   )
 }
 
-function SalesByFinancier({ projects, period, onDrill }: { projects: Project[]; period: string; onDrill: DrillSetter }) {
+function SalesByFinancier({ projects, period, onDrill }: { projects: Project[]; period: Period; onDrill: DrillSetter }) {
   const rows = useMemo(() => {
     const finMap = new Map<string, Project[]>()
     projects.forEach(p => {
-      const fin = (p as any).financier || 'Unknown'
+      const fin = p.financier || 'Unknown'
       const arr = finMap.get(fin) || []
       arr.push(p)
       finMap.set(fin, arr)

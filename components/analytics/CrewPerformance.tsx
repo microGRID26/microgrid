@@ -687,7 +687,7 @@ export function CrewPerformance({ data }: { data: AnalyticsData }) {
             const byType: Record<string, number> = {}
             jobTypes.forEach(t => { byType[t] = 0 })
             crewEntries.forEach(r => {
-              const type = (r as any).job_type?.toLowerCase() || 'install'
+              const type = ((r as RampScheduleRow & { job_type?: string }).job_type ?? 'install').toLowerCase()
               if (byType[type] !== undefined) byType[type]++
               else byType['install']++
             })

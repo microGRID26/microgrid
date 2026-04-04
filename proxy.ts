@@ -135,7 +135,7 @@ export async function proxy(request: NextRequest) {
   let userRole: string | undefined
   if (roleCookieRaw && roleCookieRaw.includes(':')) {
     const [cookieRole, cookieHmac] = roleCookieRaw.split(':')
-    const hmacSecret = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'fallback'
+    const hmacSecret = process.env.ROLE_COOKIE_SECRET ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'fallback'
     const { createHmac } = await import('crypto')
     const { timingSafeEqual } = await import('crypto')
     const expectedHmac = createHmac('sha256', hmacSecret).update(cookieRole + ':' + user.id).digest('hex').slice(0, 16)
@@ -161,7 +161,7 @@ export async function proxy(request: NextRequest) {
 
     // Sign the cookie with HMAC to prevent forgery
     const { createHmac } = await import('crypto')
-    const hmacSecret = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'fallback'
+    const hmacSecret = process.env.ROLE_COOKIE_SECRET ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'fallback'
     const hmac = createHmac('sha256', hmacSecret).update(userRole + ':' + user.id).digest('hex').slice(0, 16)
     response.cookies.set(ROLE_COOKIE, `${userRole}:${hmac}`, {
       httpOnly: true,

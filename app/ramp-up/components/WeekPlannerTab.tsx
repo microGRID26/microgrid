@@ -64,6 +64,7 @@ interface WeekPlannerTabProps {
   loadAll: () => Promise<void>
   userName: string | undefined
   allCrews: { id: string; name: string }[]
+  orgId: string | null
 }
 
 export function WeekPlannerTab({
@@ -77,7 +78,7 @@ export function WeekPlannerTab({
   clusterPolyline, clusterTotalMiles, clusterGoogleUrl,
   handleSchedule, handleConfirm, handleComplete, handleCancel,
   handleAutoFill, handlePrint, openProject, loadAll,
-  userName, allCrews,
+  userName, allCrews, orgId,
 }: WeekPlannerTabProps) {
   return (
     <div className="space-y-4">
@@ -112,6 +113,7 @@ export function WeekPlannerTab({
                 id: crypto.randomUUID(), project_id: entry.project_id, crew_id: crew.id,
                 job_type: 'install', date: installDate, status: 'scheduled',
                 notes: `Ramp-up sync: ${entry.crew_name}`, pm: userName ?? project.pm,
+                org_id: orgId ?? null,
               })
               if (insertErr) { console.error('[sync] insert failed:', insertErr.message, { project_id: entry.project_id, crew_id: crew.id, date: installDate }) }
               else synced++
