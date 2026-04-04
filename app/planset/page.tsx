@@ -66,8 +66,13 @@ function TitleBlock({ sheetName, sheetNumber, data }: { sheetName: string; sheet
   const by = SHEET_H - 130 // block Y
   const bw = 310
   const bh = 118
+  const stampY = SHEET_H - 220 // Engineer's stamp box above title block
+  const stampH = 80
   return (
     <g>
+      {/* Engineer's Stamp box */}
+      <rect x={bx} y={stampY} width={bw} height={stampH} fill="white" stroke="#111" strokeWidth="1.5" />
+      <text x={bx + bw / 2} y={stampY + stampH / 2 + 3} fontSize="7" fill="#999" textAnchor="middle">ENGINEER&apos;S STAMP</text>
       {/* Outer box */}
       <rect x={bx} y={by} width={bw} height={bh} fill="white" stroke="#111" strokeWidth="1.5" />
       {/* Horizontal dividers */}
@@ -75,22 +80,19 @@ function TitleBlock({ sheetName, sheetNumber, data }: { sheetName: string; sheet
       <line x1={bx} y1={by + 55} x2={bx + bw} y2={by + 55} stroke="#111" strokeWidth="0.5" />
       <line x1={bx} y1={by + 80} x2={bx + bw} y2={by + 80} stroke="#111" strokeWidth="0.5" />
       <line x1={bx} y1={by + 98} x2={bx + bw} y2={by + 98} stroke="#111" strokeWidth="0.5" />
-      {/* Vertical divider for stamp area */}
+      {/* Vertical divider */}
       <line x1={bx + 155} y1={by + 55} x2={bx + 155} y2={by + 80} stroke="#111" strokeWidth="0.5" />
       {/* Contractor */}
       <text x={bx + 5} y={by + 12} fontSize="7" fontWeight="bold" fill="#111">{data.contractor.name}</text>
-      <text x={bx + 5} y={by + 22} fontSize="5.5" fill="#333">{data.contractor.address}, {data.contractor.city}</text>
-      <text x={bx + 200} y={by + 12} fontSize="5.5" fill="#333">Ph: {data.contractor.phone}</text>
-      <text x={bx + 200} y={by + 22} fontSize="5.5" fill="#333">Lic# {data.contractor.license}</text>
+      <text x={bx + 5} y={by + 22} fontSize="6.5" fill="#333">{data.contractor.address}, {data.contractor.city}</text>
+      <text x={bx + 200} y={by + 12} fontSize="6.5" fill="#333">Ph: {data.contractor.phone}</text>
+      <text x={bx + 200} y={by + 22} fontSize="6.5" fill="#333">Lic# {data.contractor.license}</text>
       {/* Project info */}
       <text x={bx + 5} y={by + 42} fontSize="6.5" fontWeight="bold" fill="#111">{data.projectId} {data.owner}</text>
-      <text x={bx + 5} y={by + 52} fontSize="5.5" fill="#333">{data.address}</text>
-      {/* Engineer stamp area */}
-      <text x={bx + 160} y={by + 65} fontSize="5" fill="#999">ENGINEER&apos;S STAMP</text>
-      <rect x={bx + 158} y={by + 57} width="148" height="21" fill="none" stroke="#ccc" strokeWidth="0.5" strokeDasharray="2,2" />
+      <text x={bx + 5} y={by + 52} fontSize="6.5" fill="#333">{data.address}</text>
       {/* Drawn info */}
-      <text x={bx + 5} y={by + 68} fontSize="5.5" fill="#333">DRAWN BY: MicroGRID</text>
-      <text x={bx + 5} y={by + 76} fontSize="5.5" fill="#333">DATE: {data.drawnDate}</text>
+      <text x={bx + 5} y={by + 68} fontSize="6.5" fill="#333">DRAWN BY: MicroGRID</text>
+      <text x={bx + 5} y={by + 76} fontSize="6.5" fill="#333">DATE: {data.drawnDate}</text>
       {/* Sheet name */}
       <text x={bx + 5} y={by + 92} fontSize="8" fontWeight="bold" fill="#111">{sheetName}</text>
       {/* Sheet number */}
@@ -284,8 +286,8 @@ function SheetPV1({ data }: { data: PlansetData }) {
       <text x="287" y="478" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">UNIT INDEX</text>
       {unitIndex.map(([abbr, def], i) => (
         <g key={i}>
-          <text x="207" y={498 + i * 9} fontSize="5.5" fontWeight="bold" fill="#111">{abbr}</text>
-          <text x="240" y={498 + i * 9} fontSize="5.5" fill="#333">{def}</text>
+          <text x="207" y={498 + i * 9} fontSize="6.5" fontWeight="bold" fill="#111">{abbr}</text>
+          <text x="240" y={498 + i * 9} fontSize="6.5" fill="#333">{def}</text>
         </g>
       ))}
 
@@ -346,8 +348,13 @@ function SheetPV2({ data }: { data: PlansetData }) {
     ['2018 (IECC)', 'INTERNATIONAL ENERGY CONSERVATION CODE'],
   ]
 
-  const sectionHeaderH = 18
-  const rowH = 14
+  const sectionHeaderH = 20
+  const rowH = 16
+
+  // Existing system data
+  const existingDcKw = data.existingPanelCount && data.existingPanelWattage
+    ? (data.existingPanelCount * data.existingPanelWattage / 1000).toFixed(2)
+    : null
 
   return (
     <svg viewBox={`0 0 ${SHEET_W} ${SHEET_H}`} className="w-full bg-white" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
@@ -360,13 +367,13 @@ function SheetPV2({ data }: { data: PlansetData }) {
       </text>
 
       {/* ── PROJECT DATA TABLE (top left) ── */}
-      <rect x="25" y="70" width="350" height="260" fill="none" stroke="#111" strokeWidth="1" />
+      <rect x="25" y="70" width="350" height="280" fill="none" stroke="#111" strokeWidth="1" />
       <rect x="25" y="70" width="350" height={sectionHeaderH} fill="#111" />
-      <text x="200" y="83" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">PROJECT DATA</text>
+      <text x="200" y="85" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">PROJECT DATA</text>
 
       {(() => {
-        let y = 102
-        const ls = 14
+        let y = 106
+        const ls = 16
         const items: [string, string][] = [
           ['PROJECT ADDRESS:', `${data.address}`],
           ['', `${data.city}, TX ${data.zip}`],
@@ -377,11 +384,11 @@ function SheetPV2({ data }: { data: PlansetData }) {
           ['', ''],
         ]
         return items.map(([label, value], i) => {
-          if (!label && !value) { y += 6; return null }
+          if (!label && !value) { y += 8; return null }
           const el = (
             <g key={`pd-${i}`}>
-              {label && <text x="32" y={y} fontSize="6" fontWeight="bold" fill="#111">{label}</text>}
-              <text x={label ? 120 : 32} y={y} fontSize="7" fill="#333">{value}</text>
+              {label && <text x="32" y={y} fontSize="7" fontWeight="bold" fill="#111">{label}</text>}
+              <text x={label ? 130 : 32} y={y} fontSize="8" fill="#333">{value}</text>
             </g>
           )
           y += ls
@@ -390,64 +397,64 @@ function SheetPV2({ data }: { data: PlansetData }) {
       })()}
 
       {/* SCOPE OF WORK sub-table */}
-      <rect x="30" y="200" width="340" height={sectionHeaderH} fill="#333" />
-      <text x="200" y="213" fontSize="7" fontWeight="bold" fill="white" textAnchor="middle">SCOPE OF WORK</text>
-      <rect x="30" y={200 + sectionHeaderH} width="80" height="14" fill="#eee" stroke="#ccc" strokeWidth="0.5" />
-      <rect x="110" y={200 + sectionHeaderH} width="260" height="14" fill="#eee" stroke="#ccc" strokeWidth="0.5" />
-      <text x="35" y={200 + sectionHeaderH + 10} fontSize="5.5" fontWeight="bold" fill="#111">QUANTITY</text>
-      <text x="115" y={200 + sectionHeaderH + 10} fontSize="5.5" fontWeight="bold" fill="#111">DESCRIPTION</text>
+      <rect x="30" y="216" width="340" height={sectionHeaderH} fill="#333" />
+      <text x="200" y="230" fontSize="7" fontWeight="bold" fill="white" textAnchor="middle">SCOPE OF WORK</text>
+      <rect x="30" y={216 + sectionHeaderH} width="80" height={rowH} fill="#eee" stroke="#ccc" strokeWidth="0.5" />
+      <rect x="110" y={216 + sectionHeaderH} width="260" height={rowH} fill="#eee" stroke="#ccc" strokeWidth="0.5" />
+      <text x="35" y={216 + sectionHeaderH + 12} fontSize="7" fontWeight="bold" fill="#111">QUANTITY</text>
+      <text x="115" y={216 + sectionHeaderH + 12} fontSize="7" fontWeight="bold" fill="#111">DESCRIPTION</text>
 
       {[
         [`${data.panelCount}`, data.panelModel],
         [`${data.inverterCount}`, data.inverterModel],
         [`${data.batteryCount}`, data.batteryModel],
       ].map(([qty, desc], i) => {
-        const ry = 200 + sectionHeaderH + 14 + i * rowH
+        const ry = 216 + sectionHeaderH + rowH + i * rowH
         return (
           <g key={`sow-${i}`}>
             <rect x="30" y={ry} width="80" height={rowH} fill={i % 2 === 0 ? '#f9f9f9' : 'white'} stroke="#ccc" strokeWidth="0.5" />
             <rect x="110" y={ry} width="260" height={rowH} fill={i % 2 === 0 ? '#f9f9f9' : 'white'} stroke="#ccc" strokeWidth="0.5" />
-            <text x="70" y={ry + 10} fontSize="6" fill="#333" textAnchor="middle">{qty}</text>
-            <text x="115" y={ry + 10} fontSize="6" fill="#333">{desc}</text>
+            <text x="70" y={ry + 12} fontSize="7" fill="#333" textAnchor="middle">{qty}</text>
+            <text x="115" y={ry + 12} fontSize="7" fill="#333">{desc}</text>
           </g>
         )
       })}
 
       {/* ── NEW SYSTEM ROOF DESCRIPTION (top center) ── */}
-      <rect x="400" y="70" width="360" height={sectionHeaderH + 14 + roofRows.length * rowH} fill="none" stroke="#111" strokeWidth="1" />
+      <rect x="400" y="70" width="360" height={sectionHeaderH + rowH + roofRows.length * rowH} fill="none" stroke="#111" strokeWidth="1" />
       <rect x="400" y="70" width="360" height={sectionHeaderH} fill="#111" />
-      <text x="580" y="83" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">NEW SYSTEM ROOF DESCRIPTION</text>
+      <text x="580" y="85" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">NEW SYSTEM ROOF DESCRIPTION</text>
 
       {/* Column headers */}
-      <rect x="400" y={70 + sectionHeaderH} width="90" height="14" fill="#eee" stroke="#ccc" strokeWidth="0.5" />
-      <rect x="490" y={70 + sectionHeaderH} width="90" height="14" fill="#eee" stroke="#ccc" strokeWidth="0.5" />
-      <rect x="580" y={70 + sectionHeaderH} width="90" height="14" fill="#eee" stroke="#ccc" strokeWidth="0.5" />
-      <rect x="670" y={70 + sectionHeaderH} width="90" height="14" fill="#eee" stroke="#ccc" strokeWidth="0.5" />
-      <text x="445" y={70 + sectionHeaderH + 10} fontSize="5.5" fontWeight="bold" fill="#111" textAnchor="middle">ROOF</text>
-      <text x="535" y={70 + sectionHeaderH + 10} fontSize="5.5" fontWeight="bold" fill="#111" textAnchor="middle">ARRAY TILT</text>
-      <text x="625" y={70 + sectionHeaderH + 10} fontSize="5.5" fontWeight="bold" fill="#111" textAnchor="middle">AZIMUTH</text>
-      <text x="715" y={70 + sectionHeaderH + 10} fontSize="5.5" fontWeight="bold" fill="#111" textAnchor="middle"># OF MODULES</text>
+      <rect x="400" y={70 + sectionHeaderH} width="90" height={rowH} fill="#eee" stroke="#ccc" strokeWidth="0.5" />
+      <rect x="490" y={70 + sectionHeaderH} width="90" height={rowH} fill="#eee" stroke="#ccc" strokeWidth="0.5" />
+      <rect x="580" y={70 + sectionHeaderH} width="90" height={rowH} fill="#eee" stroke="#ccc" strokeWidth="0.5" />
+      <rect x="670" y={70 + sectionHeaderH} width="90" height={rowH} fill="#eee" stroke="#ccc" strokeWidth="0.5" />
+      <text x="445" y={70 + sectionHeaderH + 12} fontSize="7" fontWeight="bold" fill="#111" textAnchor="middle">ROOF</text>
+      <text x="535" y={70 + sectionHeaderH + 12} fontSize="7" fontWeight="bold" fill="#111" textAnchor="middle">ARRAY TILT</text>
+      <text x="625" y={70 + sectionHeaderH + 12} fontSize="7" fontWeight="bold" fill="#111" textAnchor="middle">AZIMUTH</text>
+      <text x="715" y={70 + sectionHeaderH + 12} fontSize="7" fontWeight="bold" fill="#111" textAnchor="middle"># OF MODULES</text>
 
       {roofRows.map((row, i) => {
-        const ry = 70 + sectionHeaderH + 14 + i * rowH
+        const ry = 70 + sectionHeaderH + rowH + i * rowH
         return (
           <g key={`roof-${i}`}>
             <rect x="400" y={ry} width="90" height={rowH} fill={i % 2 === 0 ? '#f9f9f9' : 'white'} stroke="#ccc" strokeWidth="0.5" />
             <rect x="490" y={ry} width="90" height={rowH} fill={i % 2 === 0 ? '#f9f9f9' : 'white'} stroke="#ccc" strokeWidth="0.5" />
             <rect x="580" y={ry} width="90" height={rowH} fill={i % 2 === 0 ? '#f9f9f9' : 'white'} stroke="#ccc" strokeWidth="0.5" />
             <rect x="670" y={ry} width="90" height={rowH} fill={i % 2 === 0 ? '#f9f9f9' : 'white'} stroke="#ccc" strokeWidth="0.5" />
-            <text x="445" y={ry + 10} fontSize="6" fill="#333" textAnchor="middle">{row.roof}</text>
-            <text x="535" y={ry + 10} fontSize="6" fill="#333" textAnchor="middle">{row.tilt}</text>
-            <text x="625" y={ry + 10} fontSize="6" fill="#333" textAnchor="middle">{row.azimuth}</text>
-            <text x="715" y={ry + 10} fontSize="6" fill="#333" textAnchor="middle">{row.modules}</text>
+            <text x="445" y={ry + 12} fontSize="7" fill="#333" textAnchor="middle">{row.roof}</text>
+            <text x="535" y={ry + 12} fontSize="7" fill="#333" textAnchor="middle">{row.tilt}</text>
+            <text x="625" y={ry + 12} fontSize="7" fill="#333" textAnchor="middle">{row.azimuth}</text>
+            <text x="715" y={ry + 12} fontSize="7" fill="#333" textAnchor="middle">{row.modules}</text>
           </g>
         )
       })}
 
       {/* ── ELECTRICAL INFORMATION (right side) ── */}
-      <rect x="800" y="70" width="280" height="200" fill="none" stroke="#111" strokeWidth="1" />
+      <rect x="800" y="70" width="280" height="220" fill="none" stroke="#111" strokeWidth="1" />
       <rect x="800" y="70" width="280" height={sectionHeaderH} fill="#111" />
-      <text x="940" y="83" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">ELECTRICAL INFORMATION</text>
+      <text x="940" y="85" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">ELECTRICAL INFORMATION</text>
 
       {[
         ['VOLTAGE', data.voltage],
@@ -462,16 +469,16 @@ function SheetPV2({ data }: { data: PlansetData }) {
           <g key={`elec-${i}`}>
             <rect x="800" y={ry + sectionHeaderH} width="280" height={rowH}
               fill={i % 2 === 0 ? '#f9f9f9' : 'white'} stroke="#ccc" strokeWidth="0.5" />
-            <text x="808" y={ry + sectionHeaderH + 10} fontSize="6" fontWeight="bold" fill="#999">{label}</text>
-            <text x="920" y={ry + sectionHeaderH + 10} fontSize="7" fill="#111">{value}</text>
+            <text x="808" y={ry + sectionHeaderH + 12} fontSize="7" fontWeight="bold" fill="#999">{label}</text>
+            <text x="925" y={ry + sectionHeaderH + 12} fontSize="8" fill="#111">{value}</text>
           </g>
         )
       })}
 
       {/* ── BUILDING INFORMATION (below left) ── */}
-      <rect x="25" y="350" width="350" height="150" fill="none" stroke="#111" strokeWidth="1" />
-      <rect x="25" y="350" width="350" height={sectionHeaderH} fill="#111" />
-      <text x="200" y="363" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">BUILDING INFORMATION</text>
+      <rect x="25" y="370" width="350" height="160" fill="none" stroke="#111" strokeWidth="1" />
+      <rect x="25" y="370" width="350" height={sectionHeaderH} fill="#111" />
+      <text x="200" y="384" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">BUILDING INFORMATION</text>
 
       {[
         ['BUILDING TYPE', `${storiesLabel} STORY BUILDING`],
@@ -480,41 +487,116 @@ function SheetPV2({ data }: { data: PlansetData }) {
         ['ROOF TYPE', data.roofType],
         ['RAFTERS', data.rafterSize],
       ].map(([label, value], i) => {
-        const ry = 350 + sectionHeaderH + i * 18
+        const ry = 370 + sectionHeaderH + i * 22
         return (
           <g key={`bldg-${i}`}>
-            <text x="32" y={ry + 16} fontSize="6" fontWeight="bold" fill="#999">{label}</text>
-            <text x="140" y={ry + 16} fontSize="7" fill="#111">{value}</text>
+            <text x="32" y={ry + 18} fontSize="7" fontWeight="bold" fill="#999">{label}</text>
+            <text x="150" y={ry + 18} fontSize="8" fill="#111">{value}</text>
           </g>
         )
       })}
 
       {/* ── RACKING INFORMATION (below center) ── */}
-      <rect x="400" y="350" width="360" height="150" fill="none" stroke="#111" strokeWidth="1" />
-      <rect x="400" y="350" width="360" height={sectionHeaderH} fill="#111" />
-      <text x="580" y="363" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">RACKING INFORMATION</text>
+      <rect x="400" y="370" width="360" height="160" fill="none" stroke="#111" strokeWidth="1" />
+      <rect x="400" y="370" width="360" height={sectionHeaderH} fill="#111" />
+      <text x="580" y="384" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">RACKING INFORMATION</text>
 
-      <text x="408" y="386" fontSize="7" fill="#111">{data.rackingModel}</text>
+      <text x="408" y="408" fontSize="8" fill="#111">{data.rackingModel}</text>
 
-      <text x="408" y="410" fontSize="8" fontWeight="bold" fill="#111">DESIGN CRITERIA</text>
-      <text x="408" y="426" fontSize="6" fontWeight="bold" fill="#999">EXPOSURE CATEGORY</text>
-      <text x="530" y="426" fontSize="7" fill="#111">{data.exposure}</text>
-      <text x="408" y="442" fontSize="6" fontWeight="bold" fill="#999">WIND SPEED</text>
-      <text x="530" y="442" fontSize="7" fill="#111">{data.windSpeed} MPH</text>
-      <text x="408" y="458" fontSize="6" fontWeight="bold" fill="#999">RISK CATEGORY</text>
-      <text x="530" y="458" fontSize="7" fill="#111">{data.riskCategory}</text>
+      <text x="408" y="434" fontSize="8" fontWeight="bold" fill="#111">DESIGN CRITERIA</text>
+      <text x="408" y="452" fontSize="7" fontWeight="bold" fill="#999">EXPOSURE CATEGORY</text>
+      <text x="540" y="452" fontSize="8" fill="#111">{data.exposure}</text>
+      <text x="408" y="470" fontSize="7" fontWeight="bold" fill="#999">WIND SPEED</text>
+      <text x="540" y="470" fontSize="8" fill="#111">{data.windSpeed} MPH</text>
+      <text x="408" y="488" fontSize="7" fontWeight="bold" fill="#999">RISK CATEGORY</text>
+      <text x="540" y="488" fontSize="8" fill="#111">{data.riskCategory}</text>
 
       {/* ── CODE REFERENCES (below right) ── */}
-      <rect x="800" y="350" width="280" height="150" fill="none" stroke="#111" strokeWidth="1" />
-      <rect x="800" y="350" width="280" height={sectionHeaderH} fill="#111" />
-      <text x="940" y="363" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">CODE REFERENCES</text>
+      <rect x="800" y="370" width="280" height="160" fill="none" stroke="#111" strokeWidth="1" />
+      <rect x="800" y="370" width="280" height={sectionHeaderH} fill="#111" />
+      <text x="940" y="384" fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">CODE REFERENCES</text>
 
       {codeRefs.map(([code, desc], i) => (
         <g key={`code-${i}`}>
-          <text x="808" y={386 + i * 14} fontSize="6" fontWeight="bold" fill="#111">{code}</text>
-          <text x="880" y={386 + i * 14} fontSize="6" fill="#333">{desc}</text>
+          <text x="808" y={406 + i * 16} fontSize="7" fontWeight="bold" fill="#111">{code}</text>
+          <text x="890" y={406 + i * 16} fontSize="7" fill="#333">{desc}</text>
         </g>
       ))}
+
+      {/* ── SYSTEM SUMMARY (bottom section) ── */}
+      {(() => {
+        const sumY = 550
+        const sumW = data.existingPanelModel ? 530 : 530
+        const colW = data.existingPanelModel ? 255 : sumW - 20
+        const sumRowH = 18
+
+        const newRows: [string, string][] = [
+          ['PV MODULE', `(${data.panelCount}) ${data.panelModel}`],
+          ['MODULE WATTAGE', `${data.panelWattage}W STC`],
+          ['INVERTER', `(${data.inverterCount}) ${data.inverterModel}`],
+          ['BATTERY', `(${data.batteryCount}) ${data.batteryModel}`],
+          ['SYSTEM DC', `${data.systemDcKw.toFixed(2)} kW`],
+          ['SYSTEM AC', `${data.systemAcKw} kW`],
+          ['TOTAL STORAGE', `${data.totalStorageKwh} kWh`],
+        ]
+
+        const existingRows: [string, string][] = data.existingPanelModel ? [
+          ['PV MODULE', `(${data.existingPanelCount ?? 0}) ${data.existingPanelModel}`],
+          ['MODULE WATTAGE', `${data.existingPanelWattage ?? 0}W`],
+          ['INVERTER', `(${data.existingInverterCount ?? 0}) ${data.existingInverterModel ?? 'N/A'}`],
+          ['BATTERY', 'N/A'],
+          ['SYSTEM DC', `${existingDcKw} kW`],
+          ['SYSTEM AC', 'N/A'],
+          ['TOTAL STORAGE', 'N/A'],
+        ] : []
+
+        const tableRows = Math.max(newRows.length, existingRows.length)
+        const sumH = sectionHeaderH + sumRowH + tableRows * sumRowH + 10
+
+        return (
+          <g>
+            {/* Main container */}
+            <rect x="25" y={sumY} width={sumW} height={sumH} fill="none" stroke="#111" strokeWidth="1" />
+            <rect x="25" y={sumY} width={sumW} height={sectionHeaderH} fill="#111" />
+            <text x={25 + sumW / 2} y={sumY + 14} fontSize="8" fontWeight="bold" fill="white" textAnchor="middle">SYSTEM SUMMARY</text>
+
+            {/* Existing system column (left) */}
+            {data.existingPanelModel && (
+              <g>
+                <rect x="30" y={sumY + sectionHeaderH + 2} width={colW} height={sumRowH} fill="#555" />
+                <text x={30 + colW / 2} y={sumY + sectionHeaderH + 14} fontSize="7" fontWeight="bold" fill="white" textAnchor="middle">EXISTING SYSTEM</text>
+                {existingRows.map(([label, value], i) => {
+                  const ry = sumY + sectionHeaderH + 2 + sumRowH + i * sumRowH
+                  return (
+                    <g key={`ex-${i}`}>
+                      <rect x="30" y={ry} width={colW} height={sumRowH} fill={i % 2 === 0 ? '#f5f5f5' : 'white'} stroke="#eee" strokeWidth="0.5" />
+                      <text x="38" y={ry + 13} fontSize="7" fontWeight="bold" fill="#999">{label}</text>
+                      <text x="130" y={ry + 13} fontSize="8" fill="#333">{value}</text>
+                    </g>
+                  )
+                })}
+              </g>
+            )}
+
+            {/* New system column (right, or full width if no existing) */}
+            <g>
+              <rect x={data.existingPanelModel ? 30 + colW + 10 : 30} y={sumY + sectionHeaderH + 2} width={colW} height={sumRowH} fill="#1D9E75" />
+              <text x={(data.existingPanelModel ? 30 + colW + 10 : 30) + colW / 2} y={sumY + sectionHeaderH + 14} fontSize="7" fontWeight="bold" fill="white" textAnchor="middle">NEW SYSTEM</text>
+              {newRows.map(([label, value], i) => {
+                const nx = data.existingPanelModel ? 30 + colW + 10 : 30
+                const ry = sumY + sectionHeaderH + 2 + sumRowH + i * sumRowH
+                return (
+                  <g key={`new-${i}`}>
+                    <rect x={nx} y={ry} width={colW} height={sumRowH} fill={i % 2 === 0 ? '#f5f5f5' : 'white'} stroke="#eee" strokeWidth="0.5" />
+                    <text x={nx + 8} y={ry + 13} fontSize="7" fontWeight="bold" fill="#999">{label}</text>
+                    <text x={nx + 110} y={ry + 13} fontSize="8" fill="#111">{value}</text>
+                  </g>
+                )
+              })}
+            </g>
+          </g>
+        )
+      })()}
 
       <TitleBlock sheetName="PROJECT DATA" sheetNumber="PV-2" data={data} />
     </svg>
@@ -524,6 +606,28 @@ function SheetPV2({ data }: { data: PlansetData }) {
 // ── SHEET PV-5: SINGLE LINE DIAGRAM ─────────────────────────────────────────
 
 function SheetPV5({ data }: { data: PlansetData }) {
+  // If no strings provided, auto-distribute panels across inverters
+  let sldStrings = data.strings
+  let sldStringsPerInverter = data.stringsPerInverter
+
+  if (sldStrings.length === 0 && data.panelCount > 0) {
+    const d = DURACELL_DEFAULTS
+    sldStrings = autoDistributeStrings(
+      data.panelCount, data.vocCorrected, data.panelVmp, data.panelImp,
+      data.inverterCount, data.mpptsPerInverter, data.stringsPerMppt, d.maxVoc
+    )
+    // Build stringsPerInverter arrays
+    sldStringsPerInverter = []
+    if (sldStrings.length > 0 && data.inverterCount > 0) {
+      const perInv = Math.ceil(sldStrings.length / data.inverterCount)
+      for (let i = 0; i < data.inverterCount; i++) {
+        const start = i * perInv
+        const end = Math.min(start + perInv, sldStrings.length)
+        sldStringsPerInverter.push(Array.from({ length: end - start }, (_, j) => start + j))
+      }
+    }
+  }
+
   const config = {
     projectName: data.owner,
     address: data.address,
@@ -542,7 +646,7 @@ function SheetPV5({ data }: { data: PlansetData }) {
     batteryCapacity: data.batteryCapacity,
     batteriesPerStack: data.batteriesPerStack,
     rackingModel: data.rackingModel,
-    strings: data.strings.map(s => ({
+    strings: sldStrings.map(s => ({
       id: s.id,
       modules: s.modules,
       roofFace: s.roofFace,
@@ -550,7 +654,7 @@ function SheetPV5({ data }: { data: PlansetData }) {
       vmp: s.vmpNominal,
       imp: s.current,
     })),
-    stringsPerInverter: data.stringsPerInverter,
+    stringsPerInverter: sldStringsPerInverter,
     meter: data.meter,
     esid: data.esid,
     utility: data.utility,
@@ -732,7 +836,7 @@ function SheetPV51({ data }: { data: PlansetData }) {
             fill={label.borderColor || '#111'} />
           <text x={label.x + label.w / 2} y={label.y + 13} fontSize="8" fontWeight="bold"
             fill="white" textAnchor="middle">{label.title}</text>
-          <text x={label.x + label.w - 5} y={label.y + 13} fontSize="5.5"
+          <text x={label.x + label.w - 5} y={label.y + 13} fontSize="6.5"
             fill="#ddd" textAnchor="end">{label.nec}</text>
           {/* Content lines */}
           {label.lines.map((line, j) => (
@@ -823,7 +927,7 @@ function SheetPV6({ data }: { data: PlansetData }) {
       {/* Table header */}
       <rect x="25" y={tableY} width="840" height={rowH} fill="#111" />
       {['STRING', 'MODULES', 'Voc (V)', 'Voc COLD', 'Vmp (V)', 'Isc (A)', '125% Isc', 'WIRE', 'CONDUIT', 'RUN (ft)', 'V DROP', '% DROP', 'STATUS'].map((h, i) => (
-        <text key={i} x={colX[i]} y={tableY + 11} fontSize="5.5" fontWeight="bold" fill="white">{h}</text>
+        <text key={i} x={colX[i]} y={tableY + 11} fontSize="6.5" fontWeight="bold" fill="white">{h}</text>
       ))}
 
       {/* Table rows */}
@@ -837,7 +941,7 @@ function SheetPV6({ data }: { data: PlansetData }) {
               s.isc, s.conductor125, s.wireSize + ' AWG CU', s.conduit,
               String(s.runFt), s.vDrop + 'V', s.vDropPct + '%', s.status,
             ].map((val, j) => (
-              <text key={j} x={colX[j]} y={ry + 11} fontSize="5.5"
+              <text key={j} x={colX[j]} y={ry + 11} fontSize="6.5"
                 fill={val === 'FAIL' ? '#cc0000' : val === 'PASS' ? '#006600' : '#333'}>
                 {val}
               </text>
@@ -855,7 +959,7 @@ function SheetPV6({ data }: { data: PlansetData }) {
 
             <rect x="25" y={acY + 15} width="840" height={rowH} fill="#111" />
             {['CIRCUIT', 'VOLTAGE', 'POWER', 'CURRENT', '125%', 'WIRE', 'CONDUIT', 'RUN (ft)', 'V DROP', '% DROP', 'STATUS'].map((h, i) => (
-              <text key={i} x={[25, 100, 175, 265, 340, 420, 530, 580, 640, 710, 775][i]} y={acY + 26} fontSize="5.5" fontWeight="bold" fill="white">{h}</text>
+              <text key={i} x={[25, 100, 175, 265, 340, 420, 530, 580, 640, 710, 775][i]} y={acY + 26} fontSize="6.5" fontWeight="bold" fill="white">{h}</text>
             ))}
 
             {data.strings.length > 0 && (
@@ -869,7 +973,7 @@ function SheetPV6({ data }: { data: PlansetData }) {
                   acVDropPct < 3 ? 'PASS' : 'FAIL',
                 ].map((val, j) => (
                   <text key={j} x={[25, 100, 175, 265, 340, 420, 530, 580, 640, 710, 775][j]}
-                    y={acY + 15 + rowH + 11} fontSize="5.5"
+                    y={acY + 15 + rowH + 11} fontSize="6.5"
                     fill={val === 'FAIL' ? '#cc0000' : val === 'PASS' ? '#006600' : '#333'}>{val}</text>
                 ))}
               </>
@@ -879,7 +983,7 @@ function SheetPV6({ data }: { data: PlansetData }) {
             <text x="25" y={acY + 75} fontSize="10" fontWeight="bold" fill="#111">BATTERY WIRE SIZING (NEC 706)</text>
             <rect x="25" y={acY + 90} width="840" height={rowH} fill="#111" />
             {['CIRCUIT', 'VOLTAGE', 'CAPACITY', 'MAX CURRENT', '125%', 'WIRE', 'CONDUIT'].map((h, i) => (
-              <text key={i} x={[25, 150, 265, 370, 470, 560, 700][i]} y={acY + 101} fontSize="5.5" fontWeight="bold" fill="white">{h}</text>
+              <text key={i} x={[25, 150, 265, 370, 470, 560, 700][i]} y={acY + 101} fontSize="6.5" fontWeight="bold" fill="white">{h}</text>
             ))}
             <rect x="25" y={acY + 90 + rowH} width="840" height={rowH} fill="#f9f9f9" stroke="#ddd" strokeWidth="0.5" />
             {[
@@ -892,14 +996,14 @@ function SheetPV6({ data }: { data: PlansetData }) {
               data.batteryConduit,
             ].map((val, j) => (
               <text key={j} x={[25, 150, 265, 370, 470, 560, 700][j]}
-                y={acY + 90 + rowH + 11} fontSize="5.5" fill="#333">{val}</text>
+                y={acY + 90 + rowH + 11} fontSize="6.5" fill="#333">{val}</text>
             ))}
 
             {/* ── OCPD SIZING ── */}
             <text x="25" y={acY + 155} fontSize="10" fontWeight="bold" fill="#111">OVERCURRENT PROTECTION DEVICE (OCPD) SIZING (NEC 690.9)</text>
             <rect x="25" y={acY + 170} width="840" height={rowH} fill="#111" />
             {['DEVICE', 'CALCULATION', 'RESULT', 'STANDARD SIZE', 'RATING'].map((h, i) => (
-              <text key={i} x={[25, 200, 420, 560, 700][i]} y={acY + 181} fontSize="5.5" fontWeight="bold" fill="white">{h}</text>
+              <text key={i} x={[25, 200, 420, 560, 700][i]} y={acY + 181} fontSize="6.5" fontWeight="bold" fill="white">{h}</text>
             ))}
             {[
               ['STRING FUSE', `Isc × 1.56 = ${data.panelIsc} × 1.56`, `${stringFuseCalc.toFixed(1)}A`, `${stringFuseSize}A`, '600V DC'],
@@ -911,7 +1015,7 @@ function SheetPV6({ data }: { data: PlansetData }) {
                   fill={i % 2 === 0 ? '#f9f9f9' : 'white'} stroke="#ddd" strokeWidth="0.5" />
                 {row.map((val, j) => (
                   <text key={j} x={[25, 200, 420, 560, 700][j]}
-                    y={acY + 170 + rowH + i * rowH + 11} fontSize="5.5" fill="#333">{val}</text>
+                    y={acY + 170 + rowH + i * rowH + 11} fontSize="6.5" fill="#333">{val}</text>
                 ))}
               </g>
             ))}
@@ -920,7 +1024,7 @@ function SheetPV6({ data }: { data: PlansetData }) {
             <text x="25" y={acY + 240} fontSize="10" fontWeight="bold" fill="#111">GROUNDING CONDUCTOR SIZING (NEC 250)</text>
             <rect x="25" y={acY + 255} width="840" height={rowH} fill="#111" />
             {['CONDUCTOR', 'SIZE', 'REFERENCE', 'NOTES'].map((h, i) => (
-              <text key={i} x={[25, 300, 480, 650][i]} y={acY + 266} fontSize="5.5" fontWeight="bold" fill="white">{h}</text>
+              <text key={i} x={[25, 300, 480, 650][i]} y={acY + 266} fontSize="6.5" fontWeight="bold" fill="white">{h}</text>
             ))}
             {[
               ['EQUIPMENT GROUNDING (EGC)', '#6 AWG BARE CU', 'NEC 250.122', 'SIZED PER LARGEST OCPD'],
@@ -933,7 +1037,7 @@ function SheetPV6({ data }: { data: PlansetData }) {
                   fill={i % 2 === 0 ? '#f9f9f9' : 'white'} stroke="#ddd" strokeWidth="0.5" />
                 {row.map((val, j) => (
                   <text key={j} x={[25, 300, 480, 650][j]}
-                    y={acY + 255 + rowH + i * rowH + 11} fontSize="5.5" fill="#333">{val}</text>
+                    y={acY + 255 + rowH + i * rowH + 11} fontSize="6.5" fill="#333">{val}</text>
                 ))}
               </g>
             ))}
@@ -957,7 +1061,7 @@ function SheetPV6({ data }: { data: PlansetData }) {
                 <g>
                   <rect x="25" y={ampY} width="840" height={rowH} fill="#111" />
                   {ampHeaders.map((h, i) => (
-                    <text key={i} x={ampColX2[i]} y={ampY + 11} fontSize="5.5" fontWeight="bold" fill="white">{h}</text>
+                    <text key={i} x={ampColX2[i]} y={ampY + 11} fontSize="6.5" fontWeight="bold" fill="white">{h}</text>
                   ))}
                   {ampRows.map((row, i) => {
                     const ry2 = ampY + rowH + i * rowH
@@ -971,13 +1075,13 @@ function SheetPV6({ data }: { data: PlansetData }) {
                           row[0], String(row[1]), String(row[2]), String(row[3]),
                           String(tempCF), String(corrected), String(row[4]), String(usable),
                         ].map((val, j) => (
-                          <text key={j} x={ampColX2[j]} y={ry2 + 11} fontSize="5.5"
+                          <text key={j} x={ampColX2[j]} y={ry2 + 11} fontSize="6.5"
                             fill={parseFloat(val) > 0 && j === 7 ? '#006600' : '#333'}>{val}</text>
                         ))}
                       </g>
                     )
                   })}
-                  <text x="25" y={ampY + rowH + ampRows.length * rowH + 14} fontSize="5.5" fill="#555">
+                  <text x="25" y={ampY + rowH + ampRows.length * rowH + 14} fontSize="6.5" fill="#555">
                     Temp correction factor 0.91 for THWN-2 copper at 37°C ambient (NEC Table 310.15(B)(1)). Conduit fill factor per NEC 310.15(C)(1).
                   </text>
                 </g>
@@ -1347,8 +1451,8 @@ function SheetPV71({ data }: { data: PlansetData }) {
                 {/* Alternating row background */}
                 <rect x={placard.x + 1} y={ry - 10} width={placard.w - 2} height="13"
                   fill={ri % 2 === 0 ? '#f5f5f5' : 'white'} />
-                <text x={placard.x + 8} y={ry} fontSize="5.5" fontWeight="bold" fill="#111">{label}</text>
-                <text x={placard.x + 150} y={ry} fontSize="5.5" fill="#333">{value}</text>
+                <text x={placard.x + 8} y={ry} fontSize="6.5" fontWeight="bold" fill="#111">{label}</text>
+                <text x={placard.x + 150} y={ry} fontSize="6.5" fill="#333">{value}</text>
               </g>
             )
           })}
@@ -1526,7 +1630,7 @@ function SheetPV8({ data }: { data: PlansetData }) {
 
       <rect x="12" y={bomStartY + 10} width="960" height={headerH} fill="#111" />
       {['EQUIPMENT', 'QTY', 'DESCRIPTION'].map((h, i) => (
-        <text key={i} x={[17, 250, 320][i]} y={bomStartY + 21} fontSize="5.5" fontWeight="bold" fill="white">{h}</text>
+        <text key={i} x={[17, 250, 320][i]} y={bomStartY + 21} fontSize="6.5" fontWeight="bold" fill="white">{h}</text>
       ))}
 
       {bomRows.map((row, i) => {
@@ -1535,9 +1639,9 @@ function SheetPV8({ data }: { data: PlansetData }) {
           <g key={`bom-${i}`}>
             <rect x="12" y={ry} width="960" height={rowH}
               fill={i % 2 === 0 ? '#f9f9f9' : 'white'} stroke="#ddd" strokeWidth="0.3" />
-            <text x="17" y={ry + 9} fontSize="5.5" fontWeight="bold" fill="#111">{row[0]}</text>
-            <text x="260" y={ry + 9} fontSize="5.5" fill="#333" textAnchor="middle">{row[1]}</text>
-            <text x="320" y={ry + 9} fontSize="5.5" fill="#333">{row[2]}</text>
+            <text x="17" y={ry + 9} fontSize="6.5" fontWeight="bold" fill="#111">{row[0]}</text>
+            <text x="260" y={ry + 9} fontSize="6.5" fill="#333" textAnchor="middle">{row[1]}</text>
+            <text x="320" y={ry + 9} fontSize="6.5" fill="#333">{row[2]}</text>
           </g>
         )
       })}
