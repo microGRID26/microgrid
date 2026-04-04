@@ -88,6 +88,29 @@ export interface PlansetString {
   current: number
 }
 
+// ── Roof Face ──────────────────────────────────────────────────────────────
+
+export interface PlansetRoofFace {
+  id: number
+  tilt: number       // degrees
+  azimuth: number    // degrees
+  modules: number    // panels on this face
+}
+
+// ── Racking Detail ─────────────────────────────────────────────────────────
+
+export interface PlansetRackingDetail {
+  attachmentModel: string
+  attachmentCount: number
+  railModel: string
+  railLengthIn: number   // total rail length in inches
+  railCount: number      // number of rail pieces
+  railSpliceCount: number
+  midClampCount: number
+  endClampCount: number
+  groundingLugCount: number
+}
+
 // ── Planset Data (fully resolved, what sheets consume) ─────────────────────
 
 export interface PlansetData {
@@ -141,6 +164,10 @@ export interface PlansetData {
 
   // Racking
   rackingModel: string
+  racking: PlansetRackingDetail
+
+  // Roof faces
+  roofFaces: PlansetRoofFace[]
 
   // Strings
   strings: PlansetString[]
@@ -230,6 +257,13 @@ export interface PlansetOverrides {
   riskCategory?: string
   exposure?: string
 
+  // Roof faces (optional — auto-derived from strings if not provided)
+  roofFaces?: PlansetRoofFace[]
+
+  // Racking overrides
+  attachmentModel?: string
+  railModel?: string
+
   // Existing system
   existingPanelModel?: string
   existingPanelCount?: number
@@ -277,6 +311,32 @@ export function buildPlansetData(project: Project, overrides: PlansetOverrides =
     }
   }
 
+  // Derive roof faces from strings (group by roofFace, sum modules)
+  const roofFaces: PlansetRoofFace[] = overrides.roofFaces ?? (() => {
+    const faceMap = new Map<number, number>()
+    for (const s of strings) {
+      faceMap.set(s.roofFace, (faceMap.get(s.roofFace) ?? 0) + s.modules)
+    }
+    return Array.from(faceMap.entries()).map(([id, modules]) => ({
+      id, tilt: 0, azimuth: 0, modules,
+    }))
+  })()
+
+  // Compute racking details from panel count
+  const attachmentCount = Math.ceil(panelCount * 2.2)
+  const railCount = Math.ceil(panelCount * 0.7)
+  const racking: PlansetRackingDetail = {
+    attachmentModel: overrides.attachmentModel ?? 'IronRidge XR100 Roof Attachment',
+    attachmentCount,
+    railModel: overrides.railModel ?? 'CF LTE US RAIL AL MLL 165.4" 2012034',
+    railLengthIn: Math.round(panelCount * 42.5), // ~42.5" rail per panel
+    railCount,
+    railSpliceCount: Math.ceil(railCount * 0.5),
+    midClampCount: Math.ceil(panelCount * 1.5),
+    endClampCount: Math.ceil(panelCount * 1.0),
+    groundingLugCount: 5,
+  }
+
   const today = new Date()
   const drawnDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`
 
@@ -321,6 +381,8 @@ export function buildPlansetData(project: Project, overrides: PlansetOverrides =
     batteriesPerStack: overrides.batteriesPerStack ?? d.batteriesPerStack,
 
     rackingModel: overrides.rackingModel ?? d.rackingModel,
+    racking,
+    roofFaces,
 
     strings,
     stringsPerInverter,

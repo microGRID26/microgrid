@@ -8,7 +8,7 @@ import { SldRenderer } from '@/components/SldRenderer'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { loadProjectById, searchProjects } from '@/lib/api'
 import { buildPlansetData, DURACELL_DEFAULTS } from '@/lib/planset-types'
-import type { PlansetData, PlansetOverrides, PlansetString } from '@/lib/planset-types'
+import type { PlansetData, PlansetOverrides, PlansetString, PlansetRoofFace } from '@/lib/planset-types'
 import type { Project } from '@/types/database'
 import { Search, ChevronDown, ChevronUp, X, Loader2, FileText } from 'lucide-react'
 
@@ -449,6 +449,8 @@ function SheetPV1({ data }: { data: PlansetData }) {
                   <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>INVERTERS:</td><td style={{ padding: '2px 4px', color: '#333' }}>({data.inverterCount}) {data.inverterModel}</td></tr>
                   <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>BATTERIES:</td><td style={{ padding: '2px 4px', color: '#333' }}>({data.batteryCount}) {data.batteryModel} = {data.totalStorageKwh} kWh</td></tr>
                   <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>RACKING:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.rackingModel}</td></tr>
+                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>ATTACHMENTS:</td><td style={{ padding: '2px 4px', color: '#333' }}>({data.racking.attachmentCount}) {data.racking.attachmentModel}</td></tr>
+                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>RAIL:</td><td style={{ padding: '2px 4px', color: '#333' }}>({data.racking.railCount}) {data.racking.railModel}</td></tr>
                   <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>UTILITY:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.utility}</td></tr>
                   <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>METER #:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.meter}</td></tr>
                   <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>ESID:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.esid}</td></tr>
@@ -558,13 +560,11 @@ function SheetPV1({ data }: { data: PlansetData }) {
 function SheetPV2({ data }: { data: PlansetData }) {
   const storiesLabel = data.stories === 1 ? 'ONE' : data.stories === 2 ? 'TWO' : String(data.stories)
 
-  const roofGroups: Record<number, { modules: number; tilt: string; azimuth: string }> = {}
-  for (const s of data.strings) {
-    if (!roofGroups[s.roofFace]) roofGroups[s.roofFace] = { modules: 0, tilt: '\u2014', azimuth: '\u2014' }
-    roofGroups[s.roofFace].modules += s.modules
-  }
-  const roofRows = Object.entries(roofGroups).map(([face, info]) => ({
-    roof: `ROOF ${face}`, tilt: info.tilt, azimuth: info.azimuth, modules: info.modules,
+  const roofRows = data.roofFaces.map(rf => ({
+    roof: `ROOF ${rf.id}`,
+    tilt: rf.tilt === 0 && rf.azimuth === 0 ? '\u2014' : `${rf.tilt}\u00B0`,
+    azimuth: rf.tilt === 0 && rf.azimuth === 0 ? '\u2014' : `${rf.azimuth}\u00B0`,
+    modules: rf.modules,
   }))
 
   const codeRefs: [string, string][] = [
@@ -644,6 +644,10 @@ function SheetPV2({ data }: { data: PlansetData }) {
                     [String(data.panelCount), data.panelModel],
                     [String(data.inverterCount), data.inverterModel],
                     [String(data.batteryCount), data.batteryModel],
+                    [String(data.racking.attachmentCount), data.racking.attachmentModel],
+                    [String(data.racking.railCount), data.racking.railModel],
+                    [String(data.racking.midClampCount), 'Mid Clamp Assembly'],
+                    [String(data.racking.endClampCount), 'End Clamp Assembly'],
                   ].map(([qty, desc], i) => (
                     <tr key={i} style={{ background: i % 2 === 0 ? '#f9f9f9' : 'white' }}>
                       <td style={{ padding: '2px 4px', textAlign: 'center' }}>{qty}</td>
@@ -708,6 +712,12 @@ function SheetPV2({ data }: { data: PlansetData }) {
               <div style={{ background: '#111', color: 'white', padding: '4px 6px', fontSize: '8pt', fontWeight: 'bold', textAlign: 'center' }}>RACKING INFORMATION</div>
               <div style={{ padding: '6px 8px', fontSize: '7pt' }}>
                 <div>{data.rackingModel}</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7pt', marginTop: '4px' }}>
+                  <tbody>
+                    <tr><td style={{ fontWeight: 'bold', color: '#999', padding: '2px 4px' }}>ATTACHMENT</td><td style={{ padding: '2px 4px' }}>{data.racking.attachmentModel}</td></tr>
+                    <tr><td style={{ fontWeight: 'bold', color: '#999', padding: '2px 4px' }}>RAIL</td><td style={{ padding: '2px 4px' }}>{data.racking.railModel}</td></tr>
+                  </tbody>
+                </table>
                 <div style={{ fontWeight: 'bold', marginTop: '6px' }}>DESIGN CRITERIA</div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7pt', marginTop: '4px' }}>
                   <tbody>
@@ -1262,14 +1272,10 @@ function SheetPV7({ data }: { data: PlansetData }) {
     ? Math.max(...data.strings.map(s => s.vocCold)).toFixed(1) : '0.0'
   const totalAcAmps = (data.inverterAcPower * 1000 / 240).toFixed(1)
 
-  const stringGroups: Record<number, number> = {}
-  for (const s of data.strings) {
-    stringGroups[s.modules] = (stringGroups[s.modules] || 0) + 1
-  }
-  const stringConfigLabel = Object.entries(stringGroups)
-    .sort(([, a], [, b]) => b - a)
-    .map(([mods, count]) => `${count}x${mods}`)
-    .join(' + ') + ' MODULES'
+  const stringGroupsMap = new Map<number, number>()
+  data.strings.forEach(s => stringGroupsMap.set(s.modules, (stringGroupsMap.get(s.modules) ?? 0) + 1))
+  const stringSummary = Array.from(stringGroupsMap.entries()).map(([m, c]) => `${c}\u00D7${m}`).join(' + ')
+  const stringConfigLabel = stringSummary ? `${stringSummary} MODULES` : 'N/A'
 
   interface WarningLabel {
     title: string; nec: string; lines: string[]; color: 'red' | 'yellow' | 'black'
@@ -1589,12 +1595,6 @@ function SheetPV8({ data }: { data: PlansetData }) {
     'AMPACITY', 'AMB \u00B0C', 'TEMP CF', 'CORR AMP', '75\u00B0C MAX', 'USABLE',
   ]
 
-  const attachments = Math.ceil(data.panelCount * 2.2)
-  const rails = Math.ceil(data.panelCount * 0.7)
-  const railSplices = Math.ceil(data.panelCount * 0.4)
-  const midClamps = Math.ceil(data.panelCount * 1.5)
-  const endClamps = Math.ceil(data.panelCount * 1.0)
-
   const bomRows: [string, string, string][] = [
     ['SOLAR PV MODULE', String(data.panelCount), data.panelModel],
     ['RAPID SHUTDOWN DEVICE', String(data.panelCount), 'APSMART RSD-D-20'],
@@ -1603,13 +1603,13 @@ function SheetPV8({ data }: { data: PlansetData }) {
     ['BATTERY', String(data.batteryCount), data.batteryModel],
     ['JUNCTION BOX', '2', 'JUNCTION BOXES'],
     ['AC DISCONNECT', '1', '200A/2P NON-FUSIBLE DISCONNECT 240V N3R'],
-    ['ATTACHMENT', String(attachments), `${data.rackingModel} ROOF ATTACHMENT`],
-    ['RAIL CLICKER', String(attachments), `${data.rackingModel} RAIL CLICKER`],
-    ['RAIL', String(rails), 'CF LTE US RAIL AL MLL 165.4" 2012034'],
-    ['RAIL SPLICE', String(railSplices), 'CF RAIL SPLICE SS 2012013'],
-    ['MID CLAMPS', String(midClamps), 'MID CLAMP ASSEMBLY'],
-    ['END CLAMPS', String(endClamps), 'END CLAMP ASSEMBLY'],
-    ['GROUNDING LUG', '5', 'GROUNDING LUGS'],
+    ['ATTACHMENT', String(data.racking.attachmentCount), data.racking.attachmentModel],
+    ['RAIL CLICKER', String(data.racking.attachmentCount), 'IronRidge XR100 Rail Clicker'],
+    ['RAIL', String(data.racking.railCount), data.racking.railModel],
+    ['RAIL SPLICE', String(data.racking.railSpliceCount), 'CF RAIL SPLICE SS 2012013'],
+    ['MID CLAMPS', String(data.racking.midClampCount), 'MID CLAMP ASSEMBLY'],
+    ['END CLAMPS', String(data.racking.endClampCount), 'END CLAMP ASSEMBLY'],
+    ['GROUNDING LUG', String(data.racking.groundingLugCount), 'GROUNDING LUGS'],
   ]
 
   return (
@@ -1793,12 +1793,14 @@ function ProjectSelector({ onSelect }: { onSelect: (id: string) => void }) {
 
 // ── OVERRIDES PANEL ─────────────────────────────────────────────────────────
 
-function OverridesPanel({ data, strings, onStringsChange, overrides, onOverridesChange }: {
+function OverridesPanel({ data, strings, onStringsChange, overrides, onOverridesChange, roofFaces, onRoofFacesChange }: {
   data: PlansetData
   strings: PlansetString[]
   onStringsChange: (s: PlansetString[]) => void
   overrides: PlansetOverrides
   onOverridesChange: (o: PlansetOverrides) => void
+  roofFaces: PlansetRoofFace[]
+  onRoofFacesChange: (rf: PlansetRoofFace[]) => void
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -1902,6 +1904,48 @@ function OverridesPanel({ data, strings, onStringsChange, overrides, onOverrides
             </div>
           </div>
 
+          {/* Roof Faces */}
+          <div>
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Roof Faces</h3>
+            {roofFaces.length === 0 ? (
+              <p className="text-xs text-gray-500 text-center py-3">No roof faces derived yet. Add strings with roof face assignments to populate.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 border-b border-gray-700">
+                    <th className="text-left py-1 px-2">Roof Face</th>
+                    <th className="text-left py-1 px-2">Modules</th>
+                    <th className="text-left py-1 px-2">Tilt (&deg;)</th>
+                    <th className="text-left py-1 px-2">Azimuth (&deg;)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roofFaces.map((rf, i) => (
+                    <tr key={rf.id} className="border-b border-gray-700/50">
+                      <td className="py-1 px-2 text-gray-300">Roof {rf.id}</td>
+                      <td className="py-1 px-2 text-gray-400 text-xs">{rf.modules}</td>
+                      <td className="py-1 px-2">
+                        <input value={rf.tilt} onChange={e => {
+                          const updated = [...roofFaces]
+                          updated[i] = { ...rf, tilt: parseInt(e.target.value) || 0 }
+                          onRoofFacesChange(updated)
+                        }} className="w-16 px-1 py-0.5 bg-gray-900 border border-gray-700 rounded text-xs text-white" />
+                      </td>
+                      <td className="py-1 px-2">
+                        <input value={rf.azimuth} onChange={e => {
+                          const updated = [...roofFaces]
+                          updated[i] = { ...rf, azimuth: parseInt(e.target.value) || 0 }
+                          onRoofFacesChange(updated)
+                        }} className="w-16 px-1 py-0.5 bg-gray-900 border border-gray-700 rounded text-xs text-white" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p className="text-xs text-gray-600 mt-2">Roof faces are auto-derived from string assignments. Edit tilt and azimuth here.</p>
+          </div>
+
           {/* String configuration table */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -1985,6 +2029,7 @@ function PlanSetPageInner() {
   const [data, setData] = useState<PlansetData | null>(null)
   const [loading, setLoading] = useState(false)
   const [strings, setStrings] = useState<PlansetString[]>([])
+  const [roofFaces, setRoofFaces] = useState<PlansetRoofFace[]>([])
   const [overrides, setOverrides] = useState<PlansetOverrides>({})
 
   const loadProject = useCallback(async (id: string) => {
@@ -2017,7 +2062,8 @@ function PlanSetPageInner() {
       const finalStrings = overrides.strings ?? autoStrings
       setStrings(finalStrings)
 
-      const plansetData = buildPlansetData(project, { ...overrides, strings: finalStrings })
+      const plansetData = buildPlansetData(project, { ...overrides, strings: finalStrings, roofFaces: roofFaces.length > 0 ? roofFaces : undefined })
+      setRoofFaces(plansetData.roofFaces)
       setData(plansetData)
       setProjectId(id)
     } catch (err) {
@@ -2027,7 +2073,7 @@ function PlanSetPageInner() {
     } finally {
       setLoading(false)
     }
-  }, [overrides])
+  }, [overrides, roofFaces])
 
   useEffect(() => {
     const urlProject = searchParams.get('project')
@@ -2042,12 +2088,12 @@ function PlanSetPageInner() {
     try {
       const project = await loadProjectById(projectId)
       if (!project) return
-      const plansetData = buildPlansetData(project, { ...overrides, strings })
+      const plansetData = buildPlansetData(project, { ...overrides, strings, roofFaces: roofFaces.length > 0 ? roofFaces : undefined })
       setData(plansetData)
     } finally {
       setLoading(false)
     }
-  }, [projectId, strings, overrides])
+  }, [projectId, strings, overrides, roofFaces])
 
   const rebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -2055,12 +2101,13 @@ function PlanSetPageInner() {
     if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current)
     rebuildTimerRef.current = setTimeout(() => rebuildData(), 500)
     return () => { if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current) }
-  }, [projectId, strings, overrides, rebuildData])
+  }, [projectId, strings, overrides, roofFaces, rebuildData])
 
   const clearProject = () => {
     setProjectId('')
     setData(null)
     setStrings([])
+    setRoofFaces([])
     setOverrides({})
   }
 
@@ -2133,6 +2180,8 @@ function PlanSetPageInner() {
               onStringsChange={setStrings}
               overrides={overrides}
               onOverridesChange={setOverrides}
+              roofFaces={roofFaces}
+              onRoofFacesChange={setRoofFaces}
             />
 
             {/* Sheets — rendered at print size, scaled down for screen */}
