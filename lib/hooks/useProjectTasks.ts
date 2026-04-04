@@ -277,7 +277,7 @@ export function useProjectTasks(opts: UseProjectTasksOptions): UseProjectTasksRe
     if (startedDate) upsertPayload.started_date = startedDate
 
     const { error: upsertErr } = await supabase.from('task_state').upsert(upsertPayload, { onConflict: 'project_id,task_id' })
-    if (upsertErr) console.error('task_state upsert failed:', upsertErr)
+    if (upsertErr) { console.error('task_state upsert failed:', upsertErr); showToast('Failed to save task status — please retry'); return }
 
     const changedBy = currentUser?.name
       ?? userEmail.split('@')[0]
@@ -303,7 +303,7 @@ export function useProjectTasks(opts: UseProjectTasksOptions): UseProjectTasksRe
         started_date: null,
       }))
       const { error: cascadeErr } = await supabase.from('task_state').upsert(resetUpdates, { onConflict: 'project_id,task_id' })
-      if (cascadeErr) console.error('cascade reset upsert failed:', cascadeErr)
+      if (cascadeErr) { console.error('cascade reset upsert failed:', cascadeErr); showToast('Failed to reset downstream tasks') }
 
       // Log each reset to history
       const historyInserts = cascadeResets.map(id => ({
@@ -360,9 +360,8 @@ export function useProjectTasks(opts: UseProjectTasksOptions): UseProjectTasksRe
         }
       }
       if (autoReadyUpdates.length > 0) {
-        for (const u of autoReadyUpdates) {
-          await supabase.from('task_state').upsert(u, { onConflict: 'project_id,task_id' })
-        }
+        const { error: autoReadyErr } = await supabase.from('task_state').upsert(autoReadyUpdates, { onConflict: 'project_id,task_id' })
+        if (autoReadyErr) { console.error('auto-ready upsert failed:', autoReadyErr); showToast('Failed to update dependent tasks') }
         setTaskStates(prev => {
           const next = { ...prev }
           autoReadyUpdates.forEach(u => { next[u.task_id] = 'Ready To Start' })
@@ -388,7 +387,7 @@ export function useProjectTasks(opts: UseProjectTasksOptions): UseProjectTasksRe
       const dateField = TASK_DATE_FIELDS[taskId]
       if (dateField && !(project as unknown as Record<string, unknown>)[dateField]) {
         const { error: dateSetErr } = await supabase.from('projects').update({ [dateField]: today }).eq('id', pid)
-        if (dateSetErr) console.error('auto-populate date failed:', dateSetErr)
+        if (dateSetErr) { console.error('auto-populate date failed:', dateSetErr); showToast('Failed to set project date') }
         setProject(p => ({ ...p, [dateField]: today }))
       }
     }
@@ -412,7 +411,7 @@ export function useProjectTasks(opts: UseProjectTasksOptions): UseProjectTasksRe
       // Only auto-set if no blocker currently exists
       if (!project.blocker) {
         const { error: blockerSetErr } = await supabase.from('projects').update({ blocker: blockerText }).eq('id', pid)
-        if (blockerSetErr) console.error('auto-set blocker failed:', blockerSetErr)
+        if (blockerSetErr) { console.error('auto-set blocker failed:', blockerSetErr); showToast('Failed to set blocker') }
         setProject(p => ({ ...p, blocker: blockerText }))
         setBlockerInput(blockerText)
         onProjectUpdated()
@@ -435,7 +434,7 @@ export function useProjectTasks(opts: UseProjectTasksOptions): UseProjectTasksRe
           pmEmail: userEmail,
           pmName: currentUser,
         }),
-      }).catch(() => {}) // fire-and-forget
+      }).catch(err => console.error('stuck-task notification failed:', err))
     }
 
     // ── Auto-clear blocker when task resolves (only if auto-set) ─────────
@@ -448,7 +447,7 @@ export function useProjectTasks(opts: UseProjectTasksOptions): UseProjectTasksRe
         )
         if (!otherStuck) {
           const { error: blockerClearErr } = await supabase.from('projects').update({ blocker: null }).eq('id', pid)
-          if (blockerClearErr) console.error('auto-clear blocker failed:', blockerClearErr)
+          if (blockerClearErr) { console.error('auto-clear blocker failed:', blockerClearErr); showToast('Failed to clear blocker') }
           setProject(p => ({ ...p, blocker: null }))
           setBlockerInput('')
           onProjectUpdated()
@@ -514,7 +513,7 @@ export function useProjectTasks(opts: UseProjectTasksOptions): UseProjectTasksRe
             { project_id: pid, [milestoneField]: 'Eligible' },
             { onConflict: 'project_id' }
           )
-          if (fundingErr) console.error('funding milestone upsert failed:', fundingErr)
+          if (fundingErr) { console.error('funding milestone upsert failed:', fundingErr); showToast('Failed to update funding milestone') }
           const msLabel = taskId === 'install_done' ? 'M2' : 'M3'
           showToast(`${msLabel} milestone now Eligible`)
           // ── Notify EDGE of funding milestone + install/PTO events ──

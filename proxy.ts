@@ -1,6 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Enforce ROLE_COOKIE_SECRET in production — without it, role cookies fall back to the public anon key
+if (process.env.NODE_ENV === 'production' && !process.env.ROLE_COOKIE_SECRET) {
+  console.warn('[SECURITY] ROLE_COOKIE_SECRET not set — role cookies use fallback key. Set this env var in Vercel.')
+}
+
 // Routes that require no authentication
 const PUBLIC_ROUTES = ['/login', '/auth', '/portal/login', '/portal/auth']
 const PUBLIC_PREFIXES = ['/api/webhooks/', '/api/email/send-daily', '/api/email/onboarding-reminder', '/api/email/digest', '/api/calendar/webhook', '/api/portal/chat', '/_next/', '/favicon.ico']
