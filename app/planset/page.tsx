@@ -9,35 +9,10 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { handleApiError } from '@/lib/errors'
 import { loadProjectById, searchProjects } from '@/lib/api'
 import { buildPlansetData, DURACELL_DEFAULTS } from '@/lib/planset-types'
+import { autoDistributeStrings } from '@/lib/planset-calcs'
 import type { PlansetData, PlansetOverrides, PlansetString, PlansetRoofFace } from '@/lib/planset-types'
 import type { Project } from '@/types/database'
 import { Search, ChevronDown, ChevronUp, X, Loader2, FileText } from 'lucide-react'
-
-// ── AUTO-STRING DISTRIBUTION ────────────────────────────────────────────────
-
-function autoDistributeStrings(panelCount: number, vocCorrected: number, panelVmp: number, panelImp: number, inverterCount: number, mpptsPerInverter: number, stringsPerMppt: number, maxVoc: number): PlansetString[] {
-  const totalInputs = inverterCount * mpptsPerInverter * stringsPerMppt
-  const maxPerString = Math.floor(maxVoc / vocCorrected)
-  const neededStrings = Math.min(Math.ceil(panelCount / (maxPerString || 1)), totalInputs)
-  if (neededStrings <= 0) return []
-  const baseSize = Math.floor(panelCount / neededStrings)
-  const extra = panelCount % neededStrings
-
-  const strings: PlansetString[] = []
-  for (let i = 0; i < neededStrings; i++) {
-    const modules = baseSize + (i < extra ? 1 : 0)
-    strings.push({
-      id: i + 1,
-      mppt: Math.floor(i / stringsPerMppt) + 1,
-      modules,
-      roofFace: 1,
-      vocCold: parseFloat((modules * vocCorrected).toFixed(1)),
-      vmpNominal: parseFloat((modules * panelVmp).toFixed(1)),
-      current: panelImp,
-    })
-  }
-  return strings
-}
 
 // ── PRINT CSS ───────────────────────────────────────────────────────────────
 
