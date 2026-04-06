@@ -271,7 +271,7 @@ export default function VendorsPage() {
           >
             <option value="">All Categories</option>
             {VENDOR_CATEGORIES.map(c => (
-              <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+              <option key={c} value={c}>{CATEGORY_LABELS[c] ?? c}</option>
             ))}
           </select>
           <select
@@ -318,7 +318,7 @@ export default function VendorsPage() {
                 >
                   <option value="">Select...</option>
                   {VENDOR_CATEGORIES.map(c => (
-                    <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                    <option key={c} value={c}>{CATEGORY_LABELS[c] ?? c}</option>
                   ))}
                 </select>
               </div>
@@ -510,7 +510,7 @@ export default function VendorsPage() {
                       <td className="px-3 py-2">
                         {v.category ? (
                           <span className={`text-xs px-1.5 py-0.5 rounded ${CATEGORY_COLORS[v.category] ?? CATEGORY_COLORS.other}`}>
-                            {v.category}
+                            {CATEGORY_LABELS[v.category] ?? v.category}
                           </span>
                         ) : (
                           <span className="text-gray-600">{'\u2014'}</span>
@@ -576,7 +576,7 @@ export default function VendorsPage() {
                       >
                         <option value="">Select...</option>
                         {VENDOR_CATEGORIES.map(c => (
-                          <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                          <option key={c} value={c}>{CATEGORY_LABELS[c] ?? c}</option>
                         ))}
                       </select>
                     </div>
