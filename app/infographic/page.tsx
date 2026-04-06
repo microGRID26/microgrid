@@ -32,13 +32,13 @@ const STAGE_META: Record<string, { label: string; color: string }> = Object.from
 )
 
 const DEFAULTS: LiveStats = {
-  totalProjects: 871, totalValue: 142370278, pipeline: [
+  totalProjects: 921, totalValue: 145054591, pipeline: [
     { stage: 'evaluation', count: 89, value: 20381110, label: 'Evaluation', color: '#3b82f6' },
     { stage: 'design', count: 108, value: 25791576, label: 'Design', color: '#ec4899' },
-    { stage: 'permit', count: 263, value: 61754164, label: 'Permitting', color: '#f59e0b' },
-    { stage: 'install', count: 149, value: 21800784, label: 'Installation', color: '#f97316' },
-    { stage: 'inspection', count: 254, value: 12444537, label: 'Inspection', color: '#06b6d4' },
-    { stage: 'complete', count: 8, value: 198107, label: 'Complete', color: '#22c55e' },
+    { stage: 'permit', count: 262, value: 61595989, label: 'Permitting', color: '#f59e0b' },
+    { stage: 'install', count: 150, value: 21958959, label: 'Installation', color: '#f97316' },
+    { stage: 'inspection', count: 309, value: 15210757, label: 'Inspection', color: '#06b6d4' },
+    { stage: 'complete', count: 3, value: 116201, label: 'Complete', color: '#22c55e' },
   ],
   ticketCount: 16, noteCount: 181944, userCount: 16, crewCount: 4, ahjCount: 1408, equipmentCount: 2312,
 }
