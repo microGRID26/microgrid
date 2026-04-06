@@ -551,7 +551,7 @@ export default function InfographicPage() {
                   { type: 'Survey', items: 4, desc: 'Roof measurement, electrical panel, photos, shade', color: '#3b82f6' },
                   { type: 'Inspection', items: 5, desc: 'Permit verify, visual, electrical test, photos', color: '#06b6d4' },
                   { type: 'Service', items: 4, desc: 'Diagnose, repair, test, customer sign-off', color: '#22c55e' },
-                  { type: 'Repair', items: 6, desc: 'Diagnose, parts, repair, test, cleanup, sign-off', color: '#ef4444' },
+                  { type: 'RNR', items: 9, desc: 'Disconnect, remove panels/racking, inspect roof, reinstall, test', color: '#ef4444' },
                 ].map(t => (
                   <div key={t.type} className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
                     <div className="text-sm font-bold" style={{ color: t.color }}>{t.type}</div>

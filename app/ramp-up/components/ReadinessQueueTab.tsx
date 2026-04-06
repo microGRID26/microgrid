@@ -95,8 +95,8 @@ export function ReadinessQueueTab({
               return (
                 <button key={item.field} onClick={(e) => { e.stopPropagation(); handleReadinessToggle(p.id, item.field, checked) }}
                   className={cn('text-[10px] px-2 py-0.5 rounded border transition-colors',
-                    checked ? 'bg-green-900/40 border-green-700 text-green-400' : 'bg-gray-900 border-gray-700 text-gray-500 hover:text-gray-300')}>
-                  {checked ? <Check className="w-2.5 h-2.5 inline mr-0.5" /> : <X className="w-2.5 h-2.5 inline mr-0.5 opacity-30" />}
+                    checked ? 'bg-green-900/40 border-green-700 text-green-400' : 'bg-red-950/40 border-red-800/60 text-red-400')}>
+                  {checked ? <Check className="w-2.5 h-2.5 inline mr-0.5" /> : <X className="w-2.5 h-2.5 inline mr-0.5" />}
                   {item.label} <span className="text-[8px] opacity-60">({item.weight}pt)</span>
                 </button>
               )

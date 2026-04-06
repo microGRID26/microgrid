@@ -81,10 +81,13 @@ export function TargetSystemForm({ target, showTarget, setShowTarget, updateTarg
             </div>
           </div>
 
-          {/* Racking */}
+          {/* Racking & RSD */}
           <div className="border-t border-gray-700 pt-3">
-            <p className="text-xs text-green-400 font-semibold mb-2">Racking</p>
-            <TextField label="Racking Model" value={target.rackingModel} onChange={v => updateTarget('rackingModel', v)} />
+            <p className="text-xs text-green-400 font-semibold mb-2">Racking & RSD</p>
+            <div className="grid grid-cols-2 gap-3">
+              <TextField label="Racking Model" value={target.rackingModel} onChange={v => updateTarget('rackingModel', v)} />
+              <TextField label="RSD Model (Rapid Shutdown)" value={target.rsdModel} onChange={v => updateTarget('rsdModel', v)} />
+            </div>
           </div>
 
           {/* Design Conditions */}

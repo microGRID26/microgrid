@@ -51,6 +51,7 @@ export interface TargetSystem {
   batteryCapacity: number
   batteriesPerStack: number
   rackingModel: string
+  rsdModel: string
   designTempLow: number
   vocTempCoeff: number
 }

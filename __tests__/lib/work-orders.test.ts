@@ -710,7 +710,7 @@ describe('WO_CHECKLIST_TEMPLATES', () => {
   it('has templates for all 5 work order types', async () => {
     const { WO_CHECKLIST_TEMPLATES } = await import('@/lib/api/work-orders')
     expect(Object.keys(WO_CHECKLIST_TEMPLATES)).toEqual(
-      expect.arrayContaining(['install', 'inspection', 'service', 'survey', 'repair'])
+      expect.arrayContaining(['install', 'inspection', 'service', 'survey', 'rnr'])
     )
     expect(Object.keys(WO_CHECKLIST_TEMPLATES)).toHaveLength(5)
   })
@@ -735,9 +735,9 @@ describe('WO_CHECKLIST_TEMPLATES', () => {
     expect(WO_CHECKLIST_TEMPLATES.survey).toHaveLength(5)
   })
 
-  it('repair template has 6 items', async () => {
+  it('rnr template has 9 items', async () => {
     const { WO_CHECKLIST_TEMPLATES } = await import('@/lib/api/work-orders')
-    expect(WO_CHECKLIST_TEMPLATES.repair).toHaveLength(6)
+    expect(WO_CHECKLIST_TEMPLATES.rnr).toHaveLength(9)
   })
 
   it('all templates contain non-empty strings', async () => {

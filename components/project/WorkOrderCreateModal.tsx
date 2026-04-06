@@ -30,7 +30,7 @@ export function WorkOrderCreateModal({ projectName, projectId, woType, setWoType
               <option value="install">Installation</option>
               <option value="service">Service</option>
               <option value="inspection">Inspection</option>
-              <option value="repair">Repair</option>
+              <option value="rnr">Roof Remove & Reinstall</option>
               <option value="survey">Survey</option>
             </select>
           </div>

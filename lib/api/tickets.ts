@@ -123,7 +123,7 @@ export const TICKET_PRIORITY_COLORS: Record<string, string> = {
   critical: 'bg-red-600/30 text-red-300 border border-red-500/30',
 }
 
-export const TICKET_CATEGORIES = ['service', 'sales', 'billing', 'warranty', 'permitting', 'installation', 'design', 'other'] as const
+export const TICKET_CATEGORIES = ['service', 'sales', 'billing', 'warranty', 'permitting', 'installation', 'design', 'monitoring', 'other'] as const
 
 export const TICKET_CATEGORY_COLORS: Record<string, string> = {
   service: 'bg-blue-900/40 text-blue-400',
@@ -133,6 +133,7 @@ export const TICKET_CATEGORY_COLORS: Record<string, string> = {
   permitting: 'bg-cyan-900/40 text-cyan-400',
   installation: 'bg-orange-900/40 text-orange-400',
   design: 'bg-pink-900/40 text-pink-400',
+  monitoring: 'bg-emerald-900/40 text-emerald-400',
   other: 'bg-gray-700/40 text-gray-400',
 }
 

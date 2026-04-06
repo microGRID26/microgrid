@@ -34,11 +34,12 @@ describe('Ticket constants', () => {
     }
   })
 
-  it('has 8 categories', () => {
-    expect(TICKET_CATEGORIES).toHaveLength(8)
+  it('has 9 categories', () => {
+    expect(TICKET_CATEGORIES).toHaveLength(9)
     expect(TICKET_CATEGORIES).toContain('service')
     expect(TICKET_CATEGORIES).toContain('sales')
     expect(TICKET_CATEGORIES).toContain('warranty')
+    expect(TICKET_CATEGORIES).toContain('monitoring')
   })
 
   it('every category has a color', () => {

@@ -18,7 +18,7 @@ import { ClipboardList, Plus, ChevronDown, ChevronUp, X, Check, Trash2, Download
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const WO_TYPES = ['install', 'service', 'inspection', 'repair', 'survey'] as const
+const WO_TYPES = ['install', 'service', 'inspection', 'rnr', 'survey'] as const
 const WO_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const
 const WO_STATUSES = ['draft', 'assigned', 'in_progress', 'complete', 'cancelled'] as const
 
@@ -49,7 +49,7 @@ const TYPE_LABEL: Record<string, string> = {
   install: 'Installation',
   service: 'Service',
   inspection: 'Inspection',
-  repair: 'Repair',
+  rnr: 'Roof Remove & Reinstall',
   survey: 'Survey',
 }
 

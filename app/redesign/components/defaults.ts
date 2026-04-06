@@ -50,6 +50,7 @@ export const DEFAULT_TARGET: TargetSystem = {
   batteryCapacity: 5,
   batteriesPerStack: 8,
   rackingModel: 'IronRidge XR100',
+  rsdModel: '',
   designTempLow: -5,
   vocTempCoeff: -0.28,
 }

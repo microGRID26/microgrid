@@ -113,7 +113,7 @@ function VendorManagement() {
       <div className="space-y-2 text-xs">
         <div className="bg-gray-800 rounded-md px-3 py-2">
           <span className="text-blue-400 font-medium">Categories:</span>
-          <span className="text-gray-400 ml-1">Manufacturer, Distributor, Subcontractor, Other</span>
+          <span className="text-gray-400 ml-1">Manufacturer, Distributor, Install Partner, Electrical, Plumbing, HVAC, Roofing, Interior, Other</span>
         </div>
         <div className="bg-gray-800 rounded-md px-3 py-2">
           <span className="text-purple-400 font-medium">Equipment Types:</span>

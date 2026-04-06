@@ -22,7 +22,7 @@ export interface Vendor {
   created_at: string
 }
 
-export const VENDOR_CATEGORIES = ['manufacturer', 'distributor', 'subcontractor', 'other'] as const
+export const VENDOR_CATEGORIES = ['manufacturer', 'distributor', 'install_partner', 'electrical', 'plumbing', 'hvac', 'roofing', 'interior', 'other'] as const
 export type VendorCategory = typeof VENDOR_CATEGORIES[number]
 
 export const EQUIPMENT_TYPE_OPTIONS = ['modules', 'inverters', 'batteries', 'racking', 'electrical', 'other'] as const

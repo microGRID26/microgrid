@@ -39,6 +39,7 @@ interface CrewRow {
   totalMiles: number
   revenue: number
   revenuePerInstall: number
+  kwInstalled: number
   reworkRate: number
   reworkCount: number
   totalInstalls30d: number
@@ -165,6 +166,7 @@ export function CrewPerformance({ data }: { data: AnalyticsData }) {
       const crewProjects = projects.filter(p => crewProjectIds.has(p.id))
       const revenue = crewProjects.reduce((s, p) => s + (Number(p.contract) || 0), 0)
       const revenuePerInstall = crewProjectIds.size > 0 ? Math.round(revenue / crewProjectIds.size) : 0
+      const kwInstalled = Math.round(crewProjects.reduce((s, p) => s + (Number(p.systemkw) || 0), 0) * 10) / 10
 
       // Rework rate
       const totalInstalls30d = crewCompleted
@@ -182,7 +184,7 @@ export function CrewPerformance({ data }: { data: AnalyticsData }) {
 
       return {
         crew: crew!, thisWeek, mtd, completionPct: pct, avgDrive, totalMiles,
-        revenue, revenuePerInstall, reworkRate, reworkCount, totalInstalls30d,
+        revenue, revenuePerInstall, kwInstalled, reworkRate, reworkCount, totalInstalls30d,
         travelToInstallRatio,
       }
     })
@@ -257,9 +259,9 @@ export function CrewPerformance({ data }: { data: AnalyticsData }) {
 
   const handleExport = () => {
     if (!metrics) return
-    const headers = ['Crew', 'This Week', 'MTD', 'Completion %', 'Avg Drive (min)', 'Total Miles', 'Revenue', 'Revenue/Install', 'Rework Rate']
+    const headers = ['Crew', 'This Week', 'MTD', 'kW Installed', 'Completion %', 'Avg Drive (min)', 'Total Miles', 'Revenue', 'Revenue/Install', 'Rework Rate']
     const rows = (metrics.crewRows).map(r => [
-      r.crew, r.thisWeek, r.mtd, `${r.completionPct}%`, r.avgDrive, r.totalMiles,
+      r.crew, r.thisWeek, r.mtd, r.kwInstalled, `${r.completionPct}%`, r.avgDrive, r.totalMiles,
       r.revenue, r.revenuePerInstall, `${r.reworkRate}%`,
     ])
     downloadCSV('crew-performance.csv', headers, rows)
@@ -404,6 +406,7 @@ export function CrewPerformance({ data }: { data: AnalyticsData }) {
                 <SortHeader<keyof CrewRow> label="This Week" field="thisWeek" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortHeader<keyof CrewRow> label="MTD" field="mtd" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortHeader<keyof CrewRow> label="Completion %" field="completionPct" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortHeader<keyof CrewRow> label="kW" field="kwInstalled" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortHeader<keyof CrewRow> label="Revenue" field="revenue" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortHeader<keyof CrewRow> label="Rev/Install" field="revenuePerInstall" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortHeader<keyof CrewRow> label="Avg Drive (min)" field="avgDrive" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
@@ -426,6 +429,7 @@ export function CrewPerformance({ data }: { data: AnalyticsData }) {
                       {r.completionPct}%
                     </span>
                   </td>
+                  <td className="px-3 py-2 text-green-400 font-mono font-bold">{r.kwInstalled ? `${r.kwInstalled} kW` : '--'}</td>
                   <td className="px-3 py-2 text-gray-300 font-mono">{fmt$(r.revenue)}</td>
                   <td className="px-3 py-2 text-gray-300 font-mono">{fmt$(r.revenuePerInstall)}</td>
                   <td className="px-3 py-2 text-gray-300 font-mono">{r.avgDrive || '--'}</td>

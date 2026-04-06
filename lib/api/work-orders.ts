@@ -77,13 +77,16 @@ export const WO_CHECKLIST_TEMPLATES: Record<string, string[]> = {
     'Shade analysis',
     'Customer questions',
   ],
-  repair: [
-    'Diagnose issue',
-    'Identify parts needed',
-    'Perform repair',
-    'Test system',
+  rnr: [
+    'Disconnect and label existing wiring',
+    'Remove existing panels and racking',
+    'Inspect roof deck condition',
+    'Install new racking system',
+    'Install new panels',
+    'Reconnect wiring and test',
+    'System test and commissioning',
     'Cleanup',
-    'Customer sign-off',
+    'Customer walkthrough',
   ],
 }
 
