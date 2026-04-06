@@ -19,7 +19,9 @@ import json
 import os
 import pickle
 import re
+import ssl
 import sys
+import threading
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -51,6 +53,19 @@ DEST_FOLDER_NAME = "BluDocs Archive"
 # Thread-safe counters
 print_lock = Lock()
 counter_lock = Lock()
+
+# Thread-local storage for per-thread Drive service instances
+# httplib2 is NOT thread-safe — sharing a single service across threads causes
+# SSL corruption (WRONG_VERSION_NUMBER, DECRYPTION_FAILED, BAD_RECORD_MAC).
+_thread_local = threading.local()
+_shared_creds = None
+
+
+def get_thread_service():
+    """Return a Drive service instance local to the current thread."""
+    if not hasattr(_thread_local, "service"):
+        _thread_local.service = build("drive", "v3", credentials=_shared_creds)
+    return _thread_local.service
 
 
 # ── AUTH ──────────────────────────────────────────────────────────────────────
@@ -94,6 +109,7 @@ def get_or_create_dest_folder(service):
 
 
 def find_or_create_folder(service, name, parent_id, retries=5):
+    """Find or create a folder. Uses provided service (caller decides thread safety)."""
     escaped_name = name.replace("'", "\\'")
     q = (
         f"name = '{escaped_name}' and '{parent_id}' in parents "
@@ -128,9 +144,10 @@ def find_or_create_folder(service, name, parent_id, retries=5):
                 raise
 
 
-def upload_file(service, local_path, parent_id, filename, retries=5):
-    """Upload a file. Skip immediately if file doesn't exist on disk."""
-    # Pre-check: skip immediately if file doesn't exist (no retries needed)
+def upload_file(local_path, parent_id, filename, retries=5):
+    """Upload a file using a thread-local Drive service. Skip if file missing."""
+    service = get_thread_service()
+
     if not os.path.exists(local_path):
         with print_lock:
             print(f"      SKIP (missing): {filename}", flush=True)
@@ -165,22 +182,35 @@ def upload_file(service, local_path, parent_id, filename, retries=5):
                     print(f"      ERROR uploading {filename}: {e}", flush=True)
                 return "error"
         except FileNotFoundError:
-            # File disappeared between check and upload — skip immediately
             with print_lock:
                 print(f"      SKIP (missing): {filename}", flush=True)
             return "error"
-        except (TimeoutError, OSError, ConnectionError) as e:
-            # Don't retry FileNotFoundError (caught above), only network errors
+        except (TimeoutError, OSError, ConnectionError, ssl.SSLError) as e:
             wait = min(2 ** (attempt + 1), 30)
             with print_lock:
                 print(f"      Retry {attempt+1}/{retries} '{filename}': {e} (wait {wait}s)", flush=True)
             if attempt < retries - 1:
+                # On SSL errors, force a fresh service for this thread
+                if "SSL" in str(type(e).__name__) or "ssl" in str(e).lower():
+                    _thread_local.service = build("drive", "v3", credentials=_shared_creds)
+                    service = _thread_local.service
                 time.sleep(wait)
             else:
                 with print_lock:
                     print(f"      ERROR uploading {filename}: {e}", flush=True)
                 return "error"
         except Exception as e:
+            # Catch corrupted SSL garbage (sometimes raises generic Exception)
+            err_str = str(e)
+            if any(k in err_str.lower() for k in ["ssl", "decrypt", "cipher", "version"]):
+                wait = min(2 ** (attempt + 1), 30)
+                with print_lock:
+                    print(f"      Retry {attempt+1}/{retries} '{filename}': SSL error (wait {wait}s)", flush=True)
+                if attempt < retries - 1:
+                    _thread_local.service = build("drive", "v3", credentials=_shared_creds)
+                    service = _thread_local.service
+                    time.sleep(wait)
+                    continue
             with print_lock:
                 print(f"      ERROR uploading {filename}: {e}", flush=True)
             return "error"
@@ -283,7 +313,7 @@ def upload_vendor(service, vendor, drive_id, max_workers=10):
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
-            executor.submit(upload_file, service, local, parent, name): (local, name)
+            executor.submit(upload_file, local, parent, name): (local, name)
             for local, parent, name in jobs
         }
 
@@ -340,8 +370,10 @@ def main():
         print(f"\n[DRY RUN] Would upload {total_items:,} items with {args.workers} workers")
         return
 
+    global _shared_creds
     print(f"\nAuthenticating with Google Drive (write access)...", flush=True)
     creds = get_creds()
+    _shared_creds = creds
     service = build("drive", "v3", credentials=creds)
     print("  Authenticated!\n", flush=True)
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { daysAgo, fmtDate, fmt$, cn, escapeIlike, STAGE_ORDER, STAGE_LABELS, SLA_THRESHOLDS, STAGE_TASKS } from '@/lib/utils'
+import { daysAgo, fmtDate, fmt$, cn, escapeIlike, escapeFilterValue, STAGE_ORDER, STAGE_LABELS, SLA_THRESHOLDS, STAGE_TASKS, INACTIVE_DISPOSITIONS, INACTIVE_DISPOSITION_FILTER } from '@/lib/utils'
 
 describe('daysAgo', () => {
   it('returns 0 for null', () => {
@@ -230,6 +230,38 @@ describe('escapeIlike', () => {
 
   it('escapes multiple special chars', () => {
     expect(escapeIlike('100%_test\\')).toBe('100\\%\\_test\\\\')
+  })
+})
+
+describe('escapeFilterValue', () => {
+  it('escapes SQL LIKE special chars', () => {
+    expect(escapeFilterValue('100%')).toBe('100\\%')
+  })
+
+  it('strips commas (PostgREST .or() delimiter)', () => {
+    expect(escapeFilterValue('Corpus Christi, TX')).toBe('Corpus Christi TX')
+  })
+
+  it('strips parentheses (PostgREST syntax)', () => {
+    expect(escapeFilterValue('test(value)')).toBe('testvalue')
+  })
+
+  it('handles combined special chars', () => {
+    expect(escapeFilterValue('100%_test(a,b)')).toBe('100\\%\\_testab')
+  })
+
+  it('returns plain text unchanged', () => {
+    expect(escapeFilterValue('hello world')).toBe('hello world')
+  })
+})
+
+describe('INACTIVE_DISPOSITIONS', () => {
+  it('contains exactly In Service, Loyalty, Cancelled', () => {
+    expect(INACTIVE_DISPOSITIONS).toEqual(['In Service', 'Loyalty', 'Cancelled'])
+  })
+
+  it('filter string matches array', () => {
+    expect(INACTIVE_DISPOSITION_FILTER).toBe('("In Service","Loyalty","Cancelled")')
   })
 })
 

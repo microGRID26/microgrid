@@ -1,6 +1,6 @@
 // lib/api/equipment.ts — Equipment catalog data access
 import { db } from '@/lib/db'
-import { escapeIlike } from '@/lib/utils'
+import { escapeFilterValue } from '@/lib/utils'
 
 export interface Equipment {
   id: string
@@ -61,7 +61,7 @@ export async function loadEquipment(category?: string, orgType?: string | null, 
  */
 export async function searchEquipment(query: string, category?: string, orgType?: string | null, orgId?: string): Promise<Equipment[]> {
   const supabase = db()
-  const escaped = escapeIlike(query)
+  const escaped = escapeFilterValue(query)
   let q = supabase
     .from('equipment')
     .select('id, name, manufacturer, model, category, watts, description, active, sort_order, sourcing, raw_price, sell_price, created_at')

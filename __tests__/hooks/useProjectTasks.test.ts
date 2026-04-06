@@ -59,6 +59,8 @@ function makeOpts(overrides: Partial<any> = {}) {
       notifyPTOReceived: vi.fn(),
       notifyStageChanged: vi.fn(),
       notifyInService: vi.fn(),
+      notifyFundingMilestone: vi.fn(),
+      send: vi.fn(),
     },
   }
 }
@@ -782,7 +784,7 @@ describe('useProjectTasks', () => {
     const { useProjectTasks } = await import('@/lib/hooks/useProjectTasks')
     const setProject = vi.fn()
     const showToast = vi.fn()
-    const edgeSync = { notifyInstallComplete: vi.fn(), notifyPTOReceived: vi.fn(), notifyStageChanged: vi.fn(), notifyInService: vi.fn() }
+    const edgeSync = { notifyInstallComplete: vi.fn(), notifyPTOReceived: vi.fn(), notifyStageChanged: vi.fn(), notifyInService: vi.fn(), notifyFundingMilestone: vi.fn(), send: vi.fn() }
     const opts = makeOpts({
       project: { id: 'PROJ-001', name: 'Test', stage: 'evaluation', blocker: null, ahj: null, disposition: 'Sale' },
       setProject,

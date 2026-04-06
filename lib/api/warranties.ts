@@ -1,6 +1,6 @@
 // lib/api/warranties.ts — Equipment warranty and claim data access layer
 import { db } from '@/lib/db'
-import { escapeIlike } from '@/lib/utils'
+import { escapeIlike, escapeFilterValue } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -225,7 +225,7 @@ export async function loadAllWarranties(
     q = q.ilike('manufacturer', `%${escapeIlike(filters.manufacturer)}%`)
   }
   if (filters?.search) {
-    const s = escapeIlike(filters.search)
+    const s = escapeFilterValue(filters.search)
     q = q.or(`project_id.ilike.%${s}%,manufacturer.ilike.%${s}%,model.ilike.%${s}%,serial_number.ilike.%${s}%`)
   }
 

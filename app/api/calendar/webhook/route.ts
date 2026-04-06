@@ -13,6 +13,23 @@ function getServiceClient() {
 
 const WEBHOOK_TOKEN = process.env.GOOGLE_CALENDAR_WEBHOOK_TOKEN ?? ''
 
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 60 // Google can burst notifications
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(key)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false
+  entry.count++
+  return true
+}
+
 /** Timing-safe token comparison to prevent timing attacks */
 function verifyToken(provided: string): boolean {
   if (!WEBHOOK_TOKEN || !provided) return false
@@ -41,6 +58,11 @@ export async function GET() {
 // Headers include: X-Goog-Channel-Token, X-Goog-Resource-State, X-Goog-Channel-ID
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 60 per minute (Google can burst)
+  if (!checkRateLimit('calendar-webhook')) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+  }
+
   const channelToken = req.headers.get('x-goog-channel-token')
   const resourceState = req.headers.get('x-goog-resource-state')
   const channelId = req.headers.get('x-goog-channel-id')

@@ -1,6 +1,6 @@
 // lib/api/fleet.ts — Fleet/vehicle management data access layer
 import { db } from '@/lib/db'
-import { escapeIlike } from '@/lib/utils'
+import { escapeIlike, escapeFilterValue } from '@/lib/utils'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,7 +82,7 @@ export async function loadVehicles(filters?: VehicleFilters, orgId?: string): Pr
   if (filters?.status) q = q.eq('status', filters.status)
   if (filters?.crew) q = q.eq('assigned_crew', filters.crew)
   if (filters?.search) {
-    const s = escapeIlike(filters.search)
+    const s = escapeFilterValue(filters.search)
     q = q.or(`vehicle_number.ilike.%${s}%,make.ilike.%${s}%,model.ilike.%${s}%,license_plate.ilike.%${s}%,assigned_driver.ilike.%${s}%,vin.ilike.%${s}%`)
   }
   const { data, error } = await q

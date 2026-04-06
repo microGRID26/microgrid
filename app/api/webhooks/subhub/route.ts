@@ -4,6 +4,23 @@ import crypto from 'crypto'
 import { TASKS } from '@/lib/tasks'
 import { syncProjectToEdge } from '@/lib/api/edge-sync'
 
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 20
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(key)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false
+  entry.count++
+  return true
+}
+
 // ── SubHub Webhook: Project Created ─────────────────────────────────────────
 // Receives a POST from SubHub when a contract is signed.
 // Creates the project, initial task states, and Google Drive folder in MicroGRID.
@@ -76,24 +93,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Webhook is disabled. Set SUBHUB_WEBHOOK_ENABLED=true to activate.' }, { status: 503 })
   }
 
-  // Verify webhook secret if configured (timing-safe comparison)
+  // Rate limit: 20 requests per minute
+  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (!checkRateLimit(`subhub:${clientIp}`)) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+  }
+
+  // Read body once for both signature verification and payload parsing
+  const bodyText = await request.text()
+
+  // Verify webhook secret if configured
   if (WEBHOOK_SECRET) {
     const authHeader = request.headers.get('authorization') ?? request.headers.get('x-webhook-secret') ?? ''
     const candidate = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader
+
+    // Try HMAC body signature first (preferred), fall back to bearer token comparison
+    const hmacSignature = request.headers.get('x-webhook-signature') ?? ''
     let secretMatch = false
-    try {
-      secretMatch = crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(WEBHOOK_SECRET))
-    } catch {
-      // timingSafeEqual throws if buffer lengths differ — that means no match
-      secretMatch = false
+
+    if (hmacSignature) {
+      // HMAC-SHA256 body verification (same pattern as EDGE webhook)
+      try {
+        const expected = crypto.createHmac('sha256', WEBHOOK_SECRET).update(bodyText).digest('hex')
+        secretMatch = crypto.timingSafeEqual(Buffer.from(hmacSignature), Buffer.from(expected))
+      } catch { secretMatch = false }
+    } else {
+      // Fallback: timing-safe bearer token comparison (backwards compatible)
+      try {
+        secretMatch = crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(WEBHOOK_SECRET))
+      } catch { secretMatch = false }
     }
+
     if (!secretMatch) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
   }
 
   try {
-    const payload = (await request.json()) as SubHubPayload
+    const payload = JSON.parse(bodyText) as SubHubPayload
 
     // Validate required fields
     const customerName = payload.name ?? (`${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim())

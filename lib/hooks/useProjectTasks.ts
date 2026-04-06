@@ -61,6 +61,7 @@ interface EdgeSyncShape {
   notifyInstallComplete: (projectId: string, date: string) => void
   notifyPTOReceived: (projectId: string, date: string) => void
   notifyStageChanged: (projectId: string, from: string, to: string) => void
+  notifyFundingMilestone: (projectId: string, milestone: string, status: string) => void
   notifyInService: (projectId: string) => void
 }
 
@@ -499,8 +500,8 @@ export function useProjectTasks(opts: UseProjectTasksOptions): UseProjectTasksRe
 
     // ── Auto-trigger funding milestone eligibility ───────────────────────
     if (status === 'Complete') {
-      // install_done -> M2 eligible, pto -> M3 eligible
-      const milestoneField = taskId === 'install_done' ? 'm2_status' : taskId === 'pto' ? 'm3_status' : null
+      // ntp -> M1 eligible, install_done -> M2 eligible, pto -> M3 eligible
+      const milestoneField = taskId === 'ntp' ? 'm1_status' : taskId === 'install_done' ? 'm2_status' : taskId === 'pto' ? 'm3_status' : null
       if (milestoneField) {
         // Only update if status is currently null/empty (not already submitted/funded)
         const { data: fundingRow } = await supabase
@@ -515,10 +516,12 @@ export function useProjectTasks(opts: UseProjectTasksOptions): UseProjectTasksRe
             { onConflict: 'project_id' }
           )
           if (fundingErr) { console.error('funding milestone upsert failed:', fundingErr); showToast('Failed to update funding milestone') }
-          const msLabel = taskId === 'install_done' ? 'M2' : 'M3'
+          const msLabel = taskId === 'ntp' ? 'M1' : taskId === 'install_done' ? 'M2' : 'M3'
           showToast(`${msLabel} milestone now Eligible`)
           // ── Notify EDGE of funding milestone + install/PTO events ──
-          if (taskId === 'install_done') {
+          if (taskId === 'ntp') {
+            edgeSync.notifyFundingMilestone(pid, 'M1', 'Eligible')
+          } else if (taskId === 'install_done') {
             edgeSync.notifyInstallComplete(pid, today)
           } else if (taskId === 'pto') {
             edgeSync.notifyPTOReceived(pid, today)

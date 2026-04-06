@@ -24,7 +24,13 @@ export async function GET(req: Request) {
   if (!cronSecret) {
     return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 })
   }
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  const provided = authHeader?.replace('Bearer ', '') ?? ''
+  let cronMatch = false
+  try {
+    cronMatch = provided.length === cronSecret.length &&
+      require('crypto').timingSafeEqual(Buffer.from(provided), Buffer.from(cronSecret))
+  } catch { cronMatch = false }
+  if (!cronMatch) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

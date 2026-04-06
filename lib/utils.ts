@@ -23,10 +23,11 @@ export function fmtDate(d: string | null | undefined): string {
   if (!d) return '—'
   try {
     // Handle both bare dates (2026-03-28) and timestamps (2026-03-28T23:50:55+00:00)
-    const date = d.includes('T') ? new Date(d) : new Date(d + 'T00:00:00')
+    // Bare dates → UTC midnight to avoid timezone-dependent shifts
+    const date = d.includes('T') ? new Date(d) : new Date(d + 'T12:00:00Z')
     if (isNaN(date.getTime())) return '—'
     return date.toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric'
+      month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Chicago',
     })
   } catch { return '—' }
 }
@@ -35,9 +36,16 @@ export function escapeIlike(s: string): string {
   return s.replace(/[%_\\]/g, '\\$&')
 }
 
+/** Escape user input for use inside PostgREST `.or()` filter strings.
+ *  Handles both SQL LIKE special chars AND PostgREST syntax chars (comma, parens). */
+export function escapeFilterValue(s: string): string {
+  return escapeIlike(s).replace(/[,()]/g, '')
+}
+
 export function daysAgo(d: string | null | undefined): number {
   if (!d) return 0
-  const n = d.includes('T') ? new Date(d) : new Date(d + 'T00:00:00')
+  // Bare dates → UTC noon to avoid ±1 day errors at midnight boundaries
+  const n = d.includes('T') ? new Date(d) : new Date(d + 'T12:00:00Z')
   if (isNaN(n.getTime())) return 0
   return Math.max(0, Math.floor((Date.now() - n.getTime()) / 86400000))
 }
@@ -53,6 +61,13 @@ export const STAGE_LABELS: Record<string, string> = {
 }
 
 export const STAGE_ORDER = ['evaluation','survey','design','permit','install','inspection','complete']
+
+/** Dispositions excluded from active project views (pipeline, queue, command, etc.).
+ *  Use with .not('disposition', 'in', `(${INACTIVE_DISPOSITIONS.map(d => `"${d}"`).join(',')})`) */
+export const INACTIVE_DISPOSITIONS = ['In Service', 'Loyalty', 'Cancelled'] as const
+
+/** PostgREST-formatted exclusion string for .not('disposition', 'in', ...) */
+export const INACTIVE_DISPOSITION_FILTER = `("In Service","Loyalty","Cancelled")`
 
 // ── Centralised SLA thresholds (single source of truth) ───────────────────────
 export const SLA_THRESHOLDS: Record<string, { target: number; risk: number; crit: number }> = {

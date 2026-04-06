@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db'
-import { escapeIlike } from '@/lib/utils'
+import { escapeIlike, escapeFilterValue } from '@/lib/utils'
 import type { Project } from '@/types/database'
 
 // ── Centralized project data access ─────────────────────────────────────────
@@ -124,7 +124,7 @@ export async function loadProjectsByIds(projectIds: string[]): Promise<Project[]
 /** Search projects by name or ID (for typeahead/autocomplete) */
 export async function searchProjects(query: string, limit = 10): Promise<Pick<Project, 'id' | 'name' | 'city' | 'pm' | 'pm_id' | 'systemkw' | 'module' | 'module_qty' | 'financier' | 'financing_type' | 'contract' | 'tpo_escalator' | 'financier_adv_pmt' | 'down_payment'>[]> {
   const supabase = createClient()
-  const escaped = escapeIlike(query)
+  const escaped = escapeFilterValue(query)
   const { data, error } = await supabase.from('projects')
     .select('id, name, city, pm, pm_id, systemkw, module, module_qty, financier, financing_type, contract, tpo_escalator, financier_adv_pmt, down_payment')
     .or(`name.ilike.%${escaped}%,id.ilike.%${escaped}%`)
@@ -138,10 +138,11 @@ export async function loadUsers(domainFilter?: string | string[]) {
   let query = supabase.from('users').select('id, name, email, role').eq('active', true).order('name').limit(500)
   if (domainFilter) {
     const domains = Array.isArray(domainFilter) ? domainFilter : [domainFilter]
-    if (domains.length === 1) {
-      query = query.like('email', `%@${domains[0]}`)
+    const safe = domains.map(d => d.replace(/[,%_\\()]/g, ''))
+    if (safe.length === 1) {
+      query = query.like('email', `%@${safe[0]}`)
     } else {
-      query = query.or(domains.map(d => `email.like.%@${d}`).join(','))
+      query = query.or(safe.map(d => `email.like.%@${d}`).join(','))
     }
   }
   const { data, error } = await query
