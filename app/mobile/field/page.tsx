@@ -639,7 +639,7 @@ export default function FieldPage() {
                   onStatusChange={handleStatusChange}
                   onMarkTaskComplete={handleMarkTaskComplete}
                   onAddNote={async (projectId, text) => {
-                    const { error } = await addNote({ project_id: projectId, text, time: new Date().toISOString(), pm: user?.name, pm_id: user?.id })
+                    const { error } = await addNote({ project_id: projectId, text, time: new Date().toISOString(), pm: currentUser?.name ?? null, pm_id: currentUser?.id ?? null })
                     if (error) { setToast({ message: 'Note failed', type: 'error' }); return false }
                     setToast({ message: 'Note added', type: 'success' })
                     return true
