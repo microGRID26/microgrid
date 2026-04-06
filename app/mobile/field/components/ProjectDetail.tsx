@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { cn, daysAgo, fmtDate, STAGE_LABELS } from '@/lib/utils'
 import { addNote } from '@/lib/api/notes'
-import { loadProjectWorkOrders, updateWorkOrderStatus, toggleChecklistItem, updateWorkOrder, loadWorkOrder } from '@/lib/api/work-orders'
+import { loadProjectWorkOrders, updateWorkOrderStatus, toggleChecklistItem, uploadChecklistPhoto, updateWorkOrder, loadWorkOrder } from '@/lib/api/work-orders'
 import type { Project } from '@/types/database'
 import type { WorkOrder, WOChecklistItem } from '@/lib/api/work-orders'
 import { Toast } from './Toast'
@@ -284,28 +284,52 @@ export function ProjectDetail({
                             </div>
                             <div className="space-y-2">
                               {woChecklist.map(item => (
-                                <button
-                                  key={item.id}
-                                  onClick={() => handleToggleChecklist(item)}
-                                  className="w-full flex items-center gap-3 text-left min-h-[44px] active:bg-gray-800 rounded-lg px-2 -mx-2 transition-colors"
-                                >
-                                  <div className={cn(
-                                    'w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0',
-                                    item.completed ? 'bg-green-600 border-green-500' : 'border-gray-600'
-                                  )}>
-                                    {item.completed && (
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                <div key={item.id} className="space-y-1">
+                                  <button
+                                    onClick={() => handleToggleChecklist(item)}
+                                    className="w-full flex items-center gap-3 text-left min-h-[44px] active:bg-gray-800 rounded-lg px-2 -mx-2 transition-colors"
+                                  >
+                                    <div className={cn(
+                                      'w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0',
+                                      item.completed ? 'bg-green-600 border-green-500' : 'border-gray-600'
+                                    )}>
+                                      {item.completed && (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                      )}
+                                    </div>
+                                    <div className="flex-1">
+                                      <span className={cn('text-sm', item.completed ? 'text-gray-500 line-through' : 'text-gray-200')}>
+                                        {item.description}
+                                      </span>
+                                      {item.notes && (
+                                        <div className="text-[10px] text-gray-600 mt-0.5">{item.notes}</div>
+                                      )}
+                                    </div>
+                                  </button>
+                                  {/* Photo: show thumbnail + capture button */}
+                                  <div className="flex items-center gap-2 ml-9">
+                                    {item.photo_url && (
+                                      <a href={item.photo_url} target="_blank" rel="noopener noreferrer">
+                                        <img src={item.photo_url} alt="" className="w-12 h-12 object-cover rounded border border-gray-700" />
+                                      </a>
                                     )}
+                                    <label className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 active:text-blue-400 cursor-pointer">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={async (e) => {
+                                        const file = e.target.files?.[0]
+                                        if (!file) return
+                                        const url = await uploadChecklistPhoto(item.id, file)
+                                        if (url) {
+                                          item.photo_url = url
+                                          setWoChecklist([...woChecklist])
+                                          setToast({ message: 'Photo uploaded', type: 'success' })
+                                        } else {
+                                          setToast({ message: 'Photo upload failed', type: 'error' })
+                                        }
+                                      }} />
+                                    </label>
                                   </div>
-                                  <div className="flex-1">
-                                    <span className={cn('text-sm', item.completed ? 'text-gray-500 line-through' : 'text-gray-200')}>
-                                      {item.description}
-                                    </span>
-                                    {item.notes && (
-                                      <div className="text-[10px] text-gray-600 mt-0.5">{item.notes}</div>
-                                    )}
-                                  </div>
-                                </button>
+                                </div>
                               ))}
                             </div>
                           </div>

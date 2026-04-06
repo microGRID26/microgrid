@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { cn, escapeIlike, STAGE_LABELS } from '@/lib/utils'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { upsertTaskState, insertTaskHistory } from '@/lib/api/tasks'
+import { addNote } from '@/lib/api/notes'
 import { useRealtimeSubscription } from '@/lib/hooks'
 import { getOpenEntry, clockIn, clockOut } from '@/lib/api/time-entries'
 import type { TimeEntry } from '@/lib/api/time-entries'
@@ -545,7 +546,35 @@ export default function FieldPage() {
           {refreshing ? 'Refreshing...' : 'Refresh Schedule'}
         </button>
 
-        {/* Stats bar */}
+        {/* Route All + Stats bar */}
+        {(() => {
+          const remaining = jobs.filter(j => j.status !== 'complete' && j.status !== 'cancelled')
+          const addresses = remaining.map(j => [j.customer_address, j.customer_city].filter(Boolean).join(', ')).filter(Boolean)
+          if (addresses.length >= 2) {
+            const origin = encodeURIComponent(addresses[0])
+            const dest = encodeURIComponent(addresses[addresses.length - 1])
+            const waypoints = addresses.slice(1, -1).map(a => encodeURIComponent(a)).join('|')
+            const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}${waypoints ? `&waypoints=${waypoints}` : ''}&travelmode=driving`
+            return (
+              <a href={url} target="_blank" rel="noopener noreferrer"
+                className="w-full min-h-[48px] bg-blue-900/30 border border-blue-700/40 rounded-xl text-sm text-blue-400 active:bg-blue-900/50 transition-colors flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                Route All {addresses.length} Jobs in Google Maps
+              </a>
+            )
+          }
+          if (addresses.length === 1) {
+            return (
+              <a href={`https://maps.google.com/?q=${encodeURIComponent(addresses[0])}`} target="_blank" rel="noopener noreferrer"
+                className="w-full min-h-[48px] bg-blue-900/30 border border-blue-700/40 rounded-xl text-sm text-blue-400 active:bg-blue-900/50 transition-colors flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                Navigate to Job
+              </a>
+            )
+          }
+          return null
+        })()}
+
         <div className="flex items-center gap-4 text-sm">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
@@ -588,6 +617,12 @@ export default function FieldPage() {
                   onTap={() => openProject(job.project_id)}
                   onStatusChange={handleStatusChange}
                   onMarkTaskComplete={handleMarkTaskComplete}
+                  onAddNote={async (projectId, text) => {
+                    const { error } = await addNote({ project_id: projectId, text, time: new Date().toISOString(), pm: user?.name, pm_id: user?.id })
+                    if (error) { setToast({ message: 'Note failed', type: 'error' }); return false }
+                    setToast({ message: 'Note added', type: 'success' })
+                    return true
+                  }}
                 />
               ))}
             </div>

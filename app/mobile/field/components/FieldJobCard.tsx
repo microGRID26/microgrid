@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { JOB_COMPLETE_TASK } from '@/lib/tasks'
 import { JOB_BADGE, JOB_LABELS, STATUS_DOT, STATUS_LABEL, fmtTime, mapsLink, telLink } from './constants'
@@ -8,12 +9,17 @@ export function FieldJobCard({
   onTap,
   onStatusChange,
   onMarkTaskComplete,
+  onAddNote,
 }: {
   job: FieldJob
   onTap: () => void
   onStatusChange: (id: string, status: string) => void
   onMarkTaskComplete: (job: FieldJob) => void
+  onAddNote?: (projectId: string, text: string) => Promise<boolean>
 }) {
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [noteText, setNoteText] = useState('')
+  const [noteSending, setNoteSending] = useState(false)
   const address = [job.customer_address, job.customer_city, job.customer_zip].filter(Boolean).join(', ')
   const status = job.status ?? 'scheduled'
   const jobType = job.job_type ?? 'survey'
@@ -91,16 +97,62 @@ export function FieldJobCard({
           </div>
         )}
 
-        {/* Notes (opens detail) */}
+        {/* Quick note toggle */}
         <button
-          onClick={onTap}
-          className="flex-1 flex items-center justify-center gap-2 min-h-[48px] text-amber-400 active:bg-gray-800 transition-colors"
-          aria-label="View details and notes"
+          onClick={() => setNoteOpen(!noteOpen)}
+          className={cn('flex-1 flex items-center justify-center gap-2 min-h-[48px] active:bg-gray-800 transition-colors', noteOpen ? 'text-green-400' : 'text-amber-400')}
+          aria-label="Add quick note"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
-          <span className="text-sm">Notes</span>
+          <span className="text-sm">Note</span>
+        </button>
+
+        {/* Full detail */}
+        <button
+          onClick={onTap}
+          className="flex-1 flex items-center justify-center gap-2 min-h-[48px] text-gray-400 active:bg-gray-800 transition-colors"
+          aria-label="View full details"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span className="text-sm">Detail</span>
         </button>
       </div>
+
+      {/* Quick Note — expandable */}
+      {noteOpen && onAddNote && (
+        <div className="px-4 py-3 border-t border-gray-800">
+          <div className="flex gap-2">
+            <input
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder="Quick note..."
+              autoFocus
+              onKeyDown={async e => {
+                if (e.key === 'Enter' && noteText.trim()) {
+                  setNoteSending(true)
+                  const ok = await onAddNote(job.project_id, noteText.trim())
+                  setNoteSending(false)
+                  if (ok) { setNoteText(''); setNoteOpen(false) }
+                }
+              }}
+              className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-green-500"
+            />
+            <button
+              onClick={async () => {
+                if (!noteText.trim()) return
+                setNoteSending(true)
+                const ok = await onAddNote(job.project_id, noteText.trim())
+                setNoteSending(false)
+                if (ok) { setNoteText(''); setNoteOpen(false) }
+              }}
+              disabled={!noteText.trim() || noteSending}
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-green-700 active:bg-green-600 disabled:bg-gray-700 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Status action + Mark Task Complete */}
       {status !== 'complete' && status !== 'cancelled' && (

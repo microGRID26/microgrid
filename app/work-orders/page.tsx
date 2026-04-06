@@ -7,14 +7,14 @@ import { cn, fmtDate } from '@/lib/utils'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import {
   loadWorkOrders, loadWorkOrder, createWorkOrder, updateWorkOrderStatus,
-  addChecklistItem, toggleChecklistItem, deleteChecklistItem, updateChecklistItemNotes, updateWorkOrder,
+  addChecklistItem, toggleChecklistItem, deleteChecklistItem, updateChecklistItemNotes, uploadChecklistPhoto, updateWorkOrder,
   getValidTransitions, WO_CHECKLIST_TEMPLATES,
 } from '@/lib/api/work-orders'
 import type { WorkOrder, WOChecklistItem, WorkOrderFilters } from '@/lib/api/work-orders'
 import type { Project } from '@/types/database'
 import { loadProjectById, loadActiveCrews } from '@/lib/api'
 import { useRealtimeSubscription } from '@/lib/hooks'
-import { ClipboardList, Plus, ChevronDown, ChevronUp, X, Check, Trash2, Download } from 'lucide-react'
+import { ClipboardList, Plus, ChevronDown, ChevronUp, X, Check, Trash2, Download, Camera } from 'lucide-react'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -493,13 +493,28 @@ function WODetail({
                   {item.completed_by && (
                     <span className="text-xs text-gray-600">{item.completed_by}</span>
                   )}
+                  {/* Photo capture */}
+                  <label className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-blue-400 transition-opacity cursor-pointer">
+                    <Camera className="w-3 h-3" />
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      const url = await uploadChecklistPhoto(item.id, file)
+                      if (url) { item.photo_url = url; setChecklist([...checklist]) }
+                    }} />
+                  </label>
                   <button onClick={() => handleDeleteItem(item.id)}
                     className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-opacity">
                     <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
-                {/* Checklist item notes — inline editable */}
-                <div className="ml-8 mt-0.5">
+                {/* Photo thumbnail + notes */}
+                <div className="ml-8 mt-0.5 space-y-1">
+                  {item.photo_url && (
+                    <a href={item.photo_url} target="_blank" rel="noopener noreferrer">
+                      <img src={item.photo_url} alt="" className="w-16 h-16 object-cover rounded border border-gray-700 hover:border-green-500 transition-colors" />
+                    </a>
+                  )}
                   <input
                     defaultValue={item.notes ?? ''}
                     placeholder="Add note..."

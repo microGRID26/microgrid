@@ -369,6 +369,28 @@ export async function updateChecklistItemNotes(id: string, notes: string | null)
   return true
 }
 
+/** Upload a photo for a checklist item → Supabase Storage → save URL */
+export async function uploadChecklistPhoto(itemId: string, file: File): Promise<string | null> {
+  const supabase = createClient()
+  const ext = file.name.split('.').pop() ?? 'jpg'
+  const path = `${itemId}/${Date.now()}.${ext}`
+
+  const { error: uploadErr } = await supabase.storage.from('wo-photos').upload(path, file, {
+    cacheControl: '3600',
+    upsert: false,
+  })
+  if (uploadErr) { console.error('photo upload failed:', uploadErr); return null }
+
+  const { data: urlData } = supabase.storage.from('wo-photos').getPublicUrl(path)
+  const publicUrl = urlData.publicUrl
+
+  // Save URL to checklist item
+  const { error: updateErr } = await db().from('wo_checklist_items').update({ photo_url: publicUrl }).eq('id', itemId)
+  if (updateErr) { console.error('photo URL save failed:', updateErr); return null }
+
+  return publicUrl
+}
+
 export async function deleteChecklistItem(id: string): Promise<boolean> {
   const { error } = await db().from('wo_checklist_items').delete().eq('id', id)
   if (error) { console.error('deleteChecklistItem failed:', error); return false }
