@@ -12,7 +12,7 @@ import { getOpenEntry, clockIn, clockOut } from '@/lib/api/time-entries'
 import type { TimeEntry } from '@/lib/api/time-entries'
 import type { Project, Schedule } from '@/types/database'
 
-import { Toast, ProjectDetail, FieldJobCard } from './components'
+import { Toast, ProjectDetail, FieldJobCard, JSAForm } from './components'
 import {
   JOB_LABELS,
   JOB_COMPLETE_TASK,
@@ -42,6 +42,8 @@ export default function FieldPage() {
   // Project detail
   const [detailProject, setDetailProject] = useState<Project | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  // JSA form — shown before starting a job
+  const [jsaPending, setJsaPending] = useState<{ jobId: string; projectId: string; projectName: string; crewName: string | null } | null>(null)
 
   // Clock in/out
   const [openTimeEntry, setOpenTimeEntry] = useState<TimeEntry | null>(null)
@@ -293,12 +295,31 @@ export default function FieldPage() {
     setSearchResults([])
   }
 
-  // Status change handler
+  // Status change handler — intercept "Start Job" to require JSA first
   async function handleStatusChange(jobId: string, newStatus: string) {
     if (!navigator.onLine) {
       setToast({ message: 'No internet connection', type: 'error' })
       return
     }
+
+    // Require JSA before starting a job
+    if (newStatus === 'in_progress') {
+      const job = jobsRef.current.find(j => j.id === jobId)
+      if (job) {
+        setJsaPending({
+          jobId,
+          projectId: job.project_id,
+          projectName: job.project_name ?? job.project_id,
+          crewName: job.crew_name ?? null,
+        })
+        return // Don't transition yet — JSA form will call completeStartJob
+      }
+    }
+
+    await completeStatusChange(jobId, newStatus)
+  }
+
+  async function completeStatusChange(jobId: string, newStatus: string) {
     const { error } = await supabaseDb
       .from('schedule')
       .update({ status: newStatus })
@@ -638,6 +659,23 @@ export default function FieldPage() {
         <div className="fixed inset-0 z-50 bg-gray-900/90 flex items-center justify-center">
           <div className="text-green-400 text-base animate-pulse">Loading project...</div>
         </div>
+      )}
+
+      {/* JSA Form — appears before Start Job */}
+      {jsaPending && (
+        <JSAForm
+          scheduleId={jsaPending.jobId}
+          projectId={jsaPending.projectId}
+          projectName={jsaPending.projectName}
+          crewLead={currentUser?.name ?? 'Unknown'}
+          crewName={jsaPending.crewName}
+          onComplete={async () => {
+            await completeStatusChange(jsaPending.jobId, 'in_progress')
+            setJsaPending(null)
+            setToast({ message: 'JSA completed — job started', type: 'success' })
+          }}
+          onCancel={() => setJsaPending(null)}
+        />
       )}
 
       {/* Project detail modal */}

@@ -1,6 +1,7 @@
 export { Toast } from './Toast'
 export { ProjectDetail } from './ProjectDetail'
 export { FieldJobCard } from './FieldJobCard'
+export { JSAForm } from './JSAForm'
 export {
   JOB_LABELS,
   JOB_BADGE,
