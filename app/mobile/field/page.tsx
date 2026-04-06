@@ -198,9 +198,10 @@ export default function FieldPage() {
 
         const jobLat = parseFloat(results[0].lat)
         const jobLng = parseFloat(results[0].lon)
+        if (isNaN(jobLat) || isNaN(jobLng)) return
 
         // Haversine distance in miles
-        const R = 3959 // Earth radius in miles
+        const R = 3959
         const dLat = (jobLat - userLat) * Math.PI / 180
         const dLng = (jobLng - userLng) * Math.PI / 180
         const a = Math.sin(dLat / 2) ** 2 + Math.cos(userLat * Math.PI / 180) * Math.cos(jobLat * Math.PI / 180) * Math.sin(dLng / 2) ** 2
@@ -213,13 +214,17 @@ export default function FieldPage() {
             distance: dist < 0.1 ? 'on site' : `${dist.toFixed(1)} mi away`,
           })
         }
-      } catch { /* GPS or geocode failed — silent */ }
+      } catch (err) {
+        // GPS timeout is normal — only log API/network failures
+        if (err instanceof GeolocationPositionError) return
+        console.warn('[Geofence] check failed:', err instanceof Error ? err.message : err)
+      }
     }
 
     checkGeofence()
-    const iv = setInterval(checkGeofence, 30000)
+    const iv = setInterval(checkGeofence, 60000) // Check every 60s (was 30s — reduce API load)
     return () => clearInterval(iv)
-  }, [openTimeEntry, jobs, geofencePrompt])
+  }, [openTimeEntry, jobs]) // Removed geofencePrompt from deps to prevent re-triggering
 
   // Load today's schedule
   const loadJobs = useCallback(async () => {

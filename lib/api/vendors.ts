@@ -201,7 +201,7 @@ export async function deleteVendorDoc(id: string): Promise<boolean> {
 }
 
 /** Auto-populate standard onboarding docs for a new vendor */
-export async function initVendorOnboarding(vendorId: string): Promise<void> {
+export async function initVendorOnboarding(vendorId: string): Promise<boolean> {
   const standardDocs = [
     { doc_type: 'msa', label: 'MSA (Master Service Agreement)' },
     { doc_type: 'coi', label: 'Certificate of Insurance (COI)' },
@@ -210,6 +210,8 @@ export async function initVendorOnboarding(vendorId: string): Promise<void> {
     { doc_type: 'banking', label: 'Banking Information' },
   ]
   for (const doc of standardDocs) {
-    await addVendorDoc({ vendor_id: vendorId, ...doc })
+    const result = await addVendorDoc({ vendor_id: vendorId, ...doc })
+    if (!result) { console.error('[initVendorOnboarding] failed:', doc.doc_type); return false }
   }
+  return true
 }

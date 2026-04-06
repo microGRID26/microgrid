@@ -149,7 +149,7 @@ export async function loadWorkOrders(filters?: WorkOrderFilters, orgId?: string)
   const supabase = createClient()
   let query = supabase
     .from('work_orders')
-    .select('id, project_id, wo_number, type, status, assigned_crew, assigned_to, scheduled_date, started_at, completed_at, priority, description, special_instructions, customer_signature, customer_signed_at, materials_used, time_on_site_minutes, notes, created_by, created_at, updated_at')
+    .select('id, project_id, wo_number, type, status, assigned_crew, assigned_to, scheduled_date, started_at, completed_at, priority, description, special_instructions, customer_signature, customer_signed_at, materials_used, time_on_site_minutes, notes, created_by, created_at, updated_at, photo_audit_status, photo_audit_submitted_at, photo_audit_reviewed_by, photo_audit_reviewed_at, photo_audit_notes')
     .order('scheduled_date', { ascending: false })
     .limit(500)
 
@@ -188,7 +188,7 @@ export async function loadWorkOrders(filters?: WorkOrderFilters, orgId?: string)
 export async function loadWorkOrder(id: string): Promise<{ wo: WorkOrder; checklist: WOChecklistItem[] } | null> {
   const supabase = createClient()
   const [woRes, checkRes] = await Promise.all([
-    supabase.from('work_orders').select('id, project_id, wo_number, type, status, assigned_crew, assigned_to, scheduled_date, started_at, completed_at, priority, description, special_instructions, customer_signature, customer_signed_at, materials_used, time_on_site_minutes, notes, created_by, created_at, updated_at').eq('id', id).maybeSingle(),
+    supabase.from('work_orders').select('id, project_id, wo_number, type, status, assigned_crew, assigned_to, scheduled_date, started_at, completed_at, priority, description, special_instructions, customer_signature, customer_signed_at, materials_used, time_on_site_minutes, notes, created_by, created_at, updated_at, photo_audit_status, photo_audit_submitted_at, photo_audit_reviewed_by, photo_audit_reviewed_at, photo_audit_notes').eq('id', id).maybeSingle(),
     supabase.from('wo_checklist_items').select('id, work_order_id, description, completed, completed_by, completed_at, sort_order, notes, photo_url').eq('work_order_id', id).order('sort_order', { ascending: true }).limit(500),
   ])
 
@@ -393,9 +393,13 @@ export async function uploadChecklistPhoto(itemId: string, file: File): Promise<
   const { data: urlData } = supabase.storage.from('wo-photos').getPublicUrl(path)
   const publicUrl = urlData.publicUrl
 
-  // Save URL to checklist item
+  // Save URL to checklist item — rollback upload if DB update fails
   const { error: updateErr } = await db().from('wo_checklist_items').update({ photo_url: publicUrl }).eq('id', itemId)
-  if (updateErr) { console.error('photo URL save failed:', updateErr); return null }
+  if (updateErr) {
+    console.error('photo URL save failed:', updateErr)
+    await supabase.storage.from('wo-photos').remove([path]).catch(() => {})
+    return null
+  }
 
   return publicUrl
 }
@@ -485,7 +489,7 @@ export async function loadProjectWorkOrders(projectId: string): Promise<WorkOrde
   const supabase = createClient()
   const { data, error } = await supabase
     .from('work_orders')
-    .select('id, project_id, wo_number, type, status, assigned_crew, assigned_to, scheduled_date, started_at, completed_at, priority, description, special_instructions, customer_signature, customer_signed_at, materials_used, time_on_site_minutes, notes, created_by, created_at, updated_at')
+    .select('id, project_id, wo_number, type, status, assigned_crew, assigned_to, scheduled_date, started_at, completed_at, priority, description, special_instructions, customer_signature, customer_signed_at, materials_used, time_on_site_minutes, notes, created_by, created_at, updated_at, photo_audit_status, photo_audit_submitted_at, photo_audit_reviewed_by, photo_audit_reviewed_at, photo_audit_notes')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
     .limit(50)

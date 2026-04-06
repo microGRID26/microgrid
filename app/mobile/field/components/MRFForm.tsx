@@ -113,7 +113,7 @@ export function MRFForm({ projectId, projectName, scheduleId, crewName, requeste
                 <div className="flex gap-2">
                   <div className="w-20">
                     <label className="text-[9px] text-gray-600">Qty</label>
-                    <input type="number" min={1} value={row.quantity} onChange={e => updateRow(i, 'quantity', parseInt(e.target.value) || 1)}
+                    <input type="number" min={1} value={row.quantity} onChange={e => updateRow(i, 'quantity', Math.max(1, parseInt(e.target.value, 10) || 1))}
                       className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-green-500" />
                   </div>
                   <div className="w-24">

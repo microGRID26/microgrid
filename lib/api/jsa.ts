@@ -57,12 +57,12 @@ export async function createJSA(jsa: {
     completed: true,
   }).select('id').single()
 
-  if (error || !data) {
+  if (error || !data?.id) {
     console.error('[createJSA] insert failed:', error)
     return null
   }
 
-  const jsaId = (data as { id: string }).id
+  const jsaId = data.id as string
 
   // Insert activities
   if (jsa.activities.length > 0) {

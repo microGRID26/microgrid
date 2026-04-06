@@ -25,8 +25,16 @@ export const STAGE_DAYS_REMAINING: Record<string, number> = {
 let _customFrom: Date | null = null
 let _customTo: Date | null = null
 export function setCustomRange(from: string | null, to: string | null) {
-  _customFrom = from ? new Date(from + 'T00:00:00') : null
-  _customTo = to ? new Date(to + 'T23:59:59') : null
+  const fromDate = from ? new Date(from + 'T00:00:00') : null
+  const toDate = to ? new Date(to + 'T23:59:59') : null
+  // Auto-swap if from > to
+  if (fromDate && toDate && fromDate > toDate) {
+    _customFrom = toDate
+    _customTo = fromDate
+  } else {
+    _customFrom = fromDate
+    _customTo = toDate
+  }
 }
 export function getCustomRange(): { from: Date | null; to: Date | null } {
   return { from: _customFrom, to: _customTo }
