@@ -11,7 +11,7 @@ import PermitTracker from './components/PermitTracker'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface AhjRecord {
-  id: number
+  id: string
   name: string
   state: string | null
   city: string | null
@@ -44,9 +44,9 @@ export default function PermitsPage() {
   const [filterHasPortal, setFilterHasPortal] = useState<'' | 'yes' | 'no'>('')
   const [filterMethod, setFilterMethod] = useState('')
   const [filterCounty, setFilterCounty] = useState('')
-  const [expandedId, setExpandedId] = useState<number | null>(null)
-  const [showCreds, setShowCreds] = useState<Record<number, boolean>>({})
-  const [showInspCreds, setShowInspCreds] = useState<Record<number, boolean>>({})
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [showCreds, setShowCreds] = useState<Record<string, boolean>>({})
+  const [showInspCreds, setShowInspCreds] = useState<Record<string, boolean>>({})
   const [projectCounts, setProjectCounts] = useState<Record<string, number>>({})
   const [page, setPage] = useState(0)
   const [sortCol, setSortCol] = useState<'name' | 'county' | 'max_duration' | 'projects'>('name')

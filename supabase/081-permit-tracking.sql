@@ -21,7 +21,7 @@ ALTER TABLE ahjs ADD COLUMN IF NOT EXISTS efiling_type TEXT; -- 'solarapp', 'onl
 CREATE TABLE IF NOT EXISTS permit_submissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id TEXT NOT NULL,
-  ahj_id INTEGER REFERENCES ahjs(id),
+  ahj_id UUID REFERENCES ahjs(id),
 
   -- Submission classification
   submission_type TEXT NOT NULL DEFAULT 'manual',  -- solarapp, online_portal, email, manual

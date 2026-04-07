@@ -5,6 +5,9 @@ import { db } from '@/lib/db'
 export interface AHJ {
   id: string
   name: string
+  solarapp_eligible?: boolean
+  efiling_url?: string | null
+  efiling_type?: string | null
   [key: string]: unknown
 }
 
