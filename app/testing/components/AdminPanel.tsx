@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { db } from '@/lib/db'
 import { useCurrentUser } from '@/lib/useCurrentUser'
+import { isInternalEmail } from '@/lib/utils'
 import {
   ClipboardCheck, CheckCircle2, XCircle, Ban, SkipForward,
   MessageSquare, Users, BarChart3, Loader2, Filter,
@@ -14,6 +15,7 @@ import type { TestPlan, TestCase, TestResult, TestAssignment, TestComment } from
 interface UserRow {
   id: string
   name: string
+  email: string
   role: string
   active: boolean
 }
@@ -80,14 +82,14 @@ export function AdminPanel() {
         db().from('test_plans').select('id, name, role_filter').order('sort_order'),
         db().from('test_cases').select('id, plan_id, title, priority').order('sort_order'),
         db().from('test_results').select('*').order('tested_at', { ascending: false }),
-        db().from('users').select('id, name, role, active').eq('active', true).order('name'),
+        db().from('users').select('id, name, email, role, active').eq('active', true).order('name'),
         db().from('test_assignments').select('test_case_id, tester_id'),
         db().from('test_comments').select('id, test_result_id, author_id, body, created_at, author:users!test_comments_author_id_fkey ( name )').order('created_at', { ascending: true }),
       ])
       setPlans((plansRes.data ?? []) as TestPlan[])
       setCases((casesRes.data ?? []) as TestCase[])
       setResults((resultsRes.data ?? []) as TestResult[])
-      setUsers((usersRes.data ?? []) as UserRow[])
+      setUsers(((usersRes.data ?? []) as UserRow[]).filter(u => isInternalEmail(u.email)))
       setAllAssignments((assignRes.data ?? []) as TestAssignment[])
 
       const cMap = new Map<string, TestComment[]>()
