@@ -13,6 +13,7 @@ import {
   STATUS_TRANSITIONS,
 } from '@/lib/api/permit-submissions'
 import type { PermitSubmission, PermitSubmissionStatus, SubmissionType, AHJEligibility } from '@/lib/api/permit-submissions'
+import { useOrg } from '@/lib/hooks'
 import { FileCheck2, Plus, X, ChevronRight, Filter, Zap, Globe, Mail, ClipboardList } from 'lucide-react'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ function relativeTime(dateStr: string | null): string {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function PermitTracker() {
+  const { orgId } = useOrg()
   const [submissions, setSubmissions] = useState<PermitSubmission[]>([])
   const [ahjs, setAhjs] = useState<AHJEligibility[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,13 +72,13 @@ export default function PermitTracker() {
   const loadData = useCallback(async () => {
     setLoading(true)
     const [subs, ahjData] = await Promise.all([
-      loadPermitSubmissions(),
+      loadPermitSubmissions(undefined, orgId ?? undefined),
       loadAHJEligibility(),
     ])
     setSubmissions(subs)
     setAhjs(ahjData)
     setLoading(false)
-  }, [])
+  }, [orgId])
 
   useEffect(() => { loadData() }, [loadData])
 

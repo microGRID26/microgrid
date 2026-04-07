@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { loadVendorScores } from '@/lib/api/vendor-scorecard'
 import type { VendorScore } from '@/lib/api/vendor-scorecard'
+import { useOrg } from '@/lib/hooks'
 import { Search, ArrowUpDown, TrendingUp, TrendingDown, Minus, Download } from 'lucide-react'
 
 // ── Score color helpers ──────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ function metricValue(v: VendorScore, field: SortField): number {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function VendorScorecard() {
+  const { orgId } = useOrg()
   const [scores, setScores] = useState<VendorScore[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -75,14 +77,14 @@ export default function VendorScorecard() {
   const [sortAsc, setSortAsc] = useState(false)
 
   useEffect(() => {
-    loadVendorScores().then(data => {
+    loadVendorScores(orgId ?? undefined).then(data => {
       setScores(data)
       setLoading(false)
     }).catch(err => {
       console.error('[VendorScorecard] Failed to load vendor scores:', err)
       setLoading(false)
     })
-  }, [])
+  }, [orgId])
 
   const filtered = useMemo(() => {
     let list = scores

@@ -68,8 +68,10 @@ ALTER TABLE permit_submissions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "permit_sub_select" ON permit_submissions FOR SELECT TO authenticated
   USING (org_id IS NULL OR org_id = ANY(auth_user_org_ids()) OR auth_is_platform_user());
-CREATE POLICY "permit_sub_insert" ON permit_submissions FOR INSERT TO authenticated WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "permit_sub_update" ON permit_submissions FOR UPDATE TO authenticated USING (auth.role() = 'authenticated');
+CREATE POLICY "permit_sub_insert" ON permit_submissions FOR INSERT TO authenticated
+  WITH CHECK (org_id IS NULL OR org_id = ANY(auth_user_org_ids()));
+CREATE POLICY "permit_sub_update" ON permit_submissions FOR UPDATE TO authenticated
+  USING (org_id IS NULL OR org_id = ANY(auth_user_org_ids()));
 CREATE POLICY "permit_sub_delete" ON permit_submissions FOR DELETE TO authenticated USING (auth_is_super_admin());
 
 -- ═══════════════════════════════════════════════════════════════════════════════
