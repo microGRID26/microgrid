@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { View, Text, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity, Alert } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
+import { useRouter } from 'expo-router'
 import { theme, useThemeColors } from '../../lib/theme'
 import { getCustomerAccount, loadProject, loadEnergyStats } from '../../lib/api'
 import { getCache, setCache } from '../../lib/cache'
@@ -17,6 +18,7 @@ const formatNumber = (n: number, decimals = 0) =>
 
 export default function EnergyScreen() {
   const colors = useThemeColors()
+  const router = useRouter()
   const [account, setAccount] = useState<CustomerAccount | null>(null)
   const [project, setProject] = useState<CustomerProject | null>(null)
   const [stats, setStats] = useState<EnergyStats | null>(null)
@@ -409,6 +411,39 @@ export default function EnergyScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Outage Mode Card */}
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+          router.push('/outage-mode')
+        }}
+        style={{
+          backgroundColor: colors.surface, borderRadius: theme.radius.xl,
+          padding: 20, marginTop: 12,
+          borderWidth: 1, borderColor: colors.borderLight,
+          flexDirection: 'row', alignItems: 'center', gap: 14,
+          ...theme.shadow.card,
+        }}
+      >
+        <View style={{
+          width: 44, height: 44, borderRadius: 22,
+          backgroundColor: colors.warmLight,
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Feather name="shield" size={22} color={colors.warm} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, fontFamily: 'Inter_600SemiBold' }}>
+            Outage Mode
+          </Text>
+          <Text style={{ fontSize: 12, color: colors.textSecondary, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+            Battery backup status, emergency contacts, and outage preparedness
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={18} color={colors.textMuted} />
+      </TouchableOpacity>
 
       {/* Footer note */}
       <Text style={{

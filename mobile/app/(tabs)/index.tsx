@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { theme, useThemeColors } from '../../lib/theme'
 import { getCustomerAccount, loadProject, loadTimeline, loadSchedule, loadTaskStates, loadUnreadMessageCount } from '../../lib/api'
-import { STAGE_ORDER, STAGE_LABELS, STAGE_DESCRIPTIONS, STAGE_TASKS, STAGE_SLA_DAYS, JOB_TYPE_LABELS } from '../../lib/constants'
+import { STAGE_ORDER, STAGE_LABELS, STAGE_DESCRIPTIONS, STAGE_TASKS, STAGE_SLA_DAYS, JOB_TYPE_LABELS, ONBOARDING_MILESTONES } from '../../lib/constants'
 import { getCache, setCache } from '../../lib/cache'
 import type { CustomerAccount, CustomerProject, StageHistoryEntry, CustomerScheduleEntry, CustomerTaskState } from '../../lib/types'
 import { SkeletonLoader } from '../../components/SkeletonLoader'
@@ -247,6 +247,57 @@ export default function DashboardScreen() {
           </View>
         </View>
       )}
+
+      {/* Your Journey — Onboarding card (first 60 days only) */}
+      {(() => {
+        const saleDateStr = project.sale_date
+        if (!saleDateStr) return null
+        const saleD = new Date(saleDateStr + 'T00:00:00')
+        const journeyDay = Math.floor((Date.now() - saleD.getTime()) / 86400000)
+        if (journeyDay < 0 || journeyDay > 60) return null
+
+        const journeyPct = Math.min(100, Math.round((journeyDay / 60) * 100))
+        // Find next milestone
+        const nextMilestone = ONBOARDING_MILESTONES.find(m => m.day > journeyDay)
+          ?? ONBOARDING_MILESTONES[ONBOARDING_MILESTONES.length - 1]
+
+        return (
+          <TouchableOpacity
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/onboarding') }}
+            activeOpacity={0.7}
+            style={{
+              backgroundColor: colors.surface, borderRadius: theme.radius.xl,
+              padding: 16, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12,
+              borderWidth: 1, borderColor: colors.accentLight,
+              ...theme.shadow.card,
+            }}
+          >
+            <View style={{
+              width: 44, height: 44, borderRadius: 22,
+              backgroundColor: colors.accent,
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#FFFFFF', fontFamily: 'Inter_700Bold' }}>E</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, fontFamily: 'Inter_600SemiBold' }}>
+                Your Journey
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.textMuted, fontFamily: 'Inter_400Regular' }}>
+                Day {journeyDay} of 60 — {journeyPct}% complete
+              </Text>
+              <Text style={{ fontSize: 11, color: colors.accent, fontFamily: 'Inter_500Medium', marginTop: 2 }}>
+                Next: {nextMilestone.title}
+              </Text>
+              {/* Mini progress bar */}
+              <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.surfaceAlt, marginTop: 6, overflow: 'hidden' }}>
+                <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.accent, width: `${journeyPct}%` }} />
+              </View>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+        )
+      })()}
 
       {/* Upcoming Schedule */}
       {upcoming.length > 0 && (

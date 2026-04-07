@@ -109,6 +109,8 @@ export default function RootLayout() {
           <Stack.Screen name="notifications-settings" options={{ presentation: 'modal' }} />
           <Stack.Screen name="warranty" options={{ presentation: 'modal' }} />
           <Stack.Screen name="schedule-service" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="onboarding" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="outage-mode" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         </Stack>
       </ThemeContext.Provider>
     </ErrorBoundary>
