@@ -7,6 +7,7 @@ import { theme, useThemeColors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
 import { getCustomerAccount, loadTickets, createTicket } from '../../lib/api'
 import type { CustomerAccount, CustomerTicket } from '../../lib/types'
+import { SkeletonLoader } from '../../components/SkeletonLoader'
 
 // Quick issue templates — one tap to create
 const QUICK_ISSUES: { icon: React.ComponentProps<typeof Feather>['name']; title: string; category: string; color: string }[] = [
@@ -124,8 +125,10 @@ export default function TicketsScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg }}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: 56 }}>
+        <SkeletonLoader lines={2} />
+        <SkeletonLoader lines={3} />
+        <SkeletonLoader lines={3} />
       </View>
     )
   }

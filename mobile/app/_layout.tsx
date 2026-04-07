@@ -102,6 +102,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="notifications-settings" options={{ presentation: 'modal' }} />
         </Stack>
       </ThemeContext.Provider>
     </ErrorBoundary>

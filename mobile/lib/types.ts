@@ -9,7 +9,13 @@ export interface CustomerAccount {
   project_id: string
   status: 'invited' | 'active' | 'suspended'
   last_login_at: string | null
-  notification_prefs: { email_updates: boolean; sms_updates: boolean }
+  notification_prefs: {
+    project_updates: boolean
+    schedule_alerts: boolean
+    ticket_updates: boolean
+    energy_reports: boolean
+    promotions: boolean
+  }
   created_at: string
 }
 
@@ -102,4 +108,27 @@ export interface CustomerTaskState {
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
+}
+
+export interface CustomerReferral {
+  id: string
+  referrer_id: string
+  referrer_project_id: string | null
+  referee_name: string
+  referee_email: string | null
+  referee_phone: string
+  status: 'pending' | 'contacted' | 'signed' | 'installed' | 'paid'
+  bonus_amount: number
+  notes: string | null
+  org_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface EnergyStats {
+  estimated_monthly_kwh: number
+  estimated_annual_kwh: number
+  co2_offset_tons: number
+  trees_equivalent: number
+  cost_savings_monthly: number
 }

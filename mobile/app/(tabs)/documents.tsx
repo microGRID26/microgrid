@@ -10,6 +10,7 @@ import { getCustomerAccount, loadDocuments } from '../../lib/api'
 import { DOCUMENT_CATEGORIES } from '../../lib/constants'
 import { getCache, setCache } from '../../lib/cache'
 import type { CustomerDocument } from '../../lib/types'
+import { SkeletonLoader } from '../../components/SkeletonLoader'
 
 const formatDate = (d: string) => {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -117,8 +118,10 @@ export default function DocumentsScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg }}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: 56 }}>
+        <SkeletonLoader lines={2} />
+        <SkeletonLoader lines={4} />
+        <SkeletonLoader lines={4} />
       </View>
     )
   }

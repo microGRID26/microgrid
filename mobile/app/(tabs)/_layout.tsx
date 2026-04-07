@@ -80,6 +80,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="energy"
+        options={{
+          title: 'Energy',
+          tabBarIcon: ({ color, size }) => <Feather name="zap" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="tickets"
         options={{
           title: 'Support',
@@ -108,7 +115,7 @@ export default function TabLayout() {
         name="chat"
         options={{
           title: 'Atlas',
-          tabBarIcon: ({ color, size }) => <Feather name="zap" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Feather name="cpu" size={size} color={color} />,
         }}
       />
       <Tabs.Screen

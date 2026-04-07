@@ -2,7 +2,7 @@
 
 import { supabase } from './supabase'
 import Constants from 'expo-constants'
-import type { CustomerAccount, CustomerProject, StageHistoryEntry, CustomerScheduleEntry, CustomerTicket, TicketComment, CustomerDocument, CustomerTaskState } from './types'
+import type { CustomerAccount, CustomerProject, StageHistoryEntry, CustomerScheduleEntry, CustomerTicket, TicketComment, CustomerDocument, CustomerTaskState, EnergyStats, CustomerReferral } from './types'
 
 const API_BASE = Constants.expoConfig?.extra?.apiBaseUrl ?? 'https://nova.gomicrogridenergy.com'
 
@@ -235,6 +235,47 @@ export async function loadTaskStates(projectId: string): Promise<CustomerTaskSta
   return (data ?? []) as CustomerTaskState[]
 }
 
+// ── Energy Stats (calculated from system size — no external API needed) ────
+
+export async function loadEnergyStats(projectId: string, systemkw: number): Promise<EnergyStats> {
+  const estimated_monthly_kwh = systemkw * 4.5 * 30
+  const estimated_annual_kwh = estimated_monthly_kwh * 12
+  const co2_offset_tons = estimated_annual_kwh * 0.0007
+  const trees_equivalent = Math.round(co2_offset_tons / 0.06)
+  const cost_savings_monthly = estimated_monthly_kwh * 0.12
+
+  return {
+    estimated_monthly_kwh,
+    estimated_annual_kwh,
+    co2_offset_tons,
+    trees_equivalent,
+    cost_savings_monthly,
+  }
+}
+
+// ── Notification Preferences ───────────────────────────────────────────────
+
+export async function updateNotificationPrefs(
+  accountId: string,
+  prefs: CustomerAccount['notification_prefs'],
+): Promise<boolean> {
+  // Defense-in-depth: verify current user owns this account (RLS also enforces)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+
+  const { error } = await supabase
+    .from('customer_accounts')
+    .update({ notification_prefs: prefs })
+    .eq('id', accountId)
+    .eq('auth_user_id', user.id)
+
+  if (error) {
+    console.error('[updateNotificationPrefs]', error.message)
+    return false
+  }
+  return true
+}
+
 // ── Atlas Chat ──────────────────────────────────────────────────────────────
 // Uses the Vercel API route (needs ANTHROPIC_API_KEY server-side)
 
@@ -261,4 +302,54 @@ export async function sendAtlasMessage(
   }
   const data = await res.json()
   return data.response
+}
+
+// ── Referrals ────────────────────────────────────────────────────────────────
+
+export async function loadReferrals(accountId: string): Promise<CustomerReferral[]> {
+  const { data, error } = await supabase
+    .from('customer_referrals')
+    .select('id, referrer_id, referrer_project_id, referee_name, referee_email, referee_phone, status, bonus_amount, notes, org_id, created_at, updated_at')
+    .eq('referrer_id', accountId)
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  if (error) console.error('[loadReferrals]', error.message)
+  return (data ?? []) as CustomerReferral[]
+}
+
+export async function submitReferral(
+  accountId: string,
+  projectId: string,
+  refereeName: string,
+  refereePhone: string,
+  refereeEmail?: string,
+): Promise<boolean> {
+  // Defense-in-depth: verify current user owns this account (RLS also enforces)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+
+  // Get org_id from project so CRM can see the referral
+  const { data: proj } = await supabase
+    .from('projects')
+    .select('org_id')
+    .eq('id', projectId)
+    .single()
+
+  const { error } = await supabase
+    .from('customer_referrals')
+    .insert({
+      referrer_id: accountId,
+      referrer_project_id: projectId,
+      referee_name: refereeName,
+      referee_phone: refereePhone,
+      referee_email: refereeEmail ?? null,
+      org_id: proj?.org_id ?? null,
+    })
+
+  if (error) {
+    console.error('[submitReferral]', error.message)
+    return false
+  }
+  return true
 }

@@ -7,6 +7,7 @@ import { getCustomerAccount, loadProject, loadTimeline, loadSchedule, loadTaskSt
 import { STAGE_ORDER, STAGE_LABELS, STAGE_DESCRIPTIONS, STAGE_TASKS, STAGE_SLA_DAYS, JOB_TYPE_LABELS } from '../../lib/constants'
 import { getCache, setCache } from '../../lib/cache'
 import type { CustomerAccount, CustomerProject, StageHistoryEntry, CustomerScheduleEntry, CustomerTaskState } from '../../lib/types'
+import { SkeletonLoader } from '../../components/SkeletonLoader'
 
 const formatDate = (d: string | null) => {
   if (!d) return null
@@ -89,8 +90,10 @@ export default function DashboardScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg }}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: 56 }}>
+        <SkeletonLoader showAvatar lines={2} />
+        <SkeletonLoader showImage lines={3} />
+        <SkeletonLoader lines={4} />
       </View>
     )
   }
