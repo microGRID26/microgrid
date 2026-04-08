@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase'
 import { ThemeContext, getThemeColors } from '../lib/theme'
 import ErrorBoundary from '../components/ErrorBoundary'
 import { OfflineBanner } from '../components/OfflineBanner'
+import { FeedbackButton } from '../components/FeedbackButton'
 import { registerForPushNotifications, addNotificationResponseListener } from '../lib/notifications'
 import { loadPersistentCache } from '../lib/cache'
 import type { Session } from '@supabase/supabase-js'
@@ -97,6 +98,10 @@ export default function RootLayout() {
 
   if (!fontsLoaded || initializing) return null
 
+  // Show feedback FAB only on the main (tabs) group — keeps it out of modals
+  // and the auth flow. Users on a modal can dismiss to leave feedback.
+  const showFeedback = !!session && segments[0] === '(tabs)'
+
   return (
     <ErrorBoundary>
       <ThemeContext.Provider value={colors}>
@@ -112,6 +117,7 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="outage-mode" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         </Stack>
+        {showFeedback && <FeedbackButton />}
       </ThemeContext.Provider>
     </ErrorBoundary>
   )

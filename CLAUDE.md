@@ -229,6 +229,8 @@ Email domain whitelist: `@gomicrogridenergy.com`, `@energydevelopmentgroup.com`,
 - `/job-costing` and `/planset` now in main nav (Financial and Tools sections)
 - `/legacy` page tab counts now pulled live from `legacy_projects` (was hardcoded)
 - Drift between `projects` shadow copies and `legacy_projects` can be checked anytime: `npx tsx scripts/check-legacy-drift.ts` (uses pure logic in `lib/legacy-drift.ts`, exits 1 on disagreement)
+- Migration 087: customer in-app feedback system. Tables: `customer_feedback` + `customer_feedback_attachments`. Storage bucket `customer-feedback` (public). Floating FAB on every tab screen of customer mobile app → captures category/rating/message/screenshots + auto-captures screen path/app version/device info. **Atlas IS the admin UI** — query `customer_feedback` directly via Supabase MCP when Greg asks to "look at the feedback." No CRM /feedback page by design (see `feedback_atlas_collects_app_feedback.md` memory).
+- Mobile feedback feature files: `mobile/lib/feedback.ts` (submit + upload), `mobile/components/FeedbackButton.tsx` (FAB, zIndex 1000 above OfflineBanner), `mobile/components/FeedbackModal.tsx` (form). Mounted in `mobile/app/_layout.tsx` only when `segments[0] === '(tabs)'`.
 
 ## Co-Author Convention
 
