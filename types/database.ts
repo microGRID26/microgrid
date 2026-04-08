@@ -1491,6 +1491,187 @@ export type Database = {
         Update: Partial<CommissionAdvance>
 
       }
+      customer_referrals: {
+        Row: CustomerReferral
+        Insert: Omit<CustomerReferral, 'id' | 'created_at' | 'updated_at' | 'bonus_amount' | 'status'> & { id?: string; created_at?: string; updated_at?: string; bonus_amount?: number; status?: CustomerReferralStatus }
+        Update: Partial<CustomerReferral>
+      }
+      customer_billing_statements: {
+        Row: CustomerBillingStatement
+        Insert: Omit<CustomerBillingStatement, 'id' | 'created_at' | 'updated_at' | 'amount_due' | 'status'> & { id?: string; created_at?: string; updated_at?: string; status?: CustomerBillingStatus }
+        Update: Partial<CustomerBillingStatement>
+      }
+      customer_payment_methods: {
+        Row: CustomerPaymentMethod
+        Insert: Omit<CustomerPaymentMethod, 'id' | 'created_at' | 'is_default' | 'autopay_enabled'> & { id?: string; created_at?: string; is_default?: boolean; autopay_enabled?: boolean }
+        Update: Partial<CustomerPaymentMethod>
+      }
+      customer_payments: {
+        Row: CustomerPayment
+        Insert: Omit<CustomerPayment, 'id' | 'created_at' | 'status'> & { id?: string; created_at?: string; status?: CustomerPaymentStatus }
+        Update: Partial<CustomerPayment>
+      }
+      customer_messages: {
+        Row: CustomerMessage
+        Insert: Omit<CustomerMessage, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<CustomerMessage>
+      }
+      test_plans: {
+        Row: TestPlan
+        Insert: Omit<TestPlan, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<TestPlan>
+      }
+      test_cases: {
+        Row: TestCase
+        Insert: Omit<TestCase, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<TestCase>
+      }
+      test_results: {
+        Row: TestResult
+        Insert: Omit<TestResult, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<TestResult>
+      }
+      test_assignments: {
+        Row: TestAssignment
+        Insert: Omit<TestAssignment, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<TestAssignment>
+      }
+      test_comments: {
+        Row: TestComment
+        Insert: Omit<TestComment, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<TestComment>
+      }
     }
   }
+}
+
+// ── Migrations 082-085: customer + QA tables ────────────────────────────────
+
+export type CustomerReferralStatus = 'pending' | 'contacted' | 'signed' | 'installed' | 'paid'
+
+export interface CustomerReferral {
+  id: string
+  referrer_id: string
+  referrer_project_id: string | null
+  referee_name: string
+  referee_email: string | null
+  referee_phone: string
+  status: CustomerReferralStatus
+  bonus_amount: number
+  notes: string | null
+  org_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type CustomerBillingStatus = 'pending' | 'paid' | 'overdue' | 'waived'
+
+export interface CustomerBillingStatement {
+  id: string
+  customer_account_id: string
+  project_id: string
+  period_start: string
+  period_end: string
+  kwh_consumed: number
+  rate_per_kwh: number
+  amount_due: number
+  utility_comparison: number | null
+  status: CustomerBillingStatus
+  due_date: string | null
+  paid_at: string | null
+  stripe_invoice_id: string | null
+  org_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CustomerPaymentMethod {
+  id: string
+  customer_account_id: string
+  stripe_customer_id: string | null
+  stripe_payment_method_id: string | null
+  card_brand: string | null
+  card_last4: string | null
+  card_exp_month: number | null
+  card_exp_year: number | null
+  is_default: boolean
+  autopay_enabled: boolean
+  org_id: string | null
+  created_at: string
+}
+
+export type CustomerPaymentStatus = 'pending' | 'processing' | 'succeeded' | 'failed' | 'refunded'
+
+export interface CustomerPayment {
+  id: string
+  customer_account_id: string
+  statement_id: string | null
+  amount: number
+  stripe_payment_intent_id: string | null
+  status: CustomerPaymentStatus
+  paid_at: string | null
+  org_id: string | null
+  created_at: string
+}
+
+export type CustomerMessageAuthor = 'customer' | 'pm' | 'system'
+
+export interface CustomerMessage {
+  id: string
+  project_id: string
+  author_type: CustomerMessageAuthor
+  author_name: string
+  message: string
+  read_at: string | null
+  org_id: string | null
+  created_at: string
+}
+
+export interface TestPlan {
+  id: string
+  name: string
+  description: string | null
+  page_url: string | null
+  status: string
+  org_id: string | null
+  created_at: string
+}
+
+export interface TestCase {
+  id: string
+  plan_id: string
+  title: string
+  description: string | null
+  steps: string | null
+  expected_result: string | null
+  priority: string | null
+  org_id: string | null
+  created_at: string
+}
+
+export interface TestResult {
+  id: string
+  case_id: string
+  tester_email: string
+  status: string
+  notes: string | null
+  org_id: string | null
+  created_at: string
+}
+
+export interface TestAssignment {
+  id: string
+  plan_id: string
+  tester_email: string
+  org_id: string | null
+  created_at: string
+}
+
+export interface TestComment {
+  id: string
+  result_id: string
+  author_email: string
+  body: string
+  org_id: string | null
+  created_at: string
 }

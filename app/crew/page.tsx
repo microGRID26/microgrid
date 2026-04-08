@@ -1,22 +1,16 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db'
-import { cn, fmtDate } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { useSupabaseQuery, useRealtimeSubscription } from '@/lib/hooks'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { handleApiError } from '@/lib/errors'
-import type { Crew, Project, Schedule } from '@/types/database'
+import type { Schedule } from '@/types/database'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-import { JOB_COLORS, JOB_COMPLETE_TASK, JOB_COMPLETE_DATE } from '@/lib/tasks'
-
-// Short labels for mobile crew view
-const JOB_LABELS: Record<string, string> = {
-  survey: 'Survey', install: 'Install', inspection: 'Inspection', service: 'Service'
-}
+import { JOB_COLORS, JOB_COMPLETE_TASK, JOB_COMPLETE_DATE, JOB_LABELS_SHORT as JOB_LABELS } from '@/lib/tasks'
 
 const JOB_BADGE: Record<string, string> = Object.fromEntries(
   Object.entries(JOB_COLORS).map(([k, v]) => [k, `${v.bg} ${v.text}`])

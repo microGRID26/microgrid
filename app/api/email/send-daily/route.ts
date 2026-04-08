@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
 import { getTemplate, getMaxDay } from '@/lib/email-templates'
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
   let cronMatch = false
   try {
     cronMatch = provided.length === cronSecret.length &&
-      require('crypto').timingSafeEqual(Buffer.from(provided), Buffer.from(cronSecret))
+      timingSafeEqual(Buffer.from(provided), Buffer.from(cronSecret))
   } catch { cronMatch = false }
   if (!cronMatch) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

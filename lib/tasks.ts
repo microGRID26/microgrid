@@ -416,6 +416,14 @@ export const JOB_LABELS: Record<string, string> = Object.fromEntries(
   JOB_TYPES.map(j => [j.value, j.label])
 )
 
+/** Short labels for compact UI (mobile field/crew views) */
+export const JOB_LABELS_SHORT: Record<string, string> = {
+  survey: 'Survey',
+  install: 'Install',
+  inspection: 'Inspection',
+  service: 'Service',
+}
+
 export const JOB_COLORS: Record<string, { bg: string; text: string; border?: string }> = {
   survey:     { bg: 'bg-blue-900',   text: 'text-blue-200',   border: 'border-blue-700' },
   install:    { bg: 'bg-green-900',  text: 'text-green-200',  border: 'border-green-700' },

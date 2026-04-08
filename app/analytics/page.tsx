@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Nav } from '@/components/Nav'
-import { useSupabaseQuery, clearQueryCache } from '@/lib/hooks'
+import { useSupabaseQuery } from '@/lib/hooks'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { db } from '@/lib/db'
-import { RefreshCw } from 'lucide-react'
-import { Executive, CashFlow, InstallVelocity, PipelineHealth, ByPM, Dealers, PERIOD_LABELS, setCustomRange } from '@/components/analytics'
+import { Executive, CashFlow, InstallVelocity, PipelineHealth, ByPM, Dealers, setCustomRange } from '@/components/analytics'
 import { CrewPerformance } from '@/components/analytics/CrewPerformance'
 import { Forecasting } from '@/components/analytics/Forecasting'
 import { JobCosting } from '@/components/analytics/JobCosting'
@@ -28,33 +27,33 @@ export default function AnalyticsPage() {
   const { user: currentUser, loading: userLoading } = useCurrentUser()
   const [period, setPeriod] = useState<Period>('mtd')
   const [tab, setTab] = useState<Tab>('executive')
-  const [refreshing, setRefreshing] = useState(false)
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
 
-  const handlePeriodChange = (p: Period) => {
+  const handlePeriodChange = useCallback((p: Period) => {
     setPeriod(p)
     if (p === 'custom') {
       setCustomRange(customFrom || null, customTo || null)
     }
-  }
-  const handleCustomDateChange = (from: string, to: string) => {
+  }, [customFrom, customTo])
+
+  const handleCustomDateChange = useCallback((from: string, to: string) => {
     setCustomFrom(from)
     setCustomTo(to)
     setCustomRange(from || null, to || null)
     setPeriod('custom')
-  }
+  }, [])
 
-  const { data: projects, loading: projLoading, refresh: refreshProjects } = useSupabaseQuery('projects', {
+  const { data: projects, loading: projLoading } = useSupabaseQuery('projects', {
     select: 'id, name, stage, contract, install_complete_date, stage_date, sale_date, pm, pm_id, blocker, financier, disposition, pto_date, dealer, consultant, advisor, systemkw',
     filters: { disposition: { not_in: ['In Service', 'Loyalty', 'Cancelled', 'Legal', 'On Hold'] } },
   })
 
-  const { data: fundingRows, loading: fundLoading, refresh: refreshFunding } = useSupabaseQuery('project_funding', {
+  const { data: fundingRows, loading: fundLoading } = useSupabaseQuery('project_funding', {
     select: 'project_id, m2_funded_date, m3_funded_date, m2_amount, m3_amount, m2_status, m3_status, m1_amount, m1_status, nonfunded_code_1, nonfunded_code_2, nonfunded_code_3',
   })
 
-  const { data: taskStateRows, loading: taskLoading, refresh: refreshTasks } = useSupabaseQuery('task_state', {
+  const { data: taskStateRows, loading: taskLoading } = useSupabaseQuery('task_state', {
     select: 'project_id, task_id, status',
     limit: 50000,
   })
@@ -107,17 +106,7 @@ export default function AnalyticsPage() {
     projects: realProjects, active, complete, funding, taskMap,
     rampSchedule, workOrders, salesReps,
     period, onPeriodChange: handlePeriodChange, onCustomDateChange: handleCustomDateChange,
-  }), [realProjects, active, complete, funding, taskMap, rampSchedule, workOrders, salesReps, period])
-
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true)
-    clearQueryCache()
-    refreshProjects()
-    refreshFunding()
-    refreshTasks()
-    // refresh is synchronous cache-clear + refetch trigger; brief visual feedback
-    setTimeout(() => setRefreshing(false), 600)
-  }, [refreshProjects, refreshFunding])
+  }), [realProjects, active, complete, funding, taskMap, rampSchedule, workOrders, salesReps, period, handlePeriodChange, handleCustomDateChange])
 
   // Role gate: Manager+ only (after all hooks to respect Rules of Hooks)
   if (!userLoading && currentUser && !currentUser.isManager) {

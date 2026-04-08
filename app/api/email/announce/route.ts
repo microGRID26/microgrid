@@ -4,11 +4,6 @@ import { timingSafeEqual } from 'crypto'
 import { sendEmail } from '@/lib/email'
 import { rateLimit } from '@/lib/rate-limit'
 
-/** Escape HTML special characters to prevent XSS in email templates */
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -43,6 +38,11 @@ export async function POST(req: Request) {
 
     if (!subject || !html) {
       return NextResponse.json({ error: 'subject and html are required' }, { status: 400 })
+    }
+
+    // Reject email header injection: subject must not contain newlines or control chars
+    if (/[\r\n\u0000-\u001F]/.test(subject)) {
+      return NextResponse.json({ error: 'Invalid characters in subject' }, { status: 400 })
     }
 
     const supabase = getAdminClient()

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
+import { rateLimit } from '@/lib/rate-limit'
 
 /**
  * POST /api/notifications/stuck-task
@@ -16,7 +18,15 @@ export async function POST(req: Request) {
   const token = authHeader.replace(/^Bearer\s+/i, '')
   const cronSecret = process.env.CRON_SECRET
   const adminSecret = process.env.ADMIN_API_SECRET
-  const hasAuth = (cronSecret && token === cronSecret) || (adminSecret && token === adminSecret)
+  let hasAuth = false
+  try {
+    if (cronSecret && token && token.length === cronSecret.length) {
+      hasAuth = timingSafeEqual(Buffer.from(token), Buffer.from(cronSecret))
+    }
+    if (!hasAuth && adminSecret && token && token.length === adminSecret.length) {
+      hasAuth = timingSafeEqual(Buffer.from(token), Buffer.from(adminSecret))
+    }
+  } catch { hasAuth = false }
 
   if (!hasAuth) {
     // Fall back to session cookie check via Supabase
@@ -64,6 +74,16 @@ export async function POST(req: Request) {
 
   if (!projectId || !taskName || !status) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+
+  // Rate limit: 20 stuck-task emails per minute per project
+  const { success: withinLimit } = await rateLimit(`stuck-task:${projectId}`, {
+    windowMs: 60_000,
+    max: 20,
+    prefix: 'stuck-task',
+  })
+  if (!withinLimit) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
   }
 
   // If no PM email provided, look it up

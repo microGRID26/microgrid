@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
+import { rateLimit } from '@/lib/rate-limit'
 import { SLA_THRESHOLDS, INTERNAL_DOMAINS } from '@/lib/utils'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://nova.gomicrogridenergy.com'
@@ -19,6 +21,12 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://nova.gomicrogridener
  * Schedule: Weekdays at 7 AM CT (12:00 UTC) via Vercel cron.
  */
 export async function GET(req: Request) {
+  // Rate limit: 10 requests per minute per endpoint
+  const { success } = await rateLimit('email-digest', { max: 10, prefix: 'email-digest' })
+  if (!success) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+  }
+
   const authHeader = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) {
@@ -28,7 +36,7 @@ export async function GET(req: Request) {
   let cronMatch = false
   try {
     cronMatch = provided.length === cronSecret.length &&
-      require('crypto').timingSafeEqual(Buffer.from(provided), Buffer.from(cronSecret))
+      timingSafeEqual(Buffer.from(provided), Buffer.from(cronSecret))
   } catch { cronMatch = false }
   if (!cronMatch) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

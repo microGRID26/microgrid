@@ -7,5 +7,9 @@ import { useRouter } from 'next/navigation'
 export default function DashboardPage() {
   const router = useRouter()
   useEffect(() => { router.replace('/command') }, [router])
-  return null
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="text-gray-500 text-sm animate-pulse">Redirecting to Command Center…</div>
+    </div>
+  )
 }

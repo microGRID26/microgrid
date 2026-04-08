@@ -65,7 +65,7 @@ Test categories: `__tests__/lib/` (API, utils), `__tests__/logic/` (SLA, funding
 ### Pages
 All pages in `app/*/page.tsx` as client components. Each fetches data via Supabase browser client on mount, subscribes to realtime changes. Root `/` redirects to user's preferred homepage.
 
-**49 pages total** — see `ARCHITECTURE.md` for full inventory. Key pages: `/command` (morning briefing — Fix These First + Push These Forward), `/queue` (PM worklist), `/pipeline` (Kanban), `/analytics` (10 tabs: Executive, Cash Flow, Install Velocity, Pipeline, By PM, Sales, Crew, Forecast, Job Costing, Operations), `/schedule` (crew calendar), `/funding` (M1/M2/M3 milestones + Ready to Collect cards), `/tickets` (issue tracking), `/ramp-up` (install planning with proximity clustering + schedule sync).
+**51 pages total** — see `ARCHITECTURE.md` for full inventory. Key pages: `/command` (morning briefing — Fix These First + Push These Forward), `/queue` (PM worklist), `/pipeline` (Kanban), `/analytics` (10 tabs: Executive, Cash Flow, Install Velocity, Pipeline, By PM, Sales, Crew, Forecast, Job Costing, Operations), `/schedule` (crew calendar), `/funding` (M1/M2/M3 milestones + Ready to Collect cards), `/tickets` (issue tracking), `/ramp-up` (install planning with proximity clustering + schedule sync).
 
 ### API Layer
 All data access via `lib/api/` — 20+ modules. Pages import from `@/lib/api`. The API layer handles error logging, type casting, `.limit()` calls, and consistent return shapes. Use `db()` helper from `lib/db.ts` for writes to untyped tables.
@@ -205,6 +205,11 @@ Email domain whitelist: `@gomicrogridenergy.com`, `@energydevelopmentgroup.com`,
 - Vendor scorecard tab on /vendors page, API at lib/api/vendor-scorecard.ts
 - Permit tracking tab on /permits page, migration 081 (permit_submissions + AHJ e-filing columns), API at lib/api/permit-submissions.ts
 - Planset generator (`/planset`) produces 8 sheets (PV-1 through PV-8) with project selector, Duracell defaults, and redesign bridge. Missing: compliance certs, battery mode letter, equipment elevation (photo), OSR (manual)
+- Migration 086 (Session 29 audit fixes): tightened `customer_messages.cm_update_read` (was wide-open `USING(true)`); added `org_id` + org-scoped RLS to `customer_payment_methods` and `customer_payments`
+- `lib/tasks.ts` exports `JOB_LABELS_SHORT` for compact mobile/crew views — never redefine job labels locally
+- Customer billing/messaging/QA tables (082-085) now fully typed in `types/database.ts`
+- All API routes now use `timingSafeEqual` consistently (portal/push, notifications/stuck-task converted in Session 29); all email cron routes have rate limiting + ESM `import 'crypto'` (no `require()`)
+- `/job-costing` and `/planset` now in main nav (Financial and Tools sections)
 
 ## Co-Author Convention
 

@@ -81,6 +81,7 @@ async function getCustomerPushTokens(projectId: string): Promise<string[]> {
     .eq('project_id', projectId)
     .eq('status', 'active')
     .not('push_token', 'is', null)
+    .limit(500)
 
   if (error) {
     console.error('[customer-notifications] token lookup failed:', error.message)

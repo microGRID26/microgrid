@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
+import { rateLimit } from '@/lib/rate-limit'
 
 /**
  * GET /api/email/onboarding-reminder
@@ -11,6 +13,12 @@ import { sendEmail } from '@/lib/email'
  * Auth: CRON_SECRET bearer token required.
  */
 export async function GET(req: Request) {
+  // Rate limit: 10 requests per minute per endpoint
+  const { success } = await rateLimit('onboarding-reminder', { max: 10, prefix: 'onboarding-reminder' })
+  if (!success) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+  }
+
   // Auth check
   const authHeader = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
@@ -21,7 +29,7 @@ export async function GET(req: Request) {
   let cronMatch = false
   try {
     cronMatch = provided.length === cronSecret.length &&
-      require('crypto').timingSafeEqual(Buffer.from(provided), Buffer.from(cronSecret))
+      timingSafeEqual(Buffer.from(provided), Buffer.from(cronSecret))
   } catch { cronMatch = false }
   if (!cronMatch) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

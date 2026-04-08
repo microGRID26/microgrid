@@ -57,6 +57,7 @@ const MORE_SECTIONS: LinkSection[] = [
     section: 'Financial',
     links: [
       { label: 'Invoices',      href: '/invoices'    },
+      { label: 'Job Costing',   href: '/job-costing' },
     ],
   },
   {
@@ -73,6 +74,7 @@ const MORE_SECTIONS: LinkSection[] = [
     section: 'Tools',
     links: [
       { label: 'Ramp-Up Planner', href: '/ramp-up' },
+      { label: 'Planset',         href: '/planset' },
       { label: 'Project Map',     href: '/map'     },
       { label: 'Atlas AI',        href: '/reports' },
       { label: 'Audit',           href: '/audit'   },
@@ -85,8 +87,6 @@ const MORE_SECTIONS: LinkSection[] = [
 
 /** Flat list of all More links (for active detection and mobile drawer) */
 const MORE_LINKS_FLAT: LinkItem[] = MORE_SECTIONS.flatMap(s => s.links)
-
-const ALL_LINKS = [...PRIMARY_LINKS, ...MORE_LINKS_FLAT]
 
 const GEAR_ICON = (
   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
