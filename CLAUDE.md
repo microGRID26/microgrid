@@ -73,7 +73,7 @@ A standalone Expo React Native app lives in the `/mobile` directory with its own
 
 ## Testing
 
-**Vitest** + React Testing Library with jsdom. 3,033+ tests across 105 files. Supabase globally mocked in `vitest.setup.ts`. Tests focus on business logic, not rendering. When adding features, add corresponding tests. API route tests in `__tests__/api/`.
+**Vitest** + React Testing Library with jsdom. 3,044 tests across 106 files. Supabase globally mocked in `vitest.setup.ts`. Tests focus on business logic, not rendering. When adding features, add corresponding tests. API route tests in `__tests__/api/`.
 
 Test categories: `__tests__/lib/` (API, utils), `__tests__/logic/` (SLA, funding, filters), `__tests__/pages/` (page logic), `__tests__/auth/` (OAuth, proxy), `__tests__/hooks/` (custom hooks), `__tests__/components/` (UI components).
 
@@ -147,7 +147,7 @@ daysAgo(p.sale_date) ?? daysAgo(p.stage_date)   // WRONG — 0 won't trigger ??
 `active` column is a **string** (`'TRUE'`/`'FALSE'`), not boolean. Filter with `.eq('active', 'TRUE')`.
 
 ### TypeScript
-`types/database.ts` covers core tables. Some tables (project_funding, service_calls, ahjs, utilities, users) accessed via `lib/api/` or `db()` helper. 10 `as any` casts remain in production code — use API layer or `db()` instead of adding new casts.
+`types/database.ts` covers core tables. Some tables (project_funding, service_calls, ahjs, utilities, users) accessed via `lib/api/` or `db()` helper. **0 `as any` casts in production code** — use API layer or `db()` instead of adding new casts. 1 `: any` remains in `mobile/app/onboarding.tsx` (Feather icon name from external data, acceptable).
 
 ### Disposition Filtering
 States: `null`/`'Sale'` (active), `'Loyalty'`, `'In Service'`, `'Cancelled'`. `Cancelled` always excluded from active views. Loyalty shown in Queue/Audit (intentional). Transitions constrained: Sale → Loyalty → Cancelled (no skipping).
@@ -188,52 +188,87 @@ Email domain whitelist: `@gomicrogridenergy.com`, `@energydevelopmentgroup.com`,
 - `/api/email/digest` — weekdays noon UTC (PM digest)
 
 ## Known Issues
-- `active` field on `crews` is string not boolean
-- `useSupabaseQuery` cannot query views or untyped tables — use `lib/api/` or `db()`
-- SubHub webhook requires `SUPABASE_SECRET_KEY` env var
-- 0 `as any` in production code. 1 `: any` remains (ramp-up print template). `db()` return type is still untyped by design.
-- Ops dashboard "Last Year" period only queries active `projects` table, not `legacy_projects`
-- CSP uses `unsafe-inline` in script-src (Next.js requirement); `unsafe-eval` removed in production (kept in dev only)
-- Role cookie HMAC prefers `ROLE_COOKIE_SECRET` env var, falls back to anon key (set secret in Vercel)
-- `schedule` table now has `org_id` column (migration 072, applied)
-- Migration 076 applied: 11 performance indexes, `aggregate_earnings` RPC, milestone progression trigger
-- M1→M2→M3 progression enforced by Postgres trigger (can't submit M2 before M1, M3 before M2)
-- `escapeFilterValue()` in utils.ts for PostgREST `.or()` contexts — use instead of `escapeIlike()` in `.or()` strings. All `.or()` calls now use it.
-- All API routes use `timingSafeEqual()` for secret comparison (no plain `===` on secrets)
-- Rate limiting: `lib/rate-limit.ts` — uses Upstash Redis when `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` are set, falls back to in-memory. All 7 rate-limited routes use this shared utility.
-- API wrappers: `loadLiveStats()`, `loadAHJs()`, `loadProjectsForMap()`, `loadOrgNames()`, `loadTodaySchedule()`, `loadScheduleForCrewWeek()` in lib/api/
-- `INACTIVE_DISPOSITIONS` / `INACTIVE_DISPOSITION_FILTER` constants in utils.ts — use for all active project queries
-- Error boundaries: all user-facing routes have `error.tsx` files (parent boundaries cover nested routes)
-- INACTIVE_DISPOSITIONS now includes: In Service, Loyalty, Cancelled, Legal, On Hold
-- Migration 077: JSA tables (jsa, jsa_activities, jsa_acknowledgements)
-- Migration 078: vendors table + vendor_onboarding_docs
-- Migration 079: cancellation_fee + cancellation_fee_status on projects
-- Migration 080: material_requests + material_request_items, photo_audit_* on work_orders, meet_link on calendar_sync
+
+Real quirks and limitations to be aware of:
+
+- `active` field on `crews` is string `'TRUE'`/`'FALSE'`, not boolean. Filter with `.eq('active', 'TRUE')`.
+- `useSupabaseQuery` cannot query views or untyped tables — use `lib/api/` or `db()` helper instead.
+- SubHub webhook requires `SUPABASE_SECRET_KEY` env var.
+- Ops dashboard "Last Year" period only queries active `projects` table, not `legacy_projects` — historical year-over-year comparisons will undercount.
+- CSP uses `unsafe-inline` in script-src (Next.js requirement). `unsafe-eval` removed in production, kept in dev.
+- Role cookie HMAC prefers `ROLE_COOKIE_SECRET` env var, falls back to anon key. Set the explicit secret in Vercel for prod.
+- 1 oversized file remains: `app/tickets/page.tsx` at 893 lines (5 components already extracted; the rest is tightly coupled page logic).
+- 1 `: any` remains in `mobile/app/onboarding.tsx` (Feather icon name from external data, acceptable).
+- `db()` return type is untyped by design.
+- Greg's local `npm install` in `mobile/` hangs silently after the version line — likely lockfile/cache/post-install issue. Doesn't affect EAS Build (remote does its own clean install) but blocks local mobile dev. Try `rm -rf node_modules package-lock.json && npm install` or `npm cache clean --force`.
+
+## Conventions
+
+Always-do patterns. Breaking these will be caught in audit.
+
+- **`escapeFilterValue()`** in `utils.ts` for PostgREST `.or()` contexts. Use instead of `escapeIlike()` in `.or()` strings. All existing `.or()` calls use it.
+- **`timingSafeEqual()`** for ALL secret/token comparison in API routes — never plain `===`. Use `import { timingSafeEqual } from 'crypto'` (ESM) — never `require('crypto')`.
+- **Rate limiting** via `lib/rate-limit.ts` — uses Upstash Redis when `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` are set, falls back to in-memory. All sensitive routes are rate-limited.
+- **`INACTIVE_DISPOSITIONS`** / **`INACTIVE_DISPOSITION_FILTER`** constants in `utils.ts` for all active project queries. Includes: In Service, Loyalty, Cancelled, Legal, On Hold.
+- **Error boundaries:** all user-facing routes have `error.tsx` files (parent boundaries cover nested routes).
+- **`lib/tasks.ts`** is the single source of truth for `JOB_LABELS` and `JOB_LABELS_SHORT`. Never redefine job labels locally.
+- **`lib/api/` API wrappers** for cross-page queries: `loadLiveStats()`, `loadAHJs()`, `loadProjectsForMap()`, `loadOrgNames()`, `loadTodaySchedule()`, `loadScheduleForCrewWeek()`.
+- **Atlas IS the customer feedback admin UI** — query `customer_feedback` directly via Supabase MCP when Greg asks to "look at the feedback." No CRM `/feedback` page by design (see `feedback_atlas_collects_app_feedback.md` memory).
+- **Run integrity checks BEFORE recommending destructive cleanup**, never as the first step of execution. Session 29 near-miss almost cost ~$7M in contract corrections (see `feedback_drift_check_before_destructive.md` memory).
+
+## Migrations Log
+
+Running list of applied Supabase migrations (recent first):
+
+| # | Purpose |
+|---|---|
+| **088** | NPS support — adds `'nps'` category to `customer_feedback`, extends rating CHECK to 0-10, adds `customer_accounts.nps_prompts_shown JSONB` for one-shot prompt tracking |
+| **087** | Customer in-app feedback — `customer_feedback` + `customer_feedback_attachments` tables, RLS, public storage bucket `customer-feedback` |
+| **086** | Security fixes — tightened `customer_messages.cm_update_read` (was wide-open `USING(true)`), added `org_id` + org-scoped RLS to `customer_payment_methods` and `customer_payments` |
+| **085** | QA testing framework (5 tables) |
+| **084** | `customer_messages` with Realtime |
+| **083** | `customer_billing_statements` + `customer_payment_methods` + `customer_payments` |
+| **082** | `customer_referrals` |
+| **081** | `permit_submissions` + AHJ e-filing columns |
+| **080** | `material_requests` + `material_request_items`, `photo_audit_*` on work_orders, `meet_link` on calendar_sync |
+| **079** | `cancellation_fee` + `cancellation_fee_status` on projects |
+| **078** | `vendors` table + `vendor_onboarding_docs` |
+| **077** | JSA tables (`jsa`, `jsa_activities`, `jsa_acknowledgements`) |
+| **076** | 11 performance indexes, `aggregate_earnings` RPC, milestone progression trigger |
+| **072** | `org_id` column on `schedule` table |
+| **043** | Org-scoped RLS enforcement (30 tables) |
+
+**Postgres triggers in production:**
+- M1→M2→M3 funding progression (can't submit M2 before M1, M3 before M2)
+- `link_customer_account_on_signup()` — auto-links pre-seeded `customer_accounts` to `auth.users` on first OTP login (Session 29)
+
+## Features Reference
+
+Quick map of where things live:
+
+- **Job costing:** `/job-costing` page (P&L, crew rates, cost entry), API at `lib/api/job-costing.ts`, auto-capture from WO completion
+- **Auto-schedule suggestions:** SuggestionPanel on `/schedule`, API at `lib/api/schedule-suggestions.ts`
+- **Vendor scorecard:** tab on `/vendors`, API at `lib/api/vendor-scorecard.ts`
+- **Permit tracking:** tab on `/permits`, API at `lib/api/permit-submissions.ts`
+- **Planset generator:** `/planset` produces 8 sheets (PV-1 through PV-8) with project selector, Duracell defaults, and redesign bridge. Missing: compliance certs, battery mode letter, equipment elevation (photo), OSR (manual)
+- **`/legacy` page** reads from `legacy_projects` directly. Tab counts pulled live (not hardcoded).
+- **Drift detection:** `npx tsx scripts/check-legacy-drift.ts` (pure logic in `lib/legacy-drift.ts`, exits 1 on disagreement, 11 unit tests)
+- **Customer in-app feedback** (mobile): floating FAB on every `(tabs)` screen of customer app → category/rating/message/screenshots + auto-captures screen path + app version + device info via `react-native-view-shot`. Files: `mobile/lib/feedback.ts`, `mobile/components/FeedbackButton.tsx`, `mobile/components/FeedbackModal.tsx`, `mobile/components/NPSPrompt.tsx`. Storage bucket `customer-feedback` (public).
+- **NPS prompts** trigger once per session 5s after entering tabs (deduped via useRef). Milestones: `pto_complete`, `first_billing_30d`, `onboarding_complete`.
+- **Feedback reply API:** `POST /api/notifications/feedback-reply` (timing-safe + Supabase session auth, rate limit 30/min/feedback). Looks up feedback row, bumps `status='responded'`, fires Expo push via `sendCustomerFeedbackReplyNotification`. Atlas calls this after writing `admin_response`.
+- **Customer billing/messaging/QA tables (082-085)** are fully typed in `types/database.ts`.
+- **`/job-costing`** and **`/planset`** are in main nav (Financial + Tools sections).
+- **8 pages refactored** with `components/` subfolders: infographic, command, fleet, planset, inventory, change-orders, work-orders, engineering.
+
+## Mobile App Reference
+
+- iOS app on TestFlight (Expo SDK 54, RN 0.81, build via EAS GitHub integration → Mac builders)
+- Folly coroutine fix: `plugins/withFollyFix.js` injects `-DFOLLY_CFG_NO_COROUTINES=1`
 - Work order types: install, service, inspection, rnr (renamed from repair), survey
 - Vendor categories: manufacturer, distributor, install_partner, electrical, plumbing, hvac, roofing, interior, other
-- Ticket categories include 'monitoring'
-- Supabase Storage bucket 'wo-photos' for checklist item photos
-- iOS app on TestFlight (Expo SDK 54, RN 0.81, build via EAS + Transporter)
-- Folly coroutine fix: plugins/withFollyFix.js injects -DFOLLY_CFG_NO_COROUTINES=1
-- 1 oversized file remains: tickets 893 (5 components already extracted, remaining is tightly coupled page logic)
-- 8 pages refactored with components/ subfolders: infographic, command, fleet, planset, inventory, change-orders, work-orders, engineering
-- Job costing: full UI at /job-costing (P&L, crew rates, cost entry), API at lib/api/job-costing.ts, auto-capture from WO completion
-- Auto-schedule suggestions on /schedule page (SuggestionPanel), API at lib/api/schedule-suggestions.ts
-- Vendor scorecard tab on /vendors page, API at lib/api/vendor-scorecard.ts
-- Permit tracking tab on /permits page, migration 081 (permit_submissions + AHJ e-filing columns), API at lib/api/permit-submissions.ts
-- Planset generator (`/planset`) produces 8 sheets (PV-1 through PV-8) with project selector, Duracell defaults, and redesign bridge. Missing: compliance certs, battery mode letter, equipment elevation (photo), OSR (manual)
-- Migration 086 (Session 29 audit fixes): tightened `customer_messages.cm_update_read` (was wide-open `USING(true)`); added `org_id` + org-scoped RLS to `customer_payment_methods` and `customer_payments`
-- `lib/tasks.ts` exports `JOB_LABELS_SHORT` for compact mobile/crew views — never redefine job labels locally
-- Customer billing/messaging/QA tables (082-085) now fully typed in `types/database.ts`
-- All API routes now use `timingSafeEqual` consistently (portal/push, notifications/stuck-task converted in Session 29); all email cron routes have rate limiting + ESM `import 'crypto'` (no `require()`)
-- `/job-costing` and `/planset` now in main nav (Financial and Tools sections)
-- `/legacy` page tab counts now pulled live from `legacy_projects` (was hardcoded)
-- Drift between `projects` shadow copies and `legacy_projects` can be checked anytime: `npx tsx scripts/check-legacy-drift.ts` (uses pure logic in `lib/legacy-drift.ts`, exits 1 on disagreement)
-- Migration 087: customer in-app feedback system. Tables: `customer_feedback` + `customer_feedback_attachments`. Storage bucket `customer-feedback` (public). Floating FAB on every tab screen of customer mobile app → captures category/rating/message/screenshots + auto-captures screen path/app version/device info. **Atlas IS the admin UI** — query `customer_feedback` directly via Supabase MCP when Greg asks to "look at the feedback." No CRM /feedback page by design (see `feedback_atlas_collects_app_feedback.md` memory).
-- Mobile feedback feature files: `mobile/lib/feedback.ts` (submit + upload + NPS), `mobile/components/FeedbackButton.tsx` (FAB, zIndex 1000 above OfflineBanner, captures screen via react-native-view-shot before opening modal), `mobile/components/FeedbackModal.tsx` (form, accepts initialScreenshotUri), `mobile/components/NPSPrompt.tsx` (0-10 scale, periodic). Mounted in `mobile/app/_layout.tsx` only when `segments[0] === '(tabs)'`. Root layout wraps Stack in a `View ref={screenRef} collapsable={false}` for screen capture.
-- Migration 088: NPS support — adds 'nps' category to customer_feedback, extends rating CHECK to 0-10, adds `customer_accounts.nps_prompts_shown JSONB` for one-shot tracking. NPS milestones: `pto_complete`, `first_billing_30d`, `onboarding_complete`. Triggered once per session, 5s after entering tabs (deduped via useRef).
-- API route `/api/notifications/feedback-reply` (POST, auth: timing-safe + Supabase session, rate limit 30/min/feedback): looks up `customer_feedback` row, bumps `status='responded'`, fires Expo push to customer's mobile app via `sendCustomerFeedbackReplyNotification` in `lib/api/customer-notifications.ts`. Atlas calls this after writing `admin_response` (see `feedback_atlas_collects_app_feedback.md` memory for the curl pattern).
-- Mobile dependency `react-native-view-shot@~4.0.3` added for screen capture. Local TS may show "cannot find module" if `npm install` is broken on Greg's machine — EAS Build does its own clean install on the remote builder so the build is unaffected.
+- Ticket categories include `'monitoring'`
+- Supabase Storage buckets: `wo-photos` (work order checklist photos), `customer-feedback` (in-app feedback screenshots, public)
+- `react-native-view-shot@~4.0.3` for screen capture in feedback feature
 
 ## Co-Author Convention
 
