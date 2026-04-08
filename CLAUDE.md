@@ -19,16 +19,22 @@ Keep the report under 20 lines. If tests fail or TS errors exist, flag prominent
 
 MicroGRID — solar project management system for MicroGRID Energy / EDGE. Tracks ~920 active residential solar installation projects (`projects` table where `disposition='Sale'`) through a 7-stage pipeline (evaluation → survey → design → permit → install → inspection → complete). Built for PMs who each own a set of projects. Migrated from NetSuite.
 
-**Data architecture (verified 2026-04-08):**
-- `projects` table: ~16,665 rows total
+**Data architecture (verified post-cleanup 2026-04-08):**
+- `projects` table: 1,567 rows total
   - 920 `Sale` (active pipeline — what every page shows)
-  - 15,098 `In Service` (shadow copies, see note below)
   - 391 `Cancelled`, 149 `Loyalty`, 106 `Legal`, 1 `On Hold`
-- `legacy_projects` table: 15,585 rows (NetSuite archive: 15,330 In Service, 149 Loyalty, 106 Legal)
-- **April 6 2026 import event:** ~15,090 rows were bulk-inserted into `projects` from `legacy_projects` (no commit, no documentation). Of 15,585 legacy rows, 15,353 were copied (98.5%); 232 In Service rows didn't make it (likely failed `isLegacyImportEligible()`).
-- **DO NOT delete the shadow copies without investigation.** Drift check on 2026-04-08 found **716 field-level disagreements** between overlapping rows (1 name, 601 contract, 114 systemkw). Of the 601 contract diffs, **226 are real numeric differences averaging $30,761, max $134,030** — these are not rounding errors. The remaining ~375 are NULL-vs-value mismatches. Source-of-truth is unclear: either the April 6 import used a fresher NetSuite export than `legacy_projects` (so `projects` has newer data), or someone edited `projects` after the import (so `projects` has CRM corrections). Either way, the shadow copies hold ~226 rows of data that exist nowhere else. **Investigate before any cleanup.** `project_adders` also has 43 rows with `ON DELETE CASCADE` pointing to shadow projects.
-- All UI pages still safely ignore the shadow copies via `INACTIVE_DISPOSITIONS` filter — they're invisible but not deletable without data loss.
-- `/legacy` page reads from `legacy_projects` directly (not the shadow copies in `projects`).
+  - 0 `In Service` (shadow copies removed in cleanup)
+- `legacy_projects` table: 15,585 rows (canonical NetSuite archive: 15,330 In Service, 149 Loyalty, 106 Legal)
+- **April 6 2026 import event + Apr 8 cleanup:** On 2026-04-06, ~15,090 rows were bulk-inserted into `projects` from `legacy_projects` (no commit, no documentation). On 2026-04-08, drift investigation found that the import had brought in **223 corrected contract values** from a fresher NetSuite source where `legacy_projects.contract` had $0 placeholders. Cleanup steps:
+  1. Backfilled the 223 corrected contract values from `projects` → `legacy_projects` (preserved the corrections in the canonical archive)
+  2. Deleted the 15,098 shadow copies from `projects` (CASCADE removed 43 `project_adders` rows)
+  3. Cleaned ~832 orphan rows in `task_state`/`task_history`/`service_calls`/`project_funding` that pointed to deleted projects (no FK enforced these)
+- **`legacy_projects` is now the canonical archive** for In Service projects (15,585 rows: 15,330 In Service, 149 Loyalty, 106 Legal). `projects` table contains active pipeline only (~920 Sale + 391 Cancelled + 149 Loyalty + 106 Legal + 1 On Hold).
+- `/legacy` page reads from `legacy_projects` directly. Drift check `npx tsx scripts/check-legacy-drift.ts` is preserved for future safety.
+- **Manual review TODO:** 3 contract values have a true disagreement between `projects` and `legacy_projects` (both positive, different values, all `projects < legacy`). These were preserved in both tables — check whether the legacy value (higher) or the projects value (lower) is correct:
+  - PROJ-1716 Damaris Renteria — projects=$13,280.64, legacy=$31,939.41
+  - PROJ-3620 Robert Hassell — projects=$6,150, legacy=$20,202
+  - PROJ-12649 Gabe Harman — projects=$72,000, legacy=$73,000
 
 ## Commands
 
