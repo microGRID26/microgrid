@@ -63,13 +63,22 @@ function supabase() {
   return createClient(SUPABASE_URL, SUPABASE_SECRET)
 }
 
-// Generate next PROJ-ID
+// Generate next PROJ-ID.
+// Cannot use `.order('id', { ascending: false }).limit(1)` because the `id`
+// column is text — Postgres orders it lexicographically, so 'PROJ-920' > 'PROJ-12649'.
+// Worse, any non-numeric suffix in the top row would parseInt → NaN, producing
+// the dreaded `PROJ-NaN`. Pull all ids and find the true numeric max in app
+// code. ~1.6k rows is fine; if `projects` ever grows past 100k, swap for an
+// RPC that does MAX(CAST(REGEXP_REPLACE(id, '[^0-9]', '', 'g') AS int)).
 async function getNextProjectId(): Promise<string> {
   const db = supabase()
-  const { data } = await db.from('projects').select('id').order('id', { ascending: false }).limit(1)
+  const { data } = await db.from('projects').select('id')
   if (!data || data.length === 0) return 'PROJ-30001'
-  const lastNum = parseInt(data[0].id.replace('PROJ-', ''), 10)
-  return `PROJ-${lastNum + 1}`
+  const max = data
+    .map((row: { id: string | null }) => parseInt((row.id ?? '').replace('PROJ-', ''), 10))
+    .filter((n: number) => Number.isFinite(n) && n > 0)
+    .reduce((a: number, b: number) => Math.max(a, b), 30000)
+  return `PROJ-${max + 1}`
 }
 
 export async function POST(request: NextRequest) {
