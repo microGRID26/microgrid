@@ -2,6 +2,113 @@ import type { PlansetData } from '@/lib/planset-types'
 import { TitleBlockHtml } from './TitleBlockHtml'
 
 export function SheetPV3({ data }: { data: PlansetData }) {
+  // Auto-generated roof plan with panels — shows house outline + module placement
+  function RoofPlanDiagram({ data: d }: { data: PlansetData }) {
+    // House dimensions (schematic, not to scale)
+    const houseW = 280, houseH = 200
+    const houseX = 80, houseY = 100
+    const roofPeakY = houseY - 50
+
+    // Calculate panel layout per roof face
+    const panelW = 10, panelH = 16, panelGap = 1.5
+    const maxPanelsPerRow = Math.floor((houseW - 40) / (panelW + panelGap))
+
+    return (
+      <svg viewBox="0 0 500 450" style={{ width: '100%', height: '100%' }}>
+        {/* Title */}
+        <text x="250" y="20" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#111">ROOF PLAN WITH MODULES</text>
+        <text x="250" y="32" textAnchor="middle" fontSize="6" fill="#666">SCALE: NTS</text>
+
+        {/* Property line (dashed) */}
+        <rect x="20" y="40" width="460" height="380" fill="none" stroke="#999" strokeWidth="0.5" strokeDasharray="8,4" />
+        <text x="250" y="55" textAnchor="middle" fontSize="5" fill="#999">PROPERTY LINE</text>
+
+        {/* Street label */}
+        <text x="250" y="430" textAnchor="middle" fontSize="7" fill="#666" fontWeight="bold">{d.address.split(',')[0]?.toUpperCase() || 'STREET'}</text>
+
+        {/* House outline */}
+        <rect x={houseX} y={houseY} width={houseW} height={houseH} fill="#f5f5f0" stroke="#333" strokeWidth="1.5" />
+
+        {/* Roof ridge line */}
+        <line x1={houseX} y1={roofPeakY} x2={houseX + houseW / 2} y2={roofPeakY - 20} stroke="#333" strokeWidth="1" />
+        <line x1={houseX + houseW} y1={roofPeakY} x2={houseX + houseW / 2} y2={roofPeakY - 20} stroke="#333" strokeWidth="1" />
+        <line x1={houseX} y1={roofPeakY} x2={houseX} y2={houseY} stroke="#333" strokeWidth="1" />
+        <line x1={houseX + houseW} y1={roofPeakY} x2={houseX + houseW} y2={houseY} stroke="#333" strokeWidth="1" />
+
+        {/* Setback lines */}
+        <rect x={houseX + 8} y={roofPeakY + 5} width={houseW - 16} height={houseH - 15} fill="none" stroke="#cc0000" strokeWidth="0.5" strokeDasharray="4,2" />
+        <text x={houseX + houseW - 10} y={roofPeakY + 12} textAnchor="end" fontSize="4" fill="#cc0000">18&quot; SETBACK</text>
+
+        {/* PV Modules on roof — green rectangles */}
+        {d.roofFaces.map((rf, faceIdx) => {
+          const modulesOnFace = rf.modules
+          const rows = Math.ceil(modulesOnFace / maxPanelsPerRow)
+          const faceOffsetY = faceIdx * (rows * (panelH + panelGap) + 25)
+          const startX = houseX + 20
+          const startY = roofPeakY + 15 + faceOffsetY
+
+          const panels: { x: number; y: number }[] = []
+          for (let m = 0; m < modulesOnFace; m++) {
+            const row = Math.floor(m / maxPanelsPerRow)
+            const col = m % maxPanelsPerRow
+            panels.push({
+              x: startX + col * (panelW + panelGap),
+              y: startY + row * (panelH + panelGap),
+            })
+          }
+
+          return (
+            <g key={faceIdx}>
+              {/* Roof face label */}
+              <text x={houseX + houseW - 15} y={startY + 8} textAnchor="end" fontSize="5" fill="#1a7a4c" fontWeight="bold">
+                ROOF #{rf.id}
+              </text>
+              {/* Panel rectangles */}
+              {panels.map((p, i) => (
+                <rect key={i} x={p.x} y={p.y} width={panelW} height={panelH} fill="#1a7a4c" fillOpacity="0.7" stroke="#0d5c36" strokeWidth="0.5" />
+              ))}
+              {/* String label */}
+              <text x={startX} y={startY + rows * (panelH + panelGap) + 8} fontSize="4" fill="#1a7a4c">
+                {modulesOnFace} MODULES, TILT {rf.tilt}&deg;, AZ {rf.azimuth}&deg;
+              </text>
+            </g>
+          )
+        })}
+
+        {/* Module count summary */}
+        <text x={houseX + houseW / 2} y={houseY + houseH + 18} textAnchor="middle" fontSize="6" fill="#333" fontWeight="bold">
+          ({d.panelCount}) {d.panelModel}
+        </text>
+        <text x={houseX + houseW / 2} y={houseY + houseH + 28} textAnchor="middle" fontSize="5" fill="#666">
+          {d.systemDcKw.toFixed(2)} kW DC
+        </text>
+
+        {/* Compass rose */}
+        <g transform="translate(440, 80)">
+          <line x1="0" y1="15" x2="0" y2="-15" stroke="#333" strokeWidth="1.5" />
+          <polygon points="0,-15 -4,-5 4,-5" fill="#333" />
+          <text x="0" y="-19" textAnchor="middle" fontSize="8" fontWeight="bold" fill="#333">N</text>
+          <line x1="-10" y1="0" x2="10" y2="0" stroke="#333" strokeWidth="0.5" />
+        </g>
+
+        {/* Attachment spacing note */}
+        <text x="250" y={houseY + houseH + 44} textAnchor="middle" fontSize="5" fill="#333">
+          MAX ATTACHMENT SPACING IS 45&quot;
+        </text>
+
+        {/* Racking label */}
+        <text x="250" y={houseY + houseH + 54} textAnchor="middle" fontSize="4.5" fill="#666">
+          {d.rackingModel} | {d.racking.attachmentModel}
+        </text>
+
+        {/* Junction box location */}
+        <rect x={houseX + houseW + 15} y={houseY + houseH / 2 - 10} width="40" height="20" fill="none" stroke="#333" strokeWidth="1" />
+        <text x={houseX + houseW + 35} y={houseY + houseH / 2 + 3} textAnchor="middle" fontSize="4" fill="#333">(N) JB</text>
+        <line x1={houseX + houseW} y1={houseY + houseH / 2} x2={houseX + houseW + 15} y2={houseY + houseH / 2} stroke="#333" strokeWidth="0.8" />
+      </svg>
+    )
+  }
+
   // Equipment wall layout — auto-generated Detail-A matching RUSH format
   // Shows physical arrangement of electrical equipment on exterior wall
   function DetailA() {
@@ -193,11 +300,7 @@ export function SheetPV3({ data }: { data: PlansetData }) {
             {data.sitePlanImageUrl ? (
               <img src={data.sitePlanImageUrl} alt="Site Plan" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
             ) : (
-              <div style={{ textAlign: 'center', color: '#bbb' }}>
-                <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '4px' }}>SITE PLAN</div>
-                <div style={{ fontSize: '7pt' }}>Upload site plan image</div>
-                <div style={{ fontSize: '7pt' }}>in overrides panel</div>
-              </div>
+              <RoofPlanDiagram data={data} />
             )}
             {/* Scale label */}
             <div style={{ position: 'absolute', bottom: '4px', left: '8px', fontSize: '7pt', fontWeight: 'bold' }}>
