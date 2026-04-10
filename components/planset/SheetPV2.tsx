@@ -249,6 +249,78 @@ export function SheetPV2({ data }: { data: PlansetData }) {
             </div>
           </div>
         </div>
+        {/* EQUIPMENT SPECIFICATIONS */}
+        <div style={{ border: '1px solid #111', marginTop: '6px' }}>
+          <div style={{ background: '#111', color: 'white', padding: '4px 6px', fontSize: '8pt', fontWeight: 'bold', textAlign: 'center' }}>EQUIPMENT SPECIFICATIONS</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', padding: '4px' }}>
+            {/* PV Module Specs */}
+            <div>
+              <div style={{ background: '#eee', padding: '2px 4px', fontSize: '6.5pt', fontWeight: 'bold', textAlign: 'center' }}>PV MODULE</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '6.5pt' }}>
+                <tbody>
+                  {([
+                    ['MODEL', data.panelModel],
+                    ['WATTAGE', `${data.panelWattage}W STC`],
+                    ['Voc', `${data.panelVoc}V`],
+                    ['Vmp', `${data.panelVmp}V`],
+                    ['Isc', `${data.panelIsc}A`],
+                    ['Imp', `${data.panelImp}A`],
+                    ['LISTING', 'UL 61730 / IEC 61215'],
+                  ] as [string, string][]).map(([l, v], i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#f9f9f9' : 'white' }}>
+                      <td style={{ fontWeight: 'bold', color: '#999', padding: '1px 4px', width: '30%' }}>{l}</td>
+                      <td style={{ padding: '1px 4px', color: '#333' }}>{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Inverter Specs */}
+            <div>
+              <div style={{ background: '#eee', padding: '2px 4px', fontSize: '6.5pt', fontWeight: 'bold', textAlign: 'center' }}>INVERTER</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '6.5pt' }}>
+                <tbody>
+                  {([
+                    ['MODEL', data.inverterModel],
+                    ['AC POWER', `${data.inverterAcPower} kW`],
+                    ['MAX PV', `${data.maxPvPower}W`],
+                    ['MPPT', `${data.mpptsPerInverter} CHANNELS`],
+                    ['AC VOLTAGE', '240/120V'],
+                    ['LISTING', 'UL 1741SA'],
+                    ['ENCLOSURE', 'NEMA 3R'],
+                  ] as [string, string][]).map(([l, v], i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#f9f9f9' : 'white' }}>
+                      <td style={{ fontWeight: 'bold', color: '#999', padding: '1px 4px', width: '30%' }}>{l}</td>
+                      <td style={{ padding: '1px 4px', color: '#333' }}>{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Battery Specs */}
+            <div>
+              <div style={{ background: '#eee', padding: '2px 4px', fontSize: '6.5pt', fontWeight: 'bold', textAlign: 'center' }}>BATTERY</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '6.5pt' }}>
+                <tbody>
+                  {([
+                    ['MODEL', data.batteryModel],
+                    ['CAPACITY', `${data.batteryCapacity} kWh`],
+                    ['VOLTAGE', '51.2V DC'],
+                    ['CHEMISTRY', 'LiFePO4 / LFP'],
+                    ['PER STACK', `${data.batteriesPerStack}`],
+                    ['LISTING', 'UL 9540'],
+                    ['ENCLOSURE', 'NEMA 3R'],
+                  ] as [string, string][]).map(([l, v], i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#f9f9f9' : 'white' }}>
+                      <td style={{ fontWeight: 'bold', color: '#999', padding: '1px 4px', width: '30%' }}>{l}</td>
+                      <td style={{ padding: '1px 4px', color: '#333' }}>{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
       <TitleBlockHtml sheetName="PROJECT DATA" sheetNumber="PV-2" data={data} />
     </div>
