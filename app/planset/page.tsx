@@ -564,7 +564,7 @@ function PlanSetPageInner() {
             <div id="planset-sheets" className="space-y-8">
               {[
                 ...(enhanced ? [{ id: 'UTIL', label: 'Utility Battery Letter', component: <UtilityBatteryLetter data={data} />, portrait: true }] : []),
-                { id: 'PV-1', label: 'Cover Page & General Notes', component: <SheetPV1 data={data} /> },
+                { id: 'PV-1', label: 'Cover Page & General Notes', component: <SheetPV1 data={data} aerialPhotoUrl={images.aerialPhotoUrl} housePhotoUrl={images.housePhotoUrl} enhanced={enhanced} /> },
                 { id: 'PV-2', label: 'Project Data', component: <SheetPV2 data={data} /> },
                 { id: 'PV-3', label: 'Site Plan', component: <SheetPV3 data={data} /> },
                 ...(enhanced ? [

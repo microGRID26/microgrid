@@ -1,7 +1,14 @@
 import type { PlansetData } from '@/lib/planset-types'
 import { TitleBlockHtml } from './TitleBlockHtml'
 
-export function SheetPV1({ data }: { data: PlansetData }) {
+interface SheetPV1Props {
+  data: PlansetData
+  aerialPhotoUrl?: string | null
+  housePhotoUrl?: string | null
+  enhanced?: boolean
+}
+
+export function SheetPV1({ data, aerialPhotoUrl, housePhotoUrl, enhanced = false }: SheetPV1Props) {
   const generalNotes = [
     'ALL WORK SHALL COMPLY WITH THE LATEST EDITION OF THE NEC (NFPA 70) AND ALL APPLICABLE LOCAL CODES.',
     'ALL WIRING METHODS AND MATERIALS SHALL COMPLY WITH NEC ARTICLES 690, 705, AND 706.',
@@ -47,84 +54,189 @@ export function SheetPV1({ data }: { data: PlansetData }) {
     ['Imp', 'MAXIMUM POWER CURRENT'],
   ]
 
+  // Dynamic sheet index based on enhanced mode
   const sheetIndex: [string, string][] = [
-    ['PV-1', 'COVER PAGE & GENERAL NOTES'], ['PV-2', 'PROJECT DATA'],
+    ['PV-1', 'COVER PAGE & GENERAL NOTES'],
+    ['PV-2', 'PROJECT DATA'],
     ['PV-3', 'SITE PLAN'],
-    ['PV-5', 'SINGLE LINE DIAGRAM'], ['PV-5.1', 'PCS LABELS'],
-    ['PV-6', 'WIRING CALCULATIONS'], ['PV-7', 'WARNING LABELS'],
-    ['PV-7.1', 'EQUIPMENT PLACARDS'], ['PV-8', 'CONDUCTOR SCHEDULE & BOM'],
+    ...(enhanced ? [['PV-3.1', 'EQUIPMENT ELEVATION'] as [string, string]] : []),
+    ...(enhanced ? [['PV-4', 'ROOF PLAN WITH MODULES'] as [string, string]] : []),
+    ['PV-5', 'SINGLE LINE DIAGRAM'],
+    ['PV-5.1', 'PCS LABELS'],
+    ['PV-6', 'WIRING CALCULATIONS'],
+    ['PV-7', 'WARNING LABELS'],
+    ['PV-7.1', 'EQUIPMENT PLACARDS'],
+    ['PV-8', 'CONDUCTOR SCHEDULE & BOM'],
   ]
 
-  const storiesLabel = data.stories === 1 ? 'ONE' : String(data.stories)
+  // Scope of work — matching RUSH format
+  const scopeOfWork: [string, string][] = [
+    [String(data.panelCount), `${data.panelModel}`],
+    [String(data.inverterCount), `${data.inverterModel}`],
+    [String(data.batteryCount), `${data.batteryModel}`],
+    [String(data.racking.attachmentCount), `${data.racking.attachmentModel}`],
+    [String(data.racking.railCount), `${data.racking.railModel}`],
+    [String(data.racking.midClampCount ?? 0), 'Mid Clamp Assembly'],
+    [String(data.racking.endClampCount ?? 0), 'End Clamp Assembly'],
+  ]
+
+  const storiesLabel = data.stories === 1 ? 'ONE' : data.stories === 2 ? 'TWO' : String(data.stories)
+
+  // Shared cell styles
+  const hdr: React.CSSProperties = { background: '#111', color: 'white', padding: '3px 6px', fontSize: '7pt', fontWeight: 'bold', textAlign: 'center' }
+  const cell: React.CSSProperties = { fontWeight: 'bold', padding: '1.5px 4px', color: '#111', fontSize: '6pt', whiteSpace: 'nowrap' }
+  const val: React.CSSProperties = { padding: '1.5px 4px', color: '#333', fontSize: '6pt' }
 
   return (
     <div className="sheet" style={{ display: 'grid', gridTemplateColumns: '1fr 2.5in', border: '2px solid #000', fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '8pt', width: '16.5in', height: '10.5in', overflow: 'hidden', position: 'relative' }}>
-      <div className="sheet-content" style={{ padding: '0.15in 0.2in', overflow: 'hidden' }}>
-        <div className="sheet-title" style={{ fontSize: '14pt', fontWeight: 'bold', color: '#111' }}>
+      <div className="sheet-content" style={{ padding: '0.12in 0.15in', overflow: 'hidden' }}>
+        {/* Title */}
+        <div style={{ fontSize: '13pt', fontWeight: 'bold', color: '#111', marginBottom: '1px' }}>
           ROOF INSTALLATION OF {data.systemDcKw.toFixed(2)} KW DC PHOTOVOLTAIC SYSTEM
         </div>
-        <div className="sheet-subtitle" style={{ fontSize: '8pt', color: '#555', marginBottom: '8pt' }}>
+        <div style={{ fontSize: '7.5pt', color: '#555', marginBottom: '6px' }}>
           WITH {data.totalStorageKwh} KWH BATTERY ENERGY STORAGE SYSTEM
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr 0.9fr', gap: '8px' }}>
-          {/* LEFT COLUMN */}
-          <div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1.15fr 0.7fr', gap: '6px', height: 'calc(100% - 28px)' }}>
+          {/* ── LEFT COLUMN: Project Data, Scope, Electrical, Building, Design, Codes ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
             {/* PROJECT DATA */}
-            <div className="section-box" style={{ border: '1px solid #111', marginBottom: '6px' }}>
-              <div className="section-header" style={{ background: '#111', color: 'white', padding: '4px 6px', fontSize: '8pt', fontWeight: 'bold', textAlign: 'center' }}>PROJECT DATA</div>
-              <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '6.5pt' }}>
+            <div style={{ border: '1px solid #111' }}>
+              <div style={hdr}>PROJECT DATA</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>PROJECT:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.projectId} {data.owner}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>ADDRESS:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.address}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>SYSTEM SIZE:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.systemDcKw.toFixed(2)} kWDC / {data.systemAcKw} kWAC</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>PV MODULES:</td><td style={{ padding: '2px 4px', color: '#333' }}>({data.panelCount}) {data.panelModel}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>INVERTERS:</td><td style={{ padding: '2px 4px', color: '#333' }}>({data.inverterCount}) {data.inverterModel}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>BATTERIES:</td><td style={{ padding: '2px 4px', color: '#333' }}>({data.batteryCount}) {data.batteryModel} = {data.totalStorageKwh} kWh</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>RACKING:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.rackingModel}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>ATTACHMENTS:</td><td style={{ padding: '2px 4px', color: '#333' }}>({data.racking.attachmentCount}) {data.racking.attachmentModel}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>RAIL:</td><td style={{ padding: '2px 4px', color: '#333' }}>({data.racking.railCount}) {data.racking.railModel}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>UTILITY:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.utility}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>METER #:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.meter}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>ESID:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.esid}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>BUILDING:</td><td style={{ padding: '2px 4px', color: '#333' }}>{storiesLabel} STORY, {data.buildingType}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>ROOF:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.roofType}, {data.rafterSize}</td></tr>
-                  <tr><td style={{ fontWeight: 'bold', padding: '2px 4px', color: '#111' }}>WIND SPEED:</td><td style={{ padding: '2px 4px', color: '#333' }}>{data.windSpeed} MPH, Cat {data.riskCategory}, Exp {data.exposure}</td></tr>
+                  <tr><td style={cell}>PROJECT:</td><td style={val}>{data.projectId} {data.owner}</td></tr>
+                  <tr><td style={cell}>ADDRESS:</td><td style={val}>{data.address}</td></tr>
+                  <tr><td style={cell}>SYSTEM SIZE:</td><td style={val}>{data.systemDcKw.toFixed(2)} kWDC / {data.systemAcKw} kWAC</td></tr>
+                  <tr><td style={cell}>PV MODULES:</td><td style={val}>({data.panelCount}) {data.panelModel}</td></tr>
+                  <tr><td style={cell}>INVERTERS:</td><td style={val}>({data.inverterCount}) {data.inverterModel}</td></tr>
+                  <tr><td style={cell}>BATTERIES:</td><td style={val}>({data.batteryCount}) {data.batteryModel} = {data.totalStorageKwh} kWh</td></tr>
+                  <tr><td style={cell}>RACKING:</td><td style={val}>{data.rackingModel}</td></tr>
+                  <tr><td style={cell}>ATTACHMENTS:</td><td style={val}>({data.racking.attachmentCount}) {data.racking.attachmentModel}</td></tr>
+                  <tr><td style={cell}>RAIL:</td><td style={val}>({data.racking.railCount}) {data.racking.railModel}</td></tr>
+                  <tr><td style={cell}>UTILITY:</td><td style={val}>{data.utility}</td></tr>
+                  <tr><td style={cell}>METER #:</td><td style={val}>{data.meter}</td></tr>
+                  <tr><td style={cell}>ESID:</td><td style={val}>{data.esid}</td></tr>
+                  <tr><td style={cell}>BUILDING:</td><td style={val}>{storiesLabel} STORY, {data.buildingType}</td></tr>
+                  <tr><td style={cell}>ROOF:</td><td style={val}>{data.roofType}, {data.rafterSize}</td></tr>
+                  <tr><td style={cell}>WIND SPEED:</td><td style={val}>{data.windSpeed} MPH, Cat {data.riskCategory}, Exp {data.exposure}</td></tr>
                 </tbody>
               </table>
             </div>
 
             {/* EXISTING SYSTEM */}
             {data.existingPanelModel && (
-              <div className="section-box" style={{ border: '1px solid #111', marginBottom: '6px' }}>
-                <div style={{ background: '#555', color: 'white', padding: '4px 6px', fontSize: '8pt', fontWeight: 'bold', textAlign: 'center' }}>EXISTING SYSTEM (TO REMAIN)</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '6.5pt' }}>
+              <div style={{ border: '1px solid #111' }}>
+                <div style={{ ...hdr, background: '#555' }}>EXISTING SYSTEM (TO REMAIN)</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
-                    <tr><td style={{ fontWeight: 'bold', padding: '2px 4px' }}>PV MODULES:</td><td style={{ padding: '2px 4px' }}>({data.existingPanelCount ?? 0}) {data.existingPanelModel} ({data.existingPanelWattage ?? 0}W)</td></tr>
-                    <tr><td style={{ fontWeight: 'bold', padding: '2px 4px' }}>INVERTERS:</td><td style={{ padding: '2px 4px' }}>({data.existingInverterCount ?? 0}) {data.existingInverterModel}</td></tr>
-                    <tr><td style={{ fontWeight: 'bold', padding: '2px 4px' }}>EXISTING DC:</td><td style={{ padding: '2px 4px' }}>{((data.existingPanelCount ?? 0) * (data.existingPanelWattage ?? 0) / 1000).toFixed(2)} kW</td></tr>
+                    <tr><td style={cell}>PV MODULES:</td><td style={val}>({data.existingPanelCount ?? 0}) {data.existingPanelModel} ({data.existingPanelWattage ?? 0}W)</td></tr>
+                    <tr><td style={cell}>INVERTERS:</td><td style={val}>({data.existingInverterCount ?? 0}) {data.existingInverterModel}</td></tr>
+                    <tr><td style={cell}>EXISTING DC:</td><td style={val}>{((data.existingPanelCount ?? 0) * (data.existingPanelWattage ?? 0) / 1000).toFixed(2)} kW</td></tr>
                   </tbody>
                 </table>
               </div>
             )}
 
+            {/* SCOPE OF WORK — matches RUSH quantity table */}
+            <div style={{ border: '1px solid #111' }}>
+              <div style={hdr}>SCOPE OF WORK</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...cell, borderBottom: '1px solid #ccc', width: '50px', textAlign: 'center' }}>QUANTITY</th>
+                    <th style={{ ...cell, borderBottom: '1px solid #ccc' }}>DESCRIPTION</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scopeOfWork.map(([qty, desc], i) => (
+                    <tr key={i}>
+                      <td style={{ ...val, textAlign: 'center', fontWeight: 'bold' }}>{qty}</td>
+                      <td style={val}>{desc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ELECTRICAL INFORMATION — matches RUSH */}
+            <div style={{ border: '1px solid #111' }}>
+              <div style={hdr}>ELECTRICAL INFORMATION</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  <tr><td style={cell}>VOLTAGE:</td><td style={val}>{data.voltage ?? '120/240V'}</td></tr>
+                  <tr><td style={cell}>MSP BUS RATING:</td><td style={val}>{data.mspBusRating ?? '200A'}</td></tr>
+                  <tr><td style={cell}>MAIN BREAKER:</td><td style={val}>{data.mainBreaker ?? '200A'}</td></tr>
+                  <tr><td style={cell}>SERVICE DISCONNECT RATING:</td><td style={val}>200A</td></tr>
+                  <tr><td style={cell}>SERVICE DISCONNECT FUSE RATING:</td><td style={val}>200A</td></tr>
+                  <tr><td style={cell}>INTERCONNECTION TYPE:</td><td style={val}>UTILITY INTERCONNECTION</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* BUILDING INFORMATION — matches RUSH */}
+            <div style={{ border: '1px solid #111' }}>
+              <div style={hdr}>BUILDING INFORMATION</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  <tr><td style={cell}>BUILDING TYPE:</td><td style={val}>{storiesLabel} STORY BUILDING</td></tr>
+                  <tr><td style={cell}>CONSTRUCTION TYPE:</td><td style={val}>{data.buildingType}</td></tr>
+                  <tr><td style={cell}>OCCUPANCY:</td><td style={val}>R</td></tr>
+                  <tr><td style={cell}>ROOF TYPE:</td><td style={val}>{data.roofType?.toUpperCase()}</td></tr>
+                  <tr><td style={cell}>RAFTERS:</td><td style={val}>{data.rafterSize}</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* DESIGN CRITERIA — matches RUSH */}
+            <div style={{ border: '1px solid #111' }}>
+              <div style={hdr}>DESIGN CRITERIA</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  <tr><td style={cell}>EXPOSURE CATEGORY:</td><td style={val}>{data.exposure}</td></tr>
+                  <tr><td style={cell}>WIND SPEED:</td><td style={val}>{data.windSpeed} MPH</td></tr>
+                  <tr><td style={cell}>RISK CATEGORY:</td><td style={val}>{data.riskCategory}</td></tr>
+                </tbody>
+              </table>
+            </div>
+
             {/* CODE REFERENCES */}
-            <div className="section-box" style={{ border: '1px solid #111', marginBottom: '6px' }}>
-              <div className="section-header" style={{ background: '#111', color: 'white', padding: '4px 6px', fontSize: '8pt', fontWeight: 'bold', textAlign: 'center' }}>CODE REFERENCES</div>
-              <div style={{ padding: '4px 6px', fontSize: '6.5pt', lineHeight: 1.7 }}>
+            <div style={{ border: '1px solid #111' }}>
+              <div style={hdr}>CODE REFERENCES</div>
+              <div style={{ padding: '3px 6px', fontSize: '5.5pt', lineHeight: 1.6 }}>
                 {codeRefs.map((ref, i) => <div key={i}>{ref}</div>)}
               </div>
             </div>
+          </div>
+
+          {/* ── CENTER COLUMN: General Notes, PV Notes, Unit Index ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
+            {/* GENERAL NOTES */}
+            <div style={{ border: '1px solid #111', flex: 1 }}>
+              <div style={hdr}>GENERAL NOTES</div>
+              <ol style={{ padding: '3px 6px 3px 16px', fontSize: '5pt', lineHeight: 1.7, color: '#333', margin: 0 }}>
+                {generalNotes.map((note, i) => <li key={i}>{note}</li>)}
+              </ol>
+            </div>
+
+            {/* PHOTOVOLTAIC NOTES */}
+            <div style={{ border: '1px solid #111' }}>
+              <div style={hdr}>PHOTOVOLTAIC NOTES</div>
+              <ol style={{ padding: '3px 6px 3px 16px', fontSize: '5pt', lineHeight: 1.7, color: '#333', margin: 0 }}>
+                {pvNotes.map((note, i) => <li key={i}>{note}</li>)}
+              </ol>
+            </div>
 
             {/* UNIT INDEX */}
-            <div className="section-box" style={{ border: '1px solid #111', marginBottom: '6px' }}>
-              <div className="section-header" style={{ background: '#111', color: 'white', padding: '4px 6px', fontSize: '8pt', fontWeight: 'bold', textAlign: 'center' }}>UNIT INDEX</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '6pt' }}>
+            <div style={{ border: '1px solid #111' }}>
+              <div style={hdr}>UNIT INDEX</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
                   {unitIndex.map(([abbr, def], i) => (
                     <tr key={i}>
-                      <td style={{ fontWeight: 'bold', padding: '1px 4px', color: '#111', width: '40px' }}>{abbr}</td>
-                      <td style={{ padding: '1px 4px', color: '#333' }}>{def}</td>
+                      <td style={{ ...cell, width: '36px', fontSize: '5.5pt' }}>{abbr}</td>
+                      <td style={{ ...val, fontSize: '5.5pt' }}>{def}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -132,31 +244,12 @@ export function SheetPV1({ data }: { data: PlansetData }) {
             </div>
           </div>
 
-          {/* CENTER COLUMN */}
-          <div>
-            {/* GENERAL NOTES */}
-            <div className="section-box" style={{ border: '1px solid #111', marginBottom: '6px' }}>
-              <div className="section-header" style={{ background: '#111', color: 'white', padding: '4px 6px', fontSize: '8pt', fontWeight: 'bold', textAlign: 'center' }}>GENERAL NOTES</div>
-              <ol style={{ padding: '4px 6px 4px 18px', fontSize: '5.5pt', lineHeight: 1.8, color: '#333' }}>
-                {generalNotes.map((note, i) => <li key={i}>{note}</li>)}
-              </ol>
-            </div>
-
-            {/* PHOTOVOLTAIC NOTES */}
-            <div className="section-box" style={{ border: '1px solid #111', marginBottom: '6px' }}>
-              <div className="section-header" style={{ background: '#111', color: 'white', padding: '4px 6px', fontSize: '8pt', fontWeight: 'bold', textAlign: 'center' }}>PHOTOVOLTAIC NOTES</div>
-              <ol style={{ padding: '4px 6px 4px 18px', fontSize: '5.5pt', lineHeight: 1.8, color: '#333' }}>
-                {pvNotes.map((note, i) => <li key={i}>{note}</li>)}
-              </ol>
-            </div>
-          </div>
-
-          {/* RIGHT COLUMN */}
-          <div>
+          {/* ── RIGHT COLUMN: Images + Contractor + Sheet Index ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
             {/* CONTRACTOR */}
-            <div className="section-box" style={{ border: '1px solid #111', marginBottom: '6px' }}>
-              <div className="section-header" style={{ background: '#111', color: 'white', padding: '4px 6px', fontSize: '8pt', fontWeight: 'bold', textAlign: 'center' }}>CONTRACTOR</div>
-              <div style={{ padding: '6px 8px', fontSize: '7pt', lineHeight: 1.8 }}>
+            <div style={{ border: '1px solid #111' }}>
+              <div style={hdr}>CONTRACTOR</div>
+              <div style={{ padding: '4px 6px', fontSize: '6pt', lineHeight: 1.6 }}>
                 <div style={{ fontWeight: 'bold' }}>{data.contractor.name}</div>
                 <div>{data.contractor.address}</div>
                 <div>{data.contractor.city}</div>
@@ -166,15 +259,39 @@ export function SheetPV1({ data }: { data: PlansetData }) {
               </div>
             </div>
 
+            {/* AERIAL VIEW */}
+            <div style={{ border: '1px solid #111', flex: 1, minHeight: '1.2in' }}>
+              <div style={hdr}>AERIAL VIEW</div>
+              <div style={{ height: 'calc(100% - 20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {aerialPhotoUrl ? (
+                  <img src={aerialPhotoUrl} alt="Aerial view" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: '6pt', color: '#999' }}>Upload aerial photo</span>
+                )}
+              </div>
+            </div>
+
+            {/* HOUSE PHOTO */}
+            <div style={{ border: '1px solid #111', flex: 1, minHeight: '1.2in' }}>
+              <div style={hdr}>HOUSE PHOTO</div>
+              <div style={{ height: 'calc(100% - 20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {housePhotoUrl ? (
+                  <img src={housePhotoUrl} alt="House photo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: '6pt', color: '#999' }}>Upload house photo</span>
+                )}
+              </div>
+            </div>
+
             {/* SHEET INDEX */}
-            <div className="section-box" style={{ border: '1px solid #111', marginBottom: '6px' }}>
-              <div className="section-header" style={{ background: '#111', color: 'white', padding: '4px 6px', fontSize: '8pt', fontWeight: 'bold', textAlign: 'center' }}>SHEET INDEX</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '6.5pt' }}>
+            <div style={{ border: '1px solid #111' }}>
+              <div style={hdr}>SHEET INDEX</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
                   {sheetIndex.map(([num, title], i) => (
                     <tr key={i}>
-                      <td style={{ fontWeight: 'bold', padding: '2px 6px', color: '#111', width: '45px' }}>{num}</td>
-                      <td style={{ padding: '2px 4px', color: '#333' }}>{title}</td>
+                      <td style={{ ...cell, width: '38px', fontSize: '5.5pt' }}>{num}</td>
+                      <td style={{ ...val, fontSize: '5.5pt' }}>{title}</td>
                     </tr>
                   ))}
                 </tbody>
