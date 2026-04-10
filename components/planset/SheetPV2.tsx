@@ -33,7 +33,7 @@ export function SheetPV2({ data }: { data: PlansetData }) {
 
   const existingRows: [string, string][] = data.existingPanelModel ? [
     ['PV MODULE', `(${data.existingPanelCount ?? 0}) ${data.existingPanelModel}`],
-    ['MODULE WATTAGE', `${data.existingPanelWattage ?? 0}W`],
+    ['MODULE WATTAGE', data.existingPanelWattage ? `${data.existingPanelWattage}W` : 'N/A'],
     ['INVERTER', `(${data.existingInverterCount ?? 0}) ${data.existingInverterModel ?? 'N/A'}`],
     ['BATTERY', 'N/A'],
     ['SYSTEM DC', existingDcKw ? `${existingDcKw} kW` : 'N/A'],

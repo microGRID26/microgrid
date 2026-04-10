@@ -26,14 +26,34 @@ export function SheetPV3({ data }: { data: PlansetData }) {
         {/* Street label */}
         <text x="250" y="430" textAnchor="middle" fontSize="7" fill="#666" fontWeight="bold">{d.address.split(',')[0]?.toUpperCase() || 'STREET'}</text>
 
-        {/* House outline */}
+        {/* Fence indication */}
+        <line x1="30" y1="60" x2="30" y2="410" stroke="#999" strokeWidth="0.5" strokeDasharray="6,3" />
+        <line x1="470" y1="60" x2="470" y2="410" stroke="#999" strokeWidth="0.5" strokeDasharray="6,3" />
+        <line x1="30" y1="60" x2="470" y2="60" stroke="#999" strokeWidth="0.5" strokeDasharray="6,3" />
+        <text x="40" y="72" fontSize="4" fill="#bbb">FENCE</text>
+
+        {/* House outline with garage */}
         <rect x={houseX} y={houseY} width={houseW} height={houseH} fill="#f5f5f0" stroke="#333" strokeWidth="1.5" />
+        {/* Garage extension */}
+        <rect x={houseX + houseW - 70} y={houseY + houseH} width={70} height={40} fill="#eee" stroke="#333" strokeWidth="1" />
+        <text x={houseX + houseW - 35} y={houseY + houseH + 22} textAnchor="middle" fontSize="5" fill="#999">GARAGE</text>
+        {/* Driveway */}
+        <rect x={houseX + houseW - 55} y={houseY + houseH + 40} width={40} height={55} fill="#e8e8e8" stroke="#aaa" strokeWidth="0.5" strokeDasharray="3,2" />
+        <text x={houseX + houseW - 35} y={houseY + houseH + 75} textAnchor="middle" fontSize="4" fill="#bbb">DRIVEWAY</text>
+        {/* Front door */}
+        <rect x={houseX + 30} y={houseY + houseH - 2} width={18} height={4} fill="#999" stroke="#333" strokeWidth="0.5" />
+        {/* Building type label */}
+        <text x={houseX + houseW / 2} y={houseY + houseH - 8} textAnchor="middle" fontSize="4" fill="#999">
+          {d.stories === 1 ? 'ONE' : 'TWO'} STORY {d.buildingType?.toUpperCase() || 'BUILDING'}
+        </text>
 
         {/* Roof ridge line */}
         <line x1={houseX} y1={roofPeakY} x2={houseX + houseW / 2} y2={roofPeakY - 20} stroke="#333" strokeWidth="1" />
         <line x1={houseX + houseW} y1={roofPeakY} x2={houseX + houseW / 2} y2={roofPeakY - 20} stroke="#333" strokeWidth="1" />
         <line x1={houseX} y1={roofPeakY} x2={houseX} y2={houseY} stroke="#333" strokeWidth="1" />
         <line x1={houseX + houseW} y1={roofPeakY} x2={houseX + houseW} y2={houseY} stroke="#333" strokeWidth="1" />
+        {/* Roof label */}
+        <text x={houseX + houseW / 2} y={roofPeakY - 25} textAnchor="middle" fontSize="5" fill="#333">{d.roofType?.toUpperCase() || 'COMP SHINGLE'}</text>
 
         {/* Setback lines */}
         <rect x={houseX + 8} y={roofPeakY + 5} width={houseW - 16} height={houseH - 15} fill="none" stroke="#cc0000" strokeWidth="0.5" strokeDasharray="4,2" />
