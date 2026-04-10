@@ -80,7 +80,7 @@ export default function QADailyDriver() {
       })
       if (!res.ok) { setStarting(false); return }
       const { runId, pageUrl } = await res.json()
-      const target = pageUrl || '/command'
+      const target = '/testing'
       const sep = target.includes('?') ? '&' : '?'
       router.push(`${target}${sep}qa_run=${runId}`)
     } catch {
