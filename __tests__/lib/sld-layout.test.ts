@@ -146,4 +146,67 @@ describe('calculateSldLayout', () => {
       }
     }
   })
+
+  // ── Phase 3 SLD Enhancement tests ──
+
+  it('includes numbered callout circles (1-9)', () => {
+    const layout = calculateSldLayout(makeConfig())
+    const callouts = layout.elements.filter(e => e.type === 'callout')
+    // With 2 inverters: each gets callouts 1-6, plus shared 7,8,9
+    // Inverter 1: ①②③④⑤⑥, Inverter 2: ①②③④⑤⑥, Shared: ⑦⑧⑨
+    expect(callouts.length).toBeGreaterThanOrEqual(9)
+    const numbers = callouts.map(c => c.number)
+    // All TAG numbers 1-9 present
+    for (let n = 1; n <= 9; n++) {
+      expect(numbers).toContain(n)
+    }
+  })
+
+  it('callout elements have positive radius', () => {
+    const layout = calculateSldLayout(makeConfig())
+    const callouts = layout.elements.filter(e => e.type === 'callout')
+    for (const c of callouts) {
+      expect(c.r ?? 10).toBeGreaterThan(0)
+    }
+  })
+
+  it('includes installation notes box', () => {
+    const layout = calculateSldLayout(makeConfig())
+    const texts = layout.elements.filter(e => e.type === 'text')
+    expect(texts.some(t => t.text.includes('INSTALLATION NOTES'))).toBe(true)
+    expect(texts.some(t => t.text.includes('RING TERMINALS'))).toBe(true)
+    expect(texts.some(t => t.text.includes('RIGID RACK'))).toBe(true)
+  })
+
+  it('includes enhanced battery scope with disconnect ratings', () => {
+    const layout = calculateSldLayout(makeConfig())
+    const texts = layout.elements.filter(e => e.type === 'text')
+    expect(texts.some(t => t.text.includes('SERVICE DISCONNECT RATING'))).toBe(true)
+    expect(texts.some(t => t.text.includes('SERVICE DISCONNECT FUSE RATING'))).toBe(true)
+    expect(texts.some(t => t.text.includes('ELECTRICAL INFORMATION'))).toBe(true)
+  })
+
+  it('includes consumption CT element', () => {
+    const layout = calculateSldLayout(makeConfig())
+    const texts = layout.elements.filter(e => e.type === 'text')
+    expect(texts.some(t => t.text.includes('CONSUMPTION CT'))).toBe(true)
+    // CT circle exists
+    const circles = layout.elements.filter(e => e.type === 'circle')
+    expect(circles.length).toBeGreaterThanOrEqual(2) // utility meter + CT
+  })
+
+  it('wire labels include EGC on AC segments', () => {
+    const layout = calculateSldLayout(makeConfig())
+    const texts = layout.elements.filter(e => e.type === 'text')
+    const egcLabels = texts.filter(t => t.text.includes('EGC'))
+    // At least: DC homerun EGC + AC inverter-to-disconnect EGC + AC disconnect-to-bus EGC (per inverter)
+    expect(egcLabels.length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('includes conduit routing annotation on utility side', () => {
+    const layout = calculateSldLayout(makeConfig())
+    const texts = layout.elements.filter(e => e.type === 'text')
+    expect(texts.some(t => t.text.includes('PVC TYPE CONDUIT'))).toBe(true)
+    expect(texts.some(t => t.text.includes('TRENCHING'))).toBe(true)
+  })
 })

@@ -81,5 +81,16 @@ function renderElement(el: SldElement, key: number): React.ReactNode {
           <line x1={el.x - 3} y1={el.y + 8} x2={el.x + 3} y2={el.y + 8} stroke="#111" strokeWidth="1.5" />
         </g>
       )
+    case 'callout': {
+      const r = el.r ?? 10
+      return (
+        <g key={key}>
+          <circle cx={el.cx} cy={el.cy} r={r} fill="#111" stroke="#111" strokeWidth="1" />
+          <text x={el.cx} y={el.cy + (r * 0.38)} fontSize={r * 1.2} textAnchor="middle" fill="white" fontWeight="bold">
+            {el.number}
+          </text>
+        </g>
+      )
+    }
   }
 }

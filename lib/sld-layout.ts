@@ -84,6 +84,7 @@ export type SldElement =
   | { type: 'breaker'; x: number; y: number; label: string; amps?: string }
   | { type: 'disconnect'; x: number; y: number; label: string }
   | { type: 'ground'; x: number; y: number }
+  | { type: 'callout'; cx: number; cy: number; number: number; r?: number }
 
 export function calculateSldLayout(config: SldConfig): SldLayout {
   const elements: SldElement[] = []
@@ -148,36 +149,48 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
   const wbSize = sizeBox(['(N) WIRELESS BRIDGE'], 4, { x: PAD, y: PAD })
   wbSize.w = Math.max(wbSize.w, 75)
 
-  // ── PHASE 2: Calculate positions (top to bottom flow) ──
+  // ── PHASE 2: Calculate positions (multi-row layout) ──
+  // Cap inverter columns per row to keep the sheet at a readable aspect ratio.
+  // Systems with >MAX_COLS_PER_ROW inverters wrap into multiple rows, each
+  // containing its own strings → JB → DC disc → inverter → battery → AC disc.
+  // All rows feed into a shared bus bar at the bottom.
 
-  // Total width: need room for 2 inverter columns + batteries + gateway on each side
+  const MAX_COLS_PER_ROW = 4
+  const numRows = Math.ceil(config.inverterCount / MAX_COLS_PER_ROW)
+  const colsInRow = (r: number) =>
+    r < numRows - 1 ? MAX_COLS_PER_ROW : config.inverterCount - MAX_COLS_PER_ROW * (numRows - 1)
+
+  // Width based on widest possible row (capped at MAX_COLS_PER_ROW)
   const invColWidth = battStackSize.w + 60 + invSize.w + 30 + gwSize.w
-  const totalInvWidth = invColWidth * config.inverterCount + COL_GAP
+  const maxColsInAnyRow = Math.min(config.inverterCount, MAX_COLS_PER_ROW)
+  const totalInvWidth = invColWidth * maxColsInAnyRow + (maxColsInAnyRow - 1) * COL_GAP
   // Utility chain: wire(30) + genDisc(80) + wire(25) + RGM(70) + wire(25) + meter(44dia) + wire(50) + gridText(80) + margin(30)
   const utilChainWidth = 30 + 80 + 25 + 70 + 25 + 44 + 50 + 80 + 30 // = 434
   const sheetWidth = Math.max(totalInvWidth + 100 + utilChainWidth + 50, 1600)
 
-  // String arrays section
+  // Per-row vertical sections
   const stringRowH = 40 // height per string row
   const maxStringsPerInv = Math.max(...config.stringsPerInverter.map(s => s.length))
-  const stringsTopY = 80
   const stringsSectionH = maxStringsPerInv * stringRowH + 30
-
-  // Junction box section
-  const jbY = stringsTopY + stringsSectionH + 10
   const jbH = 25
+  const ROW_GAP = 40
 
-  // DC disconnect section
-  const dcDiscY = jbY + jbH + 40
+  // Single row equipment height: strings + gap + JB + gap + DC disc(25) + inverter + gap + AC disc zone(60)
+  const rowEquipmentH = stringsSectionH + 10 + jbH + 40 + 25 + invSize.h + SECTION_GAP + 60
 
-  // Inverter section
-  const invTopY = dcDiscY + 25
+  // Header area top margin (STC, meter, battery scope boxes live here)
+  const headerTopMargin = 80
 
-  // AC disconnect section
-  const acDiscY = invTopY + invSize.h + SECTION_GAP
+  // Per-row Y offset helpers
+  const rowTopY = (r: number) => headerTopMargin + r * (rowEquipmentH + ROW_GAP)
+  const stringsTopYForRow = (r: number) => rowTopY(r)
+  const jbYForRow = (r: number) => stringsTopYForRow(r) + stringsSectionH + 10
+  const dcDiscYForRow = (r: number) => jbYForRow(r) + jbH + 40
+  const invTopYForRow = (r: number) => dcDiscYForRow(r) + 25
+  const acDiscYForRow = (r: number) => invTopYForRow(r) + invSize.h + SECTION_GAP
 
-  // Bus bar section
-  const busY = acDiscY + 60
+  // Bus bar below all rows
+  const busY = rowTopY(numRows - 1) + rowEquipmentH + 30
 
   // Below bus (breakers, ground, existing system, generator)
   const belowBusH = 100
@@ -191,9 +204,12 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
 
   const sheetHeight = notesY + notesH + titleBlockH + 30
 
-  // Center the inverter columns
-  const totalColumnsWidth = config.inverterCount * invColWidth + (config.inverterCount - 1) * COL_GAP
-  const columnsStartX = (sheetWidth - totalColumnsWidth) / 2
+  // Per-row column centering
+  const rowColumnsStartX = (r: number) => {
+    const cols = colsInRow(r)
+    const rowWidth = cols * invColWidth + (cols - 1) * COL_GAP
+    return (sheetWidth - rowWidth) / 2
+  }
 
   // ── PHASE 3: Generate elements ──
 
@@ -214,18 +230,57 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
     elements.push({ type: 'text', x: meterX + 8, y: 28 + i * 10, text: line, fontSize: 6 })
   })
 
-  // Battery scope box (top right)
-  const battScopeX = sheetWidth - battScopeSize.w - 20
-  elements.push({ type: 'rect', x: battScopeX, y: 16, w: battScopeSize.w, h: battScopeSize.h + 10 })
+  // Battery scope box (top right) — enhanced to match RUSH detail
+  const battScopeEnhancedLines = [
+    `(N)(${config.batteryCount}) ${config.batteryModel.toUpperCase()}`,
+    `${config.batteryCapacity}KWH, 380VDC, IP67, NEMA 3R`,
+    `TOTAL STORAGE: ${config.totalStorageKwh} kWh | STACKS: ${config.inverterCount} x ${config.batteriesPerStack}`,
+    `ELECTRICAL INFORMATION`,
+    `  N-3P, 240V, 2220A`,
+    `SERVICE DISCONNECT RATING    200A`,
+    `SERVICE DISCONNECT FUSE RATING    200A`,
+  ]
+  const battScopeEnhancedSize = sizeBox(battScopeEnhancedLines, 5.5, { x: PAD, y: PAD })
+  battScopeEnhancedSize.w = Math.max(battScopeEnhancedSize.w, 260)
+  const battScopeX = sheetWidth - battScopeEnhancedSize.w - 20
+  elements.push({ type: 'rect', x: battScopeX, y: 16, w: battScopeEnhancedSize.w, h: battScopeEnhancedSize.h + 16 })
   elements.push({ type: 'text', x: battScopeX + 8, y: 28, text: 'BATTERY SCOPE', fontSize: 6, bold: true })
-  battLines.forEach((line, i) => {
-    elements.push({ type: 'text', x: battScopeX + 8, y: 40 + i * 9, text: line, fontSize: 5.5 })
+  battScopeEnhancedLines.forEach((line, i) => {
+    const isBold = line === 'ELECTRICAL INFORMATION'
+    elements.push({ type: 'text', x: battScopeX + 8, y: 40 + i * 9, text: line, fontSize: 5.5, bold: isBold })
   })
 
-  // ── Per-inverter columns ──
+  // Installation notes box (below STC + meter boxes)
+  const installNotesY = 16 + stcSize.h + 12
+  const installNotes = [
+    'REQUIRES RING TERMINALS FOR BATTERY WIRING',
+    'REQUIRES TRENCHING',
+    `ADDITIONAL VF TRENCH LENGTH IS GM BOTH ENDS OF THE TRENCH FOR VERTICAL WIRING`,
+    'NEEDS TO FIX THE PVC AND EXPOSED WIRING FROM MAIN SERVICE PANEL ON UTILITY POLE',
+    'TO MAKE SPACE FOR NEW SURGE PROTECTOR',
+    'REQUIRES RIGID RACK FOR MAX HYBRID INVERTER AND BATTERY MOUNTING',
+  ]
+  const installNotesSize = sizeBox(installNotes, 5, { x: PAD, y: PAD })
+  installNotesSize.w = Math.max(installNotesSize.w, stcSize.w)
+  elements.push({ type: 'rect', x: 20, y: installNotesY, w: installNotesSize.w, h: installNotesSize.h + 8 })
+  elements.push({ type: 'text', x: 28, y: installNotesY + 10, text: 'INSTALLATION NOTES:', fontSize: 5.5, bold: true })
+  installNotes.forEach((line, i) => {
+    elements.push({ type: 'text', x: 28, y: installNotesY + 21 + i * 8, text: `- ${line}`, fontSize: 4.5, fill: '#444' })
+  })
+
+  // ── Per-inverter columns (multi-row aware) ──
   for (let inv = 0; inv < config.inverterCount; inv++) {
+    const row = Math.floor(inv / MAX_COLS_PER_ROW)
+    const col = inv % MAX_COLS_PER_ROW
     const stringIndices = config.stringsPerInverter[inv]
-    const invCenterX = columnsStartX + inv * (invColWidth + COL_GAP) + invColWidth / 2
+    const invCenterX = rowColumnsStartX(row) + col * (invColWidth + COL_GAP) + invColWidth / 2
+
+    // Row-local Y coordinates (shadow outer names so existing element code works unchanged)
+    const stringsTopY = stringsTopYForRow(row)
+    const jbY = jbYForRow(row)
+    const dcDiscY = dcDiscYForRow(row)
+    const invTopY = invTopYForRow(row)
+    const acDiscY = acDiscYForRow(row)
 
     // ── String arrays ──
     const stringsForInv = stringIndices.map(i => config.strings[i])
@@ -268,6 +323,8 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
     elements.push({ type: 'rect', x: invCenterX - jbW / 2, y: jbY, w: jbW, h: jbBoxH })
     elements.push({ type: 'text', x: invCenterX, y: jbY + 10, text: '(N) JUNCTION BOX', fontSize: 5.5, anchor: 'middle' })
     elements.push({ type: 'text', x: invCenterX, y: jbY + 19, text: '600V, NEMA 3', fontSize: 5, anchor: 'middle', fill: '#666' })
+    // Callout ① — Junction Box
+    elements.push({ type: 'callout', cx: invCenterX + jbW / 2 + 14, cy: jbY + jbBoxH / 2, number: 1 })
 
     // Wire from JB to DC disconnect
     elements.push({ type: 'line', x1: invCenterX, y1: jbY + jbH + 5, x2: invCenterX, y2: dcDiscY - 15, strokeWidth: 1.5 })
@@ -277,6 +334,8 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
 
     // DC Disconnect
     elements.push({ type: 'disconnect', x: invCenterX, y: dcDiscY, label: '(N) DC DISCONNECT' })
+    // Callout ② — DC Disconnect
+    elements.push({ type: 'callout', cx: invCenterX + 22, cy: dcDiscY, number: 2 })
 
     // Wire to inverter
     elements.push({ type: 'line', x1: invCenterX, y1: dcDiscY + 10, x2: invCenterX, y2: invTopY, strokeWidth: 1.5 })
@@ -284,6 +343,8 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
     // Inverter box
     const invX = invCenterX - invSize.w / 2
     elements.push({ type: 'rect', x: invX, y: invTopY, w: invSize.w, h: invSize.h, strokeWidth: 2 })
+    // Callout ③ — Inverter
+    elements.push({ type: 'callout', cx: invX + invSize.w + 14, cy: invTopY + invSize.h / 2, number: 3 })
 
     const invModules = stringsForInv.reduce((s, str) => s + str.modules, 0)
     const invDcKw = (invModules * config.panelWattage / 1000).toFixed(2)
@@ -312,6 +373,8 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
     elements.push({ type: 'text', x: battWireMidX, y: invTopY + invSize.h / 2 - 8, text: config.batteryWire ?? '(2) #4/0 AWG', fontSize: 4.5, anchor: 'middle', fill: '#444', italic: true })
     elements.push({ type: 'text', x: battWireMidX, y: invTopY + invSize.h / 2 + 12, text: config.batteryConduit ?? '2" EMT', fontSize: 4.5, anchor: 'middle', fill: '#444', italic: true })
     elements.push({ type: 'rect', x: battX, y: battY, w: battStackSize.w, h: battStackSize.h, strokeWidth: 1.5 })
+    // Callout ⑤ — Battery Stack
+    elements.push({ type: 'callout', cx: battX - 14, cy: battY + battStackSize.h / 2, number: 5 })
     battStackLines.forEach((line, i) => {
       elements.push({
         type: 'text', x: battX + battStackSize.w / 2, y: battY + 12 + i * 10,
@@ -340,9 +403,13 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
     // AC output from inverter
     elements.push({ type: 'line', x1: invCenterX, y1: invTopY + invSize.h, x2: invCenterX, y2: acDiscY - 15, strokeWidth: 1.5 })
     elements.push({ type: 'text', x: invCenterX + 8, y: invTopY + invSize.h + 12, text: config.acInverterWire ?? '#6 AWG CU THWN-2', fontSize: 5, fill: '#444', italic: true })
+    elements.push({ type: 'text', x: invCenterX + 8, y: invTopY + invSize.h + 20, text: '(1) #8 AWG CU EGC', fontSize: 5, fill: '#444', italic: true })
+    elements.push({ type: 'text', x: invCenterX + 8, y: invTopY + invSize.h + 28, text: '1" EMT TYPE CONDUIT', fontSize: 5, fill: '#444', italic: true })
 
     // AC Disconnect
     elements.push({ type: 'disconnect', x: invCenterX, y: acDiscY, label: '(N) AC DISCONNECT, 200A/2P, 240V' })
+    // Callout ④ — AC Disconnect
+    elements.push({ type: 'callout', cx: invCenterX + 22, cy: acDiscY, number: 4 })
 
     // Wire from AC disconnect to bus
     elements.push({ type: 'line', x1: invCenterX, y1: acDiscY + 10, x2: invCenterX, y2: busY, strokeWidth: 1.5 })
@@ -352,6 +419,8 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
 
     // Backfeed breaker
     elements.push({ type: 'breaker', x: invCenterX, y: busY - 5, label: '(N) 100A BACKFEED', amps: 'BREAKER' })
+    // Callout ⑥ — Rapid Shutdown / Backfeed Breaker
+    elements.push({ type: 'callout', cx: invCenterX + 22, cy: busY - 5, number: 6 })
   }
 
   // ── Bus bar ──
@@ -396,6 +465,14 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
   elements.push({ type: 'text', x: genX, y: busY + 75, text: 'FUTURE PLUG-AND-PLAY', fontSize: 4, anchor: 'middle', fill: '#999' })
   elements.push({ type: 'text', x: genX, y: busY + 82, text: '22kW NG GENERATOR', fontSize: 4, anchor: 'middle', fill: '#999' })
 
+  // ── Consumption CT (between bus and utility chain) ──
+  const ctX = busRight - 30
+  elements.push({ type: 'circle', cx: ctX, cy: busY - 18, r: 8, strokeWidth: 1 })
+  elements.push({ type: 'text', x: ctX, y: busY - 16, text: 'CT', fontSize: 5, anchor: 'middle', bold: true })
+  elements.push({ type: 'text', x: ctX, y: busY - 30, text: 'CONSUMPTION CT.', fontSize: 4.5, anchor: 'middle', fill: '#444' })
+  // Dashed line from CT to bus
+  elements.push({ type: 'line', x1: ctX, y1: busY - 10, x2: ctX, y2: busY, strokeWidth: 0.8, dash: true })
+
   // ── Utility chain (right of bus) ──
   const utilStartX = busRight
   elements.push({ type: 'line', x1: utilStartX, y1: busY, x2: utilStartX + 30, y2: busY, strokeWidth: 1.5 })
@@ -405,18 +482,24 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
   elements.push({ type: 'rect', x: gdX, y: busY - 14, w: 80, h: 28 })
   elements.push({ type: 'text', x: gdX + 40, y: busY - 2, text: '(N) GENERATION', fontSize: 5.5, anchor: 'middle' })
   elements.push({ type: 'text', x: gdX + 40, y: busY + 8, text: 'DISCONNECT', fontSize: 5.5, anchor: 'middle' })
+  // Callout ⑦ — Generation Disconnect
+  elements.push({ type: 'callout', cx: gdX + 40, cy: busY - 24, number: 7 })
 
   // Wire to RGM
   elements.push({ type: 'line', x1: gdX + 80, y1: busY, x2: gdX + 105, y2: busY, strokeWidth: 1.5 })
+  elements.push({ type: 'text', x: gdX + 85, y: busY + 12, text: '(3) #20 AWG CU THWN-2', fontSize: 4, fill: '#444', italic: true })
 
   // Revenue Grade Meter
   const rgmX = gdX + 105
   elements.push({ type: 'rect', x: rgmX, y: busY - 13, w: 70, h: 26, strokeWidth: 0.8 })
   elements.push({ type: 'text', x: rgmX + 35, y: busY - 2, text: '(N) RGM', fontSize: 4.5, anchor: 'middle' })
   elements.push({ type: 'text', x: rgmX + 35, y: busY + 7, text: 'PC-PRO-RGM-W2-BA-L', fontSize: 3.8, anchor: 'middle' })
+  // Callout ⑧ — RGM
+  elements.push({ type: 'callout', cx: rgmX + 35, cy: busY - 24, number: 8 })
 
   // Wire to utility meter
   elements.push({ type: 'line', x1: rgmX + 70, y1: busY, x2: rgmX + 95, y2: busY, strokeWidth: 1.5 })
+  elements.push({ type: 'text', x: rgmX + 72, y: busY + 12, text: '(3) #20 AWG CU THWN-2', fontSize: 4, fill: '#444', italic: true })
 
   // Utility meter circle
   const umCx = rgmX + 120
@@ -425,12 +508,19 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
   elements.push({ type: 'text', x: umCx, y: busY + 8, text: 'kWh', fontSize: 5.5, anchor: 'middle' })
   elements.push({ type: 'text', x: umCx, y: busY - 28, text: 'UTILITY METER', fontSize: 5.5, anchor: 'middle', fill: '#666' })
   elements.push({ type: 'text', x: umCx, y: busY - 36, text: '(E) BIDIRECTIONAL', fontSize: 5.5, anchor: 'middle', fill: '#666' })
+  // Callout ⑨ — Utility Meter
+  elements.push({ type: 'callout', cx: umCx, cy: busY - 48, number: 9 })
 
   // Wire to grid
   elements.push({ type: 'line', x1: umCx + 22, y1: busY, x2: umCx + 50, y2: busY, strokeWidth: 1.5 })
   elements.push({ type: 'text', x: umCx + 55, y: busY - 5, text: 'TO UTILITY', fontSize: 6, fill: '#666' })
   elements.push({ type: 'text', x: umCx + 55, y: busY + 5, text: 'GRID', fontSize: 6, fill: '#666' })
   elements.push({ type: 'text', x: umCx + 55, y: busY + 17, text: config.utility.toUpperCase(), fontSize: 5, fill: '#999' })
+  // Utility conduit routing annotation
+  elements.push({ type: 'text', x: umCx + 55, y: busY + 28, text: '2-1/2" PVC TYPE CONDUIT', fontSize: 4.5, fill: '#444', italic: true })
+  elements.push({ type: 'text', x: umCx + 55, y: busY + 36, text: 'ROUGHLY 11 FEET (DIRT)', fontSize: 4.5, fill: '#444', italic: true })
+  elements.push({ type: 'text', x: umCx + 55, y: busY + 44, text: 'TRENCHING FROM UTILITY POLE', fontSize: 4.5, fill: '#444', italic: true })
+  elements.push({ type: 'text', x: umCx + 55, y: busY + 52, text: 'TO HOME WALL', fontSize: 4.5, fill: '#444', italic: true })
 
   // 10 FT MAX notation
   elements.push({ type: 'line', x1: utilStartX, y1: busY - 30, x2: umCx + 50, y2: busY - 30, strokeWidth: 0.5 })

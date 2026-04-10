@@ -166,6 +166,15 @@ export class DxfBuilder {
     this.addText(x, y - 0.06, 0.12, 'kWh', layer, { halign: 'center' })
   }
 
+  /**
+   * Callout symbol — a filled circle with a number inside.
+   * DXF SOLID hatch approximated as circle + centered number text.
+   */
+  addCalloutSymbol(x: number, y: number, num: number, layer: string, r = 0.12): void {
+    this.addCircle(x, y, r, layer)
+    this.addText(x, y - r * 0.35, r * 1.2, String(num), layer, { halign: 'center' })
+  }
+
   // ── DXF output ──────────────────────────────────────────────────────
 
   /** Build the layer table entries. */

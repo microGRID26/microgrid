@@ -241,7 +241,7 @@ function drawPvArrays(dxf: DxfBuilder, inp: SldInput): void {
       L_ANN, { halign: 'center' }
     )
 
-    // RSD symbol (small box with "RSD")
+    // RSD symbol (small box with "RSD") — NEC 690.12
     const rsdY = y - rows * (moduleH + 0.06) - 0.80
     dxf.addRect(cx - 0.20, rsdY, 0.40, 0.20, L_PV)
     dxf.addText(cx, rsdY + 0.04, TXT_XS, 'RSD', L_PV, { halign: 'center' })
@@ -284,6 +284,8 @@ function drawJunctionBoxes(dxf: DxfBuilder, inp: SldInput): void {
     // Junction box rectangle
     dxf.addRect(leftX, Y_JB, jbW, 0.35, L_EQ)
     dxf.addText(jbCx, Y_JB + 0.10, TXT_XS, `(N) JUNCTION BOX, 600V, NEMA 3R`, L_ANN, { halign: 'center' })
+    // Callout ① — Junction Box
+    dxf.addCalloutSymbol(rightX + 0.25, Y_JB + 0.18, 1, L_ANN)
 
     // Wire down to DC disconnect
     dxf.addLine(jbCx, Y_JB, jbCx, Y_DCDISC + 0.35, L_PV)
@@ -313,6 +315,8 @@ function drawDcDisconnects(dxf: DxfBuilder, inp: SldInput): void {
     dxf.addDisconnectSymbol(cx, Y_DCDISC + 0.18, L_PV)
     dxf.addText(cx, Y_DCDISC - 0.15, TXT_XS, '(N) DC DISCONNECT', L_ANN, { halign: 'center' })
     dxf.addText(cx, Y_DCDISC - 0.28, TXT_XS, 'FUSED, 600V DC', L_ANN, { halign: 'center' })
+    // Callout ② — DC Disconnect
+    dxf.addCalloutSymbol(cx + 0.7, Y_DCDISC + 0.18, 2, L_ANN)
 
     // Wire down to inverter
     dxf.addLine(cx, Y_DCDISC, cx, Y_INV_TOP + 0.05, L_PV)
@@ -340,6 +344,8 @@ function drawInverters(dxf: DxfBuilder, inp: SldInput): void {
     // Inverter box
     dxf.addRect(invX, invY, invW, invH, L_EQ)
 
+    // Callout ③ — Inverter
+    dxf.addCalloutSymbol(cx + invW / 2 + 0.25, invY + invH / 2, 3, L_ANN)
     // Inner label
     dxf.addText(cx, invY + invH - 0.25, TXT_SM, `(N) ${inp.inverterModel}`, L_ANN, { halign: 'center' })
     dxf.addText(cx, invY + invH - 0.50, TXT_XS, `HYBRID INVERTER`, L_ANN, { halign: 'center' })
@@ -423,6 +429,8 @@ function drawBatteryStacks(dxf: DxfBuilder, inp: SldInput): void {
         (wireFromX + invCx - 1.5) / 2, wireY + 0.08, TXT_XS,
         '#8 AWG CU, 1" EMT', L_ANN, { halign: 'center' }
       )
+      // Callout ⑤ — Battery Stack
+      dxf.addCalloutSymbol(stackX - 0.2, stackY + battsInStack * (battH + gap) / 2, 5, L_ANN)
     }
   }
 
@@ -442,6 +450,8 @@ function drawAcOutput(dxf: DxfBuilder, inp: SldInput): void {
     dxf.addDisconnectSymbol(cx, Y_AC_DISC + 0.18, L_AC)
     dxf.addText(cx, Y_AC_DISC - 0.15, TXT_XS, '(N) AC DISCONNECT', L_ANN, { halign: 'center' })
     dxf.addText(cx, Y_AC_DISC - 0.28, TXT_XS, '200A, 240V, NEMA 3R', L_ANN, { halign: 'center' })
+    // Callout ④ — AC Disconnect
+    dxf.addCalloutSymbol(cx + 0.7, Y_AC_DISC + 0.18, 4, L_ANN)
 
     // Wire down to main bus
     dxf.addLine(cx, Y_AC_DISC, cx, Y_BUS_TOP + 0.10, L_AC)
@@ -481,6 +491,8 @@ function drawMainBus(dxf: DxfBuilder, inp: SldInput): void {
     dxf.addBreakerSymbol(bx, busY, L_AC)
     dxf.addText(bx, busY - 0.35, TXT_XS, '125A PV', L_ANN, { halign: 'center' })
     dxf.addText(bx, busY - 0.48, TXT_XS, `INV ${inv + 1}`, L_ANN, { halign: 'center' })
+    // Callout ⑥ — Backfeed Breaker
+    dxf.addCalloutSymbol(bx + 0.3, busY - 0.3, 6, L_ANN)
 
     // Vertical stub up from breaker to where AC wire comes in
     const invCx = getInverterCenterX(inv, inp.inverterCount)
@@ -511,6 +523,8 @@ function drawUtilityConnection(dxf: DxfBuilder, inp: SldInput): void {
   dxf.addRect(utilX - 0.6, utilY + 0.80, 1.2, 0.35, L_EQ)
   dxf.addDisconnectSymbol(utilX, utilY + 0.98, L_AC)
   dxf.addText(utilX, utilY + 0.65, TXT_XS, '(N) GEN DISCONNECT', L_ANN, { halign: 'center' })
+  // Callout ⑦ — Generation Disconnect
+  dxf.addCalloutSymbol(utilX, utilY + 1.30, 7, L_ANN)
 
   // Wire down to meter
   dxf.addLine(utilX, utilY + 0.80, utilX, utilY + 0.50, L_AC)
@@ -524,6 +538,8 @@ function drawUtilityConnection(dxf: DxfBuilder, inp: SldInput): void {
   // Utility label
   dxf.addText(utilX, utilY - 0.40, TXT_SM, 'UTILITY GRID', L_ANN, { halign: 'center' })
   dxf.addText(utilX, utilY - 0.58, TXT_XS, 'POINT OF INTERCONNECTION', L_ANN, { halign: 'center' })
+  // Callout ⑨ — Utility Meter
+  dxf.addCalloutSymbol(utilX + 0.35, utilY + 0.25, 9, L_ANN)
 
   // Ground at utility
   dxf.addGroundSymbol(utilX + 0.6, utilY - 0.25, L_EQ)
