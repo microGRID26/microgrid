@@ -8,7 +8,7 @@ import { handleApiError } from '@/lib/errors'
 import { loadProjectById } from '@/lib/api'
 import { buildPlansetData, DURACELL_DEFAULTS } from '@/lib/planset-types'
 import { autoDistributeStrings } from '@/lib/planset-calcs'
-import { SheetPV1, SheetPV2, SheetPV3, SheetPV31, SheetPV4, SheetPV5, SheetPV51, SheetPV6, SheetPV7, SheetPV71, SheetPV8, UtilityBatteryLetter } from '@/components/planset'
+import { SheetPV1, SheetPV2, SheetPV3, SheetPV31, SheetPV4, SheetPV41, SheetPV5, SheetPV51, SheetPV6, SheetPV7, SheetPV71, SheetPV8, UtilityBatteryLetter } from '@/components/planset'
 import type { PlansetData, PlansetOverrides, PlansetString, PlansetRoofFace } from '@/lib/planset-types'
 import { Loader2 } from 'lucide-react'
 import { ProjectSelector } from './components/ProjectSelector'
@@ -441,7 +441,7 @@ function PlanSetPageInner() {
       setStrings(finalStrings)
 
       const plansetData = buildPlansetData(project, { ...overrides, strings: finalStrings, roofFaces: roofFaces.length > 0 ? roofFaces : undefined, sitePlanImageUrl: images.sitePlanImageUrl ?? undefined })
-      if (enhanced) plansetData.sheetTotal = 12  // 9 base + utility letter + PV-3.1 + PV-4
+      if (enhanced) plansetData.sheetTotal = 13  // 9 base + utility letter + PV-3.1 + PV-4 + PV-4.1  // 9 base + utility letter + PV-3.1 + PV-4
       setRoofFaces(plansetData.roofFaces)
       setData(plansetData)
       setProjectId(id)
@@ -468,7 +468,7 @@ function PlanSetPageInner() {
       const project = await loadProjectById(projectId)
       if (!project) return
       const plansetData = buildPlansetData(project, { ...overrides, strings, roofFaces: roofFaces.length > 0 ? roofFaces : undefined, sitePlanImageUrl: images.sitePlanImageUrl ?? undefined })
-      if (enhanced) plansetData.sheetTotal = 12
+      if (enhanced) plansetData.sheetTotal = 13  // 9 base + utility letter + PV-3.1 + PV-4 + PV-4.1
       setData(plansetData)
     } finally {
       setLoading(false)
@@ -594,6 +594,7 @@ function PlanSetPageInner() {
                 ...(enhanced ? [
                   { id: 'PV-3.1', label: 'Equipment Elevation', component: <SheetPV31 data={data} equipmentPhotos={images.equipmentPhotos} /> },
                   { id: 'PV-4', label: 'Roof Plan with Modules', component: <SheetPV4 data={data} roofPlanImageUrl={images.roofPlanImageUrl} /> },
+                  { id: 'PV-4.1', label: 'Attachment Detail', component: <SheetPV41 data={data} /> },
                 ] : []),
                 { id: 'PV-5', label: 'Single Line Diagram', component: <SheetPV5 data={data} /> },
                 { id: 'PV-5.1', label: 'PCS Labels', component: <SheetPV51 data={data} /> },
