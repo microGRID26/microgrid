@@ -216,9 +216,25 @@ Daily QA banner on `/command` (Command Center) that hands each tester one specif
 **Type note:** the Database type doesn't include qa_runs/qa_run_events, so `lib/qa/server.ts` uses an untyped admin client (cast to `any`). All input validation is enforced explicitly in the routes.
 
 ## Cron Jobs (Vercel)
-- `/api/email/send-daily` — weekdays 1 PM UTC (onboarding emails)
-- `/api/email/onboarding-reminder` — weekdays 3 PM UTC
-- `/api/email/digest` — weekdays noon UTC (PM digest)
+- `/api/email/send-daily` — weekdays 1 PM UTC (onboarding emails) — fleet slug `mg-email-send-daily`
+- `/api/email/onboarding-reminder` — weekdays 3 PM UTC — fleet slug `mg-email-onboarding-reminder`
+- `/api/email/digest` — weekdays noon UTC (PM digest) — fleet slug `mg-email-digest`
+- `/api/cron/qa-runs-cleanup` — daily 5 AM UTC (abandons stale QA runs >8h) — fleet slug `mg-qa-runs-cleanup`
+
+## ATLAS HQ Fleet Reporting
+All four crons above self-report to the ATLAS HQ `/intel` Agent Runs tab via `lib/hq-fleet.ts` → `atlas_report_agent_run` RPC on the MG Supabase. Each route is wrapped in a try/finally that posts one row per execution with status, items processed, and a human-readable output summary. Failure is non-blocking: if `HQ_*` env vars aren't set, `reportFleetRun()` silently returns false and the cron still succeeds on its own terms.
+
+**Status derivation:**
+- `success` — all work completed without errors
+- `partial` — some per-item errors (e.g., some emails failed to send) but the route completed
+- `error` — hard failure (query error, internal error, early 5xx return)
+
+**Required Vercel env vars (already set on `microgrid-crm` project):**
+- `HQ_SUPABASE_URL` — `https://hzymsezqfxzpbcqryeim.supabase.co` (same as MG itself)
+- `HQ_SUPABASE_PUBLISHABLE_KEY` — MG publishable key (grants RPC access)
+- `HQ_FLEET_SECRET` — shared secret validated by the write-path RPC
+
+**Adding a new cron:** after wiring up the route + `vercel.json` entry, (1) insert a row into `atlas_agents` on the MG Supabase with slug/name/schedule/description, (2) wrap the route body in a try/finally that calls `reportFleetRun({ slug, status, startedAt, finishedAt: new Date(), itemsProcessed, outputSummary, errorMessage })`. The new agent shows up in HQ `/intel` → Agent Runs automatically.
 
 ## Known Issues
 
