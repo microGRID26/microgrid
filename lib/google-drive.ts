@@ -138,6 +138,11 @@ export async function listFolderChildren(folderId: string, maxResults = 200): Pr
       pageSize: String(pageSize),
       supportsAllDrives: 'true',
       includeItemsFromAllDrives: 'true',
+      // corpora=allDrives is REQUIRED for service accounts to see Shared Drive
+      // contents. Default is corpora=user which only searches the caller's
+      // My Drive — and a service account's My Drive is empty, so listings
+      // silently return 0 children without this flag.
+      corpora: 'allDrives',
     })
     if (pageToken) params.set('pageToken', pageToken)
 
