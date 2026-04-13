@@ -106,17 +106,24 @@ VALUES (
 )
 ON CONFLICT (slug) DO NOTHING;
 
--- MicroGRID Energy — INSERT ON CONFLICT DO UPDATE so the row exists either way.
--- Per Phase 4.1 of the meeting plan, MicroGRID Energy plays a dual role: it is one of
--- the EPC installers AND it is the sales originator that all other installers funnel
--- through. The is_sales_originator flag tells the chain orchestrator to skip
--- self-invoicing when MG Energy is both the from_org and the to_org on a sales
--- commission rule. is_underwriter flags it for the future EPC underwriting fee work
--- in Phase 4.1.
-INSERT INTO public.organizations (name, slug, org_type, active, settings, billing_email, billing_address)
+-- MicroGRID Energy — the canonical row already exists with id
+-- a0000000-0000-0000-0000-000000000001 and slug 'microgrid' (per migration 039
+-- + the org seed). Per Phase 4.1 of the meeting plan, MicroGRID Energy plays a
+-- dual role: it is one of the EPC installers AND it is the sales originator
+-- that all other installers funnel through. The is_sales_originator flag tells
+-- the chain orchestrator to skip self-invoicing when MG Energy is both the
+-- from_org and the to_org on a sales commission rule. is_underwriter flags it
+-- for the future EPC underwriting fee work in Phase 4.1.
+--
+-- WARNING: do NOT recreate this row with a different slug ('microgrid-energy').
+-- The first migration apply on 2026-04-13 hit that bug — the ON CONFLICT
+-- missed the canonical row and created a duplicate which had to be deleted
+-- by hand. Use the existing slug 'microgrid' or upsert by id.
+INSERT INTO public.organizations (id, name, slug, org_type, active, settings, billing_email)
 VALUES (
+  'a0000000-0000-0000-0000-000000000001',
   'MicroGRID Energy',
-  'microgrid-energy',
+  'microgrid',
   'epc',
   true,
   jsonb_build_object(
@@ -129,10 +136,9 @@ VALUES (
       'tagline', 'Solar EPC & Sales Platform'
     )
   ),
-  'billing@gomicrogridenergy.com',
-  NULL
+  'billing@gomicrogridenergy.com'
 )
-ON CONFLICT (slug) DO UPDATE SET
+ON CONFLICT (id) DO UPDATE SET
   settings = COALESCE(public.organizations.settings, '{}'::jsonb) || jsonb_build_object(
     'is_sales_originator', true,
     'is_underwriter', true,
