@@ -385,5 +385,32 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
     })
   }
 
+  // Phase 3.1 — write a clearing_runs audit row whenever we actually persist
+  // chain invoices (skipped in dry-run mode since nothing would have moved).
+  // The row captures the gross flow as documented for tax equity substantiation.
+  if (!result.dryRun && result.created.length > 0) {
+    const totalGross = result.created.reduce((sum, inv) => sum + inv.total, 0)
+    const firedRuleIds = result.created.map((inv) => inv.ruleId)
+    const { error: clearingErr } = await admin
+      .from('clearing_runs')
+      .insert({
+        project_id: input.projectId,
+        run_at: (input.now ?? new Date()).toISOString(),
+        mode: 'gross_substantiation',
+        total_gross: Math.round(totalGross * 100) / 100,
+        invoices_created: result.created.length,
+        invoices_skipped: result.skippedExisting.length + result.skippedError.length,
+        status: 'recorded',
+        notes: `Chain orchestrator fired for ${input.projectId}; ${result.created.length} invoices created, ${result.skippedExisting.length} skipped (existing), ${result.skippedError.length} errored.`,
+        fired_rule_ids: firedRuleIds,
+      })
+    if (clearingErr) {
+      // Don't fail the whole orchestration over an audit-row write — log loudly
+      // and let the chain invoices stand. The clearing run can be backfilled
+      // from invoice history if needed.
+      console.error('[invoice-chain] clearing_runs insert failed:', clearingErr.message)
+    }
+  }
+
   return result
 }

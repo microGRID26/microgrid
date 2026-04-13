@@ -270,6 +270,30 @@ export async function updateInvoiceStatus(
     console.error('[updateInvoiceStatus]', error.message)
     return null
   }
+
+  // Phase 3.2 hook: if the invoice just transitioned to 'paid' AND it's a
+  // chain invoice from DSE Corp → NewCo Distribution, fire the profit
+  // transfer recorder. Fire-and-forget — failures are logged but don't
+  // break the status update. The recorder is idempotent (unique index on
+  // triggered_by_invoice_id) so a duplicate call is safe.
+  //
+  // Dynamic import keeps this file's bundle small for non-paid transitions
+  // and avoids a hard dependency cycle if profit-transfer.ts ever imports
+  // from this file.
+  if (status === 'paid') {
+    void import('@/lib/invoices/profit-transfer').then(({ recordProfitTransferIfApplicable }) =>
+      recordProfitTransferIfApplicable(invoiceId).then((result) => {
+        if (result.inserted) {
+          console.log('[profit-transfer] recorded', result.transferId, 'profit:', result.calculation?.profit_amount)
+        } else if (result.reason && result.reason !== 'not_chain_invoice' && result.reason !== 'not_dse_origin') {
+          console.warn('[profit-transfer] skipped:', result.reason, result.detail)
+        }
+      }),
+    ).catch((err) => {
+      console.error('[profit-transfer] fire-and-forget failed:', err instanceof Error ? err.message : err)
+    })
+  }
+
   return data as Invoice
 }
 
