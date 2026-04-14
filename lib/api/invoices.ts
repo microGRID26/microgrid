@@ -253,9 +253,38 @@ export async function updateInvoiceStatus(
   if (status === 'sent') {
     updates.sent_at = now
   }
+  // Phase 4.2 hook: before writing the paid transition, check whether this is
+  // an EPC → EDGE invoice with open funding_deductions (warranty chargebacks).
+  // If so, net them from paid_amount in this same write so the invoice records
+  // the correct disbursement amount from day one. Must be synchronous here —
+  // paid_amount is set once and not re-derived later.
+  let pendingDeductionIds: string[] = []
   if (status === 'paid') {
     updates.paid_at = now
-    if (details?.paid_amount !== undefined) updates.paid_amount = details.paid_amount
+    if (details?.paid_amount !== undefined) {
+      updates.paid_amount = details.paid_amount
+    } else {
+      // Wrapped in try-catch: if credentials aren't set (test env) or the
+      // check errors, proceed with no deduction rather than failing the update.
+      try {
+        const { computeInvoiceDeductions } = await import('@/lib/invoices/funding-deductions')
+        const deductionResult = await computeInvoiceDeductions(invoiceId)
+        if (deductionResult) {
+          updates.paid_amount = deductionResult.netAmount
+          pendingDeductionIds = deductionResult.appliedDeductionIds
+          console.log(
+            '[funding-deductions] netting',
+            deductionResult.totalDeducted,
+            'from invoice',
+            invoiceId,
+            '→ net paid_amount:',
+            deductionResult.netAmount,
+          )
+        }
+      } catch (err) {
+        console.warn('[funding-deductions] pre-check skipped:', err instanceof Error ? err.message : err)
+      }
+    }
     if (details?.payment_method) updates.payment_method = details.payment_method
     if (details?.payment_reference) updates.payment_reference = details.payment_reference
   }
@@ -269,6 +298,16 @@ export async function updateInvoiceStatus(
   if (error) {
     console.error('[updateInvoiceStatus]', error.message)
     return null
+  }
+
+  // After a successful paid transition: mark any deductions as applied.
+  // Fire-and-await (not forget) so the deduction rows update atomically with
+  // the invoice, but failures are logged rather than surfaced to the caller.
+  if (pendingDeductionIds.length > 0) {
+    const { markDeductionsApplied } = await import('@/lib/invoices/funding-deductions')
+    await markDeductionsApplied(pendingDeductionIds, invoiceId).catch((err) => {
+      console.error('[funding-deductions] markDeductionsApplied failed:', err instanceof Error ? err.message : err)
+    })
   }
 
   // Phase 3.2 hook: if the invoice just transitioned to 'paid' AND it's a

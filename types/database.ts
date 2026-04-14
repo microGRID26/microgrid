@@ -1108,6 +1108,82 @@ export interface OrgMembership {
   created_at: string
 }
 
+// ── Tier 2 Phase 4 — Sales-dealer relationships + EPC underwriting fees ──────
+
+export type SalesDealerStatus = 'pending_signature' | 'active' | 'suspended' | 'terminated'
+
+export interface SalesDealerRelationship {
+  id: string
+  epc_org_id: string
+  originator_org_id: string
+  status: SalesDealerStatus
+  contract_url: string | null
+  signed_at: string | null
+  effective_date: string | null
+  termination_date: string | null
+  underwriting_notes: string | null
+  created_by_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type UnderwritingFeeType = 'one_time_onboarding' | 'recurring_gatekeeping' | 'per_project_review'
+export type UnderwritingFeeStatus = 'pending' | 'invoiced' | 'paid' | 'waived' | 'disputed'
+
+export interface EpcUnderwritingFee {
+  id: string
+  epc_org_id: string
+  underwriter_org_id: string
+  /** EDGE Energy — pays the fee (billing direction: MG Energy → EDGE, confirmed 2026-04-14) */
+  billed_to_org_id: string
+  relationship_id: string | null
+  fee_amount: number
+  fee_type: UnderwritingFeeType
+  invoice_id: string | null
+  status: UnderwritingFeeStatus
+  notes: string | null
+  created_by_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ── Tier 2 Phase 4 — Warranty claims + funding deductions ────────────────────
+
+export type WarrantyClaimStatus = 'pending' | 'deployed' | 'invoiced' | 'recovered' | 'voided'
+
+export interface WorkmanshipWarrantyClaim {
+  id: string
+  project_id: string
+  original_epc_id: string
+  claim_date: string
+  description: string
+  work_required: string
+  deployed_epc_id: string | null
+  deployed_at: string | null
+  claim_amount: number | null
+  status: WarrantyClaimStatus
+  notes: string | null
+  created_by_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type FundingDeductionStatus = 'open' | 'applied' | 'cancelled'
+
+export interface FundingDeduction {
+  id: string
+  target_epc_id: string
+  source_claim_id: string
+  amount: number
+  applied_to_invoice_id: string | null
+  applied_at: string | null
+  status: FundingDeductionStatus
+  notes: string | null
+  created_by_id: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type Database = {
   public: {
     Tables: {
