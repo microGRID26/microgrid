@@ -12,27 +12,21 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const ROOT = process.cwd()
-// Generic excludes — applied at every depth
+// Generic excludes — applied at every depth. Build artifacts, deps, vendored
+// source, and output dirs only. Everything else counts.
 const EXCLUDE_DIRS = new Set([
   'node_modules', '.next', '.git', '.expo', 'ios', 'android',
   'build', 'dist', '.vercel', '.turbo', 'coverage', 'out', '.gitnexus',
-])
-// Absolute path excludes — only applied at the repo root.
-// `mobile/` at the repo root is the Expo companion app (not part of the Next.js build).
-// But `app/mobile/` contains legitimate web routes — do NOT exclude that.
-const EXCLUDE_PATHS = new Set([
-  path.join(ROOT, 'mobile'),
+  'public', 'test-results', 'playwright-report', '.cache',
 ])
 
 function walk(root, onFile) {
   if (!fs.existsSync(root)) return
-  if (EXCLUDE_PATHS.has(root)) return
   const entries = fs.readdirSync(root, { withFileTypes: true })
   for (const e of entries) {
     if (e.name.startsWith('.')) continue
     if (EXCLUDE_DIRS.has(e.name)) continue
     const p = path.join(root, e.name)
-    if (EXCLUDE_PATHS.has(p)) continue
     if (e.isDirectory()) walk(p, onFile)
     else onFile(p)
   }
@@ -47,28 +41,92 @@ function countLines(file) {
   }
 }
 
-// ── 1. Source LOC (TS/TSX only, excluding tests, scripts, mobile) ────────────
-const appRoots = ['app', 'lib', 'components', 'types', 'hooks']
-let appLoc = 0
-let appFiles = 0
-for (const root of appRoots) {
-  walk(path.join(ROOT, root), (p) => {
-    if (!/\.(ts|tsx)$/.test(p)) return
-    if (p.endsWith('.tsbuildinfo')) return
-    if (path.basename(p) === 'next-env.d.ts') return
-    appLoc += countLines(p)
-    appFiles += 1
-  })
+// ── 1. LOC buckets across the whole repo ────────────────────────────────────
+// Walks the entire repo once and buckets every counted file by category so
+// loc_total is the honest "everything Greg built" number, not just the Next.js
+// web app. Matches the inclusive count shown to stakeholders earlier.
+const WEB_APP_DIRS = new Set(['app', 'lib', 'components', 'types', 'hooks'])
+const buckets = {
+  web_app:  { loc: 0, files: 0 },  // TS/TSX in app/lib/components/types/hooks
+  tests:    { loc: 0, files: 0 },  // TS/TSX in __tests__
+  mobile:   { loc: 0, files: 0 },  // TS/TSX in mobile/ (Expo companion)
+  scripts:  { loc: 0, files: 0 },  // TS/JS in scripts/
+  sql:      { loc: 0, files: 0 },  // .sql in supabase/
+  python:   { loc: 0, files: 0 },  // .py anywhere (NetSuite import, drive walkers)
+  other_js: { loc: 0, files: 0 },  // TS/TSX/JS/JSX outside the above buckets
 }
 
-// ── 2. Test LOC + file count ─────────────────────────────────────────────────
-let testLoc = 0
-let testFiles = 0
-walk(path.join(ROOT, '__tests__'), (p) => {
-  if (!/\.(test|spec)\.(ts|tsx)$/.test(p)) return
-  testLoc += countLines(p)
-  testFiles += 1
+function relFromRoot(p) {
+  return path.relative(ROOT, p)
+}
+
+function topDir(rel) {
+  const idx = rel.indexOf(path.sep)
+  return idx === -1 ? rel : rel.slice(0, idx)
+}
+
+walk(ROOT, (p) => {
+  const fn = path.basename(p)
+  if (fn.endsWith('.tsbuildinfo') || fn === 'next-env.d.ts') return
+  if (fn === 'package-lock.json') return
+
+  const rel = relFromRoot(p)
+  const top = topDir(rel)
+  const ext = path.extname(p).toLowerCase()
+  const isTsJs = ['.ts', '.tsx', '.js', '.jsx'].includes(ext)
+
+  if (ext === '.sql') {
+    const n = countLines(p)
+    buckets.sql.loc += n
+    buckets.sql.files += 1
+    return
+  }
+  if (ext === '.py') {
+    const n = countLines(p)
+    buckets.python.loc += n
+    buckets.python.files += 1
+    return
+  }
+  if (ext === '.css') {
+    // Small but counted for parity with the full-repo walk.
+    const n = countLines(p)
+    buckets.other_js.loc += n
+    buckets.other_js.files += 1
+    return
+  }
+  if (!isTsJs) return
+
+  const n = countLines(p)
+  if (top === '__tests__') {
+    buckets.tests.loc += n
+    buckets.tests.files += 1
+  } else if (top === 'mobile') {
+    buckets.mobile.loc += n
+    buckets.mobile.files += 1
+  } else if (top === 'scripts') {
+    buckets.scripts.loc += n
+    buckets.scripts.files += 1
+  } else if (WEB_APP_DIRS.has(top)) {
+    buckets.web_app.loc += n
+    buckets.web_app.files += 1
+  } else {
+    buckets.other_js.loc += n
+    buckets.other_js.files += 1
+  }
 })
+
+const appLoc = buckets.web_app.loc
+const appFiles = buckets.web_app.files
+const testLoc = buckets.tests.loc
+const testFiles = buckets.tests.files
+const locGrandTotal =
+  buckets.web_app.loc +
+  buckets.tests.loc +
+  buckets.mobile.loc +
+  buckets.scripts.loc +
+  buckets.sql.loc +
+  buckets.python.loc +
+  buckets.other_js.loc
 
 // ── 3. Pages (app/**/page.tsx) ───────────────────────────────────────────────
 let pages = 0
@@ -158,12 +216,23 @@ if (testCount === 0) {
 
 // ── 10. Emit the generated file ──────────────────────────────────────────────
 const stats = {
-  loc_app: appLoc,
+  // Loc_total is the inclusive "everything Greg built" number — web app +
+  // tests + mobile companion + scripts + SQL migrations + Python data tools.
+  // Matches the earlier manual count shown to Greg.
+  loc_total: locGrandTotal,
+  loc_web_app: appLoc,
   loc_tests: testLoc,
-  loc_total: appLoc + testLoc,
-  source_files: appFiles + testFiles,
+  loc_mobile: buckets.mobile.loc,
+  loc_scripts: buckets.scripts.loc,
+  loc_sql: buckets.sql.loc,
+  loc_python: buckets.python.loc,
+  loc_other: buckets.other_js.loc,
+  // File counts
+  source_files: appFiles + testFiles + buckets.mobile.files + buckets.scripts.files + buckets.other_js.files + buckets.sql.files + buckets.python.files,
   app_source_files: appFiles,
   test_files: testFiles,
+  mobile_files: buckets.mobile.files,
+  python_files: buckets.python.files,
   pages,
   api_routes: apiRoutes,
   api_modules: apiModules,
@@ -188,19 +257,33 @@ const content = `// AUTO-GENERATED by scripts/generate-codebase-stats.mjs — DO
 // If you see stale numbers, run \`npm run generate-stats\`.
 
 export interface CodebaseStats {
-  // Total TS/TSX lines in app + lib + components + types + hooks
-  // (no tests, no scripts, no mobile companion app).
-  loc_app: number
-  // TS/TSX lines in the tests directory.
-  loc_tests: number
-  // loc_app + loc_tests.
+  // Inclusive "everything built for MicroGRID" line count —
+  // web app + tests + mobile companion + scripts + SQL migrations + Python tools.
   loc_total: number
-  // Total TS/TSX files across app code + tests.
+  // TS/TSX lines in app + lib + components + types + hooks (the Next.js web app only).
+  loc_web_app: number
+  // TS/TSX lines under the tests directory.
+  loc_tests: number
+  // TS/TSX lines in the mobile companion Expo app (the mobile root dir).
+  loc_mobile: number
+  // TS/JS lines in scripts (data tools, migrations, one-shot utilities).
+  loc_scripts: number
+  // SQL lines across all migration files.
+  loc_sql: number
+  // Python lines (NetSuite import, SharePoint audit, drive walkers, etc.).
+  loc_python: number
+  // Everything else TS/JS that does not fit above (root configs, e2e, etc.).
+  loc_other: number
+  // Total files counted across every bucket.
   source_files: number
-  // App-only source file count (no tests).
+  // Web app source file count only.
   app_source_files: number
   // Count of .test.ts and .test.tsx files under the tests directory.
   test_files: number
+  // Count of TS/TSX files in the mobile companion app.
+  mobile_files: number
+  // Count of .py files anywhere in the repo.
+  python_files: number
   // Count of page.tsx files anywhere under app (Next.js App Router pages).
   pages: number
   // Count of route.ts handlers anywhere under app (Next.js API routes).
@@ -230,6 +313,6 @@ export const CODEBASE_STATS: CodebaseStats = ${JSON.stringify(stats, null, 2)}
 
 fs.writeFileSync(path.join(outDir, 'codebase-stats.ts'), content)
 console.log(`[generate-codebase-stats] wrote lib/infographic/codebase-stats.ts`)
-console.log(`  loc_app=${stats.loc_app.toLocaleString()}  loc_total=${stats.loc_total.toLocaleString()}`)
-console.log(`  pages=${stats.pages}  components=${stats.components}  api_modules=${stats.api_modules}`)
+console.log(`  loc_total=${stats.loc_total.toLocaleString()}  (web=${stats.loc_web_app.toLocaleString()} tests=${stats.loc_tests.toLocaleString()} mobile=${stats.loc_mobile.toLocaleString()} scripts=${stats.loc_scripts.toLocaleString()} sql=${stats.loc_sql.toLocaleString()} py=${stats.loc_python.toLocaleString()} other=${stats.loc_other.toLocaleString()})`)
+console.log(`  pages=${stats.pages}  components=${stats.components}  api_modules=${stats.api_modules}  api_exports=${stats.api_exports}`)
 console.log(`  tests=${stats.test_count} (${stats.test_count_source})  migrations=${stats.migration_files} (max #${stats.max_migration_number})`)
