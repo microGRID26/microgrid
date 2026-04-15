@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef, Suspense } from 'react'
 import { Nav } from '@/components/Nav'
-import { daysAgo, fmt$, STAGE_LABELS } from '@/lib/utils'
 import { ALL_TASKS_MAP } from '@/lib/tasks'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { NewProjectModal } from '@/components/project/NewProjectModal'

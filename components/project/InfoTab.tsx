@@ -9,7 +9,7 @@ import type { Project } from '@/types/database'
 import { EquipmentAutocomplete } from '@/components/EquipmentAutocomplete'
 import type { Equipment } from '@/lib/api/equipment'
 import { loadFieldDefinitions, loadProjectCustomFields, saveProjectCustomField } from '@/lib/api'
-import type { CustomFieldDefinition, CustomFieldValue } from '@/lib/api'
+import type { CustomFieldDefinition } from '@/lib/api'
 
 // ── HELPER COMPONENTS ────────────────────────────────────────────────────────
 

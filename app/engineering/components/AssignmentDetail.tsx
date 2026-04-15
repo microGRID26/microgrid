@@ -1,9 +1,6 @@
 'use client'
 
 import { cn, fmtDate } from '@/lib/utils'
-import {
-  ASSIGNMENT_STATUS_LABELS, ASSIGNMENT_STATUS_BADGE,
-} from '@/lib/api/engineering'
 import type { EngineeringAssignment, AssignmentStatus } from '@/lib/api/engineering'
 import {
   X, CheckCircle, Play, Send, AlertTriangle, FileText,

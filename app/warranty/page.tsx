@@ -11,7 +11,7 @@ import {
   loadExpiringWarranties,
   WARRANTY_EQUIPMENT_TYPES,
 } from '@/lib/api/warranties'
-import type { EquipmentWarranty, WarrantyClaim } from '@/lib/api/warranties'
+import type { EquipmentWarranty } from '@/lib/api/warranties'
 import { loadProjectById } from '@/lib/api'
 import type { Project } from '@/types/database'
 import { Shield, Search, Download, ChevronLeft, ChevronRight, AlertTriangle, LogIn } from 'lucide-react'

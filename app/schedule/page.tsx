@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { handleApiError } from '@/lib/errors'
 import { useSupabaseQuery, useRealtimeSubscription } from '@/lib/hooks'
 import { useCurrentUser } from '@/lib/useCurrentUser'
-import type { Schedule, Crew, Project } from '@/types/database'
+import type { Schedule, Project } from '@/types/database'
 
 /** Schedule row with joined project data from Supabase */
 type ScheduleWithProject = Schedule & { project?: { name: string; city: string; address?: string | null; zip?: string | null; phone?: string | null; systemkw?: number | null } | null }

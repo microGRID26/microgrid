@@ -11,7 +11,7 @@ import {
   INVOICE_STATUS_LABELS, INVOICE_STATUS_BADGE, generateInvoiceNumber,
   loadInvoiceRules, MILESTONE_LABELS,
 } from '@/lib/api/invoices'
-import type { Invoice, InvoiceLineItem, InvoiceStatus, InvoiceRule } from '@/lib/api/invoices'
+import type { Invoice, InvoiceLineItem, InvoiceStatus } from '@/lib/api/invoices'
 import type { Project } from '@/types/database'
 import { loadProjectById, loadOrgNames } from '@/lib/api'
 import { db } from '@/lib/db'

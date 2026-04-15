@@ -5,7 +5,7 @@ import {
   ClipboardCheck, CheckCircle2, ChevronDown, ChevronRight,
   Columns2, RotateCcw,
 } from 'lucide-react'
-import type { TestPlan, TestCase, TestResult, Status } from '../types'
+import type { TestPlan, TestCase, TestResult } from '../types'
 import { STATUS_META, PRIORITY_META } from '../types'
 
 interface TestCardProps {

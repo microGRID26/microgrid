@@ -6,11 +6,11 @@ import {
   updateScheduleEntry,
   RAMP_STATUS_COLORS, READINESS_WEIGHTS,
 } from '@/lib/api/ramp-planner'
-import type { RampScheduleEntry, RoutePoint } from '@/lib/api/ramp-planner'
+import type { RampScheduleEntry } from '@/lib/api/ramp-planner'
 import { db } from '@/lib/db'
 import dynamic from 'next/dynamic'
 import { Calendar, MapPin, Truck, ChevronLeft, ChevronRight, Check, X, Zap, AlertTriangle, Printer } from 'lucide-react'
-import type { RampProject, RampConfig, Tier, ClusterNearbyProject } from './types'
+import type { RampProject, RampConfig, ClusterNearbyProject } from './types'
 import { PROXIMITY_TIERS, FIELD_ACTIVITIES, TIER_COLOR_MAP, CREW_COLORS, TIER_BG, TIER_TEXT, type TierKey } from './types'
 
 const MapContainer = dynamic(() => import('react-leaflet').then(m => m.MapContainer), { ssr: false })

@@ -1,5 +1,4 @@
 import type { FundingRow } from './types'
-import { fmt$, fmtDate } from '@/lib/utils'
 
 function escapeCell(val: string | number | null | undefined): string {
   const s = val == null ? '' : String(val)
