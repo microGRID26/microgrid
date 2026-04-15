@@ -26,8 +26,9 @@ import type {
   UnderwritingFeeStatus,
 } from '@/lib/api'
 import { db } from '@/lib/db'
-import { fmt$ } from '@/lib/utils'
+import { fmt$, fmtDate } from '@/lib/utils'
 import { handleApiError } from '@/lib/errors'
+import { useCurrentUser } from '@/lib/useCurrentUser'
 import { Input, Modal, SaveBtn, Textarea } from './shared'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -39,13 +40,16 @@ interface OrgOption {
   name: string
   slug: string
   org_type: string
+  settings: { is_sales_originator?: boolean; is_underwriter?: boolean } | null
 }
 
 // ── Manager ──────────────────────────────────────────────────────────────────
 
 export function DealerRelationshipsManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
+  const { user } = useCurrentUser()
   const [tab, setTab] = useState<Tab>('contracts')
   const [orgs, setOrgs] = useState<OrgOption[]>([])
+  const [orgsLoading, setOrgsLoading] = useState(true)
   const [toast, setToast] = useState('')
 
   const showToast = useCallback((msg: string) => {
@@ -59,17 +63,21 @@ export function DealerRelationshipsManager({ isSuperAdmin }: { isSuperAdmin: boo
       const supabase = db()
       const { data } = await supabase
         .from('organizations')
-        .select('id, name, slug, org_type')
+        .select('id, name, slug, org_type, settings')
         .eq('active', true)
         .order('name')
       if (data) setOrgs(data as OrgOption[])
+      setOrgsLoading(false)
     }
     void loadOrgs()
   }, [])
 
-  const epcs = orgs.filter((o) => o.org_type === 'epc')
-  const platformOrgs = orgs.filter((o) => o.org_type === 'platform' || o.org_type === 'epc')
+  // Installers onboardable as dealers — every EPC except MG Energy itself.
+  const epcs = orgs.filter((o) => o.org_type === 'epc' && o.slug !== 'microgrid')
+  // Sales originators — only orgs flagged is_sales_originator (MG Energy today).
+  const originators = orgs.filter((o) => o.settings?.is_sales_originator === true)
   const orgName = (id: string): string => orgs.find((o) => o.id === id)?.name ?? id.slice(0, 8)
+  const currentUserId = user?.id ?? null
 
   return (
     <div className="flex flex-col h-full">
@@ -106,13 +114,18 @@ export function DealerRelationshipsManager({ isSuperAdmin }: { isSuperAdmin: boo
         </div>
       </div>
 
-      {tab === 'contracts' ? (
+      {orgsLoading ? (
+        <div className="flex-1 flex items-center justify-center text-xs text-gray-500">
+          Loading organizations…
+        </div>
+      ) : tab === 'contracts' ? (
         <ContractsPanel
           epcs={epcs}
-          platformOrgs={platformOrgs}
+          originators={originators}
           orgName={orgName}
           onToast={showToast}
           isSuperAdmin={isSuperAdmin}
+          currentUserId={currentUserId}
         />
       ) : (
         <FeesPanel
@@ -121,6 +134,7 @@ export function DealerRelationshipsManager({ isSuperAdmin }: { isSuperAdmin: boo
           orgName={orgName}
           onToast={showToast}
           isSuperAdmin={isSuperAdmin}
+          currentUserId={currentUserId}
         />
       )}
     </div>
@@ -131,18 +145,21 @@ export function DealerRelationshipsManager({ isSuperAdmin }: { isSuperAdmin: boo
 
 function ContractsPanel({
   epcs,
-  platformOrgs,
+  originators,
   orgName,
   onToast,
   isSuperAdmin,
+  currentUserId,
 }: {
   epcs: OrgOption[]
-  platformOrgs: OrgOption[]
+  originators: OrgOption[]
   orgName: (id: string) => string
   onToast: (msg: string) => void
   isSuperAdmin: boolean
+  currentUserId: string | null
 }) {
   const [rows, setRows] = useState<SalesDealerRelationship[]>([])
+  const [rowsLoading, setRowsLoading] = useState(true)
   const [editing, setEditing] = useState<SalesDealerRelationship | null>(null)
   const [draft, setDraft] = useState<Partial<SalesDealerRelationship>>({})
   const [showNew, setShowNew] = useState(false)
@@ -153,6 +170,8 @@ function ContractsPanel({
       setRows(await loadDealerRelationships())
     } catch (err) {
       handleApiError(err, '[DealerRelationships] load')
+    } finally {
+      setRowsLoading(false)
     }
   }, [])
 
@@ -167,7 +186,7 @@ function ContractsPanel({
     setShowNew(true)
     setDraft({
       status: 'pending_signature',
-      originator_org_id: platformOrgs.find((o) => o.slug === 'microgrid')?.id ?? '',
+      originator_org_id: originators[0]?.id ?? '',
     })
   }
 
@@ -208,7 +227,7 @@ function ContractsPanel({
         effective_date: draft.effective_date ?? null,
         termination_date: draft.termination_date ?? null,
         underwriting_notes: draft.underwriting_notes ?? null,
-        created_by_id: null,
+        created_by_id: currentUserId,
       })
       setShowNew(false)
       setDraft({})
@@ -232,9 +251,6 @@ function ContractsPanel({
       onToast('Delete failed')
     }
   }
-
-  const fmtDate = (d: string | null): string =>
-    d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
 
   return (
     <>
@@ -295,7 +311,7 @@ function ContractsPanel({
             {rows.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-3 py-8 text-center text-gray-600 text-sm">
-                  No dealer contracts yet. Click &quot;New Contract&quot; to add one.
+                  {rowsLoading ? 'Loading contracts…' : 'No dealer contracts yet. Click "New Contract" to add one.'}
                 </td>
               </tr>
             )}
@@ -338,7 +354,7 @@ function ContractsPanel({
                 className="bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:border-green-500 disabled:opacity-60"
               >
                 <option value="">— Select originator —</option>
-                {platformOrgs.map((o) => (
+                {originators.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.name}
                   </option>
@@ -436,29 +452,35 @@ function FeesPanel({
   orgName,
   onToast,
   isSuperAdmin,
+  currentUserId,
 }: {
   epcs: OrgOption[]
   orgs: OrgOption[]
   orgName: (id: string) => string
   onToast: (msg: string) => void
   isSuperAdmin: boolean
+  currentUserId: string | null
 }) {
   const [rows, setRows] = useState<EpcUnderwritingFee[]>([])
+  const [rowsLoading, setRowsLoading] = useState(true)
   const [editing, setEditing] = useState<EpcUnderwritingFee | null>(null)
   const [draft, setDraft] = useState<Partial<EpcUnderwritingFee>>({})
   const [showNew, setShowNew] = useState(false)
   const [saving, setSaving] = useState(false)
 
   // Default org IDs for "who underwrites" and "who pays" — looked up from orgs list.
-  // Billing direction per migration 106: MG Energy is the underwriter, EDGE pays.
-  const mgEnergyId = orgs.find((o) => o.slug === 'microgrid')?.id ?? ''
-  const edgeId = orgs.find((o) => o.org_type === 'platform' && o.slug !== 'microgrid')?.id ?? ''
+  // Billing direction per migration 106: MG Energy (is_underwriter=true) is the
+  // underwriter, EDGE (org_type='platform') pays.
+  const mgEnergyId = orgs.find((o) => o.settings?.is_underwriter === true)?.id ?? ''
+  const edgeId = orgs.find((o) => o.org_type === 'platform')?.id ?? ''
 
   const load = useCallback(async () => {
     try {
       setRows(await loadUnderwritingFees())
     } catch (err) {
       handleApiError(err, '[UnderwritingFees] load')
+    } finally {
+      setRowsLoading(false)
     }
   }, [])
 
@@ -519,7 +541,7 @@ function FeesPanel({
         invoice_id: null,
         status: (draft.status ?? 'pending') as UnderwritingFeeStatus,
         notes: draft.notes ?? null,
-        created_by_id: null,
+        created_by_id: currentUserId,
       })
       setShowNew(false)
       setDraft({})
@@ -602,7 +624,7 @@ function FeesPanel({
             {rows.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-3 py-8 text-center text-gray-600 text-sm">
-                  No underwriting fees yet. Click &quot;New Fee&quot; to add one.
+                  {rowsLoading ? 'Loading fees…' : 'No underwriting fees yet. Click "New Fee" to add one.'}
                 </td>
               </tr>
             )}
