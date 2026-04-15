@@ -338,21 +338,23 @@ export default function CrewPage() {
       const rawJobs = schedData as Schedule[]
 
       // Fetch project details
-      type ProjRow = { id: string; name: string | null; phone: string | null; email: string | null; address: string | null; city: string | null; zip: string | null; systemkw: number | null; module: string | null; module_qty: number | null; inverter: string | null; inverter_qty: number | null; battery: string | null; battery_qty: number | null; pm: string | null; consultant: string | null; advisor: string | null }
+      type ProjRow = { id: string; name: string | null; phone: string | null; email: string | null; address: string | null; city: string | null; zip: string | null; systemkw: number | null; module: string | null; module_qty: number | null; inverter: string | null; inverter_qty: number | null; battery: string | null; battery_qty: number | null; pm: string | null; consultant: string | null; advisor: string | null; disposition: string | null }
       const pids = [...new Set(rawJobs.map((j) => j.project_id).filter(Boolean))]
       const projMap: Record<string, ProjRow> = {}
       if (pids.length > 0) {
         const { data: projData } = await supabase
           .from('projects')
-          .select('id, name, phone, email, address, city, zip, systemkw, module, module_qty, inverter, inverter_qty, battery, battery_qty, pm, consultant, advisor')
+          .select('id, name, phone, email, address, city, zip, systemkw, module, module_qty, inverter, inverter_qty, battery, battery_qty, pm, consultant, advisor, disposition')
           .in('id', pids)
         if (projData) {
           (projData as ProjRow[]).forEach((p) => { projMap[p.id] = p })
         }
       }
 
-      // Merge
-      const merged: JobWithProject[] = rawJobs.map((j) => {
+      // Merge + filter out Test-disposition projects (orphan schedule rows from test data)
+      const merged: JobWithProject[] = rawJobs
+        .filter((j) => projMap[j.project_id]?.disposition !== 'Test')
+        .map((j) => {
         const p = projMap[j.project_id]
         return {
           ...j,
