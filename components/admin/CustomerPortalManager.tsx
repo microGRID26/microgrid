@@ -6,7 +6,7 @@ import { escapeIlike } from '@/lib/utils'
 import { inviteCustomer } from '@/lib/api/customer-portal'
 import type { CustomerAccount } from '@/lib/api/customer-portal'
 import { Input, Modal, SaveBtn, SearchBar } from './shared'
-import { UserPlus, Mail, ExternalLink } from 'lucide-react'
+import { UserPlus, ExternalLink } from 'lucide-react'
 
 export function CustomerPortalManager() {
   const [accounts, setAccounts] = useState<CustomerAccount[]>([])

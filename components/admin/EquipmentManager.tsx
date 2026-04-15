@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { db } from '@/lib/db'
 import { escapeIlike } from '@/lib/utils'
-import { Input, Textarea, Modal, SaveBtn, SearchBar, Badge } from './shared'
+import { Input, Textarea, Modal, SaveBtn, SearchBar } from './shared'
 import { EQUIPMENT_CATEGORIES } from '@/lib/api/equipment'
 import type { Equipment, EquipmentCategory } from '@/lib/api/equipment'
 

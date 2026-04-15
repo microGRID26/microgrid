@@ -3,7 +3,7 @@
 import { Pagination } from '@/components/Pagination'
 import { MATERIAL_STATUSES, MATERIAL_SOURCES, MATERIAL_CATEGORIES } from '@/lib/api/inventory'
 import type { ProjectMaterial } from '@/lib/api/inventory'
-import { Package, Search, Download } from 'lucide-react'
+import { Search, Download } from 'lucide-react'
 
 // ── Category badge colors ──────────────────────────────────────────────────
 const CATEGORY_COLORS: Record<string, string> = {

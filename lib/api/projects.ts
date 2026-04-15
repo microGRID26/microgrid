@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db'
-import { escapeIlike, escapeFilterValue, INACTIVE_DISPOSITION_FILTER } from '@/lib/utils'
+import { escapeFilterValue, INACTIVE_DISPOSITION_FILTER } from '@/lib/utils'
 import type { Project } from '@/types/database'
 
 // ── Centralized project data access ─────────────────────────────────────────

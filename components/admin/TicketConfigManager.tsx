@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { handleApiError } from '@/lib/errors'
 import { TICKET_CATEGORIES, TICKET_CATEGORY_COLORS } from '@/lib/api/tickets'
 import type { TicketCategory, TicketResolutionCode } from '@/lib/api/tickets'
-import { Plus, Pencil, Trash2, Search, X } from 'lucide-react'
+import { Plus, Pencil, Search, X } from 'lucide-react'
 
 // ── Ticket Category & Resolution Code Manager ────────────────────────────────
 

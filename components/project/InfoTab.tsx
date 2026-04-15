@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { STAGE_LABELS, fmt$, fmtDate, escapeIlike, INTERNAL_DOMAINS } from '@/lib/utils'
+import { fmt$, fmtDate, escapeIlike, INTERNAL_DOMAINS } from '@/lib/utils'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { X, Plus } from 'lucide-react'
 import type { Project } from '@/types/database'

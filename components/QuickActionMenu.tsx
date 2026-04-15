@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { db } from '@/lib/db'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { cn } from '@/lib/utils'
-import { MoreHorizontal, AlertTriangle, MessageSquare, UserCheck, Ticket, Calendar } from 'lucide-react'
+import { MoreHorizontal, AlertTriangle, MessageSquare, Ticket, Calendar } from 'lucide-react'
 
 interface QuickActionMenuProps {
   projectId: string

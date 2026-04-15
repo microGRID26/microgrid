@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { searchProjects } from '@/lib/api'
-import { createInvoice, addLineItem, generateInvoiceNumber, loadInvoiceRules, MILESTONE_LABELS } from '@/lib/api/invoices'
+import { createInvoice, generateInvoiceNumber, loadInvoiceRules, MILESTONE_LABELS } from '@/lib/api/invoices'
 import type { InvoiceRule } from '@/lib/api/invoices'
 import { db } from '@/lib/db'
 import { fmt$, escapeIlike } from '@/lib/utils'
-import { X, Search, Plus } from 'lucide-react'
+import { X, Plus } from 'lucide-react'
 
 // ── Create Invoice Modal ─────────────────────────────────────────────────────
 

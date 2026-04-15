@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { db } from '@/lib/db'
 import {
   CheckCircle2, XCircle, Ban, SkipForward, Circle,

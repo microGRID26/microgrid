@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { fmt$, daysAgo } from '@/lib/utils'
+import { fmt$ } from '@/lib/utils'
 import {
   MetricCard, PeriodBar, ExportButton, downloadCSV, SortHeader, useSortable, ProjectListModal,
   inRange, PERIOD_LABELS, type AnalyticsData, type Period,

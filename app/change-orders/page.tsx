@@ -14,7 +14,7 @@ import { Suspense } from 'react'
 
 import { ChangeOrderDetailPanel } from './components/ChangeOrderDetailPanel'
 import { NewChangeOrderModal } from './components/NewChangeOrderModal'
-import { STATUS_STYLE, PRIORITY_STYLE, WORKFLOW_STEPS, workflowProgress } from './components/constants'
+import { STATUS_STYLE, PRIORITY_STYLE, workflowProgress } from './components/constants'
 
 // ── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function ChangeOrdersPage() {

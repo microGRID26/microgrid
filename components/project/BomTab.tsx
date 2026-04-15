@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db'
 import type { Project } from '@/types/database'

@@ -1,6 +1,6 @@
 // lib/api/fleet.ts — Fleet/vehicle management data access layer
 import { db } from '@/lib/db'
-import { escapeIlike, escapeFilterValue } from '@/lib/utils'
+import { escapeFilterValue } from '@/lib/utils'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

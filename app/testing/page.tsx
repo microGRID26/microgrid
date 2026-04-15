@@ -11,7 +11,7 @@ import {
   Award, Star, ListFilter, HelpCircle,
 } from 'lucide-react'
 import type { TestPlan, TestCase, TestResult, Status } from './types'
-import { STATUS_META, BADGE_DEFS, ADMIN_ROLES } from './types'
+import { BADGE_DEFS, ADMIN_ROLES } from './types'
 import { TestCard } from './components/TestCard'
 import { SplitView } from './components/SplitView'
 import { ActivityFeed } from './components/ActivityFeed'

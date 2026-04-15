@@ -6,7 +6,7 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { loadVendors, addVendor, updateVendor, deleteVendor, VENDOR_CATEGORIES, EQUIPMENT_TYPE_OPTIONS, loadVendorDocs, addVendorDoc, updateVendorDocStatus, deleteVendorDoc, initVendorOnboarding, VENDOR_DOC_TYPES, VENDOR_DOC_STATUSES } from '@/lib/api/vendors'
 import type { VendorOnboardingDoc } from '@/lib/api/vendors'
 import type { Vendor } from '@/lib/api/vendors'
-import { Search, Plus, X, Building2, ChevronDown, ChevronUp, Truck, Phone, Mail, Globe, BarChart3 } from 'lucide-react'
+import { Search, Plus, X, Building2, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react'
 import VendorScorecard from './components/VendorScorecard'
 
 const CATEGORY_COLORS: Record<string, string> = {

@@ -7,7 +7,7 @@ import {
 } from '@/lib/api'
 import type { PayScale } from '@/lib/api'
 import { useOrg } from '@/lib/hooks'
-import { DollarSign, Pencil, Trash2, Plus, ChevronUp, ChevronDown } from 'lucide-react'
+import { Pencil, Trash2, Plus } from 'lucide-react'
 
 export function PayScaleManager({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const { orgId } = useOrg()

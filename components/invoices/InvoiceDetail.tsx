@@ -2,7 +2,7 @@
 
 import { fmtDate, fmt$ } from '@/lib/utils'
 import type { Invoice, InvoiceLineItem, InvoiceStatus } from '@/lib/api/invoices'
-import { Send, CheckCircle, Ban, AlertTriangle, FileText, Zap } from 'lucide-react'
+import { Send, CheckCircle, Ban, AlertTriangle, Zap } from 'lucide-react'
 
 // ── Invoice Detail (Expandable Row) ──────────────────────────────────────────
 

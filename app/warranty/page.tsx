@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Nav } from '@/components/Nav'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
-import { cn, fmtDate, fmt$, escapeIlike } from '@/lib/utils'
+import { cn, fmtDate } from '@/lib/utils'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import {
   loadAllWarranties,

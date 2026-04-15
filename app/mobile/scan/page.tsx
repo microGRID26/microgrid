@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { lookupByBarcode, checkoutFromWarehouse, checkinToWarehouse } from '@/lib/api/inventory'

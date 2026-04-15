@@ -9,7 +9,7 @@ import { useOrg } from '@/lib/hooks'
 import { fmtDate, cn, INTERNAL_DOMAINS } from '@/lib/utils'
 import { handleApiError } from '@/lib/errors'
 import { db } from '@/lib/db'
-import { loadProjectById, loadUsers, searchProjects } from '@/lib/api'
+import { loadProjectById, loadUsers } from '@/lib/api'
 import {
   loadTickets, createTicket, updateTicket, updateTicketStatus,
   loadTicketComments, addTicketComment, deleteTicketComment, loadDeletedComments, loadTicketHistory, addTicketHistory,
@@ -24,7 +24,7 @@ import type { Project } from '@/types/database'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
 import { MentionNoteInput } from '@/components/project/MentionNoteInput'
 import { useRealtimeSubscription } from '@/lib/hooks'
-import { Plus, Search, X, Send, Download, Pencil } from 'lucide-react'
+import { Plus, Search, Download, Pencil } from 'lucide-react'
 import { CreateTicketModal } from './components/CreateTicketModal'
 import { ResolveModal } from './components/ResolveModal'
 import { StatCards } from './components/StatCards'

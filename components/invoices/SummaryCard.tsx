@@ -1,6 +1,6 @@
 'use client'
 
-import { fmt$, cn } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 // ── Summary Card ─────────────────────────────────────────────────────────────
 
