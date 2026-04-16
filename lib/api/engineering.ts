@@ -5,6 +5,7 @@
 
 import { db } from '@/lib/db'
 import { escapeFilterValue } from '@/lib/utils'
+import { emitPartnerEvent } from '@/lib/partner-api/events/emit'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 // Canonical definitions are in types/database.ts — re-export for consumer convenience
@@ -135,7 +136,20 @@ export async function submitAssignment(
     console.error('[submitAssignment]', error.message)
     return null
   }
-  return data as EngineeringAssignment
+  const row = data as EngineeringAssignment
+  // Fire-and-forget partner webhook event. Never blocks the caller.
+  void emitPartnerEvent('engineering.assignment.created', {
+    assignment_id: row.id,
+    project_id: row.project_id,
+    assigned_org: row.assigned_org,
+    requesting_org: row.requesting_org,
+    assignment_type: row.assignment_type,
+    status: row.status,
+    priority: row.priority,
+    due_date: row.due_date,
+    created_at: row.created_at,
+  })
+  return row
 }
 
 /**
@@ -193,7 +207,17 @@ export async function updateAssignmentStatus(
     console.error('[updateAssignmentStatus]', error.message)
     return null
   }
-  return data as EngineeringAssignment
+  const row = data as EngineeringAssignment
+  void emitPartnerEvent('engineering.assignment.status_changed', {
+    assignment_id: row.id,
+    project_id: row.project_id,
+    assigned_org: row.assigned_org,
+    requesting_org: row.requesting_org,
+    status: row.status,
+    revision_count: row.revision_count,
+    completed_at: row.completed_at,
+  })
+  return row
 }
 
 /**
@@ -234,7 +258,15 @@ export async function addDeliverable(
     console.error('[addDeliverable] update', error.message)
     return null
   }
-  return data as EngineeringAssignment
+  const row = data as EngineeringAssignment
+  void emitPartnerEvent('engineering.deliverable.uploaded', {
+    assignment_id: row.id,
+    project_id: row.project_id,
+    assigned_org: row.assigned_org,
+    deliverable: { ...deliverable, uploaded_at: new Date().toISOString() },
+    deliverable_count: updated.length,
+  })
+  return row
 }
 
 /**
