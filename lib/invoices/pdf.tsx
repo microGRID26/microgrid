@@ -9,6 +9,7 @@
 import React from 'react'
 import {
   Document,
+  Image,
   Page,
   Text,
   View,
@@ -68,7 +69,7 @@ export const EPC_ATTESTATION_TEXT =
 export interface InvoicePDFProps {
   invoice: Invoice
   lineItems: InvoiceLineItem[]
-  fromOrg: Pick<Organization, 'id' | 'name' | 'org_type' | 'settings' | 'billing_email' | 'billing_address'>
+  fromOrg: Pick<Organization, 'id' | 'name' | 'org_type' | 'settings' | 'billing_email' | 'billing_address' | 'logo_url'>
   toOrg: Pick<Organization, 'id' | 'name' | 'org_type' | 'settings' | 'billing_email' | 'billing_address'>
 }
 
@@ -117,6 +118,11 @@ function buildStyles(theme: BrandTheme) {
       fontSize: 22,
       fontFamily: `${theme.font}-Bold`,
       color: theme.primary_color,
+    },
+    brandLogo: {
+      height: 48,
+      maxWidth: 240,
+      marginBottom: 4,
     },
     brandTag: {
       fontSize: 9,
@@ -317,7 +323,11 @@ export function InvoicePDF({ invoice, lineItems, fromOrg, toOrg }: InvoicePDFPro
         {/* Header */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.brand}>{fromOrg.name}</Text>
+            {fromOrg.logo_url ? (
+              <Image src={fromOrg.logo_url} style={styles.brandLogo} />
+            ) : (
+              <Text style={styles.brand}>{fromOrg.name}</Text>
+            )}
             <Text style={styles.brandTag}>{theme.tagline}</Text>
           </View>
           <View style={styles.invoiceBlock}>
