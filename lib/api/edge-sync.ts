@@ -12,8 +12,21 @@ import { db } from '@/lib/db'
 
 // ── Configuration ────────────────────────────────────────────────────────────
 
-const EDGE_WEBHOOK_URL = process.env.NEXT_PUBLIC_EDGE_WEBHOOK_URL || ''
-const EDGE_WEBHOOK_SECRET = process.env.EDGE_WEBHOOK_SECRET || ''
+// Trim whitespace so a stray leading/trailing char pasted into the Vercel
+// env-var UI doesn't silently break HMAC. Production hit this 2026-04-17:
+// EDGE_WEBHOOK_SECRET had a leading space, 14 days of outbound sync
+// deliveries failed with "Failed to fetch" until the trim was added.
+const EDGE_WEBHOOK_URL = (process.env.NEXT_PUBLIC_EDGE_WEBHOOK_URL || '').trim()
+const EDGE_WEBHOOK_SECRET = (process.env.EDGE_WEBHOOK_SECRET || '').trim()
+
+// Accept both env-var shapes: base URL (`https://edge-portal-blush.vercel.app`)
+// or already-terminated full URL (`.../api/webhooks/nova`). Historical prod
+// value has the path appended, and the code used to append it again, which
+// produced `/api/webhooks/nova/api/webhooks/nova` and a 307 on Vercel.
+const EDGE_WEBHOOK_PATH = '/api/webhooks/nova'
+const EDGE_WEBHOOK_FULL_URL = EDGE_WEBHOOK_URL.endsWith(EDGE_WEBHOOK_PATH)
+  ? EDGE_WEBHOOK_URL
+  : `${EDGE_WEBHOOK_URL}${EDGE_WEBHOOK_PATH}`
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -121,7 +134,7 @@ export async function sendToEdge(
         headers['x-webhook-signature'] = signature
       }
 
-      const res = await fetch(`${EDGE_WEBHOOK_URL}/api/webhooks/nova`, {
+      const res = await fetch(EDGE_WEBHOOK_FULL_URL, {
         method: 'POST',
         headers,
         body,
