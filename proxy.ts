@@ -23,7 +23,7 @@ function getRoleCookieSecret(): string | null {
 
 // Routes that require no authentication
 const PUBLIC_ROUTES = ['/login', '/auth', '/portal/login', '/portal/auth', '/privacy']
-const PUBLIC_PREFIXES = ['/api/webhooks/', '/api/email/send-daily', '/api/email/onboarding-reminder', '/api/email/digest', '/api/calendar/webhook', '/api/portal/chat', '/api/customer/delete-account', '/_next/', '/favicon.ico']
+const PUBLIC_PREFIXES = ['/api/webhooks/', '/api/email/send-daily', '/api/email/onboarding-reminder', '/api/email/digest', '/api/calendar/webhook', '/api/portal/chat', '/api/customer/delete-account', '/api/v1/partner/', '/_next/', '/favicon.ico']
 
 // Role hierarchy levels (must match lib/useCurrentUser.ts ROLE_LEVEL)
 const ROLE_LEVEL: Record<string, number> = {

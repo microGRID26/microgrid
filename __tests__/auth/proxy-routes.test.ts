@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest'
 // ── Mirror proxy.ts logic for unit testing ──────────────────────────────────
 
 const PUBLIC_ROUTES = ['/login', '/auth']
-const PUBLIC_PREFIXES = ['/api/webhooks/', '/api/email/send-daily', '/api/email/onboarding-reminder', '/api/email/digest', '/api/calendar/webhook', '/_next/', '/favicon.ico']
+const PUBLIC_PREFIXES = ['/api/webhooks/', '/api/email/send-daily', '/api/email/onboarding-reminder', '/api/email/digest', '/api/calendar/webhook', '/api/portal/chat', '/api/customer/delete-account', '/api/v1/partner/', '/_next/', '/favicon.ico']
 
 const ROLE_LEVEL: Record<string, number> = {
   super_admin: 5,
@@ -112,6 +112,23 @@ describe('Public Routes', () => {
 
   it('/api/calendar/webhook is public', () => {
     expect(isPublicRoute('/api/calendar/webhook')).toBe(true)
+  })
+
+  it('/api/v1/partner/me is public (bearer-token auth, not session)', () => {
+    expect(isPublicRoute('/api/v1/partner/me')).toBe(true)
+  })
+
+  it('/api/v1/partner/engineering/assignments is public', () => {
+    expect(isPublicRoute('/api/v1/partner/engineering/assignments')).toBe(true)
+  })
+
+  it('/api/v1/partner/leads is public', () => {
+    expect(isPublicRoute('/api/v1/partner/leads')).toBe(true)
+  })
+
+  it('/api/v1/partner-admin is NOT public (admin routes keep session auth)', () => {
+    // Guard against over-broad prefix: '/api/v1/partner/' trailing slash is intentional.
+    expect(isPublicRoute('/api/v1/partner-admin/keys')).toBe(false)
   })
 
   it('/_next/ static assets are public', () => {
