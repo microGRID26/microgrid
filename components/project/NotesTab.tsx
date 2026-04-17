@@ -66,7 +66,7 @@ interface NotesTabProps {
   notes: Note[]
   newNote: string
   setNewNote: (v: string) => void
-  addNote: () => void
+  addNote: (noteText?: string) => void
   deleteNote?: (id: string) => void
   saving: boolean
   folderUrl?: string | null
@@ -76,9 +76,7 @@ interface NotesTabProps {
 
 export function NotesTab({ notes, newNote, setNewNote, addNote, deleteNote, saving, folderUrl, projectId, currentUserName }: NotesTabProps) {
   const handleSubmit = (text: string) => {
-    setNewNote(text)
-    // setTimeout ensures React has flushed the state update before addNote reads newNote
-    setTimeout(() => addNote(), 0)
+    addNote(text)
   }
 
   return (

@@ -328,12 +328,13 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
     ]).catch(() => { /* individual loaders handle errors */ })
   }, [initialProject.id])
 
-  async function addNote() {
-    if (!newNote.trim()) return
+  async function addNote(noteText?: string) {
+    const text = (noteText ?? newNote).trim()
+    if (!text) return
     setSaving(true)
     const pm = currentUser?.name ?? userEmail.split('@')[0] ?? 'PM'
     const { error: noteErr } = await supabase.from('notes').insert({
-      project_id: pid, text: newNote.trim(),
+      project_id: pid, text,
       time: new Date().toISOString(), pm,
       pm_id: currentUser?.id ?? null,
     })
