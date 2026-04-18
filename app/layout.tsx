@@ -4,6 +4,7 @@ import './globals.css'
 import { FeedbackButton } from '@/components/FeedbackButton'
 import { SessionTracker } from '@/components/SessionTracker'
 import { Providers } from '@/components/Providers'
+import { AskAtlasWidget } from '@/components/atlas/AskAtlasWidget'
 
 const inter = Inter({ subsets: ['latin'], preload: false })
 
@@ -35,6 +36,7 @@ export default function RootLayout({
           {children}
         </Providers>
         <FeedbackButton />
+        <AskAtlasWidget />
         <SessionTracker />
       </body>
     </html>
