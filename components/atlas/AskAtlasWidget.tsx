@@ -214,7 +214,7 @@ export function AskAtlasWidget() {
     <>
       <button
         onClick={openWidget}
-        className="fixed bottom-16 right-3 z-[90] flex items-center gap-2 px-2 py-2 md:px-3 bg-indigo-900/70 border border-indigo-700 rounded-lg
+        className="fixed bottom-4 right-4 z-[90] flex items-center gap-2 px-2 py-2 md:px-3 bg-indigo-900/70 border border-indigo-700 rounded-lg
                    text-indigo-200 hover:text-white hover:border-indigo-500 shadow-lg transition-colors text-xs"
       >
         <span className="relative">
@@ -478,7 +478,7 @@ export function AskAtlasWidget() {
 
       {toast && (
         <div className={cn(
-          'fixed bottom-16 right-5 z-[200] text-white text-xs px-4 py-2 rounded-md shadow-lg',
+          'fixed bottom-4 right-5 z-[200] text-white text-xs px-4 py-2 rounded-md shadow-lg',
           toast.includes('Failed') ? 'bg-red-700' : 'bg-green-700'
         )}>
           {toast}
