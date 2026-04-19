@@ -132,9 +132,11 @@ export function SheetPV1({ data, aerialPhotoUrl, housePhotoUrl, enhanced = false
                 <div style={{ ...hdr, background: '#555' }}>EXISTING SYSTEM (TO REMAIN)</div>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
-                    <tr><td style={cell}>PV MODULES:</td><td style={val}>({data.existingPanelCount ?? 0}) {data.existingPanelModel} ({data.existingPanelWattage ?? 0}W)</td></tr>
+                    <tr><td style={cell}>PV MODULES:</td><td style={val}>({data.existingPanelCount ?? 0}) {data.existingPanelModel}{data.existingPanelWattage ? ` (${data.existingPanelWattage}W)` : ''}</td></tr>
                     <tr><td style={cell}>INVERTERS:</td><td style={val}>({data.existingInverterCount ?? 0}) {data.existingInverterModel}</td></tr>
-                    <tr><td style={cell}>EXISTING DC:</td><td style={val}>{((data.existingPanelCount ?? 0) * (data.existingPanelWattage ?? 0) / 1000).toFixed(2)} kW</td></tr>
+                    {data.existingPanelWattage ? (
+                      <tr><td style={cell}>EXISTING DC:</td><td style={val}>{((data.existingPanelCount ?? 0) * data.existingPanelWattage / 1000).toFixed(2)} kW</td></tr>
+                    ) : null}
                   </tbody>
                 </table>
               </div>

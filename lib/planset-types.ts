@@ -335,7 +335,13 @@ export function buildPlansetData(project: Project, overrides: PlansetOverrides =
   const d = DURACELL_DEFAULTS
 
   const panelWattage = overrides.panelWattage ?? d.panelWattage
-  const panelCount = overrides.panelCount ?? project.module_qty ?? 0
+  // module_qty / battery_qty / inverter_qty come from a text DB column and may be stored as floats ("64.0", "1.0", "8.0") from Excel imports
+  const toIntCount = (v: unknown): number => {
+    if (v == null || v === '') return 0
+    const n = typeof v === 'number' ? v : Number(v)
+    return Number.isFinite(n) ? Math.round(n) : 0
+  }
+  const panelCount = overrides.panelCount ?? toIntCount(project.module_qty)
   // New system inverter count: use override or default (NOT project.inverter_qty which is the OLD microinverter count)
   const inverterCount = overrides.inverterCount ?? d.inverterCount
   const inverterAcPower = overrides.inverterAcPower ?? d.inverterAcPower
@@ -413,7 +419,10 @@ export function buildPlansetData(project: Project, overrides: PlansetOverrides =
       const raw: unknown = project.esid
       if (raw == null) return ''
       if (typeof raw === 'number') return raw.toLocaleString('fullwide', { useGrouping: false })
-      return String(raw)
+      const s = String(raw)
+      // Detect Excel-corrupted scientific notation (e.g. "1.0089E+21") — original digits are unrecoverable
+      if (/^-?\d+(\.\d+)?[eE][+-]?\d+$/.test(s)) return 'ESID UNAVAILABLE'
+      return s
     })(),
     ahj: project.ahj ?? '',
     voltage: project.voltage ?? '120/240V',
@@ -455,10 +464,10 @@ export function buildPlansetData(project: Project, overrides: PlansetOverrides =
     stringsPerInverter,
 
     existingPanelModel: overrides.existingPanelModel ?? project.module ?? null,
-    existingPanelCount: overrides.existingPanelCount ?? project.module_qty ?? null,
+    existingPanelCount: overrides.existingPanelCount ?? (project.module_qty != null ? toIntCount(project.module_qty) : null),
     existingPanelWattage: overrides.existingPanelWattage ?? null,
     existingInverterModel: overrides.existingInverterModel ?? project.inverter ?? null,
-    existingInverterCount: overrides.existingInverterCount ?? project.inverter_qty ?? null,
+    existingInverterCount: overrides.existingInverterCount ?? (project.inverter_qty != null ? toIntCount(project.inverter_qty) : null),
 
     dcStringWire: overrides.dcStringWire ?? d.dcStringWire,
     dcConduit: overrides.dcConduit ?? d.dcConduit,
