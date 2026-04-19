@@ -331,7 +331,20 @@ export default function PipelinePage() {
     const tab = params.get('tab')
     if (openId && projects.length > 0) {
       const proj = projects.find(p => p.id === openId)
-      if (proj) { setSelected(proj); if (tab) setInitialTab(tab) }
+      if (proj) {
+        setSelected(proj)
+        if (tab) setInitialTab(tab)
+      } else {
+        // Deep-link to a project outside the active filter (e.g. Cancelled from
+        // GlobalSearch). Fetch directly so the modal can open regardless of disposition.
+        db().from('projects').select(PROJECT_COLUMNS).eq('id', openId).maybeSingle()
+          .then((res: { data: unknown }) => {
+            if (res.data) {
+              setSelected(res.data as Project)
+              if (tab) setInitialTab(tab)
+            }
+          })
+      }
     }
     if (searchQ && !search) setSearch(searchQ)
   }, [projects])
