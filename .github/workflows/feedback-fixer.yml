@@ -1,0 +1,200 @@
+name: Feedback Fixer
+
+# Drop this file into .github/workflows/feedback-fixer.yml in each
+# source repo:
+#   - microGRID26/MicroGRID
+#   - microGRID26/EDGE
+#   - microGRID26/Spark
+#   - microGRID26/Spoke
+#   - microGRID26/Bread-of-Life
+#   - microGRID26/Bloom
+#
+# Triggered via workflow_dispatch by ATLAS-HQ /api/cron/feedback-fixer.
+
+on:
+  workflow_dispatch:
+    inputs:
+      feedback_action_id: { description: 'atlas_feedback_actions.id',     required: true }
+      source:             { description: 'feedback source slug',          required: true }
+      feedback_id:        { description: 'source-side feedback row id',   required: true }
+      category:           { description: 'classifier category',           required: false, default: '' }
+      severity:           { description: 'classifier severity',           required: false, default: '' }
+      summary:            { description: 'short summary',                 required: false, default: '' }
+      message_excerpt:    { description: 'first 2000 chars of message',   required: false, default: '' }
+      greg_action_id:     { description: 'greg_actions id (if linked)',   required: false, default: '' }
+      callback_url:       { description: 'HQ callback URL',               required: true }
+      callback_secret:    { description: 'HQ callback shared secret',     required: true }
+
+concurrency:
+  group: feedback-fixer-${{ github.event.inputs.feedback_action_id }}
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+      FEEDBACK_ACTION_ID: ${{ github.event.inputs.feedback_action_id }}
+      SOURCE:             ${{ github.event.inputs.source }}
+      FEEDBACK_ID:        ${{ github.event.inputs.feedback_id }}
+      CATEGORY:           ${{ github.event.inputs.category }}
+      SEVERITY:           ${{ github.event.inputs.severity }}
+      SUMMARY:            ${{ github.event.inputs.summary }}
+      MESSAGE_EXCERPT:    ${{ github.event.inputs.message_excerpt }}
+      GREG_ACTION_ID:     ${{ github.event.inputs.greg_action_id }}
+      CALLBACK_URL:       ${{ github.event.inputs.callback_url }}
+      CALLBACK_SECRET:    ${{ github.event.inputs.callback_secret }}
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create fix branch
+        run: |
+          BRANCH="feedback-fix/${FEEDBACK_ACTION_ID}"
+          echo "BRANCH=${BRANCH}" >> "$GITHUB_ENV"
+          git config user.name  "Atlas Feedback Fixer"
+          git config user.email "atlas-feedback@gomicrogridenergy.com"
+          git checkout -b "${BRANCH}"
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        if: hashFiles('package-lock.json') != ''
+        run: npm ci
+
+      - name: Run Claude fix attempt
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        continue-on-error: true
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 25
+            --allowedTools "Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(grep:*),Bash(rg:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Edit,Write,Read,Grep,Glob,MultiEdit"
+          prompt: |
+            You are the Atlas Feedback Fixer running inside the ${{ github.repository }} repo.
+            A user submitted feedback that ATLAS HQ has already classified as actionable
+            and routed to this repo. Apply the smallest correct code fix that addresses it.
+
+            ## Feedback context
+            - Source app: ${{ env.SOURCE }}
+            - Feedback ID (source-side): ${{ env.FEEDBACK_ID }}
+            - Atlas action ID: ${{ env.FEEDBACK_ACTION_ID }}
+            - Category: ${{ env.CATEGORY }}
+            - Severity: ${{ env.SEVERITY }}
+            - One-line summary: ${{ env.SUMMARY }}
+
+            ## User's message (verbatim, first 2000 chars)
+            ${{ env.MESSAGE_EXCERPT }}
+
+            ## Your job
+            1. Investigate the repo to find the code most likely responsible for the feedback.
+               Use Grep / Glob / Read aggressively. Read the project's CLAUDE.md if it exists.
+            2. Apply the smallest correct fix. Do NOT refactor surrounding code. Do NOT add
+               new dependencies. Do NOT touch files unrelated to this feedback. Do NOT bump
+               versions. Keep the diff under ~200 lines.
+            3. If the project has a test or typecheck command (npm test, npx tsc --noEmit,
+               vitest, pytest, etc.), run it locally and confirm it passes before stopping.
+               If your change breaks tests, undo it.
+            4. If the feedback is ambiguous, out of scope (design ask, infra change, business
+               logic decision, requires human judgement), unreproducible, or you can't find
+               the relevant code with reasonable confidence — exit WITHOUT making any changes.
+               It is better to no-op than to ship a wrong fix. The workflow handles the no-op
+               case gracefully.
+            5. Do not commit, push, or open a PR yourself — the workflow does that downstream
+               based on whether you produced a diff. Just leave your changes in the working tree.
+
+            ## Constraints
+            - One feedback row → at most one logical fix.
+            - No new test files unless the fix genuinely requires regression coverage.
+            - No edits to .github/workflows/, package.json dependency lists, or lockfiles
+              unless that is literally what the feedback is about.
+            - If you change behavior visible to users, prefer the smallest change that
+              addresses the user's complaint, not the most complete fix.
+
+      - name: Detect if Claude produced a diff
+        id: diff
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true"  >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Typecheck + tests
+        id: verify
+        if: steps.diff.outputs.changed == 'true'
+        continue-on-error: true
+        run: |
+          if [ -f package.json ]; then
+            if npx --no -- tsc --version >/dev/null 2>&1; then npx tsc --noEmit; fi
+            if npm run | grep -q "^  test"; then npm test --silent; fi
+          fi
+
+      - name: Commit + push branch
+        if: steps.diff.outputs.changed == 'true' && steps.verify.outcome == 'success'
+        run: |
+          git add -A
+          MSG=$(printf 'feedback-fix: %s\n\nFeedback action: %s\nSource: %s\nCategory: %s (severity: %s)\n\nAuto-patched by Claude in response to a classified feedback row.' \
+            "${SUMMARY}" "${FEEDBACK_ACTION_ID}" "${SOURCE}" "${CATEGORY}" "${SEVERITY}")
+          git commit -m "${MSG}"
+          git push -u origin "${BRANCH}"
+
+      - name: Open PR
+        id: pr
+        if: steps.diff.outputs.changed == 'true' && steps.verify.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL=$(gh pr create \
+            --base  main \
+            --head  "${BRANCH}" \
+            --title "feedback-fix: ${SUMMARY}" \
+            --body  "$(printf 'Auto-fix for feedback row \`%s\` (source: %s).\n\n**Category:** %s\n**Severity:** %s\n\n**Message:**\n\n> %s\n\n_Opened by ATLAS HQ feedback-fixer workflow. Review, merge, and verify in-app._' \
+              "${FEEDBACK_ACTION_ID}" "${SOURCE}" "${CATEGORY}" "${SEVERITY}" "${MESSAGE_EXCERPT}")")
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Callback to ATLAS HQ
+        if: always()
+        run: |
+          if [ -z "$CALLBACK_URL" ]; then
+            echo "No CALLBACK_URL set; skipping ping."
+            exit 0
+          fi
+          STATUS="skipped"
+          PR_URL=""
+          SUMMARY_OUT="Claude reviewed the feedback and chose not to make a code change."
+          if [ "${{ steps.claude.outcome }}" = "failure" ] && [ "${{ steps.diff.outputs.changed }}" != "true" ]; then
+            SUMMARY_OUT="Claude run errored before producing a diff."
+          fi
+          if [ "${{ steps.diff.outputs.changed }}" = "true" ] && [ "${{ steps.verify.outcome }}" = "success" ]; then
+            STATUS="pr_opened"
+            PR_URL="${{ steps.pr.outputs.pr_url }}"
+            SUMMARY_OUT="Feedback fix shipped a PR. tsc + tests green."
+          elif [ "${{ steps.diff.outputs.changed }}" = "true" ] && [ "${{ steps.verify.outcome }}" != "success" ]; then
+            STATUS="failed"
+            SUMMARY_OUT="Claude produced a diff but verification failed. Branch not pushed."
+          fi
+          curl -sS -X POST "$CALLBACK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -cn \
+              --arg secret             "$CALLBACK_SECRET" \
+              --arg source             "$SOURCE" \
+              --arg feedback_action_id "$FEEDBACK_ACTION_ID" \
+              --arg status             "$STATUS" \
+              --arg pr_url             "$PR_URL" \
+              --arg summary            "$SUMMARY_OUT" \
+              '{secret:$secret, source:$source, feedback_action_id:($feedback_action_id|tonumber? // null), status:$status, pr_url:$pr_url, summary:$summary}')"
