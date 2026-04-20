@@ -19,6 +19,7 @@ import { NTPTab } from './NTPTab'
 import { WarrantyTab } from './WarrantyTab'
 import { TicketsTab } from './TicketsTab'
 import { ProjectCostBasisTab } from './ProjectCostBasisTab'
+import { InvoicesTab } from './InvoicesTab'
 import { ScheduleAssignModal } from './ScheduleAssignModal'
 import { createWorkOrderFromProject } from '@/lib/api/work-orders'
 import { AhjEditModal, UtilEditModal, HoaEditModal, FinancierEditModal } from './RefEditModals'
@@ -36,7 +37,7 @@ interface ProjectPanelProps {
   project: Project
   onClose: () => void
   onProjectUpdated: () => void
-  initialTab?: 'tasks' | 'notes' | 'info' | 'bom' | 'files' | 'materials' | 'warranty' | 'ntp' | 'cost_basis'
+  initialTab?: 'tasks' | 'notes' | 'info' | 'bom' | 'files' | 'materials' | 'warranty' | 'ntp' | 'cost_basis' | 'invoices'
 }
 
 export function ProjectPanel({ project: initialProject, onClose, onProjectUpdated, initialTab }: ProjectPanelProps) {
@@ -45,12 +46,12 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
   const edgeSync = useEdgeSync()
   const [project, setProject] = useState<Project>(initialProject)
   const [tab, setTab] = useState<'tasks' | 'notes' | 'info' | 'tickets' | 'details'>(
-    initialTab === 'bom' || initialTab === 'materials' || initialTab === 'warranty' || initialTab === 'files' || initialTab === 'ntp' || initialTab === 'cost_basis' ? 'details' : (initialTab as 'tasks' | 'notes' | 'info') ?? 'tasks'
+    initialTab === 'bom' || initialTab === 'materials' || initialTab === 'warranty' || initialTab === 'files' || initialTab === 'ntp' || initialTab === 'cost_basis' || initialTab === 'invoices' ? 'details' : (initialTab as 'tasks' | 'notes' | 'info') ?? 'tasks'
   )
-  const [detailSections, setDetailSections] = useState<Set<string>>(new Set(initialTab === 'ntp' ? ['ntp'] : initialTab === 'bom' ? ['bom'] : initialTab === 'materials' ? ['materials'] : initialTab === 'warranty' ? ['warranty'] : initialTab === 'files' ? ['files'] : initialTab === 'cost_basis' ? ['cost_basis'] : []))
+  const [detailSections, setDetailSections] = useState<Set<string>>(new Set(initialTab === 'ntp' ? ['ntp'] : initialTab === 'bom' ? ['bom'] : initialTab === 'materials' ? ['materials'] : initialTab === 'warranty' ? ['warranty'] : initialTab === 'files' ? ['files'] : initialTab === 'cost_basis' ? ['cost_basis'] : initialTab === 'invoices' ? ['invoices'] : []))
   useEffect(() => {
     if (!initialTab) return
-    const mapped = ['bom', 'materials', 'warranty', 'files', 'ntp', 'cost_basis'].includes(initialTab) ? 'details' : initialTab
+    const mapped = ['bom', 'materials', 'warranty', 'files', 'ntp', 'cost_basis', 'invoices'].includes(initialTab) ? 'details' : initialTab
     setTab(mapped as 'tasks' | 'notes' | 'info' | 'tickets' | 'details')
   }, [initialTab])
   const [notes, setNotes] = useState<Note[]>([])
@@ -776,6 +777,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
                 { key: 'warranty', label: 'Warranty', content: <WarrantyTab project={project} /> },
                 { key: 'files', label: 'Files', content: <FilesTab folderUrl={folderUrl} projectId={pid} currentStage={project.stage} /> },
                 { key: 'cost_basis', label: 'Cost Basis 🔒', content: <ProjectCostBasisTab project={project} /> },
+                { key: 'invoices', label: 'Invoices', content: <InvoicesTab project={project} /> },
               ].map(section => {
                 const isOpen = detailSections.has(section.key)
                 return (
