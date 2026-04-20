@@ -23,11 +23,17 @@ SET search_path = public AS $$
   SELECT name FROM public.users WHERE email = auth.email() LIMIT 1;
 $$;
 
+-- auth_is_admin / provision_user: canonical shape per migration 130
+-- (offboarding via users.active=false). Keep in sync with migrations/130.
 CREATE OR REPLACE FUNCTION public.auth_is_admin()
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = public AS $$
   SELECT COALESCE(
-    (SELECT admin FROM public.users WHERE email = auth.email() LIMIT 1),
+    (SELECT role IN ('admin', 'super_admin')
+       FROM public.users
+      WHERE email = auth.email()
+        AND COALESCE(active, true) = true
+      LIMIT 1),
     false
   );
 $$;
@@ -36,17 +42,28 @@ CREATE OR REPLACE FUNCTION public.provision_user(p_email TEXT, p_name TEXT)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public AS $$
 DECLARE
-  v_user_id uuid;
-  v_domain  text;
+  v_user_id      uuid;
+  v_active       boolean;
+  v_domain       text;
+  v_caller_email text;
 BEGIN
+  v_caller_email := auth.email();
+  IF v_caller_email IS NULL OR lower(p_email) <> lower(v_caller_email) THEN
+    RAISE EXCEPTION 'provision_user: email mismatch (caller=%, requested=%)',
+      v_caller_email, p_email
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
   INSERT INTO public.users (email, name, active, admin)
   VALUES (p_email, p_name, true, false)
   ON CONFLICT (email) DO NOTHING;
 
-  SELECT id INTO v_user_id FROM public.users WHERE email = p_email LIMIT 1;
+  SELECT id, COALESCE(active, true) INTO v_user_id, v_active
+    FROM public.users WHERE email = p_email LIMIT 1;
   IF v_user_id IS NULL THEN RETURN; END IF;
+  IF v_active = false THEN RETURN; END IF;
 
-  v_domain := split_part(p_email, '@', 2);
+  v_domain := lower(split_part(p_email, '@', 2));
   IF v_domain IS NULL OR v_domain = '' THEN RETURN; END IF;
 
   INSERT INTO public.org_memberships (user_id, org_id)

@@ -111,6 +111,9 @@ When task statuses change in ProjectPanel:
 ### Multi-Tenant Organizations
 `organizations` + `org_memberships` tables. `org_id` on 8 tables. Org-scoped RLS on 30 tables (migration 043). `useOrg()` hook provides context. Default org: MicroGRID Energy (`a0000000-...0001`). `OrgSwitcher` component in nav for multi-org users.
 
+### Offboarding convention
+**Offboard a user by flipping `users.active=false`** — never by deleting `org_memberships` rows or `users` rows. Migration 130 makes every RLS helper (`auth_user_org_ids`, `auth_is_platform_user`, `auth_is_org_member/admin`, `auth_is_admin`, `auth_is_super_admin`, `auth_user_role`, `auth_is_internal_writer`) short-circuit on `active=false`, and `provision_user` skips re-adding memberships for inactive rows. Deleting membership rows alone does not stick — `provision_user` re-adds them on next OAuth login.
+
 ## Style Conventions
 
 - Dark theme: `bg-gray-900` (page), `bg-gray-800` (cards), green accent (`#1D9E75` / `text-green-400`)
