@@ -82,6 +82,33 @@ function BlockerDetection() {
   )
 }
 
+function AskAtlasWidget() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-3">Click the sparkle button in the bottom-right on any page (except the login screen) to open Ask Atlas. It answers questions about MicroGRID using the internal knowledge base, with citations and a confidence level.</p>
+      <div className="space-y-2 text-xs">
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-green-500">
+          <span className="text-green-400 font-bold">Ask Tab</span>
+          <p className="text-gray-400 mt-1">Type a question (minimum 3 chars) and submit. Atlas returns an answer, the KB entries it cited (with owner and similarity), and a confidence label -- high, medium, or low. Give a thumbs-up or thumbs-down so answers can be tuned over time.</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-amber-500">
+          <span className="text-amber-400 font-bold">Escalate to Greg</span>
+          <p className="text-gray-400 mt-1">If Atlas isn&apos;t confident, an Escalate option appears. Add an optional note and send the question to Greg&apos;s action queue. You&apos;ll get the reply back in the Inbox tab when he answers.</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-blue-500">
+          <span className="text-blue-400 font-bold">Inbox Tab</span>
+          <p className="text-gray-400 mt-1">Answers to your escalated questions land here. The widget polls every 2 minutes in the background, so new replies show up automatically. The widget opens to the Inbox tab when there&apos;s unread mail.</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-purple-500">
+          <span className="text-purple-400 font-bold">Citations & Confidence</span>
+          <p className="text-gray-400 mt-1">Each answer lists the KB entries it pulled from with owner and source-of-truth. Low confidence means the KB doesn&apos;t have a strong match -- treat the answer as a guess and escalate if it matters.</p>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 mt-3">KB entries are curated by tier: sales (Mark/Paul), employee (ops leads). Ask Atlas pulls from the tier appropriate to your role.</p>
+    </div>
+  )
+}
+
 function OrgSwitcher() {
   return (
     <div>
@@ -145,6 +172,15 @@ export const systemFeaturesTopics: HelpTopicData[] = [
     keywords: ['blocker', 'auto', 'detect', 'set', 'clear', 'pending', 'resolution'],
     relatedTopics: ['automations', 'stuck-tasks'],
     content: BlockerDetection,
+  },
+  {
+    id: 'ask-atlas-widget',
+    title: 'Ask Atlas Widget',
+    description: 'In-app AI Q&A with citations, confidence, and escalation to Greg',
+    category: 'System Features',
+    keywords: ['atlas', 'ask', 'ai', 'chat', 'widget', 'help', 'kb', 'knowledge base', 'citation', 'confidence', 'escalate', 'inbox', 'question'],
+    relatedTopics: ['atlas-reports'],
+    content: AskAtlasWidget,
   },
   {
     id: 'org-switcher',

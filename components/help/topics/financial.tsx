@@ -223,6 +223,82 @@ function RepOnboarding() {
   )
 }
 
+function CostBasisTab() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-3">Every project has a Cost Basis 🔒 section inside the Details accordion. It reconciles the project&apos;s hard costs into PV / Battery / GPU buckets and calculates the ITC-eligible basis for tax substantiation. Internal-only -- do not share with EPC or customer tenants.</p>
+      <div className="space-y-2 text-xs">
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-green-500">
+          <span className="text-green-400 font-bold">Four Summary Cards</span>
+          <p className="text-gray-400 mt-1">PV Basis (green), Battery Basis (blue), GPU Basis (red, ITC excluded), and Total Basis. Each card shows the dollar amount and its percentage of total. A separate highlighted row shows the ITC-Eligible Basis (Total minus GPU).</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-blue-500">
+          <span className="text-blue-400 font-bold">Line-Item Tables</span>
+          <p className="text-gray-400 mt-1">Items are grouped by section (Modules, Battery, BOS, Labor, etc.). Each row shows Item, Bucket, EPC Price, Battery allocation, PV allocation, and Basis eligibility. Toggle &quot;Show raw / markup&quot; to also see the Raw cost, K (markup factor), and Distro price columns.</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-amber-500">
+          <span className="text-amber-400 font-bold">Row Colors</span>
+          <p className="text-gray-400 mt-1">Yellow rows are EPC-internal cost (covered by attestation, no proof of payment needed). Red rows are ITC-excluded (GPU and other non-eligible items). All other rows are standard capitalized hard cost.</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-purple-500">
+          <span className="text-purple-400 font-bold">Generate PDF</span>
+          <p className="text-gray-400 mt-1">The Generate PDF button exports a branded cost-basis report suitable for appraiser or tax-attorney review. Values are pulled from the project&apos;s stored line items, which are scaled from the proforma catalog to this project&apos;s system size, battery count, and inverter count.</p>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 mt-3">Markup column K is the additional factor: distro = raw × (1 + K). Line items are stored per-project in the database; if none exist yet, the tab shows a yellow banner and computes ephemeral values from the catalog.</p>
+    </div>
+  )
+}
+
+function ChainInvoicing() {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-3">Chain invoicing fires the full 4-link tax-substantiation chain for a project in one pass. Unlike milestone invoices (M1/M2/M3), chain invoices run on demand and can be backfilled retroactively on existing projects for appraiser or tax-attorney review.</p>
+      <div className="bg-gray-800/50 rounded-lg p-3 mb-3">
+        <p className="text-xs text-gray-400 mb-2">The chain moves hard cost through three intercompany hops plus two side channels:</p>
+        <div className="space-y-1 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="bg-purple-900 text-purple-300 px-2 py-0.5 rounded">Direct Supply Equity Corp</span>
+            <span className="text-gray-500">&rarr;</span>
+            <span className="bg-cyan-900 text-cyan-300 px-2 py-0.5 rounded">NewCo Distribution</span>
+            <span className="text-gray-500">&rarr;</span>
+            <span className="bg-green-900 text-green-300 px-2 py-0.5 rounded">EPC</span>
+            <span className="text-gray-500">&rarr;</span>
+            <span className="bg-blue-900 text-blue-300 px-2 py-0.5 rounded">EDGE</span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap pt-1">
+            <span className="bg-amber-900 text-amber-300 px-2 py-0.5 rounded">Rush Engineering</span>
+            <span className="text-gray-500">&rarr;</span>
+            <span className="bg-green-900 text-green-300 px-2 py-0.5 rounded">EPC</span>
+            <span className="text-gray-500 ml-3">+</span>
+            <span className="bg-pink-900 text-pink-300 px-2 py-0.5 rounded">MicroGRID Sales</span>
+            <span className="text-gray-500">&rarr;</span>
+            <span className="bg-green-900 text-green-300 px-2 py-0.5 rounded">EPC</span>
+          </div>
+        </div>
+      </div>
+      <div className="space-y-2 text-xs">
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-green-500">
+          <span className="text-green-400 font-bold">Per-Project Catalog Pricing</span>
+          <p className="text-gray-400 mt-1">Chain rules flagged with use_project_catalog=true pull line items from the project&apos;s own cost catalog (already scaled to system size and battery count) instead of a static proforma. The link determines which price column applies: DSE→NewCo uses raw_cost, NewCo→EPC uses distro_price, EPC→EDGE uses epc_price.</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-amber-500">
+          <span className="text-amber-400 font-bold">EPC-Internal Labor</span>
+          <p className="text-gray-400 mt-1">Line items tagged is_epc_internal (field execution labor) flow only on the EPC → EDGE link. They&apos;re dropped on the two upstream links because labor never moves through the supplier or distributor chain.</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-blue-500">
+          <span className="text-blue-400 font-bold">Texas Sales Tax</span>
+          <p className="text-gray-400 mt-1">8.25% sales tax is applied as a separate step on the EPC → EDGE link only. The two upstream links and the Rush / Sales side channels are tax-exempt per the supplier / distributor model.</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg px-4 py-3 border-l-2 border-purple-500">
+          <span className="text-purple-400 font-bold">Idempotent</span>
+          <p className="text-gray-400 mt-1">A unique index on (project_id, rule_id, milestone) guarantees running the chain twice on the same project returns the existing drafts instead of creating duplicates. Rush Engineering and MicroGRID Sales rules keep their flat JSONB line items because they&apos;re not in the 28-row cost catalog.</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ECCommissions() {
   return (
     <div>
@@ -304,6 +380,25 @@ export const financialTopics: HelpTopicData[] = [
     tryItLink: '/invoices',
     relatedTopics: ['funding-overview', 'funding-triggers', 'engineering-assignments'],
     content: InvoiceManagement,
+  },
+  {
+    id: 'cost-basis-tab',
+    title: 'Cost Basis & Reconciliation',
+    description: 'Per-project PV/Battery/GPU basis reconciliation for tax substantiation',
+    category: 'Financial',
+    keywords: ['cost', 'basis', 'reconciliation', 'itc', 'tax', 'pv', 'battery', 'gpu', 'pdf', 'substantiation', 'markup', 'raw', 'distro', 'epc price', 'capitalized'],
+    relatedTopics: ['chain-invoicing', 'invoice-management'],
+    content: CostBasisTab,
+  },
+  {
+    id: 'chain-invoicing',
+    title: 'Chain Invoicing',
+    description: 'Multi-tenant tax-substantiation chain: DSE → NewCo → EPC → EDGE',
+    category: 'Financial',
+    keywords: ['chain', 'multi-tenant', 'dse', 'direct supply equity', 'newco', 'distribution', 'rush', 'sales tax', 'substantiation', 'intercompany', 'supply', 'proforma'],
+    tryItLink: '/invoices',
+    relatedTopics: ['invoice-management', 'cost-basis-tab'],
+    content: ChainInvoicing,
   },
   {
     id: 'commission-calculator',

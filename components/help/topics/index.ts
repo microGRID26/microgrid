@@ -32,6 +32,20 @@ export const CATEGORIES = [
 ]
 
 export const WHATS_NEW = [
+  { date: 'Apr 2026', title: 'Chain Invoicing (DSE → NewCo → EPC → EDGE)', topicId: 'chain-invoicing' },
+  { date: 'Apr 2026', title: 'Cost Basis & Reconciliation Tab', topicId: 'cost-basis-tab' },
+  { date: 'Apr 2026', title: 'Per-Project Invoices Tab', topicId: 'invoice-management' },
+  { date: 'Apr 2026', title: 'Create Invoice from Project Details', topicId: 'invoice-management' },
+  { date: 'Apr 2026', title: 'Milestone Auto-Invoicing (PDF + Email)', topicId: 'invoice-management' },
+  { date: 'Apr 2026', title: 'Same-Day Clearing & Profit Auto-Transfer', topicId: 'invoice-management' },
+  { date: 'Apr 2026', title: 'Ask Atlas Widget (in-app Q&A)', topicId: 'ask-atlas-widget' },
+  { date: 'Apr 2026', title: 'Dealer Relationships & EPC Underwriting Fees', topicId: 'admin-portal' },
+  { date: 'Apr 2026', title: 'Workmanship Warranty Chargebacks', topicId: 'warranty-tracking' },
+  { date: 'Apr 2026', title: 'Warranty Claims EPC Filter', topicId: 'warranty-tracking' },
+  { date: 'Apr 2026', title: 'Global Search Includes Cancelled Projects', topicId: 'search-and-filter' },
+  { date: 'Apr 2026', title: 'Stamp-Worthy Planset PDFs (Rush Engineering)', topicId: 'engineering-assignments' },
+  { date: 'Apr 2026', title: 'Drive Auto-Pull of Site Photos', topicId: 'document-management' },
+  { date: 'Apr 2026', title: 'Rush Engineering Partner API', topicId: 'admin-portal' },
   { date: 'Apr 2026', title: 'Customer Portal (Web)', topicId: 'getting-started' },
   { date: 'Apr 2026', title: 'Native Mobile App (iOS & Android)', topicId: 'getting-started' },
   { date: 'Apr 2026', title: 'Atlas AI for Customers', topicId: 'atlas-reports' },
