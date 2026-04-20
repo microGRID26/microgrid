@@ -14,10 +14,23 @@
 //
 // All rules with rule_kind='chain' are loaded at once and processed in a
 // single pass. The existing buildInvoiceFromRule() pure calculator handles
-// the per-line-item math (it already supports flat-rate mode, which is what
-// chain rules use — line items have explicit `unit_price` values from the
-// proforma seed). Sales tax is applied here as a separate step on the
-// EPC → EDGE link only.
+// the per-line-item math in flat-rate mode.
+//
+// Phase 1.5 — chain rules with `use_project_catalog=true` skip their
+// proforma-reference line_items JSONB and rebuild line items from
+// project_cost_line_items (backfilled in Session 47, migration 103). The
+// (from_org_type, to_org_type) tuple picks which price column to read:
+//
+//   direct_supply_equity_corp → newco_distribution → raw_cost
+//   newco_distribution        → epc                → distro_price
+//   epc                       → platform           → epc_price
+//
+// is_epc_internal line items (field execution labor) flow only on EPC→EDGE;
+// they are dropped on the two upstream links since they never move through
+// the supplier/distributor chain. Rules that are NOT catalog-sourced (Rush
+// Engineering, MicroGRID Sales commission) keep their flat JSONB line items.
+//
+// Sales tax is applied here as a separate step on the EPC → EDGE link only.
 //
 // Idempotent: relies on the same unique partial index on
 // (project_id, rule_id, milestone) added in migration 098. Calling twice
@@ -26,6 +39,7 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
+import type { ProjectCostLineItem } from '@/lib/cost/calculator'
 import { buildInvoiceFromRule, type CalculatorError } from '@/lib/invoices/calculate'
 import type { InvoiceRule, OrgType, Project } from '@/types/database'
 
@@ -50,7 +64,15 @@ export interface ChainTriggerInput {
 export interface ChainSkippedRule {
   ruleId: string
   ruleName: string
-  reason: CalculatorError | 'from_org_unresolved' | 'to_org_unresolved' | 'self_invoice_skip' | 'insert_failed'
+  reason:
+    | CalculatorError
+    | 'from_org_unresolved'
+    | 'to_org_unresolved'
+    | 'self_invoice_skip'
+    | 'insert_failed'
+    | 'catalog_empty'
+    | 'catalog_load_failed'
+    | 'unmapped_catalog_link'
   detail?: string
 }
 
@@ -175,6 +197,64 @@ export function shouldApplySalesTax(rule: InvoiceRule): boolean {
   return rule.from_org_type === 'epc' && rule.to_org_type === 'platform'
 }
 
+// ── Project catalog → chain line items (Phase 1.5) ──────────────────────────
+
+/**
+ * Which price column on project_cost_line_items maps to the chain link
+ * (from_org_type, to_org_type). Returns null for links that aren't sourced
+ * from the 28-row project catalog (Rush Engineering, MG Sales commission) —
+ * those stay on flat rule.line_items JSONB.
+ */
+export type ChainPriceField = 'raw_cost' | 'distro_price' | 'epc_price'
+
+export function pickChainPriceField(
+  fromOrgType: string,
+  toOrgType: string,
+): ChainPriceField | null {
+  if (fromOrgType === 'direct_supply_equity_corp' && toOrgType === 'newco_distribution') {
+    return 'raw_cost'
+  }
+  if (fromOrgType === 'newco_distribution' && toOrgType === 'epc') {
+    return 'distro_price'
+  }
+  if (fromOrgType === 'epc' && toOrgType === 'platform') {
+    return 'epc_price'
+  }
+  return null
+}
+
+/**
+ * Pure helper — given the per-project cost line items (already scaled by sizing
+ * during Session 47 backfill) and the chain link, synthesize the line items the
+ * calculator needs. Returned shape matches the {description, quantity, unit_price,
+ * category} fields the flat-rate path of buildInvoiceFromRule reads.
+ *
+ * Filter rule: is_epc_internal=true items (field execution labor, EPC-attestation
+ * proof) do NOT flow DSE→NewCo or NewCo→EPC — they are EPC's own costs, not
+ * equipment moving through the distribution chain. They DO flow EPC→EDGE because
+ * EPC bills EDGE for the whole delivered project including labor.
+ */
+export function buildChainLineItemsFromCatalog(
+  catalog: ProjectCostLineItem[],
+  fromOrgType: string,
+  toOrgType: string,
+): Array<{ description: string; quantity: number; unit_price: number; category: string | null }> {
+  const priceField = pickChainPriceField(fromOrgType, toOrgType)
+  if (priceField === null) return []
+  const includeEpcInternal = fromOrgType === 'epc' && toOrgType === 'platform'
+
+  return catalog
+    .filter((li) => (includeEpcInternal ? true : !li.is_epc_internal))
+    .map((li) => ({
+      description: li.item_name,
+      quantity: 1,
+      // project_cost_line_items is NUMERIC in Postgres → may arrive as string
+      // through PostgREST; coerce defensively. Session 47 taught us this bites.
+      unit_price: Number(li[priceField]),
+      category: li.section ?? null,
+    }))
+}
+
 // ── Main orchestrator ───────────────────────────────────────────────────────
 
 /**
@@ -220,7 +300,27 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
   const chainRules = (rules ?? []) as InvoiceRule[]
   result.rulesEvaluated = chainRules.length
 
-  // 3. For each rule: resolve orgs, build draft, optionally persist
+  // 3. Lazy-load the per-project cost catalog (once per run). Only needed if
+  //    at least one rule has use_project_catalog=true. A single empty or
+  //    failed load marks the rules skipped rather than throwing — other
+  //    flat-rate rules (Rush, MG Sales) can still proceed.
+  let catalogCache: ProjectCostLineItem[] | null = null
+  let catalogLoadError: string | null = null
+  const anyCatalogRule = chainRules.some((r) => r.use_project_catalog === true)
+  if (anyCatalogRule) {
+    const { data: catalogRows, error: catalogErr } = await admin
+      .from('project_cost_line_items')
+      .select('*')
+      .eq('project_id', proj.id)
+      .order('sort_order', { ascending: true })
+    if (catalogErr) {
+      catalogLoadError = catalogErr.message
+    } else {
+      catalogCache = (catalogRows ?? []) as ProjectCostLineItem[]
+    }
+  }
+
+  // 4. For each rule: resolve orgs, build draft, optionally persist
   for (const rule of chainRules) {
     const fromOrg = await resolveChainOrgByType(admin, rule.from_org_type as OrgType, proj)
     if (!fromOrg) {
@@ -259,15 +359,59 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
 
     const invoiceNumber = await generateChainInvoiceNumber(admin)
 
-    // Reuse the existing flat-rate calculator. Chain rules embed `unit_price`
-    // values from the proforma in their line_items JSONB, so the calculator's
-    // flat-rate mode handles them directly without needing a new pricing path.
-    // Chain rules can carry totals well above the milestone calculator's safety
-    // ceiling (the EPC → EDGE invoice includes the full bill of materials),
-    // so we override maxTotal to a higher chain-specific cap.
+    // Phase 1.5 — if this rule is catalog-sourced, rebuild line items from the
+    // per-project cost catalog rather than the static proforma JSONB. The synthesized
+    // rule feeds the existing flat-rate calculator unchanged; the rule's own
+    // line_items are ignored for this call.
+    let effectiveRule: InvoiceRule = rule
+    if (rule.use_project_catalog) {
+      if (catalogLoadError !== null) {
+        result.skippedError.push({
+          ruleId: rule.id,
+          ruleName: rule.name,
+          reason: 'catalog_load_failed',
+          detail: catalogLoadError,
+        })
+        continue
+      }
+      if (!catalogCache || catalogCache.length === 0) {
+        result.skippedError.push({
+          ruleId: rule.id,
+          ruleName: rule.name,
+          reason: 'catalog_empty',
+          detail: `project ${proj.id} has no project_cost_line_items rows`,
+        })
+        continue
+      }
+      const priceField = pickChainPriceField(rule.from_org_type, rule.to_org_type)
+      if (priceField === null) {
+        result.skippedError.push({
+          ruleId: rule.id,
+          ruleName: rule.name,
+          reason: 'unmapped_catalog_link',
+          detail: `no catalog mapping for ${rule.from_org_type} → ${rule.to_org_type}`,
+        })
+        continue
+      }
+      const catalogLineItems = buildChainLineItemsFromCatalog(
+        catalogCache,
+        rule.from_org_type,
+        rule.to_org_type,
+      )
+      effectiveRule = {
+        ...rule,
+        line_items: catalogLineItems as unknown as Record<string, unknown>[],
+      }
+    }
+
+    // Reuse the existing flat-rate calculator. Chain rules carry concrete
+    // unit_price values per line — either from the proforma JSONB (Rush, MG Sales)
+    // or synthesized from the project catalog above (DSE→NewCo, NewCo→EPC,
+    // EPC→EDGE). Chain totals can well exceed the milestone ceiling, so we pass
+    // a chain-specific cap.
     const calc = buildInvoiceFromRule({
       project: proj,
-      rule,
+      rule: effectiveRule,
       fromOrg,
       toOrg,
       invoiceNumber,

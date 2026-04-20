@@ -91,6 +91,7 @@ const ntpRule: InvoiceRule = {
   ],
   active: true,
   rule_kind: 'milestone',
+  use_project_catalog: false,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
@@ -106,6 +107,7 @@ const engineeringRule: InvoiceRule = {
   ],
   active: true,
   rule_kind: 'milestone',
+  use_project_catalog: false,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
@@ -121,6 +123,7 @@ const monthlyRule: InvoiceRule = {
   ],
   active: true,
   rule_kind: 'monthly',
+  use_project_catalog: false,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
@@ -136,6 +139,7 @@ const priceTbdRule: InvoiceRule = {
   ],
   active: false,
   rule_kind: 'milestone',
+  use_project_catalog: false,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }

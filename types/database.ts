@@ -936,6 +936,7 @@ export interface InvoiceRule {
   line_items: Record<string, unknown>[]
   active: boolean
   rule_kind: InvoiceRuleKind
+  use_project_catalog: boolean
   created_at: string
   updated_at: string
 }
