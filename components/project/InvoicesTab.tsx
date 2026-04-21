@@ -82,6 +82,7 @@ export function InvoicesTab({ project }: InvoicesTabProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [lineItemsMap, setLineItemsMap] = useState<Record<string, InvoiceLineItem[]>>({})
+  const [lineItemsLoadingId, setLineItemsLoadingId] = useState<string | null>(null)
   const [markPaidInvoice, setMarkPaidInvoice] = useState<Invoice | null>(null)
   const { user: currentUser } = useCurrentUser()
   const { orgId, orgType } = useOrg()
@@ -111,6 +112,9 @@ export function InvoicesTab({ project }: InvoicesTabProps) {
   }, [load])
 
   // Lazy-load line items when a row is expanded for the first time.
+  // `lineItemsLoadingId` guards against double-fetch from rapid re-clicks
+  // that would otherwise issue two `loadInvoice` calls before the first
+  // result populates `lineItemsMap`.
   const handleToggleExpand = useCallback(
     async (invoiceId: string) => {
       if (expandedId === invoiceId) {
@@ -118,29 +122,45 @@ export function InvoicesTab({ project }: InvoicesTabProps) {
         return
       }
       setExpandedId(invoiceId)
-      if (!lineItemsMap[invoiceId]) {
+      if (lineItemsMap[invoiceId] || lineItemsLoadingId === invoiceId) return
+      setLineItemsLoadingId(invoiceId)
+      try {
         const result = await loadInvoice(invoiceId)
         if (result) {
           setLineItemsMap((m) => ({ ...m, [invoiceId]: result.lineItems }))
         }
+      } finally {
+        setLineItemsLoadingId((id) => (id === invoiceId ? null : id))
       }
     },
-    [expandedId, lineItemsMap],
+    [expandedId, lineItemsMap, lineItemsLoadingId],
   )
 
   // Draft → sent routes through the /send endpoint which renders the PDF,
   // emails it, and transitions the row. Every other transition hits the DB
   // directly. Mirrors the global /invoices page.
+  //
+  // On success, evict the cached line-items for this invoice so the next
+  // expand re-reads from the server (defense against a future migration
+  // that mutates line items as part of a status transition).
   const handleStatusChange = useCallback(
     async (invoice: Invoice, newStatus: InvoiceStatus) => {
+      const evictCache = () =>
+        setLineItemsMap((m) => {
+          if (!(invoice.id in m)) return m
+          const next = { ...m }
+          delete next[invoice.id]
+          return next
+        })
       if (newStatus === 'sent' && invoice.status === 'draft') {
         try {
           const resp = await fetch(`/api/invoices/${invoice.id}/send`, { method: 'POST' })
-          const body = (await resp.json().catch(() => ({}))) as { error?: string }
           if (!resp.ok) {
-            alert(`Could not send invoice: ${body.error ?? `HTTP ${resp.status}`}`)
+            await resp.json().catch(() => ({}))
+            alert('Could not send invoice. Please try again or contact support.')
             return
           }
+          evictCache()
           await load()
         } catch {
           alert('Could not send invoice — network error')
@@ -148,7 +168,10 @@ export function InvoicesTab({ project }: InvoicesTabProps) {
         return
       }
       const updated = await updateInvoiceStatus(invoice.id, newStatus)
-      if (updated) await load()
+      if (updated) {
+        evictCache()
+        await load()
+      }
     },
     [load],
   )
@@ -253,7 +276,17 @@ export function InvoicesTab({ project }: InvoicesTabProps) {
         <MarkPaidModal
           invoice={markPaidInvoice}
           onClose={() => setMarkPaidInvoice(null)}
-          onPaid={() => { void load(); setMarkPaidInvoice(null) }}
+          onPaid={() => {
+            const paidId = markPaidInvoice.id
+            setLineItemsMap((m) => {
+              if (!(paidId in m)) return m
+              const next = { ...m }
+              delete next[paidId]
+              return next
+            })
+            void load()
+            setMarkPaidInvoice(null)
+          }}
         />
       )}
     </>
