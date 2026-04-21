@@ -56,8 +56,40 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     const supabase = createClient()
 
     supabase.auth.getUser().then(async ({ data }) => {
-      if (!mountedRef.current || !data.user) {
+      if (!mountedRef.current || !data.user?.email) {
         if (mountedRef.current) setLoading(false)
+        return
+      }
+
+      // Resolve public.users.id from email. Required because org_memberships
+      // keys on public.users.id, which is NOT equal to auth.uid() for users
+      // provisioned post-migration-132 (the provision_user RPC generates a
+      // fresh UUID via the column DEFAULT instead of reusing auth.uid).
+      // Before this fix, the membership query below filtered on auth.uid()
+      // and silently returned zero rows for every user — the DEFAULT_ORG_ID
+      // fallback below masked the bug.
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', data.user.email)
+        .single()
+      const publicUserId = (userRow as { id: string } | null)?.id
+      if (!publicUserId) {
+        // No public.users row — first-login race before provision_user fires,
+        // or an offboarded user. Fall through to the DEFAULT_ORG_ID path so
+        // the UI still renders.
+        if (mountedRef.current) {
+          setActiveOrgId(DEFAULT_ORG_ID)
+          setUserOrgs([{
+            orgId: DEFAULT_ORG_ID,
+            orgName: 'MicroGRID Energy',
+            orgSlug: 'microgrid',
+            orgType: 'epc',
+            orgRole: 'member',
+            isDefault: true,
+          }])
+          setLoading(false)
+        }
         return
       }
 
@@ -65,7 +97,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       const { data: memberships } = await supabase
         .from('org_memberships')
         .select('org_id, org_role, is_default')
-        .eq('user_id', data.user.id) as { data: Pick<OrgMembership, 'org_id' | 'org_role' | 'is_default'>[] | null }
+        .eq('user_id', publicUserId) as { data: Pick<OrgMembership, 'org_id' | 'org_role' | 'is_default'>[] | null }
 
       if (!mountedRef.current) return
 

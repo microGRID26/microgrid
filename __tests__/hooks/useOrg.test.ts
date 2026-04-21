@@ -26,21 +26,37 @@ function buildOrgsChain(orgs: { id: string; name: string; slug: string; org_type
   return chain
 }
 
+// Per #155 fix, useOrg now looks up public.users by email before querying
+// org_memberships, because org_memberships.user_id stores public.users.id
+// (not auth.uid). The chain here resolves to { id: <userId> } for .single(),
+// matching the legacy userId param so existing test expectations still hold.
+function buildUserRowChain(userRow: { id: string } | null) {
+  const chain: Record<string, any> = {}
+  const methods = ['select', 'eq', 'neq', 'in', 'ilike', 'or', 'order', 'range', 'limit', 'not']
+  for (const m of methods) {
+    chain[m] = vi.fn(() => chain)
+  }
+  chain.single = vi.fn(() => Promise.resolve({ data: userRow, error: userRow ? null : { code: 'PGRST116' } }))
+  chain.maybeSingle = chain.single
+  chain.then = vi.fn((resolve: any) => Promise.resolve({ data: userRow, error: null }).then(resolve))
+  return chain
+}
+
 function mockSupabaseWith(
   memberships: { org_id: string; org_role: string; is_default: boolean }[],
   orgs: { id: string; name: string; slug: string; org_type: string; active: boolean }[],
-  userId = 'user-123'
+  userId = 'user-123',
+  publicUserRow: { id: string } | null = { id: userId },
 ) {
   const membershipsChain = buildMembershipsChain(memberships)
   const orgsChain = buildOrgsChain(orgs)
+  const userRowChain = buildUserRowChain(publicUserRow)
 
-  let callCount = 0
   return {
     from: vi.fn((table: string) => {
+      if (table === 'users') return userRowChain
       if (table === 'org_memberships') return membershipsChain
       if (table === 'organizations') return orgsChain
-      // Fallback
-      callCount++
       return membershipsChain
     }),
     auth: {
@@ -372,6 +388,43 @@ describe('useOrg', () => {
     // Only active orgs should be in userOrgs
     expect(result.current.userOrgs).toHaveLength(1)
     expect(result.current.userOrgs[0].orgId).toBe(orgA)
+  })
+
+  it('falls back to DEFAULT_ORG_ID when auth user has no public.users row (#155 fix)', async () => {
+    // Regression test: pre-#155-fix, useOrg filtered org_memberships by
+    // auth.uid(), which never matched any real row because memberships key
+    // on public.users.id. That silently returned zero rows and fired the
+    // DEFAULT_ORG_ID fallback for every user. Post-fix, useOrg resolves
+    // public.users.id via email; if the row doesn't exist (first-login
+    // race / offboarded user), fall back to DEFAULT_ORG_ID so the UI still
+    // renders — this test pins that path.
+    const supabase = mockSupabaseWith(
+      [{ org_id: 'irrelevant', org_role: 'admin', is_default: true }],
+      [],
+      'user-123',
+      null, // no public.users row for this email
+    )
+
+    vi.doMock('@/lib/supabase/client', () => ({ createClient: () => supabase }))
+    vi.doMock('@/lib/hooks/useSupabaseQuery', () => ({
+      clearQueryCache: vi.fn(),
+    }))
+
+    const { OrgProvider, useOrg } = await import('@/lib/hooks/useOrg')
+
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(OrgProvider, null, children)
+
+    const { result } = renderHook(() => useOrg(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(result.current.orgId).toBe(DEFAULT_ORG_ID)
+    expect(result.current.orgName).toBe('MicroGRID Energy')
+    expect(result.current.orgType).toBe('epc')
+    expect(result.current.userOrgs).toHaveLength(1)
   })
 
   it('ignores invalid localStorage org ID and uses is_default', async () => {
