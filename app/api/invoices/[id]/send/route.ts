@@ -9,6 +9,11 @@ import type { Invoice, InvoiceLineItem, Organization } from '@/types/database'
 // @react-pdf/renderer uses Node built-ins (fs, stream) — must run on the node runtime.
 export const runtime = 'nodejs'
 
+// Only admin / super_admin / manager / finance can trigger a send. Receivers,
+// customer-tenants, and EPC field roles have no business flipping draft→sent
+// on someone else's invoice.
+const SEND_ALLOWED_ROLES = new Set(['admin', 'super_admin', 'manager', 'finance'])
+
 /**
  * POST /api/invoices/[id]/send
  *
@@ -16,7 +21,11 @@ export const runtime = 'nodejs'
  * via Resend. On success, transitions the invoice status from 'draft' to
  * 'sent' and stamps sent_at.
  *
- * Auth: valid Supabase session (RLS on invoices table enforces org membership).
+ * Auth: valid Supabase session AND caller is a member of `from_org`
+ * (or platform) AND role ∈ {admin, super_admin, manager, finance}. The DB
+ * trigger in migration 133 enforces the from_org check a second time; this
+ * route is defense in depth above it (rejects before PDF render + email).
+ *
  * Rate limited: 20 sends per hour per user.
  */
 export async function POST(
@@ -32,9 +41,10 @@ export async function POST(
     { cookies: { getAll() { return request.cookies.getAll() }, setAll() {} } },
   )
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // ── Rate limit per user ────────────────────────────────────────────────
+  // ── Rate limit per user (runs before role/db gates so a role-less caller
+  //    can't spam free lookups) ──────────────────────────────────────────
   const { success } = await rateLimit(`invoice-send:${user.id}`, {
     windowMs: 3_600_000,
     max: 20,
@@ -42,6 +52,17 @@ export async function POST(
   })
   if (!success) {
     return NextResponse.json({ error: 'Rate limit exceeded (20 sends/hour)' }, { status: 429 })
+  }
+
+  // ── Role gate ──────────────────────────────────────────────────────────
+  const { data: userRow } = await supabase
+    .from('users')
+    .select('id, role')
+    .eq('email', user.email)
+    .single()
+  const role = (userRow as { id: string; role: string } | null)?.role
+  if (!role || !SEND_ALLOWED_ROLES.has(role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   // ── Load invoice, line items, both orgs ────────────────────────────────
@@ -56,9 +77,55 @@ export async function POST(
 
   const inv = invoice as Invoice
 
+  // ── from_org membership gate ───────────────────────────────────────────
+  // Only sender-org members (or platform) may send. Receivers who can SELECT
+  // the row via RLS are nonetheless rejected here, matching the DB trigger's
+  // ownership model. Platform is detected via org_memberships.org_type.
+  const { data: memberships } = await supabase
+    .from('org_memberships')
+    .select('org_id, organizations!inner(id, org_type)')
+    .eq('user_id', (userRow as { id: string }).id)
+  // PostgREST returns the embedded table as an array even on !inner joins.
+  const membershipRows = (memberships ?? []) as unknown as Array<{
+    org_id: string
+    organizations: Array<{ id: string; org_type: string }> | { id: string; org_type: string } | null
+  }>
+  const userOrgIds = new Set(membershipRows.map((m) => m.org_id))
+  const isPlatform = membershipRows.some((m) => {
+    const orgs = Array.isArray(m.organizations) ? m.organizations : m.organizations ? [m.organizations] : []
+    return orgs.some((o) => o.org_type === 'platform')
+  })
+  if (!isPlatform && !userOrgIds.has(inv.from_org)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   if (inv.status !== 'draft') {
     return NextResponse.json(
       { error: `Cannot send invoice with status "${inv.status}" — only drafts can be sent` },
+      { status: 409 },
+    )
+  }
+
+  // ── Claim the send before rendering + emailing (TOCTOU guard) ──────────
+  // Flip draft → sent with an optimistic status check; this reserves the
+  // send so two concurrent callers can't both render + email. The loser
+  // gets 409 here and never reaches the Resend call. Downside: a rendered
+  // PDF or email failure downstream leaves the row in 'sent' state. That's
+  // preferable to the double-email case — finance can manually resend.
+  const now = new Date().toISOString()
+  const { data: claimRows, error: claimErr } = await supabase
+    .from('invoices')
+    .update({ status: 'sent', sent_at: now })
+    .eq('id', inv.id)
+    .eq('status', 'draft')
+    .select('id')
+  if (claimErr) {
+    console.error('[invoice send] claim update failed:', claimErr.message)
+    return NextResponse.json({ error: 'Failed to claim send' }, { status: 500 })
+  }
+  if (!claimRows || claimRows.length === 0) {
+    return NextResponse.json(
+      { error: 'Invoice already sent by another request' },
       { status: 409 },
     )
   }
@@ -137,20 +204,6 @@ export async function POST(
       console.error('[invoice send] resend failed:', message)
       return NextResponse.json({ error: `Email send failed: ${message}` }, { status: 502 })
     }
-  }
-
-  // ── Transition status → sent ───────────────────────────────────────────
-  const now = new Date().toISOString()
-  const { error: updateErr } = await supabase
-    .from('invoices')
-    .update({ status: 'sent', sent_at: now })
-    .eq('id', inv.id)
-  if (updateErr) {
-    console.error('[invoice send] status update failed:', updateErr.message)
-    return NextResponse.json(
-      { error: 'Invoice sent but status update failed — please check the invoice record' },
-      { status: 500 },
-    )
   }
 
   return NextResponse.json({

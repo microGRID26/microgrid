@@ -289,14 +289,22 @@ export async function updateInvoiceStatus(
     if (details?.payment_reference) updates.payment_reference = details.payment_reference
   }
 
+  // TOCTOU: gate the UPDATE on the status we read above so two concurrent
+  // transitions can't both succeed. The losing request resolves to zero rows
+  // back and we treat it as a no-op (the row did transition, just not by us).
   const { data, error } = await supabase
     .from('invoices')
     .update(updates)
     .eq('id', invoiceId)
+    .eq('status', currentStatus)
     .select()
-    .single()
+    .maybeSingle()
   if (error) {
     console.error('[updateInvoiceStatus]', error.message)
+    return null
+  }
+  if (!data) {
+    console.warn(`[updateInvoiceStatus] race lost: ${invoiceId} was not in status ${currentStatus} at write time`)
     return null
   }
 
