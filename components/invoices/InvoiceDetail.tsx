@@ -21,7 +21,7 @@ export function InvoiceDetail({
   orgMap: Record<string, string>
   onStatusChange: (status: InvoiceStatus) => void
   onMarkPaid: () => void
-  onOpenProject: (projectId: string) => void
+  onOpenProject?: (projectId: string) => void
 }) {
   return (
     <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 mt-2 space-y-3">
@@ -159,7 +159,7 @@ export function InvoiceDetail({
             </button>
           </>
         )}
-        {invoice.project_id && (
+        {invoice.project_id && onOpenProject && (
           <button
             onClick={() => onOpenProject(invoice.project_id!)}
             className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg ml-auto"

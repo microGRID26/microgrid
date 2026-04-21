@@ -8,20 +8,22 @@
 // invoicing state without leaving the project panel.
 
 import { useCallback, useEffect, useState } from 'react'
-import { FileText, AlertCircle, Plus } from 'lucide-react'
+import { FileText, AlertCircle, Plus, ChevronDown, ChevronUp } from 'lucide-react'
 
 import {
   loadProjectInvoices,
+  loadInvoice,
   loadOrgNames,
+  updateInvoiceStatus,
   INVOICE_STATUS_LABELS,
   INVOICE_STATUS_BADGE,
   MILESTONE_LABELS,
 } from '@/lib/api/invoices'
-import type { Invoice, InvoiceStatus } from '@/lib/api/invoices'
+import type { Invoice, InvoiceLineItem, InvoiceStatus } from '@/lib/api/invoices'
 import type { Project } from '@/types/database'
 import { useCurrentUser } from '@/lib/useCurrentUser'
 import { useOrg } from '@/lib/hooks'
-import { CreateInvoiceModal } from '@/components/invoices'
+import { CreateInvoiceModal, InvoiceDetail, MarkPaidModal } from '@/components/invoices'
 
 interface InvoicesTabProps {
   project: Project
@@ -78,8 +80,12 @@ export function InvoicesTab({ project }: InvoicesTabProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [lineItemsMap, setLineItemsMap] = useState<Record<string, InvoiceLineItem[]>>({})
+  const [markPaidInvoice, setMarkPaidInvoice] = useState<Invoice | null>(null)
   const { user: currentUser } = useCurrentUser()
-  const { orgId } = useOrg()
+  const { orgId, orgType } = useOrg()
+  const isPlatform = orgType === 'platform'
   const canCreate = !!currentUser && (currentUser.isAdmin || currentUser.isFinance)
 
   const load = useCallback(async () => {
@@ -103,6 +109,49 @@ export function InvoicesTab({ project }: InvoicesTabProps) {
   useEffect(() => {
     void load()
   }, [load])
+
+  // Lazy-load line items when a row is expanded for the first time.
+  const handleToggleExpand = useCallback(
+    async (invoiceId: string) => {
+      if (expandedId === invoiceId) {
+        setExpandedId(null)
+        return
+      }
+      setExpandedId(invoiceId)
+      if (!lineItemsMap[invoiceId]) {
+        const result = await loadInvoice(invoiceId)
+        if (result) {
+          setLineItemsMap((m) => ({ ...m, [invoiceId]: result.lineItems }))
+        }
+      }
+    },
+    [expandedId, lineItemsMap],
+  )
+
+  // Draft → sent routes through the /send endpoint which renders the PDF,
+  // emails it, and transitions the row. Every other transition hits the DB
+  // directly. Mirrors the global /invoices page.
+  const handleStatusChange = useCallback(
+    async (invoice: Invoice, newStatus: InvoiceStatus) => {
+      if (newStatus === 'sent' && invoice.status === 'draft') {
+        try {
+          const resp = await fetch(`/api/invoices/${invoice.id}/send`, { method: 'POST' })
+          const body = (await resp.json().catch(() => ({}))) as { error?: string }
+          if (!resp.ok) {
+            alert(`Could not send invoice: ${body.error ?? `HTTP ${resp.status}`}`)
+            return
+          }
+          await load()
+        } catch {
+          alert('Could not send invoice — network error')
+        }
+        return
+      }
+      const updated = await updateInvoiceStatus(invoice.id, newStatus)
+      if (updated) await load()
+    },
+    [load],
+  )
 
   if (loading) {
     return <div className="p-5 text-sm text-gray-400">Loading invoices…</div>
@@ -157,6 +206,17 @@ export function InvoicesTab({ project }: InvoicesTabProps) {
     )
   }
 
+  const groupProps = {
+    orgMap,
+    orgId,
+    isPlatform,
+    expandedId,
+    lineItemsMap,
+    onToggleExpand: handleToggleExpand,
+    onStatusChange: handleStatusChange,
+    onMarkPaid: (inv: Invoice) => setMarkPaidInvoice(inv),
+  }
+
   return (
     <>
       <div className="p-5 space-y-6">
@@ -168,7 +228,7 @@ export function InvoicesTab({ project }: InvoicesTabProps) {
             title="Milestone Invoices"
             subtitle="Customer-facing — automatic on NTP / Install / PTO"
             invoices={milestone}
-            orgMap={orgMap}
+            {...groupProps}
           />
         )}
         {chain.length > 0 && (
@@ -176,7 +236,7 @@ export function InvoicesTab({ project }: InvoicesTabProps) {
             title="Chain Invoices"
             subtitle="Tax-substantiation chain — DSE Corp → NewCo → EPC → EDGE (plus Rush + MG Sales)"
             invoices={chain}
-            orgMap={orgMap}
+            {...groupProps}
           />
         )}
         {other.length > 0 && (
@@ -184,63 +244,109 @@ export function InvoicesTab({ project }: InvoicesTabProps) {
             title="Other"
             subtitle="Manually created or non-standard invoices"
             invoices={other}
-            orgMap={orgMap}
+            {...groupProps}
           />
         )}
       </div>
       {modal}
+      {markPaidInvoice && (
+        <MarkPaidModal
+          invoice={markPaidInvoice}
+          onClose={() => setMarkPaidInvoice(null)}
+          onPaid={() => { void load(); setMarkPaidInvoice(null) }}
+        />
+      )}
     </>
   )
 }
 
 // ── Group row ───────────────────────────────────────────────────────────────
 
-function InvoiceGroup({
-  title,
-  subtitle,
-  invoices,
-  orgMap,
-}: {
+interface InvoiceGroupProps {
   title: string
   subtitle: string
   invoices: Invoice[]
   orgMap: Record<string, string>
-}) {
+  orgId: string | null
+  isPlatform: boolean
+  expandedId: string | null
+  lineItemsMap: Record<string, InvoiceLineItem[]>
+  onToggleExpand: (invoiceId: string) => void
+  onStatusChange: (invoice: Invoice, status: InvoiceStatus) => void
+  onMarkPaid: (invoice: Invoice) => void
+}
+
+function InvoiceGroup({ title, subtitle, invoices, ...rowProps }: InvoiceGroupProps) {
   return (
     <div>
       <div className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">{title}</div>
       <div className="text-xs text-gray-500 mb-3">{subtitle}</div>
       <div className="space-y-2">
         {invoices.map((inv) => (
-          <InvoiceRow key={inv.id} invoice={inv} orgMap={orgMap} />
+          <InvoiceRow key={inv.id} invoice={inv} {...rowProps} />
         ))}
       </div>
     </div>
   )
 }
 
-function InvoiceRow({ invoice, orgMap }: { invoice: Invoice; orgMap: Record<string, string> }) {
+function InvoiceRow({
+  invoice,
+  orgMap,
+  orgId,
+  isPlatform,
+  expandedId,
+  lineItemsMap,
+  onToggleExpand,
+  onStatusChange,
+  onMarkPaid,
+}: Omit<InvoiceGroupProps, 'title' | 'subtitle' | 'invoices'> & { invoice: Invoice }) {
   const fromName = orgMap[invoice.from_org] ?? invoice.from_org
   const toName = orgMap[invoice.to_org] ?? invoice.to_org
   const status = invoice.status as InvoiceStatus
   const milestoneLabel =
     invoice.milestone && invoice.milestone !== 'chain' ? MILESTONE_LABELS[invoice.milestone] ?? invoice.milestone : null
+  const isExpanded = expandedId === invoice.id
+  const isSender = invoice.from_org === orgId || isPlatform
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800/40 p-3 flex items-center gap-3">
-      <div className="flex-1 min-w-0">
-        <div className="font-mono text-sm text-white">{invoice.invoice_number}</div>
-        <div className="text-xs text-gray-400 truncate">
-          {fromName} → {toName}
-          {milestoneLabel && <span className="text-gray-500"> · {milestoneLabel}</span>}
+    <div className="rounded-lg border border-gray-700 bg-gray-800/40 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => onToggleExpand(invoice.id)}
+        className="w-full text-left p-3 flex items-center gap-3 hover:bg-gray-800/60 transition-colors"
+        aria-expanded={isExpanded}
+        aria-label={isExpanded ? `Collapse invoice ${invoice.invoice_number}` : `Expand invoice ${invoice.invoice_number}`}
+      >
+        <span className="text-gray-500 shrink-0">
+          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="font-mono text-sm text-white">{invoice.invoice_number}</div>
+          <div className="text-xs text-gray-400 truncate">
+            {fromName} → {toName}
+            {milestoneLabel && <span className="text-gray-500"> · {milestoneLabel}</span>}
+          </div>
         </div>
-      </div>
-      <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${INVOICE_STATUS_BADGE[status] ?? 'bg-gray-700 text-gray-300'}`}>
-        {INVOICE_STATUS_LABELS[status] ?? status}
-      </span>
-      <div className="text-right whitespace-nowrap">
-        <div className="text-sm font-semibold text-white">{fmtMoney(invoice.total)}</div>
-        {invoice.created_at && <div className="text-xs text-gray-500">{fmtDate(invoice.created_at)}</div>}
-      </div>
+        <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${INVOICE_STATUS_BADGE[status] ?? 'bg-gray-700 text-gray-300'}`}>
+          {INVOICE_STATUS_LABELS[status] ?? status}
+        </span>
+        <div className="text-right whitespace-nowrap">
+          <div className="text-sm font-semibold text-white">{fmtMoney(invoice.total)}</div>
+          {invoice.created_at && <div className="text-xs text-gray-500">{fmtDate(invoice.created_at)}</div>}
+        </div>
+      </button>
+      {isExpanded && (
+        <div className="px-3 pb-3">
+          <InvoiceDetail
+            invoice={invoice}
+            lineItems={lineItemsMap[invoice.id] ?? []}
+            isSender={isSender}
+            orgMap={orgMap}
+            onStatusChange={(s) => onStatusChange(invoice, s)}
+            onMarkPaid={() => onMarkPaid(invoice)}
+          />
+        </div>
+      )}
     </div>
   )
 }
