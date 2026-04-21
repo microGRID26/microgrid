@@ -58,3 +58,4 @@ scripts/import-project-files.py
 # Written by scripts/generate-codebase-stats.mjs on postinstall / prebuild / predev.
 # Never commit — it flaps on every build.
 /lib/infographic/codebase-stats.ts
+.env*.local
