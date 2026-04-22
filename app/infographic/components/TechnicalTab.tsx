@@ -136,7 +136,7 @@ export function TechnicalTab({ stats }: TechnicalTabProps) {
                 <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
               </div>
               <div className="flex-1">
-                <div className="text-sm font-bold text-amber-400 mb-1">The Foundation — 70+ Database Tables</div>
+                <div className="text-sm font-bold text-amber-400 mb-1">The Foundation — 165+ Database Tables</div>
                 <p className="text-xs text-gray-400 mb-3">The foundation holds everything. Every project, every task, every note, every dollar — stored in a PostgreSQL database with {CODEBASE_STATS.max_migration_number} migrations applied over time, like blueprints for the foundation.</p>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                   {[
@@ -220,7 +220,7 @@ export function TechnicalTab({ stats }: TechnicalTabProps) {
             { grade: 'A', label: 'Security', desc: '0 critical issues. HMAC webhooks. Rate limiting. CSP headers.', color: '#22c55e' },
             { grade: 'A', label: 'Reliability', desc: `${CODEBASE_STATS.test_count.toLocaleString()} automated tests. ${CODEBASE_STATS.test_files} test files. ${CODEBASE_STATS.error_boundaries} error boundaries.`, color: '#22c55e' },
             { grade: 'A', label: 'Data Integrity', desc: 'M1/M2/M3 validation. Audit trail. Milestone triggers.', color: '#22c55e' },
-            { grade: 'B', label: 'Scale Readiness', desc: '11 new indexes. Postgres aggregation. Ready for 5K projects.', color: '#3b82f6' },
+            { grade: 'B', label: 'Scale Readiness', desc: 'Indexed foreign keys. Postgres aggregation. Ready for 5K projects.', color: '#3b82f6' },
           ].map(s => (
             <div key={s.label}>
               <div className="text-4xl font-black" style={{ color: s.color }}>{s.grade}</div>
