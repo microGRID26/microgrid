@@ -731,6 +731,7 @@ export function ProjectPanel({ project: initialProject, onClose, onProjectUpdate
               folderUrl={folderUrl}
               projectId={pid}
               currentUserName={currentUser?.name}
+              isManager={currentUser?.isManager ?? false}
             />
           )}
 

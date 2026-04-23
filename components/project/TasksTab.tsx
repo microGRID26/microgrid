@@ -33,8 +33,20 @@ function LinkedText({ text, folderUrl }: { text: string; folderUrl: string | nul
 }
 
 // ── isLocked helper ──────────────────────────────────────────────────────────
-function isLocked(task: { pre: string[] }, taskStates: Record<string, string>): boolean {
+export function isLocked(task: { pre: string[] }, taskStates: Record<string, string>): boolean {
   return task.pre.some(preId => taskStates[preId] !== 'Complete')
+}
+
+// Whether the status dropdown for a task should be editable by the current user.
+// Managers (role level ≥ manager) can override the prereq lock — needed so they can
+// adjust tasks on legacy-imported projects and move a Complete task back when required.
+export function canEditTaskStatus(
+  task: { pre: string[] },
+  taskStates: Record<string, string>,
+  isManager: boolean,
+): boolean {
+  if (isManager) return true
+  return !isLocked(task, taskStates)
 }
 
 // ── ROW BORDER / BG STYLES ──────────────────────────────────────────────────
@@ -84,6 +96,7 @@ interface TasksTabProps {
   folderUrl?: string | null
   projectId?: string
   currentUserName?: string
+  isManager?: boolean
 }
 
 // Permit-related task IDs — show "Open Portal" button on these
@@ -145,6 +158,7 @@ export function TasksTab({
   folderUrl,
   projectId,
   currentUserName,
+  isManager = false,
 }: TasksTabProps) {
   const [viewStage, setViewStage] = useState<string>(project.stage)
   const [expandedTask, setExpandedTask] = useState<string | null>(null)
@@ -385,7 +399,7 @@ export function TasksTab({
                         }`}
                       >
                         {/* Batch checkbox */}
-                        {batchMode && !locked && status !== 'Complete' && (
+                        {batchMode && (!locked || isManager) && status !== 'Complete' && (
                           <input type="checkbox" checked={batchSelected.has(task.id)}
                             onChange={() => setBatchSelected(prev => { const next = new Set(prev); if (next.has(task.id)) next.delete(task.id); else next.add(task.id); return next })}
                             onClick={e => e.stopPropagation()}
@@ -484,14 +498,15 @@ export function TasksTab({
                           <OpenPortalButton ahjName={project.ahj} />
                         )}
 
-                        {/* Status dropdown */}
+                        {/* Status dropdown — managers can override the prereq lock */}
                         <select
                           value={status}
-                          disabled={locked}
+                          disabled={!canEditTaskStatus(task, taskStates, isManager)}
                           onChange={e => updateTaskStatus(task.id, e.target.value)}
+                          title={locked && isManager ? 'Prerequisites not complete — manager override' : undefined}
                           className={`text-xs rounded px-2 py-1.5 md:px-1.5 md:py-0.5 border-0 cursor-pointer flex-shrink-0 ${
                             STATUS_STYLE[status] ?? 'bg-gray-800 text-gray-400'
-                          } ${locked ? 'cursor-not-allowed' : ''}`}
+                          } ${locked && !isManager ? 'cursor-not-allowed' : ''} ${locked && isManager ? 'ring-1 ring-amber-500/40' : ''}`}
                         >
                           {TASK_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
