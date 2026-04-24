@@ -683,12 +683,13 @@ function TicketsPageInner() {
                                             .from('ticket-attachments')
                                             .upload(fileName, file, { contentType: file.type })
                                           if (uploadErr) { console.error('[upload]', uploadErr); return }
-                                          const { data: urlData } = supabaseClient.storage
-                                            .from('ticket-attachments')
-                                            .getPublicUrl(fileName)
+                                          // Post-bucket-flip (migrations 150/154) the bucket is private;
+                                          // public URLs don't resolve. HQ + the client render via
+                                          // resolveMgSignedUrl() server-side using image_path. image_url
+                                          // is dead — pass null so we stop writing dead URLs into new rows.
                                           const isImage = file.type.startsWith('image/')
                                           const label = isImage ? '📷 Photo' : `📎 ${file.name}`
-                                          await addTicketComment(t.id, userName ?? 'Unknown', user?.id, label, commentInternal, urlData.publicUrl, fileName)
+                                          await addTicketComment(t.id, userName ?? 'Unknown', user?.id, label, commentInternal, null, fileName)
                                           const c = await loadTicketComments(t.id)
                                           setComments(c)
                                           e.target.value = ''

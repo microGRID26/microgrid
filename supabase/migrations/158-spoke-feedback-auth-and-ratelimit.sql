@@ -4,6 +4,12 @@
 -- New: requires anonymous sign-in (authenticated JWT with auth.uid()) — rider spam
 -- becomes bounded by session-creation rate, and the bucket is scoped to {uid}/filename.
 -- Service role bypass preserved for HQ render + admin response writes.
+--
+-- NOTE: the spoke_feedback_rate_limit() function defined in this migration is
+-- SUPERSEDED by migration 160. The current live definition adds an
+-- advisory-xact lock (H2 fix) and a submitter_uid = auth.uid() assertion
+-- (H4 defense-in-depth). If you're reading this file to understand the
+-- rate-limit logic, read migration 160 — not the body below.
 -- (R1 advisory-lock + submitter_uid assert added in migration 160.)
 
 ALTER TABLE public.spoke_feedback
@@ -23,12 +29,16 @@ WITH CHECK (
   AND char_length(message) BETWEEN 1 AND 5000
 );
 
+-- SUPERSEDED BY MIGRATION 160 — the body below is stale. Read
+-- supabase/migrations/160-feedback-ratelimit-advisory-lock-and-uid-check.sql
+-- for the current live function body.
 CREATE OR REPLACE FUNCTION public.spoke_feedback_rate_limit()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
+-- SUPERSEDED BY MIGRATION 160 — see 160 for live body.
 DECLARE v_uid uuid := auth.uid();
 BEGIN
   IF auth.role() = 'service_role' THEN RETURN NEW; END IF;

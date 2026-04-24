@@ -57,15 +57,13 @@ export function RepFilesPanel({ repId, isAdmin, userName }: {
       return
     }
 
-    const { data: urlData } = supabase.storage
-      .from('rep-files')
-      .getPublicUrl(storagePath)
-
+    // Bucket flipped private in migration 154 — getPublicUrl doesn't resolve.
+    // Reader path uses file_path via server-side signed URL; file_url is dead.
     await addRepFile({
       rep_id: repId,
       file_type: fileType,
       file_name: file.name,
-      file_url: urlData.publicUrl,
+      file_url: null,
       file_path: storagePath,
       uploaded_by: userName,
       notes: null,

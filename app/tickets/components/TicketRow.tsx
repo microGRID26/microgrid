@@ -256,12 +256,10 @@ export function TicketRow({
                             .from('ticket-attachments')
                             .upload(fileName, file, { contentType: file.type })
                           if (uploadErr) { console.error('[upload]', uploadErr); return }
-                          const { data: urlData } = supabaseClient.storage
-                            .from('ticket-attachments')
-                            .getPublicUrl(fileName)
+                          // Bucket is private post-flip; image_url is dead. Render via image_path.
                           const isImage = file.type.startsWith('image/')
                           const label = isImage ? '\u{1F4F7} Photo' : `\u{1F4CE} ${file.name}`
-                          await addTicketComment(t.id, userName ?? 'Unknown', user?.id, label, commentInternal, urlData.publicUrl, fileName)
+                          await addTicketComment(t.id, userName ?? 'Unknown', user?.id, label, commentInternal, null, fileName)
                           const c = await loadTicketComments(t.id)
                           setComments(c)
                           e.target.value = ''

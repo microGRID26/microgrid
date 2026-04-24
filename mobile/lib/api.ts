@@ -155,7 +155,7 @@ const MIME_MAP: Record<string, string> = {
   csv: 'text/csv', txt: 'text/plain',
 }
 
-export async function uploadTicketPhoto(uri: string, ticketId: string, overrideMime?: string, overrideExt?: string): Promise<{ url: string; path: string } | null> {
+export async function uploadTicketPhoto(uri: string, ticketId: string, overrideMime?: string, overrideExt?: string): Promise<{ url: string | null; path: string } | null> {
   try {
     const ext = overrideExt ?? uri.split('.').pop()?.toLowerCase() ?? 'jpg'
     const mimeType = overrideMime ?? MIME_MAP[ext] ?? 'application/octet-stream'
@@ -166,21 +166,19 @@ export async function uploadTicketPhoto(uri: string, ticketId: string, overrideM
     const arrayBuffer = await response.arrayBuffer()
     const uint8 = new Uint8Array(arrayBuffer)
 
+    // upsert:false — path prefix is `{ticket_id}/{timestamp}.{ext}` which is
+    // already unique; upserting only masks bugs (e.g., Date.now() collisions
+    // under rapid retries) and weakens the new path-prefix RLS posture.
     const { error } = await supabase.storage
       .from('ticket-attachments')
-      .upload(fileName, uint8, { contentType: mimeType, upsert: true })
+      .upload(fileName, uint8, { contentType: mimeType, upsert: false })
 
     if (error) { console.error('[upload]', error); return null }
 
-    // Dual-write: keep the legacy public URL for rows that might still
-    // render it from a stale client and return the object path for the new
-    // signed-URL reader path. Post-bucket-flip (2026-04-23), the public URL
-    // no longer resolves; new callers should rely on `path`.
-    const { data: urlData } = supabase.storage
-      .from('ticket-attachments')
-      .getPublicUrl(fileName)
-
-    return { url: urlData.publicUrl, path: fileName }
+    // Bucket flipped private (migration 154). image_url is dead — the reader
+    // path uses image_path via resolveMgSignedUrl() server-side. Return null
+    // for url so callers stop populating ticket_comments.image_url.
+    return { url: null, path: fileName }
   } catch (err) {
     console.error('[upload] failed:', err)
     return null
