@@ -19,8 +19,12 @@ export interface ReportFleetRunArgs {
 }
 
 export async function reportFleetRun(args: ReportFleetRunArgs): Promise<boolean> {
+  // Switched 2026-04-25 from HQ_SUPABASE_PUBLISHABLE_KEY (anon) to the
+  // service-role key, paired with REVOKE anon EXECUTE on atlas_report_agent_run
+  // in MG migration 173 (greg_actions #292). The p_secret gate inside the
+  // RPC body remains as defense-in-depth.
   const url = process.env.HQ_SUPABASE_URL
-  const key = process.env.HQ_SUPABASE_PUBLISHABLE_KEY
+  const key = process.env.MICROGRID_SUPABASE_SERVICE_KEY
   const secret = process.env.HQ_FLEET_SECRET
 
   if (!url || !key || !secret) return false
