@@ -104,6 +104,11 @@ export const DURACELL_DEFAULTS = {
   batteryWire: '#4/0 AWG CU THWN-2',
   batteryConduit: '2" EMT',
 
+  // Topology defaults — string-mppt for all new Duracell projects
+  systemTopology: 'string-mppt' as const,
+  rapidShutdownModel: 'RSD-D-20',
+  hasCantexBar: true,
+
   // Building defaults (can be overridden per project)
   roofType: 'COMP SHINGLE',
   rafterSize: '2x6 @ 24" O.C.',
@@ -242,6 +247,11 @@ export interface PlansetData {
   riskCategory: string
   exposure: string
 
+  // Topology — gates micro-inverter-era components in the SLD
+  systemTopology: 'string-mppt' | 'micro-inverter'
+  rapidShutdownModel: string
+  hasCantexBar: boolean
+
   // Contractor
   contractor: typeof MICROGRID_CONTRACTOR
 
@@ -326,6 +336,11 @@ export interface PlansetOverrides {
   existingPanelWattage?: number
   existingInverterModel?: string
   existingInverterCount?: number
+
+  // Topology overrides (rare — only set when modeling a Hambrick-style legacy)
+  systemTopology?: 'string-mppt' | 'micro-inverter'
+  rapidShutdownModel?: string
+  hasCantexBar?: boolean
 }
 
 /**
@@ -506,6 +521,10 @@ export function buildPlansetData(project: Project, overrides: PlansetOverrides =
     exposure: overrides.exposure ?? d.exposure,
 
     sitePlanImageUrl: overrides.sitePlanImageUrl ?? null,
+
+    systemTopology: overrides.systemTopology ?? d.systemTopology,
+    rapidShutdownModel: overrides.rapidShutdownModel ?? d.rapidShutdownModel,
+    hasCantexBar: overrides.hasCantexBar ?? d.hasCantexBar,
 
     contractor: MICROGRID_CONTRACTOR,
     vocCorrected: parseFloat(vocCorrected.toFixed(2)),
