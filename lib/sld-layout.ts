@@ -554,7 +554,7 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
   // Expansion fittings annotation
   elements.push({ type: 'text', x: gdX + 50, y: busY + 28, text: '(N) EXPANSION FITTINGS', fontSize: 4, anchor: 'middle', fill: '#333', bold: true })
   elements.push({ type: 'text', x: gdX + 50, y: busY + 36, text: 'REQUIRED ON BOTH ENDS', fontSize: 4, anchor: 'middle', fill: '#666' })
-  elements.push({ type: 'text', x: gdX + 50, y: busY + 44, text: 'OF THE PVC PIPE', fontSize: 4, anchor: 'middle', fill: '#666' })
+  elements.push({ type: 'text', x: gdX + 50, y: busY + 44, text: `OF THE ${config.acConduit ?? '1-1/4" EMT TYPE CONDUIT'} PIPE`, fontSize: 4, anchor: 'middle', fill: '#666' })
   // Callout ⑦ — Service Disconnect
   elements.push({ type: 'callout', cx: gdX + 50, cy: busY - 30, number: 7 })
 
@@ -600,7 +600,7 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
   elements.push({ type: 'text', x: umCx + 55, y: busY + 5, text: 'GRID', fontSize: 6, fill: '#666' })
   elements.push({ type: 'text', x: umCx + 55, y: busY + 17, text: config.utility.toUpperCase(), fontSize: 5, fill: '#999' })
   // Utility conduit routing annotation
-  elements.push({ type: 'text', x: umCx + 55, y: busY + 28, text: '2-1/2" PVC TYPE CONDUIT', fontSize: 4.5, fill: '#444', italic: true })
+  elements.push({ type: 'text', x: umCx + 55, y: busY + 28, text: config.acConduit ?? '1-1/4" EMT TYPE CONDUIT', fontSize: 4.5, fill: '#444', italic: true })
   elements.push({ type: 'text', x: umCx + 55, y: busY + 36, text: `ROUGHLY ${config.acRunLengthFt ?? 50} FEET (DIRT)`, fontSize: 4.5, fill: '#444', italic: true })
   elements.push({ type: 'text', x: umCx + 55, y: busY + 44, text: 'TRENCHING FROM UTILITY POLE', fontSize: 4.5, fill: '#444', italic: true })
   elements.push({ type: 'text', x: umCx + 55, y: busY + 52, text: 'TO HOME WALL', fontSize: 4.5, fill: '#444', italic: true })
@@ -1000,7 +1000,7 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
 
   // Expansion fittings
   elements.push({ type: 'text', x: sdX + 45, y: utilY + 28, text: '(N) EXPANSION FITTINGS', fontSize: 3.5, anchor: 'middle', fill: '#333', bold: true })
-  elements.push({ type: 'text', x: sdX + 45, y: utilY + 35, text: 'BOTH ENDS OF PVC', fontSize: 3, anchor: 'middle', fill: '#666' })
+  elements.push({ type: 'text', x: sdX + 45, y: utilY + 35, text: `BOTH ENDS OF ${config.acConduit ?? '1-1/4" EMT TYPE CONDUIT'}`, fontSize: 3, anchor: 'middle', fill: '#666' })
 
   // Wire to RGM
   elements.push({ type: 'line', x1: sdX + 90, y1: utilY, x2: sdX + 110, y2: utilY, strokeWidth: 1.5 })
@@ -1014,7 +1014,7 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
 
   // Wire to meter
   elements.push({ type: 'line', x1: rgmX + 55, y1: utilY, x2: rgmX + 75, y2: utilY, strokeWidth: 1.5 })
-  elements.push({ type: 'text', x: rgmX + 58, y: utilY + 12, text: '2-1/2" PVC', fontSize: 3.5, fill: '#444', italic: true })
+  elements.push({ type: 'text', x: rgmX + 58, y: utilY + 12, text: config.acConduit ?? '1-1/4" EMT', fontSize: 3.5, fill: '#444', italic: true })
 
   // Utility meter
   const umCx = rgmX + 100
@@ -1043,7 +1043,7 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
 
   // Trenching detail (below utility chain)
   const trenchY = utilY + 50
-  elements.push({ type: 'text', x: sdX, y: trenchY, text: '2-1/2" PVC TYPE CONDUIT', fontSize: 4, fill: '#444', italic: true })
+  elements.push({ type: 'text', x: sdX, y: trenchY, text: config.acConduit ?? '1-1/4" EMT TYPE CONDUIT', fontSize: 4, fill: '#444', italic: true })
   elements.push({ type: 'text', x: sdX, y: trenchY + 8, text: `ROUGHLY ${config.acRunLengthFt ?? 50} FEET (DIRT/ROCK)`, fontSize: 4, fill: '#444', italic: true })
   elements.push({ type: 'text', x: sdX, y: trenchY + 16, text: 'TRENCHING FROM UTILITY POLE', fontSize: 4, fill: '#444', italic: true })
   elements.push({ type: 'text', x: sdX, y: trenchY + 24, text: 'TO HOME WALL', fontSize: 4, fill: '#444', italic: true })

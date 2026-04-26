@@ -204,9 +204,14 @@ describe('calculateSldLayout', () => {
     expect(egcLabels.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('includes conduit routing annotation on utility side', () => {
-    const layout = calculateSldLayout(makeConfig())
+  it('renders the configured AC conduit type from data, not a hardcoded literal', () => {
+    const config = makeConfig()
+    config.acConduit = '1-1/2" EMT'
+    const layout = calculateSldLayout(config)
     const texts = layout.elements.filter(e => e.type === 'text')
-    expect(texts.some(t => t.text.includes('PVC'))).toBe(true)
+    // Confirm the configured value flows through
+    expect(texts.some(t => t.text.includes('1-1/2" EMT'))).toBe(true)
+    // Confirm no hardcoded PVC remains
+    expect(texts.some(t => t.text.includes('PVC'))).toBe(false)
   })
 })

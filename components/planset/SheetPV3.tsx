@@ -240,7 +240,7 @@ export function SheetPV3({ data }: { data: PlansetData }) {
         <line x1="480" y1="305" x2="555" y2="235" stroke="#333" strokeWidth="1" />
 
         {/* Trenching annotation */}
-        <text x="500" y="310" fontSize="5" fill="#444">2-1/2&quot; PVC TYPE CONDUIT</text>
+        <text x="500" y="310" fontSize="5" fill="#444">{data.acConduit} TYPE CONDUIT</text>
         <text x="500" y="320" fontSize="5" fill="#444">ROUGHLY {data.acRunLengthFt} FEET</text>
         <text x="500" y="330" fontSize="5" fill="#444">(DIRT/ROCK) TRENCHING</text>
         <text x="500" y="340" fontSize="5" fill="#444">FROM UTILITY POLE TO</text>
@@ -257,7 +257,7 @@ export function SheetPV3({ data }: { data: PlansetData }) {
 
         {/* Expansion fittings callout */}
         <text x="430" y="360" textAnchor="middle" fontSize="5.5" fill="#333" fontWeight="bold">(N) EXPANSION FITTINGS</text>
-        <text x="430" y="370" textAnchor="middle" fontSize="5" fill="#666">REQUIRED ON BOTH ENDS OF THE PVC PIPE</text>
+        <text x="430" y="370" textAnchor="middle" fontSize="5" fill="#666">REQUIRED ON BOTH ENDS OF THE {data.acConduit} PIPE</text>
 
         {/* Within 10 feet label */}
         <text x="430" y="385" textAnchor="middle" fontSize="5" fill="#666">WITHIN 10 FEET FROM THE {data.utility?.toUpperCase() || 'UTILITY'} METER</text>

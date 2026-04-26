@@ -88,7 +88,7 @@ export function SheetPV6({ data }: { data: PlansetData }) {
             ] : []),
             { tag: 7, from: 'FROM SERVICE DISCONNECT TO UTILITY METER', specs: [
               `(3) 250 kcmil CU THWN-2`,
-              `2-1/2" PVC TYPE CONDUIT`,
+              `${data.acConduit} TYPE CONDUIT`,
               `ROUGHLY ${data.acRunLengthFt} FEET (DIRT) TRENCHING`,
               `FROM UTILITY POLE TO HOME WALL`,
             ]},
