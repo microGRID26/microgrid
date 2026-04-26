@@ -8,7 +8,7 @@ import { handleApiError } from '@/lib/errors'
 import { loadProjectById } from '@/lib/api'
 import { buildPlansetData, DURACELL_DEFAULTS } from '@/lib/planset-types'
 import { autoDistributeStrings } from '@/lib/planset-calcs'
-import { SheetPV1, SheetPV2, SheetPV2A, SheetPV3, SheetPV31, SheetPV4, SheetPV41, SheetPV5, SheetPV6, SheetPV7, SheetPV71, SheetPV8, SheetCutSheets, CUT_SHEETS, UtilityBatteryLetter } from '@/components/planset'
+import { SheetPV1, SheetPV2, SheetPV2A, SheetPV3, SheetPV31, SheetPV4, SheetPV41, SheetPV5, SheetPV6, SheetPV7, SheetPV71, SheetPV8, SheetCutSheet, CUT_SHEETS, UtilityBatteryLetter } from '@/components/planset'
 import type { PlansetData, PlansetOverrides, PlansetString, PlansetRoofFace } from '@/lib/planset-types'
 import { Loader2, Maximize2, X } from 'lucide-react'
 import { ProjectSelector } from './components/ProjectSelector'
@@ -362,6 +362,7 @@ function handlePrintAll(data: PlansetData) {
 <html>
 <head>
   <title>Plan Set — ${data.projectId} ${data.owner}</title>
+  <base href="${window.location.origin}/" />
   ${preloadLinks}
   <style>${PRINT_CSS}</style>
 </head>
@@ -707,7 +708,11 @@ function PlanSetPageInner() {
                 { id: 'PV-7', label: 'Warning Labels', component: <SheetPV7 data={data} /> },
                 { id: 'PV-7.1', label: 'Equipment Placards', component: <SheetPV71 data={data} /> },
                 { id: 'PV-8', label: 'Conductor Schedule & BOM', component: <SheetPV8 data={data} /> },
-                { id: 'CUT-SHEETS', label: 'Cut Sheets', component: <SheetCutSheets data={data} /> },
+                ...CUT_SHEETS.map(cs => ({
+                  id: cs.sheetId,
+                  label: cs.title,
+                  component: <SheetCutSheet entry={cs} data={data} />,
+                })),
               ]
 
               const fullscreenSheet = fullscreenSheetId ? sheetList.find(s => s.id === fullscreenSheetId) : null
