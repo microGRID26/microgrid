@@ -295,6 +295,47 @@ export function SheetPV7({ data }: { data: PlansetData }) {
           </tbody>
         </table>
 
+        {/* ── System Summary Mirror (NEC 705 project-data label) ── */}
+        <div style={{ marginTop: '5px', border: '2px solid #cc0000', padding: '4px 6px', background: '#fff8f8' }}>
+          <div style={{ fontWeight: 'bold', fontSize: '7pt', color: '#cc0000', marginBottom: '3px', borderBottom: '1px solid #cc0000', paddingBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '9pt' }}>{'⚠'}</span>
+            CAUTION: MULTIPLE SOURCES OF POWER — NEC 705.10 SYSTEM SUMMARY
+          </div>
+          <div style={{ fontSize: '5.5pt', color: '#333', marginBottom: '3px' }}>
+            This building is equipped with a solar electric system. Multiple sources of power may be present.
+            Disconnect all sources before servicing. For emergencies contact{' '}
+            <strong>{data.contractor.name}</strong> at <strong>{data.contractor.phone}</strong>.
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '6pt' }}>
+            <tbody>
+              <tr style={{ background: '#f0f0f0' }}>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc', fontWeight: 'bold', width: '30%' }}>Owner</td>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc' }}>{data.owner}</td>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc', fontWeight: 'bold', width: '20%' }}>DC System Size</td>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc' }}>{data.systemDcKw.toFixed(2)} kW</td>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc', fontWeight: 'bold', width: '20%' }}>Battery Storage</td>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc' }}>{data.totalStorageKwh} kWh</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc', fontWeight: 'bold' }}>Address</td>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc' }}>{data.address}, {data.city}, {data.state} {data.zip}</td>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc', fontWeight: 'bold' }}>AC System Size</td>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc' }}>{data.systemAcKw} kW</td>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc', fontWeight: 'bold' }}>Panels</td>
+                <td style={{ padding: '1px 4px', borderBottom: '1px solid #ccc' }}>({data.panelCount}) {data.panelModel}</td>
+              </tr>
+              <tr style={{ background: '#f0f0f0' }}>
+                <td style={{ padding: '1px 4px', fontWeight: 'bold' }}>Project ID</td>
+                <td style={{ padding: '1px 4px' }}>{data.projectId}</td>
+                <td style={{ padding: '1px 4px', fontWeight: 'bold' }}>Inverters</td>
+                <td style={{ padding: '1px 4px' }}>({data.inverterCount}) {data.inverterModel}</td>
+                <td style={{ padding: '1px 4px', fontWeight: 'bold' }}>Batteries</td>
+                <td style={{ padding: '1px 4px' }}>({data.batteryCount}) {data.batteryModel}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         {/* ── NEC Article References ── */}
         <div style={{ marginTop: '5px', border: '2px solid #333', padding: '4px 6px', flex: '1 1 auto', overflow: 'hidden' }}>
           <div style={{ fontWeight: 'bold', fontSize: '7pt', color: '#111', marginBottom: '3px', borderBottom: '1px solid #999', paddingBottom: '2px' }}>NEC ARTICLE REFERENCES</div>
