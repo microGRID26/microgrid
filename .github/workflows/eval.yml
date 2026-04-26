@@ -1,0 +1,47 @@
+name: Eval
+
+# Behavioral eval suite — runs against real Supabase using service role.
+# See evals/README.md for the safety contract.
+#
+# Trigger model:
+#   - main-only push: every merge to main runs the suite once.
+#     PR runs are intentionally NOT triggered here because evals hit prod
+#     Supabase and a noisy PR loop would burn auth/connection budget +
+#     race cleanup across concurrent jobs.
+#   - workflow_dispatch: manual re-run from the Actions tab.
+#   - schedule: daily 09:00 UTC sanity sweep — surfaces silent RLS drift
+#     even on quiet days.
+#
+# Concurrency: only one eval run at a time per repo. Two pushes landing
+# back-to-back will queue, not race. evals/setup.ts cleanup uses scoped
+# eval orgs/users + prefix-guarded deletes, but cross-process concurrent
+# runs would still race the eval fixtures, so we serialize at the workflow
+# layer too.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * *'
+
+concurrency:
+  group: eval-${{ github.workflow }}-main
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run eval
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
