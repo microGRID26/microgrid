@@ -8,7 +8,7 @@ import { handleApiError } from '@/lib/errors'
 import { loadProjectById } from '@/lib/api'
 import { buildPlansetData, DURACELL_DEFAULTS } from '@/lib/planset-types'
 import { autoDistributeStrings } from '@/lib/planset-calcs'
-import { SheetPV1, SheetPV2, SheetPV3, SheetPV31, SheetPV4, SheetPV41, SheetPV5, SheetPV51, SheetPV6, SheetPV7, SheetPV71, SheetPV8, UtilityBatteryLetter } from '@/components/planset'
+import { SheetPV1, SheetPV2, SheetPV3, SheetPV31, SheetPV4, SheetPV41, SheetPV5, SheetPV6, SheetPV7, SheetPV71, SheetPV8, UtilityBatteryLetter } from '@/components/planset'
 import type { PlansetData, PlansetOverrides, PlansetString, PlansetRoofFace } from '@/lib/planset-types'
 import { Loader2, Maximize2, X } from 'lucide-react'
 import { ProjectSelector } from './components/ProjectSelector'
@@ -153,7 +153,7 @@ body { background: white; }
 .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 
-/* Label boxes for PV-5.1 and PV-7 */
+/* Label boxes for PV-7 */
 .label-box {
   border: 1.5px solid #111;
   overflow: hidden;
@@ -445,7 +445,7 @@ function PlanSetPageInner() {
       setStrings(finalStrings)
 
       const plansetData = buildPlansetData(project, { ...overrides, strings: finalStrings, roofFaces: roofFaces.length > 0 ? roofFaces : undefined, sitePlanImageUrl: images.sitePlanImageUrl ?? undefined })
-      if (enhanced) plansetData.sheetTotal = 13  // 10 base (incl. PV-4) + 3 enhanced (utility letter, PV-3.1, PV-4.1)
+      if (enhanced) plansetData.sheetTotal = 12  // 9 base + 3 enhanced (utility letter, PV-3.1, PV-4.1)
       setRoofFaces(plansetData.roofFaces)
       setData(plansetData)
       setProjectId(id)
@@ -472,7 +472,7 @@ function PlanSetPageInner() {
       const project = await loadProjectById(projectId)
       if (!project) return
       const plansetData = buildPlansetData(project, { ...overrides, strings, roofFaces: roofFaces.length > 0 ? roofFaces : undefined, sitePlanImageUrl: images.sitePlanImageUrl ?? undefined })
-      if (enhanced) plansetData.sheetTotal = 13  // 10 base (incl. PV-4) + utility letter + PV-3.1 + PV-4.1
+      if (enhanced) plansetData.sheetTotal = 12  // 9 base + utility letter + PV-3.1 + PV-4.1
       setData(plansetData)
     } finally {
       setLoading(false)
@@ -702,7 +702,6 @@ function PlanSetPageInner() {
                   { id: 'PV-4.1', label: 'Attachment Detail', component: <SheetPV41 data={data} /> },
                 ] : []),
                 { id: 'PV-5', label: 'Single Line Diagram', component: <SheetPV5 data={data} /> },
-                { id: 'PV-5.1', label: 'PCS Labels', component: <SheetPV51 data={data} /> },
                 { id: 'PV-6', label: 'Wiring Calculations', component: <SheetPV6 data={data} /> },
                 { id: 'PV-7', label: 'Warning Labels', component: <SheetPV7 data={data} /> },
                 { id: 'PV-7.1', label: 'Equipment Placards', component: <SheetPV71 data={data} /> },

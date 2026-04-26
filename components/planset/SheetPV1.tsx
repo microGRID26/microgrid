@@ -64,7 +64,6 @@ export function SheetPV1({ data, aerialPhotoUrl, housePhotoUrl, enhanced = false
     ...(enhanced ? [['PV-4', 'ROOF PLAN WITH MODULES'] as [string, string]] : []),
     ...(enhanced ? [['PV-4.1', 'ATTACHMENT DETAIL'] as [string, string]] : []),
     ['PV-5', 'SINGLE LINE DIAGRAM'],
-    ['PV-5.1', 'PCS LABELS'],
     ['PV-6', 'WIRING CALCULATIONS'],
     ['PV-7', 'WARNING LABELS'],
     ['PV-7.1', 'EQUIPMENT PLACARDS'],
