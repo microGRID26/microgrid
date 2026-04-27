@@ -54,25 +54,32 @@ export function SheetPV6({ data }: { data: PlansetData }) {
 
         {/* ── TAG-BASED WIRE CHART (matches SLD callout circles ①-⑨) ── */}
         <div style={{ fontWeight: 'bold', fontSize: '8pt', color: '#111', marginTop: '4px', marginBottom: '2px', borderBottom: '2px solid #111', paddingBottom: '2px' }}>WIRE CHART</div>
+        {/* Draft-project guard: on projects without strings, conductor count
+            would render "(0)" which leaks to AHJ-bound PDF if exported in
+            draft state. Use "(TBD)" so the row stays informative. */}
+        {(() => {
+          const stringCount = data.strings.length
+          const conductorCount = stringCount > 0 ? `(${stringCount * 2})` : '(TBD)'
+          return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: '5.5pt', marginBottom: '6px' }}>
           {[
             { tag: 1, from: 'FROM PV MODULES TO JBOX', specs: [
-              `(${data.strings.length * 2}) ${data.dcStringWire}`,
+              `${conductorCount} ${data.dcStringWire}`,
               `(1) #6 AWG BARE CU EGC`,
               `${data.dcConduit}`,
             ]},
             { tag: 2, from: 'FROM JBOX TO PV LOAD CENTER', specs: [
               // 2 conductors per string (positive + negative), all in the
-              // shared homerun conduit. Was hardcoded `(8)` — wrong for any
-              // string count != 4.
-              `(${data.strings.length * 2}) #10 AWG CU THWN-2`,
-              `(1) #8 AWG CU EGC`,
-              `1" EMT TYPE CONDUIT`,
+              // shared homerun conduit. All wire/EGC/conduit specs derive
+              // from data so OverridesPanel changes propagate to PV-6.
+              `${conductorCount} ${data.dcHomerunWire}`,
+              `(1) ${data.dcHomerunEgc}`,
+              `${data.dcHomerunConduit} TYPE CONDUIT`,
             ]},
             { tag: 3, from: `FROM NON-FUSED PV DISCONNECT TO ${data.inverterModel.split(' ').slice(0, 4).join(' ').toUpperCase()}`, specs: [
-              `(3) #3 AWG CU THWN-2`,
+              `(3) ${data.dcDisconnectWire}`,
               `(1) #8 AWG CU EGC`,
-              `1" EMT TYPE CONDUIT`,
+              `${data.dcDisconnectConduit} TYPE CONDUIT`,
             ]},
             { tag: 4, from: `FROM ${data.inverterModel.split(' ').slice(0, 4).join(' ').toUpperCase()} TO MAIN SERVICE PANEL`, specs: [
               `(3) ${data.acWireToPanel}`,
@@ -81,13 +88,15 @@ export function SheetPV6({ data }: { data: PlansetData }) {
             ]},
             ...(data.batteryCount > 0 ? [
               { tag: 5, from: `FROM DURAS BATTERY TO BATTERY COMBINER`, specs: [
+                // Conduit is data.batteryConduit (default 2" EMT) — #4/0 AWG
+                // doesn't fit in 1" EMT per Chapter 9 Table 4.
                 `${data.batteryWire}`,
-                `#8 AWG CU, 1" EMT`,
+                `#8 AWG CU, ${data.batteryConduit}`,
               ]},
               { tag: 6, from: `FROM BATTERY COMBINER TO ${data.inverterModel.split(' ').slice(0, 4).join(' ').toUpperCase()}`, specs: [
-                `(4) #3 AWG CU THWN-2`,
+                `(4) ${data.batteryCombinerOutputWire}`,
                 `(1) #8 AWG CU EGC`,
-                `1-1/4" EMT TYPE CONDUIT`,
+                `${data.batteryCombinerOutputConduit} TYPE CONDUIT`,
               ]},
             ] : []),
             { tag: 7, from: 'FROM SERVICE DISCONNECT TO UTILITY METER', specs: [
@@ -109,6 +118,8 @@ export function SheetPV6({ data }: { data: PlansetData }) {
             </div>
           ))}
         </div>
+          )
+        })()}
 
         {/* ── DETAILED CALCULATIONS ── */}
         {/* DC STRING WIRING */}

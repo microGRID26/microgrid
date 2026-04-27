@@ -155,6 +155,16 @@ export const DURACELL_DEFAULTS = {
   batteryMaxCurrentA: 62.5, // Duracell Max Hybrid inverter battery port max continuous current
   batteryWire: '#4/0 AWG CU THWN-2',
   batteryConduit: '2" EMT',
+  // Tag 2 — DC homerun (JBOX → PV Load Center), consolidates all string conductors
+  dcHomerunWire: '#10 AWG CU THWN-2',
+  dcHomerunEgc: '#8 AWG CU EGC',
+  dcHomerunConduit: '1" EMT',
+  // Tag 3 — DC home-run from non-fused PV disconnect to inverter DC input
+  dcDisconnectWire: '#3 AWG CU THWN-2',
+  dcDisconnectConduit: '1" EMT',
+  // Tag 6 — Battery combiner output to inverter battery port
+  batteryCombinerOutputWire: '#3 AWG CU THWN-2',
+  batteryCombinerOutputConduit: '1-1/4" EMT',
 
   // Topology defaults — string-mppt for all new Duracell projects
   systemTopology: 'string-mppt' as const,
@@ -301,6 +311,16 @@ export interface PlansetData {
   batteryMaxCurrentA: number
   batteryWire: string
   batteryConduit: string
+  // Wire specs for the 3 inter-component DC runs that PV-6 wire chart + PV-8
+  // conductor schedule reference. Keeping each run a separate field so the
+  // OverridesPanel (designer UI) can tweak any one without affecting the others.
+  dcHomerunWire: string         // Tag 2: JBOX → PV Load Center (consolidated string conductors)
+  dcHomerunEgc: string          // Tag 2 EGC
+  dcHomerunConduit: string      // Tag 2 conduit
+  dcDisconnectWire: string      // Tag 3: PV Disconnect → Inverter DC input
+  dcDisconnectConduit: string   // Tag 3 conduit
+  batteryCombinerOutputWire: string    // Tag 6: Battery Combiner → Inverter battery port
+  batteryCombinerOutputConduit: string // Tag 6 conduit
 
   // Building info
   roofType: string
@@ -380,6 +400,13 @@ export interface PlansetOverrides {
   batteryMaxCurrentA?: number
   batteryWire?: string
   batteryConduit?: string
+  dcHomerunWire?: string
+  dcHomerunEgc?: string
+  dcHomerunConduit?: string
+  dcDisconnectWire?: string
+  dcDisconnectConduit?: string
+  batteryCombinerOutputWire?: string
+  batteryCombinerOutputConduit?: string
 
   // Building info
   roofType?: string
@@ -595,6 +622,13 @@ export function buildPlansetData(project: Project, overrides: PlansetOverrides =
     acConduit: overrides.acConduit ?? d.acConduit,
     batteryWire: overrides.batteryWire ?? d.batteryWire,
     batteryConduit: overrides.batteryConduit ?? d.batteryConduit,
+    dcHomerunWire: overrides.dcHomerunWire ?? d.dcHomerunWire,
+    dcHomerunEgc: overrides.dcHomerunEgc ?? d.dcHomerunEgc,
+    dcHomerunConduit: overrides.dcHomerunConduit ?? d.dcHomerunConduit,
+    dcDisconnectWire: overrides.dcDisconnectWire ?? d.dcDisconnectWire,
+    dcDisconnectConduit: overrides.dcDisconnectConduit ?? d.dcDisconnectConduit,
+    batteryCombinerOutputWire: overrides.batteryCombinerOutputWire ?? d.batteryCombinerOutputWire,
+    batteryCombinerOutputConduit: overrides.batteryCombinerOutputConduit ?? d.batteryCombinerOutputConduit,
 
     roofType: overrides.roofType ?? d.roofType,
     rafterSize: overrides.rafterSize ?? d.rafterSize,

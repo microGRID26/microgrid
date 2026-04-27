@@ -11,9 +11,14 @@ export function SheetPV8({ data }: { data: PlansetData }) {
   const tempFactor = 0.91
   const conduitFillFactor = 0.70
 
-  const string10Ampacity = 40
+  // String row ampacity derives from data.dcHomerunWire so designer overrides
+  // (e.g. upsizing to #8 AWG via OverridesPanel) update both wire size AND
+  // ampacity columns consistently. Was hardcoded 40 / 30 for #10 AWG —
+  // would silently mismatch the wire size column on any override.
+  const homerunAmp = ampacityFor(data.dcHomerunWire)
+  const string10Ampacity = homerunAmp.c90 || 40
   const stringCorrected = parseFloat((string10Ampacity * conduitFillFactor * tempFactor).toFixed(1))
-  const string75CMax = 30
+  const string75CMax = homerunAmp.c75 || 30
   const stringUsable = Math.min(stringCorrected, string75CMax)
 
   // Battery FLA from inverter battery port max continuous current spec.
@@ -55,11 +60,19 @@ export function SheetPV8({ data }: { data: PlansetData }) {
     String(string75CMax), String(stringUsable),
   ])
 
+  // Per-string detail of the consolidated homerun (tag ② JBOX → PV LC).
+  // Each string contributes 2 conductors (positive + negative) sharing the
+  // homerun conduit. Wire size + EGC + conduit derive from data.dcHomerun*
+  // so OverridesPanel changes propagate. Was hardcoded `8 / #10 AWG / #8 AWG /
+  // 3/4" EMT` — wire count was wrong (8 fixed regardless of strings) and
+  // conduit was wrong (3/4" matches per-string PV WIRE, not the homerun).
+  const homerunWireSize = data.dcHomerunWire.match(/#?\d+(?:\/0)?\s*AWG/i)?.[0] ?? '#10 AWG'
+  const homerunEgcSize = data.dcHomerunEgc.match(/#?\d+(?:\/0)?\s*AWG/i)?.[0] ?? '#8 AWG'
   data.strings.forEach((s) => {
     condRows.push([
       `② S${s.id}`, `STRING ${s.id} (${s.modules} MOD, JBOX → PV LC)`,
       panelImp.toFixed(1), fla125.toFixed(1), String(stringOcpd),
-      '8', '#10 AWG', '1', '#8 AWG', 'THWN-2', '3/4" EMT',
+      '2', homerunWireSize, '1', homerunEgcSize, 'THWN-2', data.dcHomerunConduit,
       String(string10Ampacity), String(ambientTemp), String(tempFactor), String(stringCorrected),
       String(string75CMax), String(stringUsable),
     ])

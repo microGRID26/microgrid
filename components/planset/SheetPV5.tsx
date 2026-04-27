@@ -66,10 +66,13 @@ export function SheetPV5({ data }: { data: PlansetData }) {
     // Wire specs — pass overrides to SLD so diagram labels match PV-6/PV-8
     dcStringWire: data.dcStringWire,
     dcConduit: data.dcConduit,
-    // SldConfig uses dcHomerunWire/dcEgc/dcHomerunConduit — map from PlansetData equivalents
-    dcHomerunWire: undefined, // uses SldConfig default: '(2) #10 AWG CU THWN-2'
-    dcEgc: undefined,        // uses SldConfig default: '(1) #6 AWG BARE CU EGC'
-    dcHomerunConduit: undefined, // uses SldConfig default: '3/4" EMT TYPE CONDUIT'
+    // Homerun specs piped from PlansetData. SldConfig expects strings with
+    // count prefix (e.g. '(10) #10 AWG…') and conduit with 'TYPE CONDUIT'
+    // suffix; PlansetData stores bare values. Compose them here so PV-5 SLD
+    // matches what PV-6 wire chart + PV-8 conductor schedule render.
+    dcHomerunWire: `(${sldStrings.length * 2}) ${data.dcHomerunWire}`,
+    dcEgc: `(1) ${data.dcHomerunEgc}`,
+    dcHomerunConduit: `${data.dcHomerunConduit} TYPE CONDUIT`,
     acInverterWire: data.acWireInverter,
     acToPanelWire: data.acWireToPanel,
     acConduit: data.acConduit,
