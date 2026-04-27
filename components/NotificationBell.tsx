@@ -155,7 +155,13 @@ function NotificationRow({ notification: n, onRead, onClose }: { notification: N
         onRead(n.id)
         onClose()
         if (n.id.startsWith('mention-')) {
-          window.location.href = `/pipeline?open=${encodeURIComponent(n.projectId)}&tab=notes`
+          if (n.source === 'funding') {
+            window.location.href = `/funding?focus=${encodeURIComponent(n.projectId)}`
+          } else if (n.source === 'ticket') {
+            window.location.href = `/tickets`
+          } else {
+            window.location.href = `/pipeline?open=${encodeURIComponent(n.projectId)}&tab=notes`
+          }
         } else {
           window.location.href = `/queue?search=${encodeURIComponent(n.projectId)}`
         }

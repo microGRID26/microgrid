@@ -1,4 +1,8 @@
 export { EditableCell } from './EditableCell'
+export { NotesCell } from './NotesCell'
+export { MentionInput } from './MentionInput'
+export { FundingNotesPanel } from './FundingNotesPanel'
+export type { MentionableUser } from './NotesCell'
 export { StatusSelect, FUNDING_STATUSES, FUNDING_STATUS_COMPACT, getStatusColor } from './StatusSelect'
 export type { FundingStatus } from './StatusSelect'
 export { NfCodePicker } from './NfCodePicker'

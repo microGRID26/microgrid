@@ -70,9 +70,9 @@ export function NfCodePicker({ value, onSave, codes, slot, disabled = false }: N
                 <div className="px-3 py-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-900">{group}</div>
                 {items.map(c => (
                   <button key={c.code} onClick={() => select(c.code)}
-                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-700 transition-colors flex items-start gap-2">
-                    <span className="text-amber-400 font-mono font-bold flex-shrink-0 w-12">{c.code}</span>
-                    <span className="text-gray-300">{c.description}</span>
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-700 transition-colors flex items-start gap-3">
+                    <span className="text-amber-400 font-mono font-bold flex-shrink-0 min-w-[5.5rem] whitespace-nowrap">{c.code}</span>
+                    <span className="text-gray-300 flex-1">{c.description}</span>
                   </button>
                 ))}
               </div>

@@ -12,9 +12,13 @@ import { Download } from 'lucide-react'
 import type { Project, ProjectFunding, NonfundedCode } from '@/types/database'
 import {
   EditableCell, StatusSelect, NfCodePicker, MsBadge, MsCells, getSubmissionAge,
+  FundingNotesPanel,
   exportFundingCSV, getMsData,
+  type MentionableUser,
   type MilestoneKey, type FundingFilter, type FundingDashboardRow, type MsData, type FundingRow, type SortColumn,
 } from '@/components/funding'
+import { loadFundingNoteSummaries, type FundingNoteSummary } from '@/lib/api/funding-notes'
+import { MessageSquare } from 'lucide-react'
 
 // ── Main Page ─────────────────────────────────────────────────────────
 export default function FundingPage() {
@@ -46,6 +50,45 @@ export default function FundingPage() {
     limit: 2000,
   })
   const nfCodes = rawNfCodes as unknown as NonfundedCode[]
+
+  // Mentionable users for @ picker in Notes (fetched once per session).
+  const [mentionableUsers, setMentionableUsers] = useState<MentionableUser[]>([])
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.from('users').select('id, name, email').eq('active', true).order('name').limit(500)
+      .then(({ data }) => {
+        if (data) setMentionableUsers((data as { id: string; name: string | null; email: string }[])
+          .filter(u => u.email))
+      })
+  }, [])
+
+  // Per-row note thread state — counts + last-author preview, plus expanded set.
+  const [noteSummaries, setNoteSummaries] = useState<Map<string, FundingNoteSummary>>(new Map())
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
+  const reloadSummaries = useCallback(() => {
+    loadFundingNoteSummaries().then(setNoteSummaries)
+  }, [])
+  useEffect(() => { reloadSummaries() }, [reloadSummaries])
+  const toggleNotes = (pid: string) => setExpandedNotes(prev => {
+    const next = new Set(prev)
+    if (next.has(pid)) next.delete(pid); else next.add(pid)
+    return next
+  })
+
+  // Deep-link from notification bell: /funding?focus=<projectId> auto-expands the
+  // comments drawer for that row and scrolls it into view.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const focus = params.get('focus')
+    if (!focus) return
+    setSearch(focus)
+    setExpandedNotes(prev => new Set(prev).add(focus))
+    setTimeout(() => {
+      const el = document.getElementById(`funding-row-${focus}`)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 200)
+  }, [])
 
   // funding_dashboard is a Postgres view (migration 016) joining projects + project_funding.
   // Views are not in Database types, so we query manually via cast and map rows to
@@ -120,6 +163,11 @@ export default function FundingPage() {
   const saveFundingField = async (projectId: string, field: string, value: string | number | null) => {
     if (!canEditFunding) return
     const update: Record<string, string | number | null> = { [field]: value }
+
+    // Capture prior NF code value (for the notification) before we overwrite local state.
+    const nfMatch = /^nonfunded_code_([1-3])$/.exec(field)
+    const prevNfValue = nfMatch ? (funding[projectId]?.[`nonfunded_code_${nfMatch[1]}` as keyof ProjectFunding] as string | null) ?? null : null
+
     const { error } = await db().from('project_funding').upsert(
       { project_id: projectId, ...update },
       { onConflict: 'project_id' }
@@ -129,6 +177,23 @@ export default function FundingPage() {
       const existing = prev[projectId] ?? { project_id: projectId } as ProjectFunding
       return { ...prev, [projectId]: { ...existing, ...update } }
     })
+
+    // NF code change → fire-and-forget notification.
+    if (nfMatch) {
+      const slot = Number(nfMatch[1]) as 1 | 2 | 3
+      const newCode = (typeof value === 'string' && value.length > 0) ? value : null
+      let action: 'add' | 'update' | 'clear' | null = null
+      if (!prevNfValue && newCode) action = 'add'
+      else if (prevNfValue && newCode && prevNfValue !== newCode) action = 'update'
+      else if (prevNfValue && !newCode) action = 'clear'
+      if (action) {
+        fetch('/api/notifications/funding-nf-changed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-mg-csrf': '1' },
+          body: JSON.stringify({ projectId, slot, action, oldCode: prevNfValue, newCode }),
+        }).catch(err => console.error('NF notification failed:', err))
+      }
+    }
   }
 
   const nfField = (slot: number) => `nonfunded_code_${slot}`
@@ -672,16 +737,18 @@ export default function FundingPage() {
               <th className="text-left text-[10px] text-gray-500 font-medium px-1 py-2 border-b border-gray-800">Status</th>
               {/* NF + Notes */}
               <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800 border-l border-gray-700 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('nf')}>NF Codes{sortIcon('nf')}</th>
-              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800">Notes</th>
+              <th className="text-left text-xs text-gray-400 font-medium px-2 py-2 border-b border-gray-800">Comments</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
               const pid = row.project.id
               const f = row.funding
-              const allNotes = [row.m1.notes, row.m2.notes, row.m3.notes].filter(Boolean).join(' | ')
+              const summary = noteSummaries.get(pid)
+              const isExpanded = expandedNotes.has(pid)
               return (
-                <tr key={pid} className="border-b border-gray-800/50 hover:bg-gray-800/40 transition-colors">
+                <>
+                <tr key={pid} id={`funding-row-${pid}`} className="border-b border-gray-800/50 hover:bg-gray-800/40 transition-colors">
                   {/* Project */}
                   <td className="px-2 py-1.5 max-w-[160px] cursor-pointer" onClick={() => setSelectedProject(row.project)}>
                     <div className="font-medium text-green-400 hover:text-green-300 truncate text-xs">{row.project.name}</div>
@@ -723,18 +790,39 @@ export default function FundingPage() {
                       <NfCodePicker value={row.nf3} codes={nfCodes} slot={3} disabled={!canEditFunding} onSave={async val => saveFundingField(pid, nfField(3), val)} />
                     </div>
                   </td>
-                  {/* Notes */}
+                  {/* Comments \u2014 click to toggle thread */}
                   <td className="px-2 py-1.5 max-w-[180px]">
-                    <EditableCell
-                      value={allNotes || null}
-                      type="text"
-                      placeholder={canEditFunding ? "Add note..." : "\u2014"}
-                      className="text-gray-400 text-[10px]"
-                      disabled={!canEditFunding}
-                      onSave={async val => saveFundingField(pid, 'm1_notes', val)}
-                    />
+                    <button
+                      type="button"
+                      onClick={() => toggleNotes(pid)}
+                      className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded transition-colors w-full text-left ${isExpanded ? 'bg-green-900/40 text-green-300' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`}
+                      aria-expanded={isExpanded}
+                      aria-label={isExpanded ? 'Collapse comments' : 'Expand comments'}
+                    >
+                      <MessageSquare size={12} className="flex-shrink-0" />
+                      <span className="font-mono">{summary?.total ?? 0}</span>
+                      {summary?.last_author && (
+                        <span className="text-gray-500 truncate text-[10px]">\u00b7 {summary.last_author.split(' ')[0]} {fmtDate(summary.last_at!)}</span>
+                      )}
+                    </button>
                   </td>
                 </tr>
+                {isExpanded && currentUser?.id && (
+                  <tr key={`${pid}-notes`} className="border-b border-gray-800/50">
+                    <td colSpan={20} className="p-0">
+                      <FundingNotesPanel
+                        projectId={pid}
+                        legacyM1={row.m1.notes ?? null}
+                        legacyM2={row.m2.notes ?? null}
+                        legacyM3={row.m3.notes ?? null}
+                        users={mentionableUsers}
+                        currentUserId={currentUser.id}
+                        onChanged={reloadSummaries}
+                      />
+                    </td>
+                  </tr>
+                )}
+                </>
               )
             })}
             {rows.length === 0 && (

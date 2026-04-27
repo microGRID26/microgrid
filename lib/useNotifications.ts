@@ -15,6 +15,8 @@ export interface Notification {
   projectName: string
   timestamp: string
   read: boolean
+  /** Discriminator for click routing — currently only 'funding' is set explicitly. */
+  source?: 'funding' | 'project' | 'ticket'
 }
 
 /** Shape of a task_history row returned from the notification query */
@@ -31,6 +33,7 @@ interface TaskHistoryRow {
 interface MentionRow {
   id: string
   project_id: string
+  note_id: string | null
   mentioned_by: string
   message: string | null
   created_at: string
@@ -154,7 +157,7 @@ export function useNotifications(filterPrefs?: NotificationFilterPrefs) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const { data: mentions } = await supabase
       .from('mention_notifications')
-      .select('id, project_id, mentioned_by, message, created_at, read')
+      .select('id, project_id, note_id, mentioned_by, message, created_at, read')
       .eq('mentioned_user_id', user.id)
       .gte('created_at', thirtyDaysAgo.toISOString())
       .order('created_at', { ascending: false })
@@ -163,6 +166,10 @@ export function useNotifications(filterPrefs?: NotificationFilterPrefs) {
     if (mentions) {
       mentions.forEach((m: MentionRow) => {
         const isTicketMention = m.project_id === 'TICKET'
+        const isFundingMention = (m.note_id ?? '').startsWith('funding:')
+        const source: 'funding' | 'ticket' | 'project' = isFundingMention
+          ? 'funding'
+          : isTicketMention ? 'ticket' : 'project'
         notifs.push({
           id: `mention-${m.id}`,
           type: 'mention' as const,
@@ -172,6 +179,7 @@ export function useNotifications(filterPrefs?: NotificationFilterPrefs) {
           projectName: isTicketMention ? 'Ticket' : m.project_id,
           timestamp: m.created_at,
           read: m.read, // DB is source of truth
+          source,
         })
       })
     }
