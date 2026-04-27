@@ -57,9 +57,13 @@ export function SheetPV3({ data }: { data: PlansetData }) {
         {/* Roof label — inside house to avoid overlap */}
         <text x={houseX + houseW / 2} y={houseY + houseH - 20} textAnchor="middle" fontSize="4.5" fill="#aaa">{d.roofType?.toUpperCase() || 'COMP SHINGLE'}</text>
 
-        {/* Setback lines */}
+        {/* Schematic setback indicator only — single inset rect is illustrative.
+            Real per-edge depths (36" ridge / 18" eave / 18" rake per IFC 2018,
+            see PV-2A) are drawn per-face when polygon roof rendering is enabled
+            in OverridesPanel. AHJ should reference PV-2A values, not measure
+            this rect. */}
         <rect x={houseX + 8} y={roofPeakY + 5} width={houseW - 16} height={houseH - 15} fill="none" stroke="#cc0000" strokeWidth="0.5" strokeDasharray="4,2" />
-        <text x={houseX + houseW - 10} y={roofPeakY + 12} textAnchor="end" fontSize="4" fill="#cc0000">18&quot; SETBACK</text>
+        <text x={houseX + houseW - 10} y={roofPeakY + 12} textAnchor="end" fontSize="4" fill="#cc0000">SCHEMATIC SETBACK — SEE PV-2A</text>
 
         {/* PV Modules on roof — green rectangles */}
         {d.roofFaces.map((rf, faceIdx) => {
@@ -181,18 +185,21 @@ export function SheetPV3({ data }: { data: PlansetData }) {
     )
   }
 
-  // Legend
+  // Legend — IFC 2018 residential PV fire setbacks. Matches PV-2A symbol legend
+  // (ridge=3ft / eave=18in / rake=18in). Pattern + color both differ per class
+  // so B&W photocopies (common at AHJ counters) keep the three setbacks
+  // distinguishable.
   function Legend() {
     return (
       <div style={{ display: 'flex', gap: '12px', fontSize: '5.5pt', color: '#555', marginBottom: '4px', border: '1px solid #ddd', padding: '3px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div style={{ width: '20px', borderTop: '2px solid #333' }} /> 18&quot; Setback
+          <div style={{ width: '20px', borderTop: '2px dashed #cc0000' }} /> 36&quot; Ridge Setback
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div style={{ width: '20px', borderTop: '2px dashed #333' }} /> 6&quot; Setback
+          <div style={{ width: '20px', borderTop: '2px solid #ff8800' }} /> 18&quot; Eave Setback
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div style={{ width: '20px', borderTop: '2px dotted #333' }} /> 36&quot; Setback
+          <div style={{ width: '20px', borderTop: '2px dotted #888' }} /> 18&quot; Rake Setback
         </div>
       </div>
     )

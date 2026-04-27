@@ -62,7 +62,10 @@ export function SheetPV6({ data }: { data: PlansetData }) {
               `${data.dcConduit}`,
             ]},
             { tag: 2, from: 'FROM JBOX TO PV LOAD CENTER', specs: [
-              `(8) #10 AWG CU THWN-2`,
+              // 2 conductors per string (positive + negative), all in the
+              // shared homerun conduit. Was hardcoded `(8)` — wrong for any
+              // string count != 4.
+              `(${data.strings.length * 2}) #10 AWG CU THWN-2`,
               `(1) #8 AWG CU EGC`,
               `1" EMT TYPE CONDUIT`,
             ]},

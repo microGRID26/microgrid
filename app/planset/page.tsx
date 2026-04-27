@@ -700,9 +700,12 @@ function PlanSetPageInner() {
                 { id: 'PV-2', label: 'Project Data', component: <SheetPV2 data={data} /> },
                 { id: 'PV-2A', label: 'Unit Index / Legend', component: <SheetPV2A data={data} /> },
                 { id: 'PV-3', label: 'Site Plan', component: <SheetPV3 data={data} /> },
-                { id: 'PV-4', label: 'Equipment Detail', component: <SheetPV4 data={data} /> },
+                // Natural numerical order: PV-3 → PV-3.1 → PV-4 → PV-4.1
                 ...(enhanced ? [
                   { id: 'PV-3.1', label: 'Equipment Elevation', component: <SheetPV31 data={data} equipmentPhotos={images.equipmentPhotos} /> },
+                ] : []),
+                { id: 'PV-4', label: 'Equipment Detail', component: <SheetPV4 data={data} /> },
+                ...(enhanced ? [
                   { id: 'PV-4.1', label: 'Attachment Detail', component: <SheetPV41 data={data} /> },
                 ] : []),
                 { id: 'PV-5', label: 'Single Line Diagram', component: <SheetPV5 data={data} /> },

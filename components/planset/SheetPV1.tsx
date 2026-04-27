@@ -64,8 +64,9 @@ export function SheetPV1({ data, aerialPhotoUrl, housePhotoUrl, enhanced = false
     ['PV-2', 'PROJECT DATA'],
     ['PV-2A', 'UNIT INDEX / LEGEND'],
     ['PV-3', 'SITE PLAN'],
-    ['PV-4', 'EQUIPMENT DETAIL'],
+    // Natural numerical order: PV-3 → PV-3.1 → PV-4 → PV-4.1
     ...(enhanced ? [['PV-3.1', 'EQUIPMENT ELEVATION'] as [string, string]] : []),
+    ['PV-4', 'EQUIPMENT DETAIL'],
     ...(enhanced ? [['PV-4.1', 'ATTACHMENT DETAIL'] as [string, string]] : []),
     ['PV-5', 'SINGLE LINE DIAGRAM'],
     ['PV-6', 'WIRING CALCULATIONS'],

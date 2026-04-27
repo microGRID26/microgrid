@@ -158,7 +158,13 @@ export function SheetPV71({ data }: { data: PlansetData }) {
         <div style={{ fontSize: '14pt', fontWeight: 'bold', color: '#111' }}>EQUIPMENT IDENTIFICATION PLACARDS</div>
         <div style={{ fontSize: '8pt', color: '#555', marginBottom: '8pt' }}>PLACARDS SHALL BE INSTALLED ON OR ADJACENT TO EACH PIECE OF EQUIPMENT</div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+        {/* 4 placards (with battery) → 2×2 grid; 3 placards (PV-only) → 3-column row.
+            Avoids the awkward empty cell at row-2-col-2 on no-battery projects. */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: placards.length === 3 ? '1fr 1fr 1fr' : '1fr 1fr',
+          gap: '8px', marginBottom: '8px',
+        }}>
           {placards.map((p, i) => renderPlacard(p, i))}
         </div>
 

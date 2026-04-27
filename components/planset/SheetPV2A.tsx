@@ -1,7 +1,14 @@
 import type { PlansetData } from '@/lib/planset-types'
 import { TitleBlockHtml } from './TitleBlockHtml'
 
-const LEGEND_ITEMS: Array<{ sym: string; label: string }> = [
+// `colorBar` items render an inline colored dashed bar (matches PV-3 strip
+// legend visualization). `dashPattern` keeps each setback class distinguishable
+// even when the planset is photocopied B&W at an AHJ counter.
+type LegendItem =
+  | { sym: string; label: string }
+  | { colorBar: { color: string; dashPattern: string }; label: string }
+
+const LEGEND_ITEMS: LegendItem[] = [
   { sym: 'M',        label: 'Utility Meter' },
   { sym: 'MSP',      label: 'Main Service Panel' },
   { sym: 'SP',       label: 'Sub Panel' },
@@ -10,9 +17,9 @@ const LEGEND_ITEMS: Array<{ sym: string; label: string }> = [
   { sym: 'RSD',      label: 'Rapid Shutdown Device (RSD-D-20)' },
   { sym: 'CTX',      label: 'Cantex High-Current Distribution Bar' },
   { sym: '═══',      label: 'EMT Conduit (above ground, wall mount)' },
-  { sym: '┄ ┄',      label: 'Ridge Setback — red dashed inset ring (3 ft from ridge)' },
-  { sym: '┄ ┄',      label: 'Eave Setback — orange dashed inset ring (deeper, 18 in from eave)' },
-  { sym: '┄ ┄',      label: 'Rake Setback — gray dashed inset ring (deepest, 18 in from rake)' },
+  { colorBar: { color: '#cc0000', dashPattern: 'dashed' },   label: 'Ridge Setback — 36 in (3 ft) from ridge per IFC 2018' },
+  { colorBar: { color: '#ff8800', dashPattern: 'solid' },    label: 'Eave Setback — 18 in from eave per IFC 2018' },
+  { colorBar: { color: '#888',    dashPattern: 'dotted' },   label: 'Rake Setback — 18 in from rake per IFC 2018' },
   { sym: 'WALKABLE', label: 'Walkable Path — green text on roof face' },
   { sym: 'PARTIAL',  label: 'Partial Access — amber text on roof face' },
   { sym: 'BLOCKED',  label: 'No Walking Path — red text on roof face' },
@@ -42,8 +49,12 @@ export function SheetPV2A({ data }: { data: PlansetData }) {
             </thead>
             <tbody>
               {LEGEND_ITEMS.map((item, i) => (
-                <tr key={item.sym} style={{ background: i % 2 === 0 ? '#f9f9f9' : 'white', borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '9pt', color: '#111' }}>{item.sym}</td>
+                <tr key={'sym' in item ? item.sym : `colorbar-${i}`} style={{ background: i % 2 === 0 ? '#f9f9f9' : 'white', borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '9pt', color: '#111' }}>
+                    {'sym' in item
+                      ? item.sym
+                      : <div style={{ width: '40px', borderTop: `2px ${item.colorBar.dashPattern} ${item.colorBar.color}` }} />}
+                  </td>
                   <td style={{ padding: '5px 8px', color: '#333' }}>{item.label}</td>
                 </tr>
               ))}
