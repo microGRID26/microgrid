@@ -99,6 +99,10 @@ export function SheetPV6({ data }: { data: PlansetData }) {
                 `${data.batteryCombinerOutputConduit} TYPE CONDUIT`,
               ]},
             ] : []),
+            // Service entrance: 3× 250 kcmil per NEC 230.42, sized to 200A
+            // service. Conduit min 2" — 1-1/4" EMT can't fit 3× 250 kcmil per
+            // Ch 9 Table 4. See DURACELL_DEFAULTS.serviceEntranceConduit if
+            // overriding (e.g. AHJ requires 3" EMT for derate headroom).
             { tag: 7, from: 'FROM SERVICE DISCONNECT TO UTILITY METER', specs: [
               `(3) 250 kcmil CU THWN-2`,
               `${data.serviceEntranceConduit} TYPE CONDUIT`,

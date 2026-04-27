@@ -218,12 +218,16 @@ export function buildConductorSchedule(data: PlansetData): ConductorScheduleEntr
   const cf = NEC.conduitFillFactor
   const entries: ConductorScheduleEntry[] = []
 
-  // String conductors
+  // String conductors. PV-source-circuit OCPD per NEC 690.9(B): 156% × Isc
+  // (= 125% conductor sizing × 125% continuous-duty allowance). Was using
+  // calcOcpdSize(panelImp) which is the 125% load-OCPD rule — wrong for PV
+  // string fuses. The 156% helper is right above this function.
   const stringFla = data.panelImp
-  const { fla125: stringFla125, ocpd: stringOcpd } = calcOcpdSize(stringFla)
+  const stringFla125 = parseFloat((stringFla * 1.25).toFixed(2))
+  const { fuseSize: stringOcpd } = calcStringFuseSize(data.panelIsc)
   const string10Amp = 40
   const stringCorrected = parseFloat((string10Amp * cf * tf).toFixed(1))
-  const string75C = 30
+  const string75C = 35  // NEC 310.16 #10 AWG @ 75°C
   const stringUsable = Math.min(stringCorrected, string75C)
 
   for (const s of data.strings) {
@@ -266,16 +270,41 @@ export function buildConductorSchedule(data: PlansetData): ConductorScheduleEntr
   const inv1Amp = 145
   const invCorrected = parseFloat((inv1Amp * cf * tf).toFixed(1))
   const inv75C = 130
+  // Inverter→MSP OCPD = backfeed breaker amps. Was hardcoded 100A — drifts
+  // from PV-4/PV-6/PV-7.1/SheetPV8 which all derive from data.backfeedBreakerA.
   entries.push({
     tag: 'INV',
     circuit: `INVERTER (${data.inverterCount}x ${data.inverterModel.split(' ').slice(0, 3).join(' ')})`,
     fla: invFla,
     fla125: invFla125,
-    ocpd: 100,
+    ocpd: data.backfeedBreakerA,
     baseAmpacity: inv1Amp,
     correctedAmpacity: invCorrected,
     max75C: inv75C,
     usableAmpacity: Math.min(invCorrected, inv75C),
+  })
+
+  // GEN — service-entrance row (utility pole → service disconnect → meter).
+  // Sized to data.mainBreaker per NEC 230.42; 250 kcmil CU THWN-2 @ 75°C.
+  // mainBreaker comes in as e.g. '200A' or '200'; clamp to a positive integer
+  // and fall back to 200 only when the value is missing/garbage (not when 0).
+  const mainParsed = parseInt(data.mainBreaker)
+  const genFla = (Number.isFinite(mainParsed) && mainParsed > 0) ? mainParsed : 200
+  const genFla125 = parseFloat((genFla * 1.25).toFixed(1))
+  const gen250kcmilAmp = 290 // 250 kcmil CU THWN-2 @ 90°C
+  const gen75C = 255         // 250 kcmil CU THWN-2 @ 75°C
+  // Service entrance not subject to 4+CCC fill derate (NEC 310.15(C)(1)),
+  // so corrected = 75°C max here.
+  entries.push({
+    tag: 'GEN',
+    circuit: 'SERVICE DISCONNECT → UTILITY METER',
+    fla: genFla,
+    fla125: genFla125,
+    ocpd: genFla,
+    baseAmpacity: gen250kcmilAmp,
+    correctedAmpacity: gen75C,
+    max75C: gen75C,
+    usableAmpacity: gen75C,
   })
 
   return entries
@@ -293,6 +322,10 @@ export interface BomRow {
  * Generate Bill of Materials from PlansetData.
  */
 export function buildBom(data: PlansetData): BomRow[] {
+  // AC disconnect amps tracks data.mainBreaker so a 100A / 150A service
+  // doesn't get a 200A disconnect specced. Same parse-guard as PV-8 GEN row.
+  const mainParsed = parseInt(data.mainBreaker)
+  const acDiscA = (Number.isFinite(mainParsed) && mainParsed > 0) ? mainParsed : 200
   return [
     { item: 'SOLAR PV MODULE', qty: data.panelCount, model: data.panelModel },
     { item: 'RAPID SHUTDOWN DEVICE', qty: data.panelCount, model: 'APSMART RSD-D-20' },
@@ -300,7 +333,7 @@ export function buildBom(data: PlansetData): BomRow[] {
     { item: 'INVERTER', qty: data.inverterCount, model: data.inverterModel },
     { item: 'BATTERY', qty: data.batteryCount, model: data.batteryModel },
     { item: 'JUNCTION BOX', qty: 2, model: 'JUNCTION BOXES' },
-    { item: 'AC DISCONNECT', qty: 1, model: '200A/2P NON-FUSIBLE DISCONNECT 240V N3R' },
+    { item: 'AC DISCONNECT', qty: 1, model: `${acDiscA}A/2P NON-FUSIBLE DISCONNECT 240V N3R` },
     { item: 'ATTACHMENT', qty: data.racking.attachmentCount, model: data.racking.attachmentModel },
     { item: 'RAIL CLICKER', qty: data.racking.attachmentCount, model: 'IronRidge XR100 Rail Clicker' },
     { item: 'RAIL', qty: data.racking.railCount, model: data.racking.railModel },

@@ -49,7 +49,10 @@ export function SheetPV8({ data }: { data: PlansetData }) {
   // 215.2(B). Three current-carrying conductors → no conduit-fill derate per
   // NEC 310.15(C)(1). genFla derives from data.mainBreaker so a non-200A
   // service (e.g. 100A or 150A) flows through correctly.
-  const genFla = parseInt(data.mainBreaker) || 200
+  // mainBreaker comes in as e.g. '200A' or '200'; guard against NaN / 0 /
+  // negative — fall back to 200A (residential default) only on garbage.
+  const mainParsed = parseInt(data.mainBreaker)
+  const genFla = (Number.isFinite(mainParsed) && mainParsed > 0) ? mainParsed : 200
   const genFla125 = Math.ceil(genFla * 1.25)
   const gen250kcmilAmpacity = 255 // 250 kcmil CU THWN-2 @ 75°C
   const genUsable = gen250kcmilAmpacity // service entrance not subject to 4+CCC fill derate
@@ -128,7 +131,10 @@ export function SheetPV8({ data }: { data: PlansetData }) {
     ['INVERTER', String(data.inverterCount), data.inverterModel],
     ['BATTERY', String(data.batteryCount), data.batteryModel],
     ['JUNCTION BOX', '2', 'JUNCTION BOXES'],
-    ['AC DISCONNECT', '1', '200A/2P NON-FUSIBLE DISCONNECT 240V N3R'],
+    // AC disconnect amps tracks data.mainBreaker so a 100A / 150A service
+    // doesn't get a 200A disconnect specced in the BOM (cross-sheet drift
+    // with the GEN row in the conductor schedule above).
+    ['AC DISCONNECT', '1', `${genFla}A/2P NON-FUSIBLE DISCONNECT 240V N3R`],
     ['ATTACHMENT', String(data.racking.attachmentCount), data.racking.attachmentModel],
     ['RAIL CLICKER', String(data.racking.attachmentCount), 'IronRidge XR100 Rail Clicker'],
     ['RAIL', String(data.racking.railCount), data.racking.railModel],

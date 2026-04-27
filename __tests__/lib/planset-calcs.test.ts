@@ -504,6 +504,56 @@ describe('buildConductorSchedule', () => {
     // 15kW / 240V × 1000 = 62.5A
     expect(invEntry.fla).toBeCloseTo(62.5, 1)
   })
+
+  // Value-level OCPD assertions — caught a regression where string OCPD was
+  // calculated from Imp × 1.25 (NEC 690.9 wrong basis) and inverter OCPD was
+  // hardcoded 100A. Earlier structural tests passed even with both bugs in.
+  it('string OCPD = ceil(Isc × 1.56 / 5) × 5 per NEC 690.9(B), NOT Imp × 1.25', () => {
+    const schedule = buildConductorSchedule(data)
+    const stringEntry = schedule.find(e => e.tag === 'S1')!
+    // Duracell defaults (Seraphim 440W): Isc 13.5 → 13.5 × 1.56 = 21.06 → 25A.
+    // Bug was computing Imp × 1.25 = 12.65 × 1.25 = 15.8 → 20A. Catch it.
+    expect(stringEntry.ocpd).toBe(25)
+  })
+
+  it('inverter OCPD tracks data.backfeedBreakerA, not a hardcoded 100', () => {
+    const schedule = buildConductorSchedule(data)
+    const invEntry = schedule.find(e => e.tag === 'INV')!
+    expect(invEntry.ocpd).toBe(data.backfeedBreakerA)
+
+    // Different backfeed — if hardcoded, this would fail.
+    const smaller = buildPlansetData(makeProject({ module_qty: 12 }), {
+      strings: autoDistributeStrings(12, 40.54, D.panelVmp, D.panelImp, 1, 3, 2, 500),
+      inverterCount: 1, inverterAcPower: 5,
+    })
+    const smallerSchedule = buildConductorSchedule(smaller)
+    expect(smallerSchedule.find(e => e.tag === 'INV')!.ocpd).toBe(smaller.backfeedBreakerA)
+  })
+
+  it('GEN row tracks data.mainBreaker', () => {
+    const schedule = buildConductorSchedule(data)
+    const genEntry = schedule.find(e => e.tag === 'GEN')!
+    expect(genEntry).toBeDefined()
+    expect(genEntry.ocpd).toBe(200)
+
+    const proj150 = makeProject({ module_qty: 30 })
+    proj150.main_breaker = '150A' as Project['main_breaker']
+    const data150 = buildPlansetData(proj150, { strings })
+    const sched150 = buildConductorSchedule(data150)
+    expect(sched150.find(e => e.tag === 'GEN')!.ocpd).toBe(150)
+  })
+
+  it('GEN row falls back to 200A on garbage / 0 / negative mainBreaker (residential safe default)', () => {
+    // The guard treats anything non-finite or ≤ 0 as garbage and uses 200A as
+    // the residential default. Renders the safest plausible service size
+    // rather than 0A or NaN that would trip every downstream calc.
+    for (const bad of ['unknown', '', '0', '-50']) {
+      const proj = makeProject({ module_qty: 30 })
+      proj.main_breaker = bad as Project['main_breaker']
+      const d = buildPlansetData(proj, { strings })
+      expect(buildConductorSchedule(d).find(e => e.tag === 'GEN')!.ocpd).toBe(200)
+    }
+  })
 })
 
 // ── BOM Generation ─────────────────────────────────────────────────────────
