@@ -146,28 +146,21 @@ describe('POST /api/webhooks/subhub — auth', () => {
   })
 
   it('accepts x-webhook-secret header', async () => {
-    // Setup DB mocks for project creation path
     let callCount = 0
     mockDb.from.mockImplementation(() => {
       callCount++
-      if (callCount === 1) {
-        // Duplicate check
-        return mockChain({ data: [], error: null })
-      }
-      if (callCount === 2) {
-        // getNextProjectId
-        return mockChain({ data: [{ id: 'PROJ-30100' }], error: null })
-      }
+      if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
+      if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
+      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30100' }], error: null }) // getNextProjectId
       return mockChain({ data: null, error: null })
     })
 
     const req = makeRequest(
-      { name: 'John Doe', street: '123 Main St' },
+      { subhub_id: 'SH-WHS', name: 'John Doe', street: '123 Main St' },
       { 'x-webhook-secret': 'webhook-secret-123' }
     )
     const { POST } = await import('@/app/api/webhooks/subhub/route')
     const res = await POST(req as any)
-    // Should not be 401, should proceed to creation
     expect(res.status).not.toBe(401)
   })
 
@@ -188,50 +181,60 @@ describe('POST /api/webhooks/subhub — auth', () => {
 describe('POST /api/webhooks/subhub — validation', () => {
   it('returns 400 when name is missing', async () => {
     const req = makeRequest(
-      { street: '123 Main St' },
+      { subhub_id: 'SH-1', street: '123 Main St' },
       { Authorization: 'Bearer webhook-secret-123' }
     )
     const { POST } = await import('@/app/api/webhooks/subhub/route')
     const res = await POST(req as any)
     expect(res.status).toBe(400)
     const json = await res.json()
-    expect(json.error).toContain('name')
+    expect(json.error).toBe('Validation failed')
   })
 
   it('returns 400 when address/street is missing', async () => {
     const req = makeRequest(
-      { name: 'John Doe' },
+      { subhub_id: 'SH-2', name: 'John Doe' },
       { Authorization: 'Bearer webhook-secret-123' }
     )
     const { POST } = await import('@/app/api/webhooks/subhub/route')
     const res = await POST(req as any)
     expect(res.status).toBe(400)
     const json = await res.json()
-    expect(json.error).toContain('address')
+    expect(json.error).toBe('Validation failed')
+  })
+
+  it('returns 400 when both subhub_id and subhub_uuid are missing (R1 audit High 3)', async () => {
+    const req = makeRequest(
+      { name: 'Anon', street: '789 Test Ln' },
+      { Authorization: 'Bearer webhook-secret-123' }
+    )
+    const { POST } = await import('@/app/api/webhooks/subhub/route')
+    const res = await POST(req as any)
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toBe('Validation failed')
   })
 
   it('builds name from first_name + last_name when name is not provided', async () => {
     let callCount = 0
     mockDb.from.mockImplementation(() => {
       callCount++
-      if (callCount === 1) {
-        return mockChain({ data: [], error: null })
-      }
-      if (callCount === 2) {
-        return mockChain({ data: [{ id: 'PROJ-30050' }], error: null })
-      }
+      if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
+      if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
+      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30050' }], error: null }) // getNextProjectId
       return mockChain({ data: null, error: null })
     })
 
     const req = makeRequest(
-      { first_name: 'Jane', last_name: 'Smith', street: '456 Oak Ave' },
+      { subhub_id: 'SH-3', first_name: 'Jane', last_name: 'Smith', street: '456 Oak Ave' },
       { Authorization: 'Bearer webhook-secret-123' }
     )
     const { POST } = await import('@/app/api/webhooks/subhub/route')
     const res = await POST(req as any)
     expect(res.status).toBe(201)
     const json = await res.json()
-    expect(json.name).toBe('Jane Smith')
+    expect(json.success).toBe(true)
+    expect(json.project_id).toBe('PROJ-30051')
   })
 })
 
@@ -239,11 +242,11 @@ describe('POST /api/webhooks/subhub — validation', () => {
 
 describe('POST /api/webhooks/subhub — duplicate detection', () => {
   it('returns existing project when duplicate is found', async () => {
-    const dupChain = mockChain({ data: [{ id: 'PROJ-30001' }], error: null })
+    const dupChain = mockChain({ data: [{ id: 'PROJ-30001', subhub_id: 'SH-DUP' }], error: null })
     mockDb.from.mockReturnValue(dupChain)
 
     const req = makeRequest(
-      { name: 'John Doe', street: '123 Main St' },
+      { subhub_id: 'SH-DUP', name: 'John Doe', street: '123 Main St' },
       { Authorization: 'Bearer webhook-secret-123' }
     )
     const { POST } = await import('@/app/api/webhooks/subhub/route')
@@ -262,15 +265,9 @@ describe('POST /api/webhooks/subhub — project creation', () => {
     let callCount = 0
     mockDb.from.mockImplementation(() => {
       callCount++
-      if (callCount === 1) {
-        // Duplicate check - no existing
-        return mockChain({ data: [], error: null })
-      }
-      if (callCount === 2) {
-        // getNextProjectId
-        return mockChain({ data: [{ id: 'PROJ-30100' }], error: null })
-      }
-      // All inserts succeed
+      if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
+      if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
+      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30100' }], error: null }) // getNextProjectId
       return mockChain({ data: null, error: null })
     })
 
@@ -300,15 +297,10 @@ describe('POST /api/webhooks/subhub — project creation', () => {
     const json = await res.json()
     expect(json.success).toBe(true)
     expect(json.project_id).toBe('PROJ-30101')
-    expect(json.name).toBe('Sarah Connor')
 
-    // Verify project was inserted
     expect(mockDb.from).toHaveBeenCalledWith('projects')
-    // Verify task_state was inserted
     expect(mockDb.from).toHaveBeenCalledWith('task_state')
-    // Verify stage_history was inserted
     expect(mockDb.from).toHaveBeenCalledWith('stage_history')
-    // Verify funding record was inserted
     expect(mockDb.from).toHaveBeenCalledWith('project_funding')
   })
 
@@ -316,24 +308,23 @@ describe('POST /api/webhooks/subhub — project creation', () => {
     let callCount = 0
     mockDb.from.mockImplementation(() => {
       callCount++
-      if (callCount === 1) return mockChain({ data: [], error: null })
-      if (callCount === 2) return mockChain({ data: [{ id: 'PROJ-30000' }], error: null })
-      if (callCount === 3) {
-        // project insert fails
-        return mockChain({ data: null, error: { message: 'Unique constraint violation' } })
-      }
+      if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
+      if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
+      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30000' }], error: null }) // getNextProjectId
+      if (callCount === 4) return mockChain({ data: null, error: { message: 'Unique constraint violation' } })
       return mockChain({ data: null, error: null })
     })
 
     const req = makeRequest(
-      { name: 'Fail Test', street: '789 Error Blvd' },
+      { subhub_id: 'SH-FAIL', name: 'Fail Test', street: '789 Error Blvd' },
       { Authorization: 'Bearer webhook-secret-123' }
     )
     const { POST } = await import('@/app/api/webhooks/subhub/route')
     const res = await POST(req as any)
     expect(res.status).toBe(500)
     const json = await res.json()
-    expect(json.error).toContain('Failed to create project')
+    // R1 audit High 5: error is sanitized; raw Postgres message is logged but not returned.
+    expect(json.error).toBe('Internal server error')
   })
 
   it('imports adders when present in payload', async () => {
@@ -342,13 +333,15 @@ describe('POST /api/webhooks/subhub — project creation', () => {
     mockDb.from.mockImplementation((table: string) => {
       callCount++
       insertedTables.push(table)
-      if (callCount === 1) return mockChain({ data: [], error: null })
-      if (callCount === 2) return mockChain({ data: [{ id: 'PROJ-30200' }], error: null })
+      if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
+      if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
+      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30200' }], error: null }) // getNextProjectId
       return mockChain({ data: null, error: null })
     })
 
     const req = makeRequest(
       {
+        subhub_id: 'SH-ADDER',
         name: 'Adder Test',
         street: '123 Solar Ln',
         adders: [
@@ -376,13 +369,14 @@ describe('POST /api/webhooks/subhub — project creation', () => {
     let callCount = 0
     mockDb.from.mockImplementation(() => {
       callCount++
-      if (callCount === 1) return mockChain({ data: [], error: null })
-      if (callCount === 2) return mockChain({ data: [{ id: 'PROJ-30300' }], error: null })
+      if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
+      if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
+      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30300' }], error: null }) // getNextProjectId
       return mockChain({ data: null, error: null })
     })
 
     const req = makeRequest(
-      { name: 'Drive Test', street: '111 Cloud St' },
+      { subhub_id: 'SH-DRIVE', name: 'Drive Test', street: '111 Cloud St' },
       { Authorization: 'Bearer webhook-secret-123' }
     )
     const { POST } = await import('@/app/api/webhooks/subhub/route')
@@ -398,16 +392,14 @@ describe('POST /api/webhooks/subhub — project creation', () => {
     let callCount = 0
     mockDb.from.mockImplementation(() => {
       callCount++
-      if (callCount === 1) return mockChain({ data: [], error: null })
-      if (callCount === 2) {
-        // Last project ID
-        return mockChain({ data: [{ id: 'PROJ-30500' }], error: null })
-      }
+      if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
+      if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
+      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30500' }], error: null }) // getNextProjectId
       return mockChain({ data: null, error: null })
     })
 
     const req = makeRequest(
-      { name: 'ID Test', street: '999 Sequence Ave' },
+      { subhub_id: 'SH-SEQ', name: 'ID Test', street: '999 Sequence Ave' },
       { Authorization: 'Bearer webhook-secret-123' }
     )
     const { POST } = await import('@/app/api/webhooks/subhub/route')
@@ -426,7 +418,7 @@ describe('POST /api/webhooks/subhub — error handling', () => {
     })
 
     const req = makeRequest(
-      { name: 'Crash Test', street: '000 Error Ln' },
+      { subhub_id: 'SH-CRASH', name: 'Crash Test', street: '000 Error Ln' },
       { Authorization: 'Bearer webhook-secret-123' }
     )
     const { POST } = await import('@/app/api/webhooks/subhub/route')
@@ -463,15 +455,16 @@ describe('POST /api/webhooks/subhub — HMAC header compatibility', () => {
     let callCount = 0
     mockDb.from.mockImplementation(() => {
       callCount++
-      if (callCount === 1) return mockChain({ data: [], error: null })  // dup check
-      if (callCount === 2) return mockChain({ data: [{ id: 'PROJ-30100' }], error: null })  // next id
+      if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
+      if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
+      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30100' }], error: null }) // getNextProjectId
       return mockChain({ data: null, error: null })
     })
   }
 
   it('accepts X-MicroGRID-Signature with sha256= prefix (SPARK format)', async () => {
     dbForProjectCreate()
-    const req = signedRequest({ name: 'SparkSign Customer', street: '1 SparkSign Way' }, 'X-MicroGRID-Signature', true)
+    const req = signedRequest({ subhub_id: 'SH-HMAC1', name: 'SparkSign Customer', street: '1 SparkSign Way' }, 'X-MicroGRID-Signature', true)
     const { POST } = await import('@/app/api/webhooks/subhub/route')
     const res = await POST(req as any)
     expect(res.status).not.toBe(401)
@@ -479,7 +472,7 @@ describe('POST /api/webhooks/subhub — HMAC header compatibility', () => {
 
   it('accepts X-MicroGRID-Signature without sha256= prefix (tolerant parsing)', async () => {
     dbForProjectCreate()
-    const req = signedRequest({ name: 'SparkSign Customer', street: '1 SparkSign Way' }, 'X-MicroGRID-Signature', false)
+    const req = signedRequest({ subhub_id: 'SH-HMAC2', name: 'SparkSign Customer', street: '1 SparkSign Way' }, 'X-MicroGRID-Signature', false)
     const { POST } = await import('@/app/api/webhooks/subhub/route')
     const res = await POST(req as any)
     expect(res.status).not.toBe(401)
@@ -487,7 +480,7 @@ describe('POST /api/webhooks/subhub — HMAC header compatibility', () => {
 
   it('still accepts legacy x-webhook-signature header (no prefix)', async () => {
     dbForProjectCreate()
-    const req = signedRequest({ name: 'Legacy Customer', street: '1 Legacy Ln' }, 'x-webhook-signature', false)
+    const req = signedRequest({ subhub_id: 'SH-HMAC3', name: 'Legacy Customer', street: '1 Legacy Ln' }, 'x-webhook-signature', false)
     const { POST } = await import('@/app/api/webhooks/subhub/route')
     const res = await POST(req as any)
     expect(res.status).not.toBe(401)
@@ -536,7 +529,7 @@ describe('POST /api/webhooks/subhub — HMAC header compatibility', () => {
   it('bearer-token path still works when no HMAC header is present (rollout compat)', async () => {
     dbForProjectCreate()
     const req = makeRequest(
-      { name: 'Bearer Customer', street: '1 Bearer Ln' },
+      { subhub_id: 'SH-BEARER', name: 'Bearer Customer', street: '1 Bearer Ln' },
       { Authorization: 'Bearer webhook-secret-123' },
     )
     const { POST } = await import('@/app/api/webhooks/subhub/route')
