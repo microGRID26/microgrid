@@ -97,6 +97,30 @@ export function SheetPV1({ data, aerialPhotoUrl, housePhotoUrl, enhanced = false
   return (
     <div className="sheet" style={{ display: 'grid', gridTemplateColumns: '1fr 2.5in', border: '2px solid #000', fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '8pt', width: '16.5in', height: '10.5in', overflow: 'hidden', position: 'relative' }}>
       <div className="sheet-content" style={{ padding: '0.12in 0.15in', overflow: 'hidden' }}>
+        {/* 120% rule failure banner — top-of-cover so an AHJ reviewer sees
+            the interconnection issue before reading any other sheet. Solid
+            red on color devices; the 3px black border + heavy bold text
+            keep the warning legible in grayscale print. */}
+        {!data.loadSideBackfeedCompliant && (
+          <div
+            data-banner-120pct-fail
+            style={{
+              background: '#cc0000',
+              color: '#fff',
+              border: '3px solid #000',
+              padding: '5px 10px',
+              marginBottom: '6px',
+              fontSize: '7.5pt',
+              fontWeight: 'bold',
+              lineHeight: 1.3,
+            }}
+          >
+            ⚠ NEC 705.12 — 120% RULE FAIL: {data.totalBackfeedA}A backfeed exceeds {data.maxAllowableBackfeedA}A max allowable
+            ({data.mspBusRating}A bus × 1.2 − {data.mainBreaker} main). Use line-side tap, sub-panel feeder,
+            PCS-limited output (705.13), or upsize bus before AHJ submittal.
+          </div>
+        )}
+
         {/* Title */}
         <div style={{ fontSize: '13pt', fontWeight: 'bold', color: '#111', marginBottom: '1px' }}>
           ROOF INSTALLATION OF {data.systemDcKw.toFixed(2)} KW DC PHOTOVOLTAIC SYSTEM
@@ -105,7 +129,7 @@ export function SheetPV1({ data, aerialPhotoUrl, housePhotoUrl, enhanced = false
           WITH {data.totalStorageKwh} KWH BATTERY ENERGY STORAGE SYSTEM
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1.15fr 0.7fr', gap: '6px', height: 'calc(100% - 28px)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1.15fr 0.7fr', gap: '6px', height: `calc(100% - ${data.loadSideBackfeedCompliant ? 28 : 64}px)` }}>
           {/* ── LEFT COLUMN: Project Data, Scope, Electrical, Building, Design, Codes ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
             {/* PROJECT DATA */}
