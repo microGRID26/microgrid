@@ -16,7 +16,7 @@ import { checkRole, MANAGER_PLUS } from '@/lib/auth/role-gate'
 export async function POST(req: Request) {
   // Auth: require CRON_SECRET or ADMIN_API_SECRET (internal CRM calls pass this)
   const authHeader = req.headers.get('authorization') ?? ''
-  const token = authHeader.replace(/^Bearer\s+/i, '')
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
   const cronSecret = process.env.CRON_SECRET?.trim()
   const adminSecret = process.env.ADMIN_API_SECRET?.trim()
   let hasAuth = false

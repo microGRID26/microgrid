@@ -30,7 +30,7 @@ import { rateLimit } from '@/lib/rate-limit'
  */
 export async function POST(request: NextRequest) {
   // ── Auth (cookie OR Bearer token) ──────────────────────────────────────
-  const bearerToken = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
+  const bearerToken = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim()
   const cookieStore = await cookies()
   const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

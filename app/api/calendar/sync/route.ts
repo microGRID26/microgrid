@@ -8,7 +8,7 @@ import {
   buildEventTitle,
   buildEventDescription,
 } from '@/lib/google-calendar'
-import { checkRole, MANAGER_PLUS } from '@/lib/auth/role-gate'
+import { checkRole, getCallerOrgIds, MANAGER_PLUS, ADMIN_PLUS } from '@/lib/auth/role-gate'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SECRET_KEY?.trim()
@@ -75,6 +75,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden — manager+ required' }, { status: 403 })
   }
 
+  // Crew-ownership gate (greg_action #362, R2 follow-up to #353).
+  // The role gate above bounds the blast radius to ~15 internal staff, but
+  // doesn't stop a manager in org A from wiping a crew in org B. Resolve the
+  // caller's org_ids and reject any crew_id / schedule_id that points at a
+  // crew outside those orgs. Admin and super_admin bypass — they're trusted
+  // to act across orgs.
+  const isAdmin = (ADMIN_PLUS as readonly string[]).includes(roleCheck.role ?? '')
+  let callerOrgIds: string[] | null = null  // null = admin bypass
+  if (!isAdmin) {
+    const orgRes = await getCallerOrgIds(dbForRoleCheck, roleCheck.user_id)
+    if (!orgRes.ok) {
+      // DB error during membership lookup — fail closed but with 500 so we
+      // don't silently mask infra issues as auth denials (R1 audit fix).
+      return NextResponse.json({ error: 'Membership lookup failed' }, { status: 500 })
+    }
+    if (orgRes.orgIds.length === 0) {
+      // Manager+ but no org_memberships row — likely the #363 backfill gap
+      // (public.users.id ≠ auth.users.id for legacy users). Reject defensively
+      // rather than allow unbounded access.
+      return NextResponse.json({ error: 'Forbidden — no org membership' }, { status: 403 })
+    }
+    callerOrgIds = orgRes.orgIds
+  }
+
   const body = await req.json().catch(() => ({}))
   const { crew_id, schedule_ids, action } = body as {
     crew_id?: string
@@ -95,16 +119,35 @@ export async function POST(req: NextRequest) {
   try {
     // Full sync for a crew
     if (action === 'full_sync' && crew_id) {
+      // Verify the crew exists AND belongs to one of the caller's orgs
+      // (admins skip this check via callerOrgIds === null).
+      if (callerOrgIds !== null) {
+        const { data: crewRow } = await db
+          .from('crews')
+          .select('id, org_id')
+          .eq('id', crew_id)
+          .maybeSingle()
+        if (!crewRow) {
+          return NextResponse.json({ error: 'Crew not found' }, { status: 404 })
+        }
+        if (!callerOrgIds.includes(crewRow.org_id as string)) {
+          return NextResponse.json({ error: 'Forbidden — crew not in your org' }, { status: 403 })
+        }
+      }
       return await handleFullSync(db, crew_id)
     }
 
     // Delete sync entries
     if (action === 'delete' && schedule_ids?.length) {
+      const denied = await assertSchedulesInOrgs(db, schedule_ids, callerOrgIds)
+      if (denied) return denied
       return await handleDelete(db, schedule_ids)
     }
 
     // Single or batch sync
     if (schedule_ids?.length) {
+      const denied = await assertSchedulesInOrgs(db, schedule_ids, callerOrgIds)
+      if (denied) return denied
       return await handleSync(db, schedule_ids)
     }
 
@@ -116,6 +159,95 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+// ── Crew-ownership helper (greg_action #362) ─────────────────────────────────
+
+/**
+ * Reject the request if any of the given schedule_ids points at a crew that
+ * isn't in the caller's org list. callerOrgIds=null means admin/super_admin
+ * (skip the check). Returns a NextResponse to short-circuit on denial, or
+ * null to continue.
+ *
+ * R1 audit (HIGH) on first draft: PostgREST `crews!inner(org_id)` filters
+ * out schedule rows whose `crew_id` is NULL or points at a deleted crew.
+ * If we only loop the *returned* rows, an attacker could mix valid-owned
+ * ids with orphan ids and the orphans would silently survive into
+ * `handleSync`/`handleDelete` (which re-query without org filtering). Fix:
+ * require the returned set to *exactly* match the requested set. Any
+ * missing id → reject the whole batch.
+ */
+async function assertSchedulesInOrgs(
+  db: ReturnType<typeof getServiceClient>,
+  scheduleIds: string[],
+  callerOrgIds: string[] | null,
+): Promise<NextResponse | null> {
+  if (callerOrgIds === null) return null
+  const requested = new Set(scheduleIds)
+  if (requested.size === 0) return null
+  // Read with the inner join so cross-org rows are still surfaced (we need to
+  // see them to deny on them, not just filter them out). Use a left-style
+  // pattern: select id + crew_id, then resolve crews separately so orphan
+  // schedules (NULL crew_id or deleted crew) appear as "missing org" and
+  // trigger the deny path rather than vanish.
+  const { data: rows, error } = await db
+    .from('schedule')
+    .select('id, crew_id')
+    .in('id', Array.from(requested))
+  if (error) {
+    return NextResponse.json({ error: 'Failed to verify schedule ownership' }, { status: 500 })
+  }
+  const found = new Set((rows ?? []).map((r: { id: string }) => r.id))
+  // Any requested id not found at all → reject. Prevents service-role probing
+  // and closes the orphan-leak gap from the R1 audit.
+  for (const id of requested) {
+    if (!found.has(id)) {
+      return NextResponse.json(
+        { error: 'One or more schedule_ids do not exist' },
+        { status: 404 },
+      )
+    }
+  }
+  // Resolve crews → org for the distinct crew_ids on the matched rows.
+  const crewIds = Array.from(new Set(
+    (rows ?? [])
+      .map((r: { crew_id: string | null }) => r.crew_id)
+      .filter((c): c is string => !!c),
+  ))
+  // If any matched schedule had a NULL crew_id, deny — we can't prove it's
+  // in the caller's org.
+  const hasNullCrew = (rows ?? []).some((r: { crew_id: string | null }) => !r.crew_id)
+  if (hasNullCrew) {
+    return NextResponse.json(
+      { error: 'Forbidden — schedule has no crew assignment' },
+      { status: 403 },
+    )
+  }
+  if (crewIds.length === 0) return null
+  const { data: crewRows, error: crewErr } = await db
+    .from('crews')
+    .select('id, org_id')
+    .in('id', crewIds)
+  if (crewErr) {
+    return NextResponse.json({ error: 'Failed to verify crew ownership' }, { status: 500 })
+  }
+  const crewOrg = new Map(
+    (crewRows ?? []).map((c: { id: string; org_id: string | null }) => [c.id, c.org_id]),
+  )
+  // Every distinct crew_id must resolve to an org in the caller's allow-list.
+  // A crew that was deleted between the schedule load and now → not in
+  // crewOrg map → deny.
+  const allowed = new Set(callerOrgIds)
+  for (const cid of crewIds) {
+    const org = crewOrg.get(cid)
+    if (!org || !allowed.has(org)) {
+      return NextResponse.json(
+        { error: 'Forbidden — one or more schedules belong to crews outside your org' },
+        { status: 403 },
+      )
+    }
+  }
+  return null
 }
 
 // ── Sync specific schedule entries ───────────────────────────────────────────

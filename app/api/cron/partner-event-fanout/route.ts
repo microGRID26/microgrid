@@ -13,7 +13,7 @@ export const runtime = 'nodejs'
 const FLEET_SLUG = 'mg-partner-event-fanout'
 
 function checkSecret(request: NextRequest): boolean {
-  const header = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? ''
+  const header = (request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? '').trim()
   const expected = (process.env.CRON_SECRET ?? '').trim()
   if (!expected || !header) return false
   if (header.length !== expected.length) return false

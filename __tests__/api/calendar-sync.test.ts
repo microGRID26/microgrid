@@ -26,13 +26,16 @@ function mockChain(result: { data: any; error: any }) {
 }
 
 // Default mocks: `users` lookup returns a manager so the new role-gate (added
-// 2026-04-28 per audit-rotation #353) passes; everything else returns null.
-// Tests that exercise role-rejection override this in-test. Lookup is by
-// email per lib/auth/role-gate.ts (R2 audit fix — id-based lookup silently
-// 403s most legitimate users).
+// 2026-04-28 per audit-rotation #353) passes; `org_memberships` returns a
+// matching org row so the crew-ownership gate (#362, added 2026-04-29) passes;
+// everything else returns null. Tests that exercise role/org-rejection override
+// this in-test. Lookup is by email per lib/auth/role-gate.ts (R2 audit fix —
+// id-based lookup silently 403s most legitimate users).
+const DEFAULT_ORG = 'a0000000-0000-0000-0000-000000000001'
 const mockDb = {
   from: vi.fn((table: string) => {
-    if (table === 'users') return mockChain({ data: { role: 'manager', active: true }, error: null })
+    if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+    if (table === 'org_memberships') return mockChain({ data: [{ org_id: DEFAULT_ORG }], error: null })
     return mockChain({ data: null, error: null })
   }),
 }
@@ -83,7 +86,8 @@ beforeEach(() => {
   // Restore default mockDb.from each test so per-test `mockImplementation`
   // overrides don't pollute subsequent tests.
   mockDb.from.mockImplementation((table: string) => {
-    if (table === 'users') return mockChain({ data: { role: 'manager', active: true }, error: null })
+    if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+    if (table === 'org_memberships') return mockChain({ data: [{ org_id: DEFAULT_ORG }], error: null })
     return mockChain({ data: null, error: null })
   })
 })
@@ -180,6 +184,161 @@ describe('POST /api/calendar/sync — auth', () => {
     expect(res.status).toBe(403)
   })
 
+  // ── Crew-ownership gate (#362, R2 follow-up to #353) ───────────────────────
+  // The role gate above bounds the blast radius to ~15 staff; #362 closes the
+  // remaining "manager-A wipes crew-B" cross-org gap.
+
+  it('returns 403 when caller has no org_memberships row (#363 backfill gap)', async () => {
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: [], error: null })  // no orgs
+      return mockChain({ data: null, error: null })
+    })
+
+    const req = makeRequest({ schedule_ids: ['s1'] })
+    const { POST } = await import('@/app/api/calendar/sync/route')
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(403)
+    const json = await res.json()
+    expect(json.error).toContain('no org membership')
+  })
+
+  it('returns 403 when full_sync targets a crew in a different org', async () => {
+    const OTHER_ORG = 'b0000000-0000-0000-0000-000000000002'
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: [{ org_id: DEFAULT_ORG }], error: null })
+      if (table === 'crews') return mockChain({ data: { id: 'crew-x', org_id: OTHER_ORG }, error: null })
+      return mockChain({ data: null, error: null })
+    })
+
+    const req = makeRequest({ action: 'full_sync', crew_id: 'crew-x' })
+    const { POST } = await import('@/app/api/calendar/sync/route')
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(403)
+    const json = await res.json()
+    expect(json.error).toContain('crew not in your org')
+  })
+
+  it('returns 404 when full_sync targets a non-existent crew', async () => {
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: [{ org_id: DEFAULT_ORG }], error: null })
+      if (table === 'crews') return mockChain({ data: null, error: null })  // no crew
+      return mockChain({ data: null, error: null })
+    })
+
+    const req = makeRequest({ action: 'full_sync', crew_id: 'crew-ghost' })
+    const { POST } = await import('@/app/api/calendar/sync/route')
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 403 when delete targets schedule_ids whose crews are in another org', async () => {
+    const OTHER_ORG = 'b0000000-0000-0000-0000-000000000002'
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: [{ org_id: DEFAULT_ORG }], error: null })
+      if (table === 'schedule') return mockChain({
+        data: [{ id: 's-from-other-org', crew_id: 'crew-x' }],
+        error: null,
+      })
+      if (table === 'crews') return mockChain({
+        data: [{ id: 'crew-x', org_id: OTHER_ORG }],
+        error: null,
+      })
+      return mockChain({ data: null, error: null })
+    })
+
+    const req = makeRequest({ schedule_ids: ['s-from-other-org'], action: 'delete' })
+    const { POST } = await import('@/app/api/calendar/sync/route')
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(403)
+    const json = await res.json()
+    expect(json.error).toContain('outside your org')
+  })
+
+  // R1 audit (HIGH): orphan-leak via missing rows. If the request mixes a
+  // valid owned id with an id that doesn't exist (or whose crew was deleted),
+  // the first-draft fix would silently let the orphan through to handleSync.
+  it('returns 404 when one of the schedule_ids does not exist (orphan-leak guard)', async () => {
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: [{ org_id: DEFAULT_ORG }], error: null })
+      if (table === 'schedule') return mockChain({
+        // Caller asked for ['s-mine','s-ghost'] but schedule only returns the owned one.
+        data: [{ id: 's-mine', crew_id: 'crew-1' }],
+        error: null,
+      })
+      return mockChain({ data: null, error: null })
+    })
+
+    const req = makeRequest({ schedule_ids: ['s-mine', 's-ghost'], action: 'delete' })
+    const { POST } = await import('@/app/api/calendar/sync/route')
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 403 when a schedule has a NULL crew_id (cannot prove org ownership)', async () => {
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: [{ org_id: DEFAULT_ORG }], error: null })
+      if (table === 'schedule') return mockChain({
+        data: [{ id: 's-orphan', crew_id: null }],
+        error: null,
+      })
+      return mockChain({ data: null, error: null })
+    })
+
+    const req = makeRequest({ schedule_ids: ['s-orphan'], action: 'delete' })
+    const { POST } = await import('@/app/api/calendar/sync/route')
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(403)
+    const json = await res.json()
+    expect(json.error).toContain('no crew assignment')
+  })
+
+  // R1 audit (MEDIUM): membership lookup error must surface as 500, not silent 403.
+  it('returns 500 when org_memberships lookup errors (vs silently denying)', async () => {
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: null, error: { message: 'connection lost' } })
+      return mockChain({ data: null, error: null })
+    })
+
+    const req = makeRequest({ schedule_ids: ['s1'] })
+    const { POST } = await import('@/app/api/calendar/sync/route')
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(500)
+    const json = await res.json()
+    expect(json.error).toContain('Membership lookup')
+  })
+
+  it('admin role bypasses the org check (can act across orgs)', async () => {
+    // Even with no org_memberships rows, an admin should pass. Admins are
+    // explicitly trusted to cross orgs (e.g. Greg in a multi-org future).
+    const syncEntries = [{ id: 'sync-1', schedule_id: 's1', calendar_id: 'cal-1', event_id: 'evt-1' }]
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'admin', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: [], error: null })  // no orgs — would 403 a manager
+      if (table === 'calendar_sync') return mockChain({ data: syncEntries, error: null })
+      return mockChain({ data: null, error: null })
+    })
+
+    const req = makeRequest({ schedule_ids: ['s1'], action: 'delete' })
+    const { POST } = await import('@/app/api/calendar/sync/route')
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(200)  // not 403
+  })
+
   it('returns 403 when active=false', async () => {
     mockDb.from.mockImplementation((table: string) => {
       // The role-gate helper queries `WHERE active=true` so an inactive row
@@ -265,7 +424,15 @@ describe('POST /api/calendar/sync — sync action', () => {
     }
 
     const schedChain = mockChain({ data: [schedule], error: null })
-    const crewsChain = mockChain({ data: [{ id: 'crew-1', name: 'Alpha Crew' }], error: null })
+    // Three `from('schedule')` calls happen now:
+    //   1. assertSchedulesInOrgs: select id, crew_id  → must return id
+    //   2. (then 'crews' select id, org_id is called separately)
+    //   3. handleSync: select *, project:projects(...)  → returns full schedule row
+    const schedAssertChain = mockChain({ data: [{ id: 's1', crew_id: 'crew-1' }], error: null })
+    let scheduleCallCount = 0
+    let crewsCallCount = 0
+    const crewsAssertChain = mockChain({ data: [{ id: 'crew-1', org_id: DEFAULT_ORG }], error: null })
+    const crewsListChain = mockChain({ data: [{ id: 'crew-1', name: 'Alpha Crew' }], error: null })
     const settingsChain = mockChain({
       data: [{ crew_id: 'crew-1', calendar_id: 'cal-abc', enabled: true, auto_sync: true }],
       error: null,
@@ -274,9 +441,16 @@ describe('POST /api/calendar/sync — sync action', () => {
     const upsertChain = mockChain({ data: null, error: null })
 
     mockDb.from.mockImplementation((table: string) => {
-      if (table === 'users') return mockChain({ data: { role: 'manager', active: true }, error: null })
-      if (table === 'schedule') return schedChain
-      if (table === 'crews') return crewsChain
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: [{ org_id: DEFAULT_ORG }], error: null })
+      if (table === 'schedule') {
+        scheduleCallCount++
+        return scheduleCallCount === 1 ? schedAssertChain : schedChain
+      }
+      if (table === 'crews') {
+        crewsCallCount++
+        return crewsCallCount === 1 ? crewsAssertChain : crewsListChain
+      }
       if (table === 'calendar_settings') return settingsChain
       if (table === 'calendar_sync') return syncChain
       return upsertChain
@@ -314,10 +488,23 @@ describe('POST /api/calendar/sync — sync action', () => {
       project: { name: 'Test', city: null, address: null },
     }
 
+    let scheduleCallCount2 = 0
+    let crewsCallCount2 = 0
     mockDb.from.mockImplementation((table: string) => {
-      if (table === 'users') return mockChain({ data: { role: 'manager', active: true }, error: null })
-      if (table === 'schedule') return mockChain({ data: [schedule], error: null })
-      if (table === 'crews') return mockChain({ data: [{ id: 'crew-1', name: 'A Crew' }], error: null })
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: [{ org_id: DEFAULT_ORG }], error: null })
+      if (table === 'schedule') {
+        scheduleCallCount2++
+        return scheduleCallCount2 === 1
+          ? mockChain({ data: [{ id: 's1', crew_id: 'crew-1' }], error: null })
+          : mockChain({ data: [schedule], error: null })
+      }
+      if (table === 'crews') {
+        crewsCallCount2++
+        return crewsCallCount2 === 1
+          ? mockChain({ data: [{ id: 'crew-1', org_id: DEFAULT_ORG }], error: null })
+          : mockChain({ data: [{ id: 'crew-1', name: 'A Crew' }], error: null })
+      }
       if (table === 'calendar_settings') return mockChain({
         data: [{ crew_id: 'crew-1', calendar_id: 'cal-abc', enabled: true }],
         error: null,
@@ -349,7 +536,19 @@ describe('POST /api/calendar/sync — delete action', () => {
     const deleteChain = mockChain({ data: null, error: null })
 
     mockDb.from.mockImplementation((table: string) => {
-      if (table === 'users') return mockChain({ data: { role: 'manager', active: true }, error: null })
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: [{ org_id: DEFAULT_ORG }], error: null })
+      if (table === 'schedule') return mockChain({
+        data: [
+          { id: 's1', crew_id: 'crew-1' },
+          { id: 's2', crew_id: 'crew-1' },
+        ],
+        error: null,
+      })
+      if (table === 'crews') return mockChain({
+        data: [{ id: 'crew-1', org_id: DEFAULT_ORG }],
+        error: null,
+      })
       if (table === 'calendar_sync') {
         // Return different chains for select vs delete operations
         return syncChain
@@ -380,7 +579,19 @@ describe('POST /api/calendar/sync — delete action', () => {
 
     const syncChain = mockChain({ data: syncEntries, error: null })
     mockDb.from.mockImplementation((table: string) => {
-      if (table === 'users') return mockChain({ data: { role: 'manager', active: true }, error: null })
+      if (table === 'users') return mockChain({ data: { id: 'pub-user-1', role: 'manager', active: true }, error: null })
+      if (table === 'org_memberships') return mockChain({ data: [{ org_id: DEFAULT_ORG }], error: null })
+      if (table === 'schedule') return mockChain({
+        data: [
+          { id: 's1', crew_id: 'crew-1' },
+          { id: 's2', crew_id: 'crew-1' },
+        ],
+        error: null,
+      })
+      if (table === 'crews') return mockChain({
+        data: [{ id: 'crew-1', org_id: DEFAULT_ORG }],
+        error: null,
+      })
       return syncChain
     })
 

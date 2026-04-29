@@ -13,7 +13,7 @@ import { rateLimit } from '@/lib/rate-limit'
 export async function POST(request: NextRequest) {
   // Auth: require CRON_SECRET, ADMIN_API_SECRET, or valid Supabase session
   const authHeader = request.headers.get('authorization') ?? ''
-  const token = authHeader.replace(/^Bearer\s+/i, '')
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
   const cronSecret = process.env.CRON_SECRET?.trim()
   const adminSecret = process.env.ADMIN_API_SECRET?.trim()
   let hasSecretAuth = false

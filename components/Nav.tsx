@@ -31,7 +31,7 @@ const SALES_LINKS = [
   { label: 'Schedule', href: '/schedule' },
 ]
 
-type LinkItem = { label: string; href: string; flagKey?: string }
+type LinkItem = { label: string; href: string; flagKey?: string; managerOnly?: boolean }
 type LinkSection = { section: string; links: LinkItem[] }
 
 const MORE_SECTIONS: LinkSection[] = [
@@ -77,8 +77,8 @@ const MORE_SECTIONS: LinkSection[] = [
       { label: 'Ramp-Up Planner', href: '/ramp-up' },
       { label: 'Planset',         href: '/planset' },
       { label: 'Project Map',     href: '/map'     },
-      { label: 'Atlas AI',        href: '/reports' },
-      { label: 'Audit',           href: '/audit'   },
+      { label: 'Atlas AI',        href: '/reports', managerOnly: true },
+      { label: 'Audit',           href: '/audit',   managerOnly: true },
       { label: 'Infographic',     href: '/infographic' },
       { label: 'QA Testing',      href: '/testing'  },
       { label: 'Legacy Projects', href: '/legacy'  },
@@ -113,17 +113,20 @@ const HELP_ICON = (
 )
 
 /** "More" dropdown for secondary nav links — grouped by section */
-function MoreDropdown({ active, isAdmin, userId, userRole }: { active: string; isAdmin: boolean; userId?: string; userRole?: string }) {
+function MoreDropdown({ active, isAdmin, isManager, userId, userRole }: { active: string; isAdmin: boolean; isManager: boolean; userId?: string; userRole?: string }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const { flags } = useFeatureFlags()
   const isMoreActive = MORE_LINKS_FLAT.some(l => l.label === active) || active === 'Audit Trail'
 
-  // Filter sections by feature flags — links without flagKey are always shown
+  // Filter sections by feature flags + role. `managerOnly` links are hidden
+  // from non-manager users (greg_action #368) so role=user doesn't see dead-end
+  // links to manager-gated pages like /reports and /audit.
   const visibleSections = MORE_SECTIONS.map(section => ({
     ...section,
     links: section.links.filter(link =>
-      !link.flagKey || isFeatureEnabled(flags, link.flagKey, userId, userRole)
+      (!link.flagKey || isFeatureEnabled(flags, link.flagKey, userId, userRole)) &&
+      (!link.managerOnly || isManager)
     ),
   })).filter(section => section.links.length > 0)
 
@@ -249,7 +252,7 @@ export function Nav({ active, right, onNewProject }: NavProps) {
           ))}
 
           {/* More dropdown — hidden for sales users */}
-          {!isSales && <MoreDropdown active={active} isAdmin={!loading && !!currentUser?.isAdmin} userId={currentUser?.id} userRole={currentUser?.role} />}
+          {!isSales && <MoreDropdown active={active} isAdmin={!loading && !!currentUser?.isAdmin} isManager={!loading && !!currentUser?.isManager} userId={currentUser?.id} userRole={currentUser?.role} />}
 
           {/* Notification bell — hidden for sales users */}
           {!isSales && !loading && currentUser && <NotificationBell />}
@@ -388,7 +391,8 @@ export function Nav({ active, right, onNewProject }: NavProps) {
                   {/* Grouped More sections */}
                   {MORE_SECTIONS.map(section => {
                     const sectionLinks = section.links.filter(link =>
-                      !link.flagKey || isFeatureEnabled(flags, link.flagKey, currentUser?.id, currentUser?.role)
+                      (!link.flagKey || isFeatureEnabled(flags, link.flagKey, currentUser?.id, currentUser?.role)) &&
+                      (!link.managerOnly || !!currentUser?.isManager)
                     )
                     if (sectionLinks.length === 0) return null
                     return (

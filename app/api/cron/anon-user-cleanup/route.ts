@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
   }
   const auth = request.headers.get('authorization') ?? ''
-  const token = auth.replace(/^Bearer\s+/i, '')
+  const token = auth.replace(/^Bearer\s+/i, '').trim()
   if (!constantTimeBearerOk(token, cronSecret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
