@@ -9,7 +9,7 @@
 import { partnerApiAdmin } from '../supabase-admin'
 import { loadPartnerRegistry, subscriptionsForEvent, type PartnerSubscription } from './partner-registry'
 import { signOutbound } from './signer'
-import { validateOutboundUrl } from './ssrf'
+import { validateOutboundUrl, validateOutboundUrlWithDns } from './ssrf'
 
 const OUTBOX_BATCH_SIZE = 100
 const HTTP_TIMEOUT_MS = 10_000
@@ -105,6 +105,13 @@ async function deliverToSubscription(
   // Belt + suspenders: the registry already validated URLs at load time, but
   // re-check in case env was swapped mid-process without a restart.
   validateOutboundUrl(sub.url)
+
+  // Resolve the hostname and reject if any A/AAAA record falls in the private
+  // / reserved blocklist (#380). Closes the "register attacker.example whose
+  // DNS returns 169.254.169.254" SSRF amplification. Residual: DNS rebinding
+  // between this lookup and the fetch() below is still possible — closes
+  // when Phase 4 subscription CRUD adds connection pinning via custom Agent.
+  await validateOutboundUrlWithDns(sub.url)
 
   const body = JSON.stringify({
     event_type: evt.event_type,

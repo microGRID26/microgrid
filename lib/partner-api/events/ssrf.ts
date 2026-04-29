@@ -6,14 +6,20 @@
 //   - literal-IP hostnames in private ranges (loopback, RFC1918, link-local, ULA)
 //   - cloud-provider metadata endpoints (169.254.169.254 etc)
 //   - URLs carrying userinfo in the authority ("https://user:pass@host/")
+//   - hostnames whose DNS A/AAAA records resolve into the private IP blocklist
+//     (closes greg_action #380 — DNS-rebinding still possible at connect time
+//      since fetch() doesn't pin the resolved IP, but the obvious "register
+//      attacker.example pointing at 169.254.169.254" attack is now blocked).
 //
-// Known limitation (v1): does NOT resolve DNS. A hostname that resolves to a
-// private IP slips through. Full defense requires DNS resolution + IP pinning
-// on the fetch agent, which is Phase 4 work. For v1 the partner registry is
-// env-configured by a trusted admin (us), so the DNS-rebinding surface is
-// low. When partner-supplied URLs (webhook subscription CRUD) ships in Phase
-// 4, upgrade this guard to resolve + pin.
+// Residual gap: full defense against DNS rebinding (server returns a different
+// IP when the actual fetch connects than when we resolved) requires a custom
+// http.Agent that pins the connection to the IP we validated. Node's fetch
+// (undici) makes that nontrivial. Phase 4 partner-supplied subscription CRUD
+// must add connection pinning before partner-controlled URLs go live; today
+// the registry is env-configured by an admin, so the rebinding surface is
+// limited to a malicious admin (out of scope).
 
+import { lookup } from 'node:dns/promises'
 import { ApiError } from '../errors'
 
 /** Decide whether to require HTTPS for outbound URLs. Overridable for local
@@ -84,6 +90,61 @@ export interface SsrfCheckResult {
 /** Throws ApiError if the URL fails SSRF validation. */
 export function validateOutboundUrl(rawUrl: string): void {
   const res = checkOutboundUrl(rawUrl)
+  if (!res.ok) {
+    throw new ApiError('invalid_request', `Outbound URL rejected: ${res.reason ?? 'unknown'}`, {
+      url: rawUrl,
+    })
+  }
+}
+
+/** Async variant: runs the sync checks AND resolves DNS, rejecting any
+ *  hostname whose A/AAAA records map into the private/reserved blocklist.
+ *  Use this at delivery time, not at registry-load time (DNS results are
+ *  inherently TOCTOU; sync checks are still useful as a fail-fast gate). */
+export async function checkOutboundUrlWithDns(rawUrl: string): Promise<SsrfCheckResult> {
+  const sync = checkOutboundUrl(rawUrl)
+  if (!sync.ok) return sync
+  const u = new URL(rawUrl)
+  // Literal-IP hostnames already exited the sync path with the right verdict;
+  // skip the DNS lookup (lookup() on a literal IP just echoes it back).
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(u.hostname) || u.hostname.includes(':')) {
+    return { ok: true }
+  }
+  let addresses: { address: string; family: number }[]
+  try {
+    addresses = await lookup(u.hostname, { all: true, verbatim: true })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { ok: false, reason: `DNS lookup failed for ${u.hostname}: ${msg}` }
+  }
+  if (addresses.length === 0) {
+    return { ok: false, reason: `DNS returned no addresses for ${u.hostname}` }
+  }
+  for (const addr of addresses) {
+    if (addr.family === 4) {
+      const hit = matchesIpv4Block(addr.address)
+      if (hit) {
+        return {
+          ok: false,
+          reason: `hostname ${u.hostname} resolves to blocked IPv4 ${addr.address} (${hit})`,
+        }
+      }
+    } else if (addr.family === 6) {
+      const hit = matchesIpv6Block(addr.address)
+      if (hit) {
+        return {
+          ok: false,
+          reason: `hostname ${u.hostname} resolves to blocked IPv6 ${addr.address} (${hit})`,
+        }
+      }
+    }
+  }
+  return { ok: true }
+}
+
+/** Async throwing variant. Use at fetch-time. */
+export async function validateOutboundUrlWithDns(rawUrl: string): Promise<void> {
+  const res = await checkOutboundUrlWithDns(rawUrl)
   if (!res.ok) {
     throw new ApiError('invalid_request', `Outbound URL rejected: ${res.reason ?? 'unknown'}`, {
       url: rawUrl,
