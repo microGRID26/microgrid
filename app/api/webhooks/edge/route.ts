@@ -56,6 +56,7 @@ async function verifySignature(body: string, signature: string): Promise<boolean
 }
 
 import { rateLimit } from '@/lib/rate-limit'
+import { createHash } from 'node:crypto'
 
 interface EdgeInboundPayload {
   event?: string
@@ -78,26 +79,6 @@ async function logToAudit(
     new_value: newValue,
     changed_by: 'EDGE Portal',
     changed_by_id: null,
-  })
-}
-
-async function logSync(
-  db: ReturnType<typeof supabase>,
-  projectId: string,
-  eventType: string,
-  payload: Record<string, unknown>,
-  status: 'delivered' | 'failed',
-  responseCode: number,
-  errorMessage?: string
-) {
-  await db.from('edge_sync_log').insert({
-    project_id: projectId,
-    event_type: eventType,
-    direction: 'inbound',
-    payload,
-    status,
-    response_code: responseCode,
-    error_message: errorMessage ?? null,
   })
 }
 
@@ -153,21 +134,69 @@ export async function POST(request: NextRequest) {
 
   const db = supabase()
 
-  // #2: Idempotency — skip duplicate events (same project + event type within 1 hour)
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
-  const { data: duplicate } = await db
-    .from('edge_sync_log')
-    .select('id')
-    .eq('project_id', project_id)
-    .eq('event_type', event)
-    .eq('direction', 'inbound')
-    .eq('status', 'delivered')
-    .gte('created_at', oneHourAgo)
-    .limit(1)
-    .maybeSingle()
+  // #2: Idempotency (greg_action #378, audit-rotation 2026-04-28).
+  //
+  // Old: racy SELECT-then-INSERT against edge_sync_log within a 1-hour window
+  // (concurrent identical signed payloads both passed the SELECT and wrote
+  // duplicate audit_log + edge_sync_log rows).
+  //
+  // New: server-computed request_id keys a partial unique index
+  // (project_id, event_type, request_id) WHERE direction='inbound'.
+  // - Preferred: X-EDGE-Event-Id header set by EDGE sender (deterministic
+  //   per-event id, survives content-equal events).
+  // - Fallback: sha256(bodyText). Caveat — two genuinely-distinct events with
+  //   identical bytes (e.g. a heartbeat repeated within 5 min freshness
+  //   window) would collide and the second be dropped. Acceptable bridge
+  //   state until the EDGE-side sender migration adds the header.
+  // - The 5-min freshness window above already bounds replay-attack reuse.
+  const headerEventId = request.headers.get('x-edge-event-id')?.trim() || ''
+  const requestId = headerEventId || createHash('sha256').update(bodyText).digest('hex')
 
-  if (duplicate) {
-    return NextResponse.json({ success: true, message: 'Already processed' }, { status: 200 })
+  // Reserve the idempotency key BEFORE any side-effects. If a concurrent
+  // request raced us to the same key, the partial unique index rejects this
+  // INSERT with 23505 — we treat that as "already processed" and return 200
+  // without touching project_funding or audit_log. The row is inserted with
+  // status='pending' and finalized to 'delivered' / 'failed' at end-of-flow
+  // (so the log never advertises a failed event as delivered).
+  const { error: claimErr } = await db
+    .from('edge_sync_log')
+    .insert({
+      project_id,
+      event_type: event,
+      direction: 'inbound',
+      payload: payload as Record<string, unknown>,
+      status: 'pending',
+      response_code: 0,
+      request_id: requestId,
+    })
+
+  if (claimErr) {
+    if ((claimErr as { code?: string }).code === '23505') {
+      return NextResponse.json({ success: true, message: 'Already processed', duplicate: true }, { status: 200 })
+    }
+    // Any other DB error: bubble as 500. Don't proceed to side-effects.
+    console.error('edge-webhook idempotency-claim error:', claimErr)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+
+  // Finalize the claim row at end of flow. Updates status/response_code/error
+  // on the row keyed by (project_id, event_type, request_id, direction).
+  async function finalize(
+    status: 'delivered' | 'failed',
+    responseCode: number,
+    errorMessage?: string,
+  ) {
+    await db
+      .from('edge_sync_log')
+      .update({
+        status,
+        response_code: responseCode,
+        error_message: errorMessage ?? null,
+      })
+      .eq('project_id', project_id)
+      .eq('event_type', event)
+      .eq('request_id', requestId)
+      .eq('direction', 'inbound')
   }
 
   // Verify project exists
@@ -178,7 +207,7 @@ export async function POST(request: NextRequest) {
     .maybeSingle()
 
   if (projErr || !existingProject) {
-    await logSync(db, project_id, event, payload as Record<string, unknown>, 'failed', 404, 'Project not found')
+    await finalize('failed', 404, 'Project not found')
     return NextResponse.json({ error: `Project ${project_id} not found` }, { status: 404 })
   }
 
@@ -237,7 +266,7 @@ export async function POST(request: NextRequest) {
         const statusField = milestone === 'm2' ? 'm2_status' : milestone === 'm3' ? 'm3_status' : null
 
         if (!statusField) {
-          await logSync(db, project_id, event, payload as Record<string, unknown>, 'failed', 400, 'Invalid milestone')
+          await finalize('failed', 400, 'Invalid milestone')
           return NextResponse.json({ error: 'Invalid milestone: must be m2 or m3' }, { status: 400 })
         }
 
@@ -265,7 +294,7 @@ export async function POST(request: NextRequest) {
         const statusField = milestone === 'm1' ? 'm1_status' : milestone === 'm2' ? 'm2_status' : milestone === 'm3' ? 'm3_status' : null
 
         if (!statusField || !status) {
-          await logSync(db, project_id, event, payload as Record<string, unknown>, 'failed', 400, 'Invalid milestone or status')
+          await finalize('failed', 400, 'Invalid milestone or status')
           return NextResponse.json({ error: 'Invalid milestone or missing status' }, { status: 400 })
         }
 
@@ -283,16 +312,16 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        await logSync(db, project_id, event, payload as Record<string, unknown>, 'failed', 400, `Unknown event: ${event}`)
+        await finalize('failed', 400, `Unknown event: ${event}`)
         return NextResponse.json({ error: `Unknown event type: ${event}` }, { status: 400 })
     }
 
-    // Log successful sync
-    // #7: Concurrent audit race is acceptable — the upsert on project_funding uses
-    // onConflict: 'project_id', so parallel requests for the same project will
-    // resolve to last-write-wins on the funding row. The audit_log is append-only,
-    // so concurrent inserts are always safe (no lost writes).
-    await logSync(db, project_id, event, payload as Record<string, unknown>, 'delivered', 200)
+    // The idempotency claim row is now finalized to delivered/200. The
+    // upserts above use onConflict: 'project_id' so concurrent races on
+    // project_funding resolve last-write-wins; audit_log is append-only.
+    // The (project_id, event_type, request_id) unique index ensures only
+    // one logical handler reaches this point per logical event.
+    await finalize('delivered', 200)
 
     console.log(`edge-webhook: processed ${event} for ${project_id}`)
     return NextResponse.json({ success: true, project_id, event }, { status: 200 })
@@ -300,7 +329,7 @@ export async function POST(request: NextRequest) {
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error'
     console.error('edge-webhook error:', err)
-    await logSync(db, project_id, event, payload as Record<string, unknown>, 'failed', 500, errorMessage)
+    await finalize('failed', 500, errorMessage)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

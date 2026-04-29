@@ -497,6 +497,168 @@ describe('EDGE inbound webhook — funding.rejected', () => {
   })
 })
 
+// ── Idempotency (#378 — server-side request_id + INSERT ON CONFLICT) ─────────
+
+describe('EDGE inbound webhook — idempotency claim', () => {
+  it('claims an edge_sync_log row with status=pending before processing', async () => {
+    process.env.EDGE_WEBHOOK_SECRET = TEST_SECRET
+
+    const projectChain = mockChain({ data: { id: 'PROJ-001' }, error: null })
+    const fundingSelect = mockChain({ data: { m2_status: 'Eligible', m2_amount: null, m2_funded_date: null }, error: null })
+    const upsertChain = mockChain({ data: null, error: null })
+    const syncLogChain = mockChain({ data: null, error: null })
+    const auditChain = mockChain({ data: null, error: null })
+
+    let fundingCallCount = 0
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'projects') return projectChain
+      if (table === 'project_funding') {
+        fundingCallCount++
+        return fundingCallCount === 1 ? fundingSelect : upsertChain
+      }
+      if (table === 'edge_sync_log') return syncLogChain
+      if (table === 'audit_log') return auditChain
+      return syncLogChain
+    })
+
+    const payload = { event: 'funding.m2_funded', project_id: 'PROJ-001', data: { amount: 5000 } }
+    const req = makeSignedRequest(payload)
+    const { POST } = await import('@/app/api/webhooks/edge/route')
+    await POST(req as any)
+
+    // Initial claim insert with status: 'pending'
+    expect(syncLogChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project_id: 'PROJ-001',
+        event_type: 'funding.m2_funded',
+        direction: 'inbound',
+        status: 'pending',
+        response_code: 0,
+        request_id: expect.any(String),
+      }),
+    )
+    // Final update flips status to 'delivered' / 200
+    expect(syncLogChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'delivered', response_code: 200, error_message: null }),
+    )
+  })
+
+  it('uses X-EDGE-Event-Id header as request_id when provided', async () => {
+    process.env.EDGE_WEBHOOK_SECRET = TEST_SECRET
+
+    const projectChain = mockChain({ data: { id: 'PROJ-001' }, error: null })
+    const fundingSelect = mockChain({ data: { m2_status: 'Eligible', m2_amount: null, m2_funded_date: null }, error: null })
+    const upsertChain = mockChain({ data: null, error: null })
+    const syncLogChain = mockChain({ data: null, error: null })
+    const auditChain = mockChain({ data: null, error: null })
+
+    let fundingCallCount = 0
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'projects') return projectChain
+      if (table === 'project_funding') {
+        fundingCallCount++
+        return fundingCallCount === 1 ? fundingSelect : upsertChain
+      }
+      if (table === 'edge_sync_log') return syncLogChain
+      if (table === 'audit_log') return auditChain
+      return syncLogChain
+    })
+
+    const payload = { event: 'funding.m2_funded', project_id: 'PROJ-001', data: { amount: 5000 } }
+    const bodyStr = JSON.stringify(payload)
+    const signature = makeSignature(bodyStr, TEST_SECRET)
+    const req = makeRequest(bodyStr, {
+      'x-webhook-signature': signature,
+      'X-EDGE-Event-Id': 'edge-evt-deadbeef',
+    })
+    const { POST } = await import('@/app/api/webhooks/edge/route')
+    await POST(req as any)
+
+    expect(syncLogChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ request_id: 'edge-evt-deadbeef' }),
+    )
+  })
+
+  it('falls back to sha256(body) when X-EDGE-Event-Id is absent', async () => {
+    process.env.EDGE_WEBHOOK_SECRET = TEST_SECRET
+
+    const projectChain = mockChain({ data: { id: 'PROJ-001' }, error: null })
+    const fundingSelect = mockChain({ data: { m2_status: 'Eligible', m2_amount: null, m2_funded_date: null }, error: null })
+    const upsertChain = mockChain({ data: null, error: null })
+    const syncLogChain = mockChain({ data: null, error: null })
+    const auditChain = mockChain({ data: null, error: null })
+
+    let fundingCallCount = 0
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'projects') return projectChain
+      if (table === 'project_funding') {
+        fundingCallCount++
+        return fundingCallCount === 1 ? fundingSelect : upsertChain
+      }
+      if (table === 'edge_sync_log') return syncLogChain
+      if (table === 'audit_log') return auditChain
+      return syncLogChain
+    })
+
+    const payload = { event: 'funding.m2_funded', project_id: 'PROJ-001', data: { amount: 5000 } }
+    const bodyStr = JSON.stringify(payload)
+    const expectedHash = crypto.createHash('sha256').update(bodyStr).digest('hex')
+    const req = makeSignedRequest(payload)
+    const { POST } = await import('@/app/api/webhooks/edge/route')
+    await POST(req as any)
+
+    expect(syncLogChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ request_id: expectedHash }),
+    )
+  })
+
+  it('returns 200 "Already processed" when claim INSERT hits 23505 (concurrent replay)', async () => {
+    process.env.EDGE_WEBHOOK_SECRET = TEST_SECRET
+
+    // edge_sync_log INSERT returns Postgres unique-violation
+    const dupChain = mockChain({ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } })
+
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'edge_sync_log') return dupChain
+      // projects + project_funding should NEVER be touched on this path
+      return mockChain({ data: null, error: { message: 'should not be called after dedup' } })
+    })
+
+    const payload = { event: 'funding.m2_funded', project_id: 'PROJ-001', data: { amount: 5000 } }
+    const req = makeSignedRequest(payload)
+    const { POST } = await import('@/app/api/webhooks/edge/route')
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.success).toBe(true)
+    expect(json.duplicate).toBe(true)
+  })
+
+  it('finalizes status=failed when project lookup misses', async () => {
+    process.env.EDGE_WEBHOOK_SECRET = TEST_SECRET
+
+    const projectChain = mockChain({ data: null, error: null }) // missing
+    const syncLogChain = mockChain({ data: null, error: null })
+
+    mockDb.from.mockImplementation((table: string) => {
+      if (table === 'projects') return projectChain
+      if (table === 'edge_sync_log') return syncLogChain
+      return syncLogChain
+    })
+
+    const payload = { event: 'funding.m2_funded', project_id: 'PROJ-GHOST', data: { amount: 5000 } }
+    const req = makeSignedRequest(payload)
+    const { POST } = await import('@/app/api/webhooks/edge/route')
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(404)
+    expect(syncLogChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'failed', response_code: 404, error_message: 'Project not found' }),
+    )
+  })
+})
+
 // ── GET health check ────────────────────────────────────────────────────────
 
 describe('EDGE inbound webhook — GET health check', () => {
