@@ -16,7 +16,7 @@ const FLEET_SLUG = 'mg-partner-logs-retention'
 
 function checkSecret(request: NextRequest): boolean {
   const header = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? ''
-  const expected = process.env.CRON_SECRET ?? ''
+  const expected = (process.env.CRON_SECRET ?? '').trim()
   if (!expected || !header) return false
   if (header.length !== expected.length) return false
   try {

@@ -11,7 +11,7 @@ import {
 import { checkRole, MANAGER_PLUS } from '@/lib/auth/role-gate'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SECRET_KEY
+const supabaseKey = process.env.SUPABASE_SECRET_KEY?.trim()
 
 function getServiceClient() {
   if (!supabaseKey) throw new Error('SUPABASE_SECRET_KEY is required for calendar sync')

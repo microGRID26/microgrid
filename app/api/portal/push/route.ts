@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
   // Auth: require CRON_SECRET, ADMIN_API_SECRET, or valid Supabase session
   const authHeader = request.headers.get('authorization') ?? ''
   const token = authHeader.replace(/^Bearer\s+/i, '')
-  const cronSecret = process.env.CRON_SECRET
-  const adminSecret = process.env.ADMIN_API_SECRET
+  const cronSecret = process.env.CRON_SECRET?.trim()
+  const adminSecret = process.env.ADMIN_API_SECRET?.trim()
   let hasSecretAuth = false
   try {
     if (cronSecret && token && token.length === cronSecret.length) {
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const serviceKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
+  const serviceKey = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)?.trim()
   if (!serviceKey) {
     return NextResponse.json({ error: 'Service key not configured' }, { status: 503 })
   }

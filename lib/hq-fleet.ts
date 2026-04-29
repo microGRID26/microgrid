@@ -23,9 +23,9 @@ export async function reportFleetRun(args: ReportFleetRunArgs): Promise<boolean>
   // service-role key, paired with REVOKE anon EXECUTE on atlas_report_agent_run
   // in MG migration 173 (greg_actions #292). The p_secret gate inside the
   // RPC body remains as defense-in-depth.
-  const url = process.env.HQ_SUPABASE_URL
-  const key = process.env.MICROGRID_SUPABASE_SERVICE_KEY
-  const secret = process.env.HQ_FLEET_SECRET
+  const url = process.env.HQ_SUPABASE_URL?.trim()
+  const key = process.env.MICROGRID_SUPABASE_SERVICE_KEY?.trim()
+  const secret = process.env.HQ_FLEET_SECRET?.trim()
 
   if (!url || !key || !secret) return false
 

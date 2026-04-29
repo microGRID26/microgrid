@@ -5,14 +5,14 @@ import { listCalendarEvents } from '@/lib/google-calendar'
 import { rateLimit } from '@/lib/rate-limit'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SECRET_KEY
+const supabaseKey = process.env.SUPABASE_SECRET_KEY?.trim()
 
 function getServiceClient() {
   if (!supabaseKey) throw new Error('SUPABASE_SECRET_KEY is required for calendar webhook')
   return createClient(supabaseUrl, supabaseKey)
 }
 
-const WEBHOOK_TOKEN = process.env.GOOGLE_CALENDAR_WEBHOOK_TOKEN ?? ''
+const WEBHOOK_TOKEN = (process.env.GOOGLE_CALENDAR_WEBHOOK_TOKEN ?? '').trim()
 
 /** Timing-safe token comparison to prevent timing attacks */
 function verifyToken(provided: string): boolean {

@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
   // ── Auth ────────────────────────────────────────────────────────────────
   const authHeader = request.headers.get('authorization') ?? ''
   const token = authHeader.replace(/^Bearer\s+/i, '')
-  const cronSecret = process.env.CRON_SECRET
-  const adminSecret = process.env.ADMIN_API_SECRET
+  const cronSecret = process.env.CRON_SECRET?.trim()
+  const adminSecret = process.env.ADMIN_API_SECRET?.trim()
   let hasSecretAuth = false
   try {
     if (cronSecret && token && token.length === cronSecret.length) {
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
   // ── Look up the feedback row ───────────────────────────────────────────
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
+  const key = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)?.trim()
   if (!url || !key) {
     return NextResponse.json({ error: 'Service key not configured' }, { status: 503 })
   }

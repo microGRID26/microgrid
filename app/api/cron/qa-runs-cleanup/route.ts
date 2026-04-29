@@ -9,7 +9,7 @@ import { getQaAdmin, QA_RUN_ABANDON_AFTER_HOURS } from '@/lib/qa/server'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
 
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
+  const cronSecret = process.env.CRON_SECRET?.trim()
   if (!cronSecret) return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
 
   const auth = request.headers.get('authorization') ?? ''

@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     const { subject, html, targetRole, adminSecret } = body
 
     // Require admin secret — if env var is NOT set, reject all requests (#7)
-    const secret = process.env.ADMIN_API_SECRET
+    const secret = process.env.ADMIN_API_SECRET?.trim()
     if (!secret) {
       return NextResponse.json({ error: 'ADMIN_API_SECRET not configured' }, { status: 503 })
     }

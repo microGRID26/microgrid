@@ -227,8 +227,8 @@ export async function lookupKeyByHash(
  *    to partner + retry after Redis recovers); cost of false-negative is
  *    letting a revoked partner continue to authenticate. */
 export async function checkRevokedRedis(keyId: string): Promise<boolean> {
-  const url = process.env.UPSTASH_REDIS_REST_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim()
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim()
   if (!url || !token) return false
   try {
     const res = await fetch(`${url}/get/partner_key_revoked:${keyId}`, {
@@ -245,8 +245,8 @@ export async function checkRevokedRedis(keyId: string): Promise<boolean> {
 
 /** Set the Redis revocation bit. Called by the admin revoke flow. */
 export async function setRevokedRedis(keyId: string): Promise<void> {
-  const url = process.env.UPSTASH_REDIS_REST_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim()
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim()
   if (!url || !token) return
   try {
     await fetch(`${url}/set/partner_key_revoked:${keyId}/1`, {

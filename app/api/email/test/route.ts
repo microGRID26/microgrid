@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
   // Auth check
   const authHeader = request.headers.get('authorization') ?? ''
   const token = authHeader.replace('Bearer ', '')
-  const cronSecret = process.env.CRON_SECRET
-  const adminSecret = process.env.ADMIN_API_SECRET
+  const cronSecret = process.env.CRON_SECRET?.trim()
+  const adminSecret = process.env.ADMIN_API_SECRET?.trim()
 
   let validSecret = false
   try {

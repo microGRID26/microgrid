@@ -17,8 +17,8 @@ export async function POST(req: Request) {
   // Auth: require CRON_SECRET or ADMIN_API_SECRET (internal CRM calls pass this)
   const authHeader = req.headers.get('authorization') ?? ''
   const token = authHeader.replace(/^Bearer\s+/i, '')
-  const cronSecret = process.env.CRON_SECRET
-  const adminSecret = process.env.ADMIN_API_SECRET
+  const cronSecret = process.env.CRON_SECRET?.trim()
+  const adminSecret = process.env.ADMIN_API_SECRET?.trim()
   let hasAuth = false
   try {
     if (cronSecret && token && token.length === cronSecret.length) {
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     // Role gate — manager+ only. Email-based lookup (see lib/auth/role-gate.ts
     // for why id-based lookups silently 403 most legitimate users).
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceKey = process.env.SUPABASE_SECRET_KEY
+    const serviceKey = process.env.SUPABASE_SECRET_KEY?.trim()
     if (!supabaseUrl || !serviceKey) {
       return NextResponse.json({ error: 'Not configured' }, { status: 503 })
     }

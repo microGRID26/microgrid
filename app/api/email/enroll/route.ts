@@ -25,8 +25,8 @@ export async function POST(req: Request) {
 
     // Authentication: require CRON_SECRET or ADMIN_API_SECRET in Authorization header
     const authHeader = req.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
-    const adminSecret = process.env.ADMIN_API_SECRET
+    const cronSecret = process.env.CRON_SECRET?.trim()
+    const adminSecret = process.env.ADMIN_API_SECRET?.trim()
     const token = authHeader?.replace('Bearer ', '')
     let isAuthed = false
     try {

@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
   // Auth check
   const authHeader = req.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
+  const cronSecret = process.env.CRON_SECRET?.trim()
   if (!cronSecret) {
     return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 })
   }
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SECRET_KEY
+  const serviceKey = process.env.SUPABASE_SECRET_KEY?.trim()
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 })
   }

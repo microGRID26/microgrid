@@ -13,7 +13,7 @@ import crypto from 'crypto'
  */
 export async function POST(req: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SECRET_KEY
+  const serviceKey = process.env.SUPABASE_SECRET_KEY?.trim()
   if (!supabaseUrl || !serviceKey) {
     console.error('[subhub-vwc] SUPABASE_SECRET_KEY not configured')
     return NextResponse.json({ error: 'Server not configured' }, { status: 503 })
