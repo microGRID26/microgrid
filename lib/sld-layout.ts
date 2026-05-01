@@ -64,7 +64,7 @@ export interface SldConfig {
   hasCantexBar: boolean
   // Optional inverter mix — used by the micro-inverter topology branch when
   // multiple models coexist on one install (Tyson PROJ-26922 = 8× D700-M2 + 1× D350-M1).
-  inverterMix?: Array<{ model: string; count: number; acKw: number }>
+  inverterMix?: Array<{ model: string; count: number; acKw: number; acW?: number }>
   // Revenue Grade Meter (PC-PRO-RGM) — gates the RGM rect between service
   // disconnect and utility meter. OUT for Duracell projects (William Carter
   // feedback 2026-04-26); legacy DWG-era plansets had it.
@@ -75,6 +75,17 @@ export interface SldConfig {
   totalBackfeedA?: number
   maxAllowableBackfeedA?: number
   mainBreakerA?: number
+  // v5 — Tyson PV-5 SLD additions (used only by calculateSldLayoutMicroInverter)
+  mspBusbarA?: number     // default 225 — MSP busbar amp rating
+  batteryKwAc?: number    // default 4.8 — Sonnen continuous AC output
+  branches?: Array<{
+    id: number
+    modules: number
+    breakerAmps: number
+    inverterModel: string
+    inverterCount: number
+    mixSecondary?: { model: string; count: number }
+  }>
 }
 
 // Text width estimation: ~0.58 * fontSize * charCount for Arial (padded to prevent overflow)
@@ -1145,227 +1156,536 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
 // with per-panel microinverters, Sonnen battery on AC side, optional DPCRGM).
 // Triggered when config.systemTopology === 'micro-inverter'.
 function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
+  // ── Defensive guard (v5) ─────────────────────────────────────────────────
+  if (!config.inverterMix || config.inverterMix.length === 0) {
+    throw new Error(
+      'calculateSldLayoutMicroInverter requires config.inverterMix (micro-inverter topology). ' +
+      'Got empty/undefined. Check sld-layout.ts dispatch — string-MPPT data should not reach this branch.'
+    )
+  }
+  if (!config.batteryModel) {
+    throw new Error(
+      'calculateSldLayoutMicroInverter requires config.batteryModel (Tyson topology assumes ESS). ' +
+      'Got empty/undefined. If a no-battery micro-inverter topology is needed, add a separate branch.'
+    )
+  }
+
   const elements: SldElement[] = []
 
-  // Vertical zone constants — Row 1 starts at top, Row 2 below the bus drop.
-  const ROW1_Y = 80
-  const ROW2_Y = 280
-  const ARRAY_X = 40
+  // ── Constants ────────────────────────────────────────────────────────────
+  const W = 1400
+  const H = 1050
+  const STROKE = '#111'
+  const SUBSTROKE = '#444'
+  const ANNOT = '#222'
+  const MUTED = '#666'
 
-  const groups = (config.inverterMix && config.inverterMix.length > 0)
-    ? config.inverterMix
-    : [{ model: config.inverterModel, count: config.panelCount, acKw: config.inverterAcKw }]
-
-  // ── ROW 1.A: ARRAY GROUPS (modules + µinverters) ────────────────────────
-  let arrayY = ROW1_Y
-  const moduleW = 32, moduleH = 22, moduleGap = 4
-  const groupGap = 30
-
-  groups.forEach((group) => {
-    elements.push({
-      type: 'text', x: ARRAY_X, y: arrayY - 8,
-      text: `(${group.count}) ${group.model}`, fontSize: 7, bold: true,
+  const textBlock = (x: number, y: number, lines: string[], opts: {
+    fontSize?: number, fill?: string, bold?: boolean, anchor?: 'start' | 'middle' | 'end',
+    lineHeight?: number,
+  } = {}) => {
+    const fs = opts.fontSize ?? 7
+    const lh = opts.lineHeight ?? fs + 1.5
+    lines.forEach((line, i) => {
+      elements.push({
+        type: 'text', x, y: y + i * lh, text: line,
+        fontSize: fs, fill: opts.fill ?? ANNOT,
+        bold: opts.bold ?? false, anchor: opts.anchor ?? 'start',
+      })
     })
-    const cols = Math.min(group.count, 6)
-    const rows = Math.ceil(group.count / cols)
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const idx = r * cols + c
-        if (idx >= group.count) break
-        const x = ARRAY_X + c * (moduleW + moduleGap)
-        const y = arrayY + r * (moduleH + moduleGap)
-        elements.push({ type: 'rect', x, y, w: moduleW, h: moduleH, stroke: '#111', strokeWidth: 0.7 })
-        // µinverter glyph — small + on bottom-right
-        elements.push({
-          type: 'line', x1: x + moduleW - 7, y1: y + moduleH - 5,
-          x2: x + moduleW - 2, y2: y + moduleH - 5, strokeWidth: 0.6,
-        })
-        elements.push({
-          type: 'line', x1: x + moduleW - 4.5, y1: y + moduleH - 7.5,
-          x2: x + moduleW - 4.5, y2: y + moduleH - 2.5, strokeWidth: 0.6,
-        })
-      }
-    }
-    arrayY += rows * (moduleH + moduleGap) + groupGap
-  })
-
-  const arrayBlockEndX = ARRAY_X + 6 * (moduleW + moduleGap)
-  const row1WireY = ROW1_Y + 30  // primary current path through Row 1
-
-  // Array → AC trunk wire
-  elements.push({
-    type: 'line', x1: arrayBlockEndX, y1: row1WireY, x2: 280, y2: row1WireY, strokeWidth: 1.2,
-  })
-  elements.push({ type: 'callout', cx: 270, cy: row1WireY - 14, number: 1 })
-
-  // ── ROW 1.B: AC TRUNK ───────────────────────────────────────────────────
-  const trunkX = 280
-  elements.push({
-    type: 'rect', x: trunkX, y: row1WireY - 22, w: 110, h: 50,
-    stroke: '#111', strokeWidth: 0.8, dash: true,
-  })
-  elements.push({ type: 'text', x: trunkX + 55, y: row1WireY - 8, text: 'AC TRUNK', fontSize: 7, bold: true, anchor: 'middle' })
-  elements.push({ type: 'text', x: trunkX + 55, y: row1WireY + 4, text: '(microinverter-', fontSize: 5, fill: '#555', anchor: 'middle' })
-  elements.push({ type: 'text', x: trunkX + 55, y: row1WireY + 12, text: 'integrated RSD)', fontSize: 5, fill: '#555', anchor: 'middle' })
-  elements.push({ type: 'text', x: trunkX + 55, y: row1WireY + 22, text: 'NEC 690.12(B)(2)(a)', fontSize: 4.5, fill: '#888', anchor: 'middle' })
-  elements.push({ type: 'callout', cx: trunkX + 120, cy: row1WireY - 30, number: 2 })
-
-  // Trunk → AC J-Box wire
-  elements.push({
-    type: 'line', x1: trunkX + 110, y1: row1WireY, x2: 430, y2: row1WireY, strokeWidth: 1.2,
-  })
-
-  // ── ROW 1.C: AC JUNCTION BOX ────────────────────────────────────────────
-  const jboxX = 430
-  elements.push({
-    type: 'rect', x: jboxX, y: row1WireY - 18, w: 80, h: 36, stroke: '#111', strokeWidth: 1,
-  })
-  elements.push({ type: 'text', x: jboxX + 40, y: row1WireY - 4, text: '(N) AC J-BOX', fontSize: 6.5, bold: true, anchor: 'middle' })
-  elements.push({ type: 'text', x: jboxX + 40, y: row1WireY + 8, text: 'NEMA 3R', fontSize: 5, fill: '#555', anchor: 'middle' })
-  elements.push({ type: 'callout', cx: jboxX + 90, cy: row1WireY - 26, number: 3 })
-
-  // J-Box → AC Load Center wire
-  elements.push({
-    type: 'line', x1: jboxX + 80, y1: row1WireY, x2: 560, y2: row1WireY, strokeWidth: 1.2,
-  })
-
-  // ── ROW 1.D: AC LOAD CENTER (anchors the row 1→2 vertical bus) ──────────
-  const lcX = 560
-  const lcY = row1WireY - 30
-  const lcH = 80
-  elements.push({ type: 'rect', x: lcX, y: lcY, w: 110, h: lcH, stroke: '#111', strokeWidth: 1.2 })
-  elements.push({ type: 'text', x: lcX + 55, y: lcY + 14, text: '(N) AC LOAD CENTER', fontSize: 6.5, bold: true, anchor: 'middle' })
-  elements.push({ type: 'breaker', x: lcX + 30, y: lcY + 32, label: 'PV', amps: `${config.backfeedBreakerA ?? 60}A` })
-  elements.push({ type: 'breaker', x: lcX + 80, y: lcY + 32, label: 'BAT', amps: '60A' })
-  elements.push({ type: 'text', x: lcX + 55, y: lcY + 70, text: '120/240V 1Φ 3W', fontSize: 5, fill: '#555', anchor: 'middle' })
-  elements.push({ type: 'callout', cx: lcX + 120, cy: lcY + 5, number: 4 })
-
-  // ── VERTICAL BUS: Row 1 LC → Row 2 distribution ─────────────────────────
-  const busX = lcX + 55  // center of load center
-  const row2WireY = ROW2_Y + 30
-  elements.push({
-    type: 'line', x1: busX, y1: lcY + lcH, x2: busX, y2: row2WireY, strokeWidth: 1.5,
-  })
-
-  // ── ROW 2.A: AC BATT DISC + Sonnen ESS (LEFT of bus) ────────────────────
-  const battX = 280
-  const battY = ROW2_Y
-  elements.push({ type: 'rect', x: battX, y: battY, w: 100, h: 60, stroke: '#111', strokeWidth: 1 })
-  elements.push({ type: 'text', x: battX + 50, y: battY + 14, text: '(N) AC BATT DISC', fontSize: 6, bold: true, anchor: 'middle' })
-  elements.push({ type: 'disconnect', x: battX + 25, y: battY + 26, label: '60A' })
-  elements.push({ type: 'text', x: battX + 50, y: battY + 48, text: config.batteryModel, fontSize: 4.5, fill: '#555', anchor: 'middle' })
-  elements.push({ type: 'callout', cx: battX - 10, cy: battY + 5, number: 6 })
-  // Bus → battery disc wire (right-to-left)
-  elements.push({
-    type: 'line', x1: busX, y1: row2WireY, x2: battX + 100, y2: row2WireY, strokeWidth: 1.2,
-  })
-
-  // ── ROW 2.B: MSP (RIGHT of bus) ─────────────────────────────────────────
-  const mspX = 700
-  const mspY = ROW2_Y - 10
-  const mspH = 90
-  elements.push({ type: 'rect', x: mspX, y: mspY, w: 110, h: mspH, stroke: '#111', strokeWidth: 1.2 })
-  elements.push({ type: 'text', x: mspX + 55, y: mspY + 14, text: '(E) MSP', fontSize: 7, bold: true, anchor: 'middle' })
-  elements.push({ type: 'text', x: mspX + 55, y: mspY + 26, text: `${config.mainBreakerA ?? 200}A MAIN`, fontSize: 5.5, anchor: 'middle' })
-  elements.push({ type: 'breaker', x: mspX + 35, y: mspY + 42, label: 'PV', amps: `${config.backfeedBreakerA ?? 60}A` })
-  elements.push({ type: 'text', x: mspX + 55, y: mspY + 78, text: 'BACKFED PER NEC 705.12(B)(2)(b)', fontSize: 4, fill: '#888', anchor: 'middle' })
-  elements.push({ type: 'callout', cx: mspX + 120, cy: mspY + 5, number: 5 })
-  // Bus → MSP wire
-  elements.push({
-    type: 'line', x1: busX, y1: row2WireY, x2: mspX, y2: row2WireY, strokeWidth: 1.5,
-  })
-  // MSP grounding
-  elements.push({ type: 'ground', x: mspX + 55, y: mspY + mspH + 5 })
-  elements.push({ type: 'text', x: mspX + 70, y: mspY + mspH + 10, text: 'GEC #6 CU TO ROD', fontSize: 4.5, fill: '#666' })
-
-  // ── ROW 2.C: DPCRGM (legacy revenue meter) ──────────────────────────────
-  const meterChainY = mspY + 30
-  let nextX = mspX + 110
-  if (config.hasRgm !== false) {
-    const rgmX = nextX + 30
-    elements.push({ type: 'rect', x: rgmX, y: meterChainY - 16, w: 70, h: 32, stroke: '#111', strokeWidth: 1 })
-    elements.push({ type: 'text', x: rgmX + 35, y: meterChainY - 2, text: 'DPCRGM', fontSize: 6.5, bold: true, anchor: 'middle' })
-    elements.push({ type: 'text', x: rgmX + 35, y: meterChainY + 8, text: 'PC-PRO-RGM', fontSize: 4.5, fill: '#555', anchor: 'middle' })
-    elements.push({
-      type: 'line', x1: nextX, y1: meterChainY, x2: rgmX, y2: meterChainY, strokeWidth: 1.2,
-    })
-    elements.push({ type: 'callout', cx: rgmX + 78, cy: meterChainY - 24, number: 7 })
-    nextX = rgmX + 70
   }
 
-  // ── ROW 2.D: UTILITY METER ──────────────────────────────────────────────
-  const umX = nextX + 30
-  elements.push({ type: 'circle', cx: umX + 16, cy: meterChainY, r: 18, strokeWidth: 1.5 })
-  elements.push({ type: 'text', x: umX + 16, y: meterChainY + 4, text: 'M', fontSize: 12, bold: true, anchor: 'middle' })
-  elements.push({ type: 'text', x: umX + 16, y: meterChainY + 30, text: 'UTILITY METER', fontSize: 5, fill: '#555', anchor: 'middle' })
-  elements.push({ type: 'text', x: umX + 16, y: meterChainY + 38, text: config.meter || 'METER #', fontSize: 4.5, fill: '#888', anchor: 'middle' })
-  elements.push({
-    type: 'line', x1: nextX, y1: meterChainY, x2: umX, y2: meterChainY, strokeWidth: 1.2,
-  })
-  elements.push({ type: 'callout', cx: umX + 35, cy: meterChainY - 26, number: 8 })
+  const pill = (cx: number, cy: number, w: number, h: number, label: string, fontSize = 6) => {
+    elements.push({ type: 'rect', x: cx - w / 2, y: cy - h / 2, w, h, stroke: STROKE, strokeWidth: 0.7 })
+    elements.push({
+      type: 'text', x: cx, y: cy + fontSize * 0.35, text: label,
+      fontSize, bold: true, anchor: 'middle',
+    })
+  }
 
-  // ── NOTES BLOCK ─────────────────────────────────────────────────────────
-  const notesY = ROW2_Y + 130
-  elements.push({ type: 'rect', x: 30, y: notesY, w: 800, h: 70, stroke: '#111', strokeWidth: 0.8 })
-  elements.push({ type: 'text', x: 38, y: notesY + 12, text: 'NOTES (MICRO-INVERTER):', fontSize: 7, bold: true })
-  const notes = [
-    '1. RAPID SHUTDOWN COMPLIANT PER NEC 690.12(B)(2)(a) — RSD INTEGRATED PER MICROINVERTER',
-    '2. AC TRUNK CABLE: ENPHASE Q-CABLE 240V OR EQUIV; PROTECTED PER NEC 705.28',
-    '3. BATTERY AC-COUPLED VIA SEPARATE AC DISCONNECT — NOT DC-COUPLED INSIDE PV INVERTER',
-    '4. DPCRGM (REVENUE GRADE METER) PER UTILITY INTERCONNECT AGREEMENT',
-    '5. ALL LABELS PER NEC 705.10 / 705.12 / 706.30',
+  const fuse = (cx: number, cy: number, label: string) => {
+    elements.push({ type: 'circle', cx, cy, r: 5, strokeWidth: 0.8 })
+    elements.push({ type: 'line', x1: cx, y1: cy - 5, x2: cx, y2: cy + 5, strokeWidth: 0.8 })
+    elements.push({ type: 'text', x: cx + 9, y: cy + 2, text: label, fontSize: 5.5, fill: MUTED })
+  }
+
+  // ── SECTION 1 — TOP HEADER STRIP (STC + Meter# + Scope panels) ──
+  const stcX = 720, stcY = 70, stcW = 200, stcH = 110
+  elements.push({ type: 'rect', x: stcX, y: stcY, w: stcW, h: stcH, stroke: STROKE, strokeWidth: 1 })
+  elements.push({ type: 'text', x: stcX + stcW / 2, y: stcY + 14, text: 'STC', fontSize: 8, bold: true, anchor: 'middle' })
+  elements.push({ type: 'line', x1: stcX, y1: stcY + 22, x2: stcX + stcW, y2: stcY + 22, strokeWidth: 0.5 })
+  textBlock(stcX + 8, stcY + 32, [
+    `MODULES: ${config.panelCount} x ${config.panelWattage} = ${(config.systemDcKw ?? 0).toFixed(3)} kW DC`,
+    ...config.inverterMix.map(g =>
+      `${g.model} INVERTER(S): ${g.count} x ${g.acW ?? Math.round((g.acKw ?? 0) * 1000 / g.count)} = ${((g.acKw ?? 0)).toFixed(3)} kW AC`
+    ),
+    `TOTAL kW AC = ${(config.systemAcKw ?? 0).toFixed(3)} kW AC`,
+  ], { fontSize: 6, lineHeight: 9 })
+
+  const meterBoxX = stcX, meterBoxY = stcY - 60, meterBoxW = stcW, meterBoxH = 50
+  elements.push({ type: 'rect', x: meterBoxX, y: meterBoxY, w: meterBoxW, h: meterBoxH, stroke: STROKE, strokeWidth: 1 })
+  textBlock(meterBoxX + 8, meterBoxY + 14, [
+    `METER NUMBER: ${config.meter ?? '—'}`,
+    `ESID NUMBER: ${config.esid ?? '—'}`,
+  ], { fontSize: 6.5, lineHeight: 14, bold: true })
+
+  const scopeX = 940, scopeY = 10, scopeW = 460, scopeH = 95
+  elements.push({ type: 'rect', x: scopeX, y: scopeY, w: scopeW, h: scopeH, stroke: STROKE, strokeWidth: 1 })
+  elements.push({ type: 'text', x: scopeX + scopeW / 2, y: scopeY + 14, text: 'SCOPE', fontSize: 9, bold: true, anchor: 'middle' })
+  elements.push({ type: 'line', x1: scopeX, y1: scopeY + 22, x2: scopeX + scopeW, y2: scopeY + 22, strokeWidth: 0.5 })
+  textBlock(scopeX + 10, scopeY + 32, [
+    `${(config.systemDcKw ?? 0).toFixed(3)} KW DC / ${(config.systemAcKw ?? 0).toFixed(3)} KW AC`,
+    `(${config.panelCount}) ${config.panelModel} ${config.panelWattage}W MODULES`,
+    ...config.inverterMix.map(g => `(${g.count}) ${g.model} MICROINVERTERS`),
+    'ELECTRICAL INFORMATION',
+    `NEW UPGRADED: 1Φ, 3W, 120/240V`,
+    `MAIN SERVICE PANEL UPGRADE BUSBAR RATING: ${config.mspBusbarA ?? 225}A`,
+    `MAIN SERVICE BREAKER RATING: ${config.mainBreakerA ?? 125}A`,
+  ], { fontSize: 6, lineHeight: 8.5 })
+
+  const battScopeX = 940, battScopeY = 110, battScopeW = 460, battScopeH = 70
+  elements.push({ type: 'rect', x: battScopeX, y: battScopeY, w: battScopeW, h: battScopeH, stroke: STROKE, strokeWidth: 1 })
+  elements.push({ type: 'text', x: battScopeX + battScopeW / 2, y: battScopeY + 14, text: 'BATTERY SCOPE', fontSize: 9, bold: true, anchor: 'middle' })
+  elements.push({ type: 'line', x1: battScopeX, y1: battScopeY + 22, x2: battScopeX + battScopeW, y2: battScopeY + 22, strokeWidth: 0.5 })
+  textBlock(battScopeX + 10, battScopeY + 32, [
+    `${(config.batteryCapacity ?? 20).toFixed(3)} KWh / ${(config.batteryKwAc ?? 4.8).toFixed(3)} KW AC`,
+    `(${config.batteryCount ?? 1}) ${config.batteryModel} (${(config.batteryCapacity ?? 20).toFixed(3)} kWh)`,
+    `ELECTRICAL INFORMATION: NEW UPGRADED 1Φ, 3W, 120/240V`,
+  ], { fontSize: 6, lineHeight: 9 })
+
+  // ── SECTION 2 — ROOF ARRAY DETAIL (left column) ──
+  const roofX = 20, roofY = 220, roofW = 250, roofH = 280
+  elements.push({ type: 'rect', x: roofX, y: roofY, w: roofW, h: roofH, stroke: STROKE, strokeWidth: 0.8 })
+  elements.push({ type: 'text', x: roofX + roofW / 2, y: roofY + 14, text: 'ROOF ARRAY WIRING', fontSize: 8, bold: true, anchor: 'middle' })
+  elements.push({ type: 'line', x1: roofX, y1: roofY + 22, x2: roofX + roofW, y2: roofY + 22, strokeWidth: 0.5 })
+
+  textBlock(roofX + 10, roofY + 34, [
+    `(N) MODULE: (${config.panelCount}) ${config.panelModel}`,
+    `${config.panelWattage}W`,
+    'MICRO INVERTERS - MOUNTED UNDER',
+    'EACH PANEL (NEC 690.13)',
+    'INTEGRATED GROUNDING WIRE',
+  ], { fontSize: 5.5, lineHeight: 7.5 })
+
+  const branches = config.branches ?? [
+    { id: 1, modules: 9, breakerAmps: 20, inverterModel: 'D700-M2', inverterCount: 4, mixSecondary: { model: 'D350-M1', count: 1 } },
+    { id: 2, modules: 8, breakerAmps: 15, inverterModel: 'D700-M2', inverterCount: 4 },
   ]
-  notes.forEach((n, i) => {
-    elements.push({ type: 'text', x: 38, y: notesY + 22 + i * 8, text: n, fontSize: 5.5, fill: '#222' })
+
+  let branchY = roofY + 90
+  branches.forEach((br) => {
+    elements.push({
+      type: 'text', x: roofX + 10, y: branchY, bold: true,
+      text: `BRANCH CIRCUIT ${br.id}: ${br.modules} MODULES`,
+      fontSize: 6,
+    })
+    const modW = 18, modH = 14, modGap = 2
+    const cols = Math.min(br.modules, 9)
+    for (let c = 0; c < cols; c++) {
+      const mx = roofX + 14 + c * (modW + modGap)
+      const my = branchY + 6
+      elements.push({ type: 'rect', x: mx, y: my, w: modW, h: modH, stroke: STROKE, strokeWidth: 0.6 })
+      elements.push({ type: 'line', x1: mx + modW - 5, y1: my + modH - 3, x2: mx + modW - 1, y2: my + modH - 3, strokeWidth: 0.4 })
+      elements.push({ type: 'line', x1: mx + modW - 3, y1: my + modH - 5, x2: mx + modW - 3, y2: my + modH - 1, strokeWidth: 0.4 })
+    }
+    pill(roofX + roofW - 30, branchY + 13, 36, 14, `${br.breakerAmps}A/2P`, 5.5)
+    const inv1 = `(${br.inverterCount}) DURACELL: ${br.inverterModel} (240V)`
+    const inv2 = br.mixSecondary ? `(${br.mixSecondary.count}) DURACELL: ${br.mixSecondary.model} (240V)` : null
+    textBlock(roofX + 14, branchY + 26, [inv1, ...(inv2 ? [inv2] : [])], { fontSize: 5, lineHeight: 7 })
+    branchY += 70
   })
 
-  // ── BOUNDS + TRANSLATION (preserved from v3) ────────────────────────────
-  const xs: number[] = []
-  const ys: number[] = []
-  for (const el of elements) {
-    if ('x' in el && typeof el.x === 'number') {
-      xs.push(el.x)
-      if ('w' in el && typeof el.w === 'number') xs.push(el.x + el.w)
-    }
-    if ('y' in el && typeof el.y === 'number') {
-      ys.push(el.y)
-      if ('h' in el && typeof el.h === 'number') ys.push(el.y + el.h)
-    }
-    if ('cx' in el && typeof el.cx === 'number') {
-      const r = ('r' in el && typeof el.r === 'number') ? el.r : 0
-      xs.push(el.cx - r, el.cx + r)
-    }
-    if ('cy' in el && typeof el.cy === 'number') {
-      const r = ('r' in el && typeof el.r === 'number') ? el.r : 0
-      ys.push(el.cy - r, el.cy + r)
-    }
-    if ('x1' in el && typeof el.x1 === 'number') xs.push(el.x1)
-    if ('x2' in el && typeof el.x2 === 'number') xs.push(el.x2)
-    if ('y1' in el && typeof el.y1 === 'number') ys.push(el.y1)
-    if ('y2' in el && typeof el.y2 === 'number') ys.push(el.y2)
-  }
-  const minX = Math.min(...xs) - 20
-  const minY = Math.min(...ys) - 20
-  const maxX = Math.max(...xs) + 20
-  const maxY = Math.max(...ys) + 20
-  const dx = -minX
-  const dy = -minY
-  const translated = elements.map(el => {
-    const e = { ...el } as Record<string, unknown>
-    if (typeof e.x === 'number') e.x = (e.x as number) + dx
-    if (typeof e.y === 'number') e.y = (e.y as number) + dy
-    if (typeof e.cx === 'number') e.cx = (e.cx as number) + dx
-    if (typeof e.cy === 'number') e.cy = (e.cy as number) + dy
-    if (typeof e.x1 === 'number') e.x1 = (e.x1 as number) + dx
-    if (typeof e.x2 === 'number') e.x2 = (e.x2 as number) + dx
-    if (typeof e.y1 === 'number') e.y1 = (e.y1 as number) + dy
-    if (typeof e.y2 === 'number') e.y2 = (e.y2 as number) + dy
-    return e as SldElement
+  textBlock(roofX + 10, roofY + roofH - 26, [
+    '(4) #10 AWG TRUNK CABLE',
+    '(1) #6 BARE CU EGC',
+  ], { fontSize: 5.5, lineHeight: 7.5, bold: true })
+
+  elements.push({ type: 'callout', cx: roofX + roofW + 14, cy: roofY + roofH / 2, number: 1 })
+  elements.push({ type: 'line', x1: roofX + roofW, y1: roofY + roofH / 2, x2: 320, y2: roofY + roofH / 2, strokeWidth: 1.4 })
+
+  // ── SECTION 3 — MAIN EQUIPMENT ROW ──
+  const mainY = 360
+  let cursorX = 320
+
+  const jbX = cursorX, jbY = mainY - 28, jbW = 70, jbH = 56
+  elements.push({ type: 'rect', x: jbX, y: jbY, w: jbW, h: jbH, stroke: STROKE, strokeWidth: 1 })
+  textBlock(jbX + jbW / 2, jbY + 12, [
+    '(N) JUNCTION', 'BOX', '600V, NEMA 3', 'UL LISTED',
+  ], { fontSize: 5.5, lineHeight: 7, bold: true, anchor: 'middle' })
+  cursorX = jbX + jbW
+
+  elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: cursorX + 70, y2: mainY, strokeWidth: 1.4 })
+  elements.push({ type: 'callout', cx: cursorX + 12, cy: mainY - 18, number: 2 })
+  textBlock(cursorX + 22, mainY - 28, [
+    '(4) #10 AWG CU THWN-2',
+    '(1) #8 AWG CU EGC',
+    '3/4" EMT TYPE CONDUIT',
+  ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
+  cursorX += 70
+
+  const lcX = cursorX, lcY = mainY - 48, lcW = 110, lcH = 100
+  elements.push({ type: 'rect', x: lcX, y: lcY, w: lcW, h: lcH, stroke: STROKE, strokeWidth: 1 })
+  textBlock(lcX + lcW / 2, lcY + 11, [
+    '(N) PV LOAD CENTER',
+  ], { fontSize: 6, bold: true, anchor: 'middle' })
+  textBlock(lcX + lcW / 2, lcY + 20, [
+    'BRP12L125R 125A',
+    'RATED MLO, NEMA3R,',
+    'UL LISTED',
+    '(EXTERIOR MOUNTED)',
+  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
+  pill(lcX + 28, lcY + 62, 36, 12, '20A/2P', 5)
+  pill(lcX + 82, lcY + 62, 36, 12, '15A/2P', 5)
+  pill(lcX + lcW / 2, lcY + 82, 40, 12, '40A/2P MAIN', 5)
+  elements.push({ type: 'text', x: lcX + 6, y: lcY + lcH - 4, text: 'G', fontSize: 6, bold: true })
+  cursorX = lcX + lcW
+
+  elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: cursorX + 80, y2: mainY, strokeWidth: 1.4 })
+  elements.push({ type: 'callout', cx: cursorX + 14, cy: mainY - 18, number: 3 })
+  textBlock(cursorX + 24, mainY - 28, [
+    '(2) #8 AWG CU THWN-2',
+    '(1) #8 AWG CU EGC',
+    '3/4" EMT TYPE CONDUIT',
+  ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
+  cursorX += 80
+
+  const pvdX = cursorX, pvdY = mainY - 38, pvdW = 90, pvdH = 80
+  elements.push({ type: 'rect', x: pvdX, y: pvdY, w: pvdW, h: pvdH, stroke: STROKE, strokeWidth: 1 })
+  textBlock(pvdX + pvdW / 2, pvdY + 11, ['(N) PV DISCONNECT'], { fontSize: 6, bold: true, anchor: 'middle' })
+  textBlock(pvdX + pvdW / 2, pvdY + 20, [
+    'NON-FUSIBLE',
+    'EATON DG222URB',
+    '(60A, 2P, 240V 3R)',
+  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
+  elements.push({ type: 'text', x: pvdX + 6, y: pvdY + 56, text: 'LINE', fontSize: 4.5, fill: MUTED })
+  elements.push({ type: 'text', x: pvdX + pvdW - 18, y: pvdY + 56, text: 'LOAD', fontSize: 4.5, fill: MUTED })
+  elements.push({ type: 'disconnect', x: pvdX + pvdW / 2 - 10, y: pvdY + 50, label: '60A' })
+  textBlock(pvdX + pvdW / 2, pvdY + pvdH + 4, [
+    'VISIBLE, LOCKABLE,',
+    'LABELED "AC DISC"',
+    'EXTERIOR WALL',
+  ], { fontSize: 4, lineHeight: 5, anchor: 'middle', fill: MUTED })
+  cursorX = pvdX + pvdW
+
+  elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: cursorX + 70, y2: mainY, strokeWidth: 1.4 })
+  elements.push({ type: 'callout', cx: cursorX + 12, cy: mainY - 18, number: 4 })
+  textBlock(cursorX + 22, mainY - 28, [
+    '(2) #8 AWG CU THWN-2',
+    '(1) #8 AWG CU EGC',
+    '3/4" EMT TYPE CONDUIT',
+  ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
+  cursorX += 70
+
+  const plpX = cursorX, plpY = mainY - 60, plpW = 120, plpH = 130
+  elements.push({ type: 'rect', x: plpX, y: plpY, w: plpW, h: plpH, stroke: STROKE, strokeWidth: 1 })
+  textBlock(plpX + plpW / 2, plpY + 11, ['(N) PROTECTED LOAD PANEL'], { fontSize: 5.5, bold: true, anchor: 'middle' })
+  textBlock(plpX + plpW / 2, plpY + 20, [
+    'BRP20B125R',
+    '125A RATED, NEMA3R,',
+    'UL LISTED (EXTERIOR)',
+  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
+  pill(plpX + 22, plpY + 60, 36, 12, '35A/2P', 5)
+  elements.push({ type: 'text', x: plpX + 22, y: plpY + 70, text: 'PV', fontSize: 4.5, anchor: 'middle', fill: MUTED })
+  pill(plpX + plpW - 22, plpY + 60, 36, 12, '40A/2P', 5)
+  elements.push({ type: 'text', x: plpX + plpW - 22, y: plpY + 70, text: 'MAIN', fontSize: 4.5, anchor: 'middle', fill: MUTED })
+  textBlock(plpX + plpW / 2, plpY + 88, [
+    '(N) 35A PV BREAKER AT',
+    'OPPOSITE END OF BUS',
+    'FROM MAIN BREAKER',
+  ], { fontSize: 4, lineHeight: 5, anchor: 'middle', fill: MUTED })
+  elements.push({ type: 'text', x: plpX + 6, y: plpY + plpH - 4, text: 'G', fontSize: 6, bold: true })
+  elements.push({ type: 'line', x1: plpX + 8, y1: plpY + 50, x2: plpX + plpW - 8, y2: plpY + 50, strokeWidth: 0.7 })
+  cursorX = plpX + plpW
+
+  // ── BATTERY (vertical drop from PLP) ──
+  const battX = plpX + 30
+  const battY = mainY + 130
+  const battW = 200
+  const battH = 180
+
+  elements.push({ type: 'line', x1: plpX + plpW / 2, y1: plpY + plpH, x2: plpX + plpW / 2, y2: battY, strokeWidth: 1.4 })
+  elements.push({ type: 'callout', cx: plpX + plpW / 2 + 14, cy: plpY + plpH + 30, number: 5 })
+  textBlock(plpX + plpW / 2 + 24, plpY + plpH + 22, [
+    '(3) #8 AWG CU THWN-2',
+    '(1) #8 AWG CU EGC',
+    '3/4" EMT TYPE CONDUIT',
+  ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
+
+  elements.push({ type: 'rect', x: battX, y: battY, w: battW, h: battH, stroke: STROKE, strokeWidth: 1.2 })
+  elements.push({ type: 'line', x1: battX, y1: battY + 22, x2: battX + battW, y2: battY + 22, strokeWidth: 0.5 })
+  textBlock(battX + battW / 2, battY + 14, ['SCORE-P20 (20 kWh) 4.8 kW AC SYSTEM'], {
+    fontSize: 6, bold: true, anchor: 'middle',
   })
+  elements.push({ type: 'text', x: battX + battW / 2, y: battY + 32, text: 'SonnenCore+', fontSize: 7, italic: true, anchor: 'middle' })
+  const cellW = 75, cellH = 28, cellGapX = 8, cellGapY = 6
+  const cellGridX = battX + 12
+  const cellGridY = battY + 42
+  for (let r = 0; r < 2; r++) {
+    for (let c = 0; c < 2; c++) {
+      const cx = cellGridX + c * (cellW + cellGapX)
+      const cy = cellGridY + r * (cellH + cellGapY)
+      elements.push({ type: 'rect', x: cx, y: cy, w: cellW, h: cellH, stroke: SUBSTROKE, strokeWidth: 0.6 })
+      textBlock(cx + cellW / 2, cy + 11, ['102 VDC NOMINAL', 'LiFePO4'], {
+        fontSize: 4.5, lineHeight: 6, anchor: 'middle',
+      })
+    }
+  }
+  const estopX = battX + battW - 74, estopY = battY + 42
+  elements.push({ type: 'rect', x: estopX, y: estopY, w: 60, h: 26, stroke: STROKE, strokeWidth: 0.8 })
+  elements.push({ type: 'text', x: estopX + 30, y: estopY + 16, text: 'E-STOP', fontSize: 7, bold: true, anchor: 'middle' })
+  textBlock(estopX + 30, estopY + 32, ['E-STOP ISOLATES', 'BATTERY FROM GRID'], {
+    fontSize: 3.8, lineHeight: 5, anchor: 'middle', fill: MUTED,
+  })
+  const pcsY = cellGridY + 2 * (cellH + cellGapY)
+  elements.push({ type: 'rect', x: cellGridX, y: pcsY, w: 158, h: 22, stroke: SUBSTROKE, strokeWidth: 0.6 })
+  elements.push({ type: 'text', x: cellGridX + 79, y: pcsY + 14, text: 'CONTROLS (PCS)', fontSize: 6, bold: true, anchor: 'middle' })
+  textBlock(battX + 16, battY + 30, ['MICRO'], { fontSize: 5, bold: true, fill: MUTED })
+  textBlock(battX + 60, battY + 30, ['GRID'], { fontSize: 5, bold: true, fill: MUTED })
+  textBlock(battX + 100, battY + 30, ['GRID'], { fontSize: 5, bold: true, fill: MUTED })
+  const primaryY = pcsY + 32
+  elements.push({ type: 'text', x: battX + battW / 2, y: primaryY, text: 'PRIMARY', fontSize: 6, bold: true, anchor: 'middle' })
+  const termY = primaryY + 12
+  ;['L1', 'L2', 'N', 'G'].forEach((t, i) => {
+    pill(battX + 50 + i * 28, termY, 22, 10, t, 5)
+  })
+  textBlock(battX + battW + 8, battY + 30, [
+    '(N) (1) SONNEN INC. -',
+    'SONNENCORE+ SCORE-P20',
+    '(240 VAC) (20.000 KWH)',
+    'BATTERY WILL BE',
+    'MOUNTED INSIDE',
+    'THE GARAGE',
+  ], { fontSize: 5, lineHeight: 6.5, fill: ANNOT })
+
+  // ── ESS DISCONNECT (right of battery) ──
+  const essdX = battX + battW + 100
+  const essdY = battY + 30
+  const essdW = 90, essdH = 70
+  elements.push({ type: 'line', x1: estopX + 60, y1: estopY + 13, x2: essdX, y2: essdY + essdH / 2, strokeWidth: 1.4 })
+  elements.push({ type: 'callout', cx: estopX + 80, cy: estopY + 4, number: 6 })
+  textBlock(estopX + 90, estopY - 6, [
+    '(2) #14 AWG CU THWN-2',
+    '(1) #8 AWG CU EGC',
+    '3/4" EMT TYPE CONDUIT',
+  ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
+  elements.push({ type: 'rect', x: essdX, y: essdY, w: essdW, h: essdH, stroke: STROKE, strokeWidth: 1 })
+  textBlock(essdX + essdW / 2, essdY + 11, ['(N) ESS DISCONNECT'], { fontSize: 5.5, bold: true, anchor: 'middle' })
+  textBlock(essdX + essdW / 2, essdY + 20, [
+    'NON-FUSIBLE',
+    'EATON DG221URB',
+    '(30A, 2P, 240V 3R)',
+  ], { fontSize: 4.5, lineHeight: 6, anchor: 'middle', fill: MUTED })
+  elements.push({ type: 'disconnect', x: essdX + essdW / 2 - 10, y: essdY + 46, label: '30A' })
+  textBlock(essdX + essdW / 2, essdY + essdH + 4, [
+    'VISIBLE, LOCKABLE,',
+    'LABELED "AC DISC"',
+  ], { fontSize: 4, lineHeight: 5, anchor: 'middle', fill: MUTED })
+
+  elements.push({ type: 'line', x1: essdX, y1: essdY + essdH - 8, x2: battX + 100, y2: essdY + essdH - 8, strokeWidth: 1.4, dash: true })
+  elements.push({ type: 'line', x1: battX + 100, y1: essdY + essdH - 8, x2: battX + 100, y2: battY + 36, strokeWidth: 1.4, dash: true })
+  elements.push({ type: 'callout', cx: essdX - 14, cy: essdY + essdH - 16, number: 7 })
+
+  // ── CUSTOMER GENERATION DISCONNECT (back at main row) ──
+  cursorX = plpX + plpW
+  elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: cursorX + 90, y2: mainY, strokeWidth: 1.4 })
+  elements.push({ type: 'callout', cx: cursorX + 14, cy: mainY - 18, number: 8 })
+  textBlock(cursorX + 24, mainY - 28, [
+    '(3) #8 AWG CU THWN-2',
+    '(1) #8 AWG CU EGC',
+    '3/4" EMT TYPE CONDUIT',
+  ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
+  cursorX += 90
+
+  const cgdX = cursorX, cgdY = mainY - 48, cgdW = 100, cgdH = 100
+  elements.push({ type: 'rect', x: cgdX, y: cgdY, w: cgdW, h: cgdH, stroke: STROKE, strokeWidth: 1 })
+  textBlock(cgdX + cgdW / 2, cgdY + 11, ['(N) CUSTOMER GEN'], { fontSize: 5.5, bold: true, anchor: 'middle' })
+  textBlock(cgdX + cgdW / 2, cgdY + 20, ['DISCONNECT / FUSIBLE'], { fontSize: 5.5, bold: true, anchor: 'middle' })
+  textBlock(cgdX + cgdW / 2, cgdY + 29, [
+    'EATON DG222NRB',
+    '(60A, 2P, 240V 3R)',
+    '(45A FUSES)',
+  ], { fontSize: 4.5, lineHeight: 6, anchor: 'middle', fill: MUTED })
+  fuse(cgdX + 30, cgdY + 70, '45A')
+  fuse(cgdX + cgdW - 30, cgdY + 70, '45A')
+  textBlock(cgdX + cgdW / 2, cgdY + 86, ['2X45A FUSES'], { fontSize: 5, bold: true, anchor: 'middle' })
+  textBlock(cgdX + cgdW / 2, cgdY + cgdH + 4, [
+    'VISIBLE, LOCKABLE,',
+    'LABELED "AC DISC"',
+    "WITHIN 10' OF METER",
+  ], { fontSize: 4, lineHeight: 5, anchor: 'middle', fill: MUTED })
+  cursorX = cgdX + cgdW
+
+  // ── MSP ──
+  elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: cursorX + 90, y2: mainY, strokeWidth: 1.4 })
+  elements.push({ type: 'callout', cx: cursorX + 14, cy: mainY - 18, number: 9 })
+  textBlock(cursorX + 24, mainY - 28, [
+    '(3) #8 AWG CU THWN-2',
+    '(1) #8 AWG CU EGC',
+    '3/4" EMT TYPE CONDUIT',
+  ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
+  elements.push({ type: 'line', x1: cursorX, y1: mainY + 14, x2: cursorX + 90, y2: mainY + 14, strokeWidth: 0.5 })
+  elements.push({ type: 'line', x1: cursorX, y1: mainY + 11, x2: cursorX, y2: mainY + 17, strokeWidth: 0.5 })
+  elements.push({ type: 'line', x1: cursorX + 90, y1: mainY + 11, x2: cursorX + 90, y2: mainY + 17, strokeWidth: 0.5 })
+  elements.push({ type: 'text', x: cursorX + 45, y: mainY + 22, text: "10' MAX", fontSize: 5, bold: true, anchor: 'middle' })
+  cursorX += 90
+
+  const mspX = cursorX, mspY = mainY - 60, mspW = 130, mspH = 140
+  elements.push({ type: 'rect', x: mspX, y: mspY, w: mspW, h: mspH, stroke: STROKE, strokeWidth: 1.2 })
+  textBlock(mspX + mspW / 2, mspY + 11, ['(N) MAIN SERVICE PANEL'], { fontSize: 5.5, bold: true, anchor: 'middle' })
+  textBlock(mspX + mspW / 2, mspY + 20, [
+    `${config.mspBusbarA ?? 225}A RATED 240v`,
+    '(EXTERIOR MOUNTED)',
+  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
+  elements.push({ type: 'line', x1: mspX + 8, y1: mspY + 60, x2: mspX + mspW - 8, y2: mspY + 60, strokeWidth: 0.7 })
+  pill(mspX + 22, mspY + 70, 36, 12, '45A/2P', 5)
+  textBlock(mspX + 22, mspY + 82, ['PV'], { fontSize: 4.5, anchor: 'middle', fill: MUTED })
+  pill(mspX + mspW - 22, mspY + 70, 36, 12, '125A/2P', 5)
+  textBlock(mspX + mspW - 22, mspY + 82, ['MAIN'], { fontSize: 4.5, anchor: 'middle', fill: MUTED })
+  elements.push({ type: 'rect', x: mspX + mspW / 2 - 28, y: mspY + 95, w: 56, h: 16, stroke: SUBSTROKE, strokeWidth: 0.6 })
+  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 105, text: '(N) SURGE PROTECTOR', fontSize: 4.5, anchor: 'middle' })
+  textBlock(mspX + mspW / 2, mspY + mspH + 4, [
+    '(N) MAIN BREAKER TO HOUSE',
+    '240v, 125A/2P TOP FED',
+    '(N) 45A PV BREAKER AT',
+    'OPPOSITE END OF BUS',
+    'FROM MAIN BREAKER',
+  ], { fontSize: 4, lineHeight: 5, anchor: 'middle', fill: MUTED })
+  cursorX = mspX + mspW
+
+  // ── UTILITY METER ──
+  const umCx = cursorX + 30, umCy = mainY
+  elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: umCx - 18, y2: mainY, strokeWidth: 1.4 })
+  elements.push({ type: 'circle', cx: umCx, cy: umCy, r: 18, strokeWidth: 1.5 })
+  elements.push({ type: 'text', x: umCx, y: umCy + 5, text: 'M', fontSize: 14, bold: true, anchor: 'middle' })
+  textBlock(umCx, umCy + 30, [
+    '(E) BI-DIRECTIONAL',
+    'UTILITY METER',
+    '1-PHASE, 3-WIRE',
+    '120v/240v, 200A RATED',
+    '(EXTERIOR)',
+    `UTILITY: ${config.utility ?? 'CenterPoint Energy'}`,
+    `METER NO: ${config.meter ?? '—'}`,
+  ], { fontSize: 4.5, lineHeight: 5.5, anchor: 'middle', fill: MUTED })
+  elements.push({ type: 'line', x1: umCx + 18, y1: umCy, x2: umCx + 70, y2: umCy, strokeWidth: 1.4 })
+  elements.push({ type: 'line', x1: umCx + 64, y1: umCy - 4, x2: umCx + 70, y2: umCy, strokeWidth: 1 })
+  elements.push({ type: 'line', x1: umCx + 64, y1: umCy + 4, x2: umCx + 70, y2: umCy, strokeWidth: 1 })
+  elements.push({ type: 'text', x: umCx + 80, y: umCy + 2, text: 'TO UTILITY GRID', fontSize: 5, bold: true })
+
+  // ── SECTION 4 — GEC GROUNDING ──
+  const gecX = mspX + mspW / 2, gecY = mspY + mspH + 50
+  elements.push({ type: 'line', x1: gecX, y1: mspY + mspH, x2: gecX, y2: gecY, strokeWidth: 1 })
+  elements.push({ type: 'ground', x: gecX, y: gecY })
+  textBlock(gecX + 12, gecY - 4, [
+    'GEC',
+    'GROUNDING ELECTRODE SYSTEM',
+    'EXISTING GROUNDING ELECTRODE',
+    'SYSTEM TO EARTH REF.',
+    'NEC 250.52, 250.53(A)',
+  ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
+
+  // ── SECTION 5 — COMM SUBGRAPH ──
+  const commY = 760
+  elements.push({ type: 'text', x: 320, y: commY, text: 'COMMUNICATION WIRES', fontSize: 6, bold: true, fill: MUTED })
+
+  const sonnenCtX = battX + battW / 2
+  const sonnenCtY = battY + battH + 16
+  elements.push({ type: 'circle', cx: sonnenCtX, cy: sonnenCtY, r: 8, strokeWidth: 0.6 })
+  elements.push({ type: 'text', x: sonnenCtX, y: sonnenCtY + 3, text: 'CT', fontSize: 5, bold: true, anchor: 'middle' })
+  textBlock(sonnenCtX + 14, sonnenCtY - 2, ['SONNEN', 'PRODUCTION CT'], {
+    fontSize: 4.5, lineHeight: 5.5, fill: MUTED,
+  })
+  elements.push({
+    type: 'line', x1: sonnenCtX, y1: sonnenCtY - 8, x2: sonnenCtX, y2: battY + battH,
+    strokeWidth: 0.8, dash: true,
+  })
+
+  const dpcCtX = mspX + mspW / 2
+  const dpcCtY = sonnenCtY
+  elements.push({ type: 'circle', cx: dpcCtX, cy: dpcCtY, r: 8, strokeWidth: 0.6 })
+  elements.push({ type: 'text', x: dpcCtX, y: dpcCtY + 3, text: 'CT', fontSize: 5, bold: true, anchor: 'middle' })
+  textBlock(dpcCtX + 14, dpcCtY - 2, ['DPC RGM CTs'], { fontSize: 4.5, fill: MUTED })
+
+  const dpcX = 620, dpcY = commY + 30, dpcW = 110, dpcH = 50
+  elements.push({ type: 'rect', x: dpcX, y: dpcY, w: dpcW, h: dpcH, stroke: STROKE, strokeWidth: 0.8 })
+  textBlock(dpcX + dpcW / 2, dpcY + 13, ['(N) DPCRGM - CELL'], { fontSize: 5.5, bold: true, anchor: 'middle' })
+  textBlock(dpcX + dpcW / 2, dpcY + 25, [
+    'DURACELL DTU',
+    'PN: PC-PRO-C',
+  ], { fontSize: 5, lineHeight: 7, anchor: 'middle', fill: MUTED })
+  ;[1, 2, 3, 4].forEach((n, i) => {
+    elements.push({
+      type: 'circle', cx: dpcX + 18 + i * 22, cy: dpcY + dpcH + 8, r: 4, strokeWidth: 0.4,
+    })
+    elements.push({
+      type: 'text', x: dpcX + 18 + i * 22, y: dpcY + dpcH + 10, text: `${n}`,
+      fontSize: 4, anchor: 'middle',
+    })
+  })
+
+  elements.push({ type: 'line', x1: sonnenCtX + 8, y1: sonnenCtY, x2: dpcX, y2: dpcY + 20, strokeWidth: 0.7, dash: true })
+  elements.push({ type: 'line', x1: dpcCtX - 8, y1: dpcCtY, x2: dpcX + dpcW, y2: dpcY + 20, strokeWidth: 0.7, dash: true })
+
+  const ethX = dpcX + dpcW + 60, ethY = dpcY, ethW = 90, ethH = 30
+  elements.push({ type: 'rect', x: ethX, y: ethY, w: ethW, h: ethH, stroke: STROKE, strokeWidth: 0.8 })
+  elements.push({ type: 'text', x: ethX + ethW / 2, y: ethY + 18, text: 'ETHERNET SWITCH', fontSize: 5.5, bold: true, anchor: 'middle' })
+  elements.push({ type: 'line', x1: dpcX + dpcW, y1: dpcY + 25, x2: ethX, y2: ethY + 15, strokeWidth: 0.8, dash: true })
+  elements.push({ type: 'circle', cx: (dpcX + dpcW + ethX) / 2, cy: (dpcY + 25 + ethY + 15) / 2, r: 4, strokeWidth: 0.4 })
+  elements.push({ type: 'text', x: (dpcX + dpcW + ethX) / 2, y: (dpcY + 25 + ethY + 15) / 2 + 1.5, text: '5', fontSize: 4, anchor: 'middle' })
+  textBlock((dpcX + dpcW + ethX) / 2, dpcY - 4, ['24 AWG CAT', '5/6 SHIELDED'], {
+    fontSize: 4, lineHeight: 5, anchor: 'middle', fill: MUTED,
+  })
+
+  const routerX = ethX + ethW + 40, routerY = ethY, routerW = 90, routerH = 30
+  elements.push({ type: 'rect', x: routerX, y: routerY, w: routerW, h: routerH, stroke: STROKE, strokeWidth: 0.8 })
+  elements.push({ type: 'text', x: routerX + routerW / 2, y: routerY + 13, text: 'HOMEOWNER', fontSize: 5, bold: true, anchor: 'middle' })
+  elements.push({ type: 'text', x: routerX + routerW / 2, y: routerY + 22, text: 'ROUTER', fontSize: 5, bold: true, anchor: 'middle' })
+  elements.push({ type: 'line', x1: ethX + ethW, y1: ethY + 15, x2: routerX, y2: routerY + 15, strokeWidth: 0.8, dash: true })
+
+  textBlock(routerX + routerW + 14, ethY, [
+    'CT EXTENSION',
+    'PART #1001808',
+    'WITH #18',
+    'SHIELDED CABLE',
+  ], { fontSize: 4.5, lineHeight: 6, fill: MUTED })
+
+  // ── SECTION 6 — INSTALLER NOTES ──
+  const notesY = 900
+  const notesW = 1380
+  elements.push({ type: 'rect', x: 10, y: notesY, w: notesW, h: 140, stroke: STROKE, strokeWidth: 0.8 })
+  elements.push({ type: 'text', x: 18, y: notesY + 14, text: 'INSTALLER NOTES:', fontSize: 7, bold: true })
+  const installerNotes = [
+    '• REQUIRES TO RELOCATE (E) ESSENTIAL LOADS FROM (E) MAIN SERVICE PANEL TO (N) PROTECTED LOADS PANEL',
+    '• REQUIRES TO TEST FOR EDISON CIRCUIT BEFORE TURNING ON THE SYSTEM',
+    "• ONLY 10-12 SINGLE POLE LOADS WILL BE BACKED UP AS PER HOMEOWNER'S SELECTION",
+    '• REQUIRES SONNENCORE+ BATTERIES TO BE FLOOR MOUNTED',
+    '• HEAT DETECTORS REQUIRED ON INTERIOR FOR ALL BATTERIES',
+    '• REQUIRES BOLLARDS 3 FEET FROM THE BATTERY',
+    '• REQUIRES CT WIRE EXTENSION KIT PART #1001808',
+    '• REQUIRES TO EXTEND CT WIRES WITH #18 AWG SHIELDED CABLE',
+    '• REQUIRES MAIN PANEL UPGRADE',
+    '• REQUIRES SMOKE DETECTORS',
+  ]
+  const colWidth = notesW / 2 - 20
+  installerNotes.forEach((note, i) => {
+    const col = i < 5 ? 0 : 1
+    const row = i % 5
+    elements.push({
+      type: 'text',
+      x: 18 + col * colWidth,
+      y: notesY + 28 + row * 12,
+      text: note, fontSize: 5.5, fill: ANNOT,
+    })
+  })
+
+  textBlock(18, notesY + 96, [
+    'IF ROMEX IS USED THROUGH ATTIC - RUNS SHALL BE KEPT SEPARATE AND NOT BUNDLED',
+    'IF CONDUIT IS USED ON EXTERIOR - RUNS SHALL BE MIN. 7/8" ABOVE ROOF',
+    `(1) STRING OF (${branches[0]?.modules ?? 9}) MODULES CONNECTED IN SERIES & (1) STRING OF (${branches[1]?.modules ?? 8}) MODULES CONNECTED IN SERIES`,
+  ], { fontSize: 5, lineHeight: 7, fill: ANNOT, bold: true })
 
   return {
-    width: maxX - minX,
-    height: maxY - minY,
-    elements: translated,
+    width: W,
+    height: H,
+    elements,
   }
 }

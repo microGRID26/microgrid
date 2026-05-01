@@ -252,23 +252,20 @@ describe('SLD topology gating', () => {
     expect(texts.some(t => /\bPLC\b/.test(t))).toBe(false)
   })
 
-  it('micro-inverter topology renders DPCRGM box only when hasRgm=true', () => {
-    // v4: the micro-inverter renderer gates the DPCRGM box on config.hasRgm.
-    // The notes block always references DPCRGM by name, so we check the
-    // standalone label (text === 'DPCRGM') rather than substring inclusion.
-    const cfgOff = makeConfig()
-    cfgOff.systemTopology = 'micro-inverter'
-    cfgOff.hasRgm = false
-    const offTexts = calculateSldLayout(cfgOff).elements
+  it('micro-inverter topology renders DPCRGM cell as part of comm subgraph', () => {
+    // v5: DPCRGM (Duracell DTU PC-PRO-C) is part of the always-rendered comm
+    // subgraph in the micro-inverter SLD — it's a real comms device, not the
+    // gated Revenue Grade Meter. hasRgm flag no longer applies to this renderer.
+    const config = makeConfig()
+    config.systemTopology = 'micro-inverter'
+    config.inverterMix = [
+      { model: 'D700-M2', count: 8, acKw: 5.568 },
+      { model: 'D350-M1', count: 1, acKw: 0.349 },
+    ]
+    const texts = calculateSldLayout(config).elements
       .filter(e => e.type === 'text').map(e => (e as { text: string }).text)
-    expect(offTexts.some(t => t === 'DPCRGM')).toBe(false)
-
-    const cfgOn = makeConfig()
-    cfgOn.systemTopology = 'micro-inverter'
-    cfgOn.hasRgm = true
-    const onTexts = calculateSldLayout(cfgOn).elements
-      .filter(e => e.type === 'text').map(e => (e as { text: string }).text)
-    expect(onTexts.some(t => t === 'DPCRGM')).toBe(true)
+    expect(texts.some(t => t === '(N) DPCRGM - CELL')).toBe(true)
+    expect(texts.some(t => t.includes('DURACELL DTU'))).toBe(true)
   })
 
   it('string-mppt topology produces a valid layout with elements', () => {
@@ -281,15 +278,26 @@ describe('SLD topology gating', () => {
   })
 
   it('micro-inverter topology produces a valid layout with elements', () => {
-    // The current SLD renderer is Duracell/string-MPPT style by design —
-    // it never rendered DPCRGM/DTU/PLC/Ethernet even before Task 2.4.
-    // micro-inverter topology flag is wired in for forward compatibility;
-    // the layout must not crash and must still return valid elements.
+    // v5: micro-inverter SLD (Tyson rebuild) requires inverterMix + batteryModel
+    // by defensive guard. With both present, layout returns hundreds of elements
+    // at 1400×1050 native units to fill the 14″×10.5″ AHJ-permit-ready sheet area.
     const config = makeConfig()
     config.systemTopology = 'micro-inverter'
+    config.inverterMix = [
+      { model: 'D700-M2', count: 8, acKw: 5.568 },
+      { model: 'D350-M1', count: 1, acKw: 0.349 },
+    ]
     const layout = calculateSldLayout(config)
-    expect(layout.elements.length).toBeGreaterThan(0)
-    expect(layout.width).toBeGreaterThan(0)
+    expect(layout.elements.length).toBeGreaterThan(100)
+    expect(layout.width).toBe(1400)
+    expect(layout.height).toBe(1050)
+  })
+
+  it('micro-inverter topology throws if inverterMix is missing (defensive guard)', () => {
+    const config = makeConfig()
+    config.systemTopology = 'micro-inverter'
+    // No inverterMix
+    expect(() => calculateSldLayout(config)).toThrow(/inverterMix/)
   })
 
   it('renders RSD callout text using the configured rapidShutdownModel', () => {
