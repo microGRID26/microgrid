@@ -41,7 +41,7 @@ function makeConfig(overrides: Partial<SldConfig> = {}): SldConfig {
     contractor: 'MicroGRID Energy',
     contractorAddress: '600 Northpark Central Dr, Suite 140',
     contractorPhone: '(832) 280-7764',
-    contractorLicense: '32259',
+    contractorLicense: '41312',
     contractorEmail: 'engineering@microgridenergy.com',
     systemTopology: 'string-mppt',
     rapidShutdownModel: 'RSD-D-20',
@@ -252,17 +252,23 @@ describe('SLD topology gating', () => {
     expect(texts.some(t => /\bPLC\b/.test(t))).toBe(false)
   })
 
-  it('regression guard — micro-inverter topology also produces no DPCRGM/DTU/Ethernet today (renderer stub)', () => {
-    // Today: no Hambrick rendering branch exists. Both topologies render
-    // the same SLD. When a Hambrick branch is added, this test should
-    // be updated to assert that DPCRGM appears.
-    const config = makeConfig()
-    config.systemTopology = 'micro-inverter'
-    const layout = calculateSldLayout(config)
-    const texts = layout.elements.filter(e => e.type === 'text').map(e => (e as { text: string }).text)
-    expect(texts.some(t => t.includes('DPCRGM'))).toBe(false)
-    expect(texts.some(t => t.includes('DTU'))).toBe(false)
-    expect(texts.some(t => /ethernet switch/i.test(t))).toBe(false)
+  it('micro-inverter topology renders DPCRGM box only when hasRgm=true', () => {
+    // v4: the micro-inverter renderer gates the DPCRGM box on config.hasRgm.
+    // The notes block always references DPCRGM by name, so we check the
+    // standalone label (text === 'DPCRGM') rather than substring inclusion.
+    const cfgOff = makeConfig()
+    cfgOff.systemTopology = 'micro-inverter'
+    cfgOff.hasRgm = false
+    const offTexts = calculateSldLayout(cfgOff).elements
+      .filter(e => e.type === 'text').map(e => (e as { text: string }).text)
+    expect(offTexts.some(t => t === 'DPCRGM')).toBe(false)
+
+    const cfgOn = makeConfig()
+    cfgOn.systemTopology = 'micro-inverter'
+    cfgOn.hasRgm = true
+    const onTexts = calculateSldLayout(cfgOn).elements
+      .filter(e => e.type === 'text').map(e => (e as { text: string }).text)
+    expect(onTexts.some(t => t === 'DPCRGM')).toBe(true)
   })
 
   it('string-mppt topology produces a valid layout with elements', () => {

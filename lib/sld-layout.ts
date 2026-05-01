@@ -62,6 +62,9 @@ export interface SldConfig {
   systemTopology: 'string-mppt' | 'micro-inverter'
   rapidShutdownModel: string                         // e.g. 'RSD-D-20'
   hasCantexBar: boolean
+  // Optional inverter mix — used by the micro-inverter topology branch when
+  // multiple models coexist on one install (Tyson PROJ-26922 = 8× D700-M2 + 1× D350-M1).
+  inverterMix?: Array<{ model: string; count: number; acKw: number }>
   // Revenue Grade Meter (PC-PRO-RGM) — gates the RGM rect between service
   // disconnect and utility meter. OUT for Duracell projects (William Carter
   // feedback 2026-04-26); legacy DWG-era plansets had it.
@@ -106,6 +109,13 @@ export type SldElement =
   | { type: 'callout'; cx: number; cy: number; number: number; r?: number }
 
 export function calculateSldLayout(config: SldConfig): SldLayout {
+  // Topology branch — micro-inverter installs (legacy Hyperion/APTOS) render
+  // an AC-trunk shape, not the DC-string shape. Branch first so inverter-count
+  // routing below only applies to string-MPPT projects.
+  if (config.systemTopology === 'micro-inverter') {
+    return calculateSldLayoutMicroInverter(config)
+  }
+
   // Use spatial left-to-right layout for 1-2 inverter systems (common residential)
   if (config.inverterCount <= 2) {
     return calculateSldLayoutSpatial(config)
@@ -1128,4 +1138,234 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
   elements.push({ type: 'text', x: W / 2 + 180, y: H - 8, text: 'SCALE: NTS', fontSize: 5, fill: '#666' })
 
   return { width: W, height: H, elements }
+}
+
+// ── Micro-inverter topology branch (Phase 1 — Tyson rebuild scope) ─────────
+// Renders an AC-trunk SLD shape for legacy installs (Hyperion/APTOS modules
+// with per-panel microinverters, Sonnen battery on AC side, optional DPCRGM).
+// Triggered when config.systemTopology === 'micro-inverter'.
+function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
+  const elements: SldElement[] = []
+
+  // Vertical zone constants — Row 1 starts at top, Row 2 below the bus drop.
+  const ROW1_Y = 80
+  const ROW2_Y = 280
+  const ARRAY_X = 40
+
+  const groups = (config.inverterMix && config.inverterMix.length > 0)
+    ? config.inverterMix
+    : [{ model: config.inverterModel, count: config.panelCount, acKw: config.inverterAcKw }]
+
+  // ── ROW 1.A: ARRAY GROUPS (modules + µinverters) ────────────────────────
+  let arrayY = ROW1_Y
+  const moduleW = 32, moduleH = 22, moduleGap = 4
+  const groupGap = 30
+
+  groups.forEach((group) => {
+    elements.push({
+      type: 'text', x: ARRAY_X, y: arrayY - 8,
+      text: `(${group.count}) ${group.model}`, fontSize: 7, bold: true,
+    })
+    const cols = Math.min(group.count, 6)
+    const rows = Math.ceil(group.count / cols)
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const idx = r * cols + c
+        if (idx >= group.count) break
+        const x = ARRAY_X + c * (moduleW + moduleGap)
+        const y = arrayY + r * (moduleH + moduleGap)
+        elements.push({ type: 'rect', x, y, w: moduleW, h: moduleH, stroke: '#111', strokeWidth: 0.7 })
+        // µinverter glyph — small + on bottom-right
+        elements.push({
+          type: 'line', x1: x + moduleW - 7, y1: y + moduleH - 5,
+          x2: x + moduleW - 2, y2: y + moduleH - 5, strokeWidth: 0.6,
+        })
+        elements.push({
+          type: 'line', x1: x + moduleW - 4.5, y1: y + moduleH - 7.5,
+          x2: x + moduleW - 4.5, y2: y + moduleH - 2.5, strokeWidth: 0.6,
+        })
+      }
+    }
+    arrayY += rows * (moduleH + moduleGap) + groupGap
+  })
+
+  const arrayBlockEndX = ARRAY_X + 6 * (moduleW + moduleGap)
+  const row1WireY = ROW1_Y + 30  // primary current path through Row 1
+
+  // Array → AC trunk wire
+  elements.push({
+    type: 'line', x1: arrayBlockEndX, y1: row1WireY, x2: 280, y2: row1WireY, strokeWidth: 1.2,
+  })
+  elements.push({ type: 'callout', cx: 270, cy: row1WireY - 14, number: 1 })
+
+  // ── ROW 1.B: AC TRUNK ───────────────────────────────────────────────────
+  const trunkX = 280
+  elements.push({
+    type: 'rect', x: trunkX, y: row1WireY - 22, w: 110, h: 50,
+    stroke: '#111', strokeWidth: 0.8, dash: true,
+  })
+  elements.push({ type: 'text', x: trunkX + 55, y: row1WireY - 8, text: 'AC TRUNK', fontSize: 7, bold: true, anchor: 'middle' })
+  elements.push({ type: 'text', x: trunkX + 55, y: row1WireY + 4, text: '(microinverter-', fontSize: 5, fill: '#555', anchor: 'middle' })
+  elements.push({ type: 'text', x: trunkX + 55, y: row1WireY + 12, text: 'integrated RSD)', fontSize: 5, fill: '#555', anchor: 'middle' })
+  elements.push({ type: 'text', x: trunkX + 55, y: row1WireY + 22, text: 'NEC 690.12(B)(2)(a)', fontSize: 4.5, fill: '#888', anchor: 'middle' })
+  elements.push({ type: 'callout', cx: trunkX + 120, cy: row1WireY - 30, number: 2 })
+
+  // Trunk → AC J-Box wire
+  elements.push({
+    type: 'line', x1: trunkX + 110, y1: row1WireY, x2: 430, y2: row1WireY, strokeWidth: 1.2,
+  })
+
+  // ── ROW 1.C: AC JUNCTION BOX ────────────────────────────────────────────
+  const jboxX = 430
+  elements.push({
+    type: 'rect', x: jboxX, y: row1WireY - 18, w: 80, h: 36, stroke: '#111', strokeWidth: 1,
+  })
+  elements.push({ type: 'text', x: jboxX + 40, y: row1WireY - 4, text: '(N) AC J-BOX', fontSize: 6.5, bold: true, anchor: 'middle' })
+  elements.push({ type: 'text', x: jboxX + 40, y: row1WireY + 8, text: 'NEMA 3R', fontSize: 5, fill: '#555', anchor: 'middle' })
+  elements.push({ type: 'callout', cx: jboxX + 90, cy: row1WireY - 26, number: 3 })
+
+  // J-Box → AC Load Center wire
+  elements.push({
+    type: 'line', x1: jboxX + 80, y1: row1WireY, x2: 560, y2: row1WireY, strokeWidth: 1.2,
+  })
+
+  // ── ROW 1.D: AC LOAD CENTER (anchors the row 1→2 vertical bus) ──────────
+  const lcX = 560
+  const lcY = row1WireY - 30
+  const lcH = 80
+  elements.push({ type: 'rect', x: lcX, y: lcY, w: 110, h: lcH, stroke: '#111', strokeWidth: 1.2 })
+  elements.push({ type: 'text', x: lcX + 55, y: lcY + 14, text: '(N) AC LOAD CENTER', fontSize: 6.5, bold: true, anchor: 'middle' })
+  elements.push({ type: 'breaker', x: lcX + 30, y: lcY + 32, label: 'PV', amps: `${config.backfeedBreakerA ?? 60}A` })
+  elements.push({ type: 'breaker', x: lcX + 80, y: lcY + 32, label: 'BAT', amps: '60A' })
+  elements.push({ type: 'text', x: lcX + 55, y: lcY + 70, text: '120/240V 1Φ 3W', fontSize: 5, fill: '#555', anchor: 'middle' })
+  elements.push({ type: 'callout', cx: lcX + 120, cy: lcY + 5, number: 4 })
+
+  // ── VERTICAL BUS: Row 1 LC → Row 2 distribution ─────────────────────────
+  const busX = lcX + 55  // center of load center
+  const row2WireY = ROW2_Y + 30
+  elements.push({
+    type: 'line', x1: busX, y1: lcY + lcH, x2: busX, y2: row2WireY, strokeWidth: 1.5,
+  })
+
+  // ── ROW 2.A: AC BATT DISC + Sonnen ESS (LEFT of bus) ────────────────────
+  const battX = 280
+  const battY = ROW2_Y
+  elements.push({ type: 'rect', x: battX, y: battY, w: 100, h: 60, stroke: '#111', strokeWidth: 1 })
+  elements.push({ type: 'text', x: battX + 50, y: battY + 14, text: '(N) AC BATT DISC', fontSize: 6, bold: true, anchor: 'middle' })
+  elements.push({ type: 'disconnect', x: battX + 25, y: battY + 26, label: '60A' })
+  elements.push({ type: 'text', x: battX + 50, y: battY + 48, text: config.batteryModel, fontSize: 4.5, fill: '#555', anchor: 'middle' })
+  elements.push({ type: 'callout', cx: battX - 10, cy: battY + 5, number: 6 })
+  // Bus → battery disc wire (right-to-left)
+  elements.push({
+    type: 'line', x1: busX, y1: row2WireY, x2: battX + 100, y2: row2WireY, strokeWidth: 1.2,
+  })
+
+  // ── ROW 2.B: MSP (RIGHT of bus) ─────────────────────────────────────────
+  const mspX = 700
+  const mspY = ROW2_Y - 10
+  const mspH = 90
+  elements.push({ type: 'rect', x: mspX, y: mspY, w: 110, h: mspH, stroke: '#111', strokeWidth: 1.2 })
+  elements.push({ type: 'text', x: mspX + 55, y: mspY + 14, text: '(E) MSP', fontSize: 7, bold: true, anchor: 'middle' })
+  elements.push({ type: 'text', x: mspX + 55, y: mspY + 26, text: `${config.mainBreakerA ?? 200}A MAIN`, fontSize: 5.5, anchor: 'middle' })
+  elements.push({ type: 'breaker', x: mspX + 35, y: mspY + 42, label: 'PV', amps: `${config.backfeedBreakerA ?? 60}A` })
+  elements.push({ type: 'text', x: mspX + 55, y: mspY + 78, text: 'BACKFED PER NEC 705.12(B)(2)(b)', fontSize: 4, fill: '#888', anchor: 'middle' })
+  elements.push({ type: 'callout', cx: mspX + 120, cy: mspY + 5, number: 5 })
+  // Bus → MSP wire
+  elements.push({
+    type: 'line', x1: busX, y1: row2WireY, x2: mspX, y2: row2WireY, strokeWidth: 1.5,
+  })
+  // MSP grounding
+  elements.push({ type: 'ground', x: mspX + 55, y: mspY + mspH + 5 })
+  elements.push({ type: 'text', x: mspX + 70, y: mspY + mspH + 10, text: 'GEC #6 CU TO ROD', fontSize: 4.5, fill: '#666' })
+
+  // ── ROW 2.C: DPCRGM (legacy revenue meter) ──────────────────────────────
+  const meterChainY = mspY + 30
+  let nextX = mspX + 110
+  if (config.hasRgm !== false) {
+    const rgmX = nextX + 30
+    elements.push({ type: 'rect', x: rgmX, y: meterChainY - 16, w: 70, h: 32, stroke: '#111', strokeWidth: 1 })
+    elements.push({ type: 'text', x: rgmX + 35, y: meterChainY - 2, text: 'DPCRGM', fontSize: 6.5, bold: true, anchor: 'middle' })
+    elements.push({ type: 'text', x: rgmX + 35, y: meterChainY + 8, text: 'PC-PRO-RGM', fontSize: 4.5, fill: '#555', anchor: 'middle' })
+    elements.push({
+      type: 'line', x1: nextX, y1: meterChainY, x2: rgmX, y2: meterChainY, strokeWidth: 1.2,
+    })
+    elements.push({ type: 'callout', cx: rgmX + 78, cy: meterChainY - 24, number: 7 })
+    nextX = rgmX + 70
+  }
+
+  // ── ROW 2.D: UTILITY METER ──────────────────────────────────────────────
+  const umX = nextX + 30
+  elements.push({ type: 'circle', cx: umX + 16, cy: meterChainY, r: 18, strokeWidth: 1.5 })
+  elements.push({ type: 'text', x: umX + 16, y: meterChainY + 4, text: 'M', fontSize: 12, bold: true, anchor: 'middle' })
+  elements.push({ type: 'text', x: umX + 16, y: meterChainY + 30, text: 'UTILITY METER', fontSize: 5, fill: '#555', anchor: 'middle' })
+  elements.push({ type: 'text', x: umX + 16, y: meterChainY + 38, text: config.meter || 'METER #', fontSize: 4.5, fill: '#888', anchor: 'middle' })
+  elements.push({
+    type: 'line', x1: nextX, y1: meterChainY, x2: umX, y2: meterChainY, strokeWidth: 1.2,
+  })
+  elements.push({ type: 'callout', cx: umX + 35, cy: meterChainY - 26, number: 8 })
+
+  // ── NOTES BLOCK ─────────────────────────────────────────────────────────
+  const notesY = ROW2_Y + 130
+  elements.push({ type: 'rect', x: 30, y: notesY, w: 800, h: 70, stroke: '#111', strokeWidth: 0.8 })
+  elements.push({ type: 'text', x: 38, y: notesY + 12, text: 'NOTES (MICRO-INVERTER):', fontSize: 7, bold: true })
+  const notes = [
+    '1. RAPID SHUTDOWN COMPLIANT PER NEC 690.12(B)(2)(a) — RSD INTEGRATED PER MICROINVERTER',
+    '2. AC TRUNK CABLE: ENPHASE Q-CABLE 240V OR EQUIV; PROTECTED PER NEC 705.28',
+    '3. BATTERY AC-COUPLED VIA SEPARATE AC DISCONNECT — NOT DC-COUPLED INSIDE PV INVERTER',
+    '4. DPCRGM (REVENUE GRADE METER) PER UTILITY INTERCONNECT AGREEMENT',
+    '5. ALL LABELS PER NEC 705.10 / 705.12 / 706.30',
+  ]
+  notes.forEach((n, i) => {
+    elements.push({ type: 'text', x: 38, y: notesY + 22 + i * 8, text: n, fontSize: 5.5, fill: '#222' })
+  })
+
+  // ── BOUNDS + TRANSLATION (preserved from v3) ────────────────────────────
+  const xs: number[] = []
+  const ys: number[] = []
+  for (const el of elements) {
+    if ('x' in el && typeof el.x === 'number') {
+      xs.push(el.x)
+      if ('w' in el && typeof el.w === 'number') xs.push(el.x + el.w)
+    }
+    if ('y' in el && typeof el.y === 'number') {
+      ys.push(el.y)
+      if ('h' in el && typeof el.h === 'number') ys.push(el.y + el.h)
+    }
+    if ('cx' in el && typeof el.cx === 'number') {
+      const r = ('r' in el && typeof el.r === 'number') ? el.r : 0
+      xs.push(el.cx - r, el.cx + r)
+    }
+    if ('cy' in el && typeof el.cy === 'number') {
+      const r = ('r' in el && typeof el.r === 'number') ? el.r : 0
+      ys.push(el.cy - r, el.cy + r)
+    }
+    if ('x1' in el && typeof el.x1 === 'number') xs.push(el.x1)
+    if ('x2' in el && typeof el.x2 === 'number') xs.push(el.x2)
+    if ('y1' in el && typeof el.y1 === 'number') ys.push(el.y1)
+    if ('y2' in el && typeof el.y2 === 'number') ys.push(el.y2)
+  }
+  const minX = Math.min(...xs) - 20
+  const minY = Math.min(...ys) - 20
+  const maxX = Math.max(...xs) + 20
+  const maxY = Math.max(...ys) + 20
+  const dx = -minX
+  const dy = -minY
+  const translated = elements.map(el => {
+    const e = { ...el } as Record<string, unknown>
+    if (typeof e.x === 'number') e.x = (e.x as number) + dx
+    if (typeof e.y === 'number') e.y = (e.y as number) + dy
+    if (typeof e.cx === 'number') e.cx = (e.cx as number) + dx
+    if (typeof e.cy === 'number') e.cy = (e.cy as number) + dy
+    if (typeof e.x1 === 'number') e.x1 = (e.x1 as number) + dx
+    if (typeof e.x2 === 'number') e.x2 = (e.x2 as number) + dx
+    if (typeof e.y1 === 'number') e.y1 = (e.y1 as number) + dy
+    if (typeof e.y2 === 'number') e.y2 = (e.y2 as number) + dy
+    return e as SldElement
+  })
+
+  return {
+    width: maxX - minX,
+    height: maxY - minY,
+    elements: translated,
+  }
 }

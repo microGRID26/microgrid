@@ -3,6 +3,11 @@ import type { PlansetData } from '@/lib/planset-types'
 import { TitleBlockHtml } from './TitleBlockHtml'
 
 export function SheetPV7({ data }: { data: PlansetData }) {
+  // F2 (v3) — micro-inverter installs have no DC disconnect (RSD integrated
+  // per microinverter, NEC 690.12(B)(2)(a)) and no string-level DC voltages
+  // exposed at panel level. Suppress the DC label blocks for those topologies.
+  const isMicroInverter = data.systemTopology === 'micro-inverter'
+
   const maxVocCold = data.strings.length > 0
     ? Math.max(...data.strings.map(s => s.vocCold)).toFixed(1) : '0.0'
   const totalAcAmps = (data.inverterAcPower * 1000 / 240).toFixed(1)
@@ -177,23 +182,42 @@ export function SheetPV7({ data }: { data: PlansetData }) {
                     catalogs="596-00499, 596-00664, 596-00832"
                     nec="NEC 110.27(C), OSHA 1910.145(f)(7)"
                   />
-                  <InfoSticker
-                    title="PV/AC AGGREGATE PANEL"
-                    body={<>DO NOT REMOVE, ADD OR RELOCATE ANY CIRCUITS FROM THIS PANEL.</>}
-                    nec="NEC 408.4"
-                  />
-                  <InfoSticker
-                    title="PHOTOVOLTAIC SYSTEM DC DISCONNECT"
-                    body={
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '3px' }}>
-                        <ValueBox label="OPERATING CURRENT" value={`${data.panelImp.toFixed(2)}A`} />
-                        <ValueBox label="OPERATING VOLTAGE" value={`${(data.panelVmp * (data.strings[0]?.modules || 1)).toFixed(1)}V`} />
-                        <ValueBox label="MAX SYSTEM VOLTAGE" value={`${maxVocCold}V`} />
-                        <ValueBox label="SHORT CIRCUIT CURRENT" value={`${sccLabel}A`} />
-                      </div>
-                    }
-                    nec="NEC 690.53"
-                  />
+                  {/* F2 (v3) — DC labels suppressed for micro-inverter topology.
+                      Substituted with RAPID SHUTDOWN INTEGRATED notice per
+                      NEC 690.12(B)(2)(a). String-MPPT path keeps existing labels. */}
+                  {!isMicroInverter ? (
+                    <>
+                      <InfoSticker
+                        title="PV/AC AGGREGATE PANEL"
+                        body={<>DO NOT REMOVE, ADD OR RELOCATE ANY CIRCUITS FROM THIS PANEL.</>}
+                        nec="NEC 408.4"
+                      />
+                      <InfoSticker
+                        title="PHOTOVOLTAIC SYSTEM DC DISCONNECT"
+                        body={
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '3px' }}>
+                            <ValueBox label="OPERATING CURRENT" value={`${data.panelImp.toFixed(2)}A`} />
+                            <ValueBox label="OPERATING VOLTAGE" value={`${(data.panelVmp * (data.strings[0]?.modules || 1)).toFixed(1)}V`} />
+                            <ValueBox label="MAX SYSTEM VOLTAGE" value={`${maxVocCold}V`} />
+                            <ValueBox label="SHORT CIRCUIT CURRENT" value={`${sccLabel}A`} />
+                          </div>
+                        }
+                        nec="NEC 690.53"
+                      />
+                    </>
+                  ) : (
+                    <InfoSticker
+                      title="RAPID SHUTDOWN INTEGRATED"
+                      body={
+                        <>
+                          NO DC DISCONNECT REQUIRED — RAPID SHUTDOWN IS INTEGRATED PER MICROINVERTER.
+                          INITIATED BY UTILITY DISCONNECT OPERATION. NO STRING-LEVEL DC VOLTAGES
+                          EXPOSED AT PANEL — DC CONNECTIONS REMAIN INTERNAL TO EACH MICROINVERTER.
+                        </>
+                      }
+                      nec="NEC 690.12(B)(2)(a)"
+                    />
+                  )}
                 </div>
               </td>
             </tr>

@@ -64,7 +64,7 @@ export const MICROGRID_CONTRACTOR = {
   city: 'Houston, TX 77073',
   phone: '(832) 280-7764',
   email: 'engineering@microgridenergy.com',
-  license: '32259',
+  license: '41312',
 }
 
 // ── Panel Presets ─────────────────────────────────────────────────────────
@@ -219,6 +219,31 @@ export interface PlansetRoofFace {
     rake: boolean
     pathClear: 'walkable' | 'partial' | 'blocked'
   }
+}
+
+// ── Revisions / callouts / inverter mix (Phase 1 — Tyson rebuild scope) ───
+
+/** Revision history entry — surfaced in title block + revision-table sheets. */
+export interface PlansetRevision {
+  rev: number
+  date: string
+  note: string
+}
+
+/** Equipment callout overlay on the site plan. Coords in normalized 0–1 space. */
+export interface PlansetEquipmentCallout {
+  id: number
+  label: string
+  x: number
+  y: number
+  leaderTo?: [number, number]
+}
+
+/** Inverter mix entry — supports legacy installs with multiple inverter models. */
+export interface PlansetInverterMixEntry {
+  model: string
+  count: number
+  acKw: number
 }
 
 // ── Racking Detail ─────────────────────────────────────────────────────────
@@ -389,6 +414,14 @@ export interface PlansetData {
   // Sheet metadata
   sheetTotal: number
   drawnDate: string
+
+  // ── Phase 1 — title-block / SLD topology / site-plan callouts (optional) ──
+  // All defaulted in buildPlansetData() so existing fixtures don't break.
+  drawnBy?: string
+  revisions?: PlansetRevision[]
+  sheetSize?: string
+  equipmentCallouts?: PlansetEquipmentCallout[]
+  inverterMix?: PlansetInverterMixEntry[]
 }
 
 // ── Build function ─────────────────────────────────────────────────────────
@@ -481,12 +514,74 @@ export interface PlansetOverrides {
   // (no known sizing issue). Set true on a per-project basis only after wire
   // size has been independently verified against the manufacturer spec sheet.
   batteryDcSizingVerified?: boolean
+
+  // ── Phase 1 — Tyson-rebuild override map ─────────────────────────────────
+  // Two project DB row overrides + four title-block / sheet-metadata overrides
+  // + the inverter-mix override for legacy installs.
+  mspBusRating?: string
+  meter?: string
+  drawnBy?: string
+  revisions?: PlansetRevision[]
+  sheetSize?: string
+  equipmentCallouts?: PlansetEquipmentCallout[]
+  inverterMix?: PlansetInverterMixEntry[]
+}
+
+// ── TEMP (Phase 1 v2 validation) — Tyson PROJ-26922 as-built overrides ────
+// Remove this block + the conditional merge below before any commit.
+// Used to exercise calculateSldLayoutMicroInverter() end-to-end for screenshot
+// validation since polygon/overrides DB persistence (greg_action #446) hasn't
+// shipped yet.
+const __TYSON_OVERRIDES_TEMP: PlansetOverrides = {
+  mspBusRating: '225',
+  meter: '66 317 844',
+  systemTopology: 'micro-inverter',
+  panelModel: 'Hyperion HY-DH108P8 405W',
+  panelWattage: 405,
+  panelCount: 17,
+  panelVoc: 37.32,
+  panelVmp: 31.21,
+  panelIsc: 13.65,
+  panelImp: 12.98,
+  inverterModel: 'Duracell D700-M2',
+  inverterCount: 9,
+  inverterAcPower: 0.7,
+  inverterMix: [
+    { model: 'Duracell D700-M2', count: 8, acKw: 0.7 },
+    { model: 'Duracell D350-M1', count: 1, acKw: 0.35 },
+  ],
+  batteryModel: 'Sonnen SonnenCORE+ SCORE-P20',
+  batteryCount: 1,
+  batteryCapacity: 20,
+  batteriesPerStack: 1,
+  rapidShutdownModel: 'INTEGRATED',
+  hasCantexBar: false,
+  hasRgm: true,
+  drawnBy: 'MicroGRID',
+  revisions: [
+    { rev: 0, date: '02/14/2025', note: 'Initial issue' },
+    { rev: 1, date: '02/24/2025', note: 'MSP upgrade per AHJ comment + Sonnen disconnect relocation' },
+  ],
+  equipmentCallouts: [
+    { id: 1, label: '(N) AC J-BOX', x: 0.55, y: 0.42 },
+    { id: 2, label: '(N) AC LOAD CENTER', x: 0.62, y: 0.50 },
+    { id: 3, label: '(N) AC BATT DISC', x: 0.62, y: 0.62 },
+    { id: 4, label: '(N) SONNEN ESS', x: 0.71, y: 0.62 },
+    { id: 5, label: '(E) MSP 225A', x: 0.78, y: 0.50 },
+    { id: 6, label: '(E) DPCRGM', x: 0.86, y: 0.50 },
+    { id: 7, label: '(E) UTILITY METER', x: 0.92, y: 0.50 },
+    { id: 8, label: "(N) GEN DISC < 10' MTR", x: 0.92, y: 0.62 },
+  ],
 }
 
 /**
  * Merge project DB data + equipment defaults + redesign overrides into PlansetData.
  */
 export function buildPlansetData(project: Project, overrides: PlansetOverrides = {}): PlansetData {
+  // TEMP — see __TYSON_OVERRIDES_TEMP above. Remove before commit.
+  if (project.id === 'PROJ-26922') {
+    overrides = { ...__TYSON_OVERRIDES_TEMP, ...overrides }
+  }
   const d = DURACELL_DEFAULTS
 
   const panelWattage = overrides.panelWattage ?? d.panelWattage
@@ -505,7 +600,7 @@ export function buildPlansetData(project: Project, overrides: PlansetOverrides =
   const batteryCount = overrides.batteryCount ?? d.batteryCount
   const batteryCapacity = overrides.batteryCapacity ?? d.batteryCapacity
   const panelVoc = overrides.panelVoc ?? d.panelVoc
-  const mspBusRating = String(project.msp_bus_rating ?? '200').replace(/\s*A$/i, '').trim()
+  const mspBusRating = overrides.mspBusRating ?? String(project.msp_bus_rating ?? '200').replace(/\s*A$/i, '').trim()
   const mainBreakerNum = String(project.main_breaker ?? mspBusRating).replace(/\s*A$/i, '').trim()
 
   // NEC 240.6(A) standard OCPD sizes — breakers above 30A skip values like 45/55/65/75/85/95
@@ -635,7 +730,7 @@ export function buildPlansetData(project: Project, overrides: PlansetOverrides =
     state: 'TX',
     zip: project.zip ?? '',
     utility: project.utility ?? '',
-    meter: project.meter_number ?? '',
+    meter: overrides.meter ?? project.meter_number ?? '',
     esid: ((): string => {
       const raw: unknown = project.esid
       if (raw == null) return ''
@@ -737,5 +832,51 @@ export function buildPlansetData(project: Project, overrides: PlansetOverrides =
     batteryDcSizingVerified,
     sheetTotal: 10,  // base count — page.tsx overrides when enhanced mode adds sheets
     drawnDate,
+
+    // ── Phase 1 — title-block / SLD topology / site-plan callouts ─────────
+    drawnBy: overrides.drawnBy ?? 'MicroGRID',
+    sheetSize: overrides.sheetSize ?? 'ANSI B (11"×17")',
+    revisions: overrides.revisions ?? [{ rev: 0, date: drawnDate, note: 'Initial issue' }],
+    equipmentCallouts: overrides.equipmentCallouts ?? [],
+    inverterMix: overrides.inverterMix,  // explicit undefined preserved — no default
+  }
+}
+
+// ── Phase 1 helpers ────────────────────────────────────────────────────────
+
+/**
+ * For sheets that need a single representative inverter model when a mix is
+ * present (e.g. PV-1 cover summary, BOM grouping). Returns the entry with the
+ * highest total AC (count × acKw) — the dominant inverter for the install.
+ */
+export function dominantInverter(
+  mix: PlansetInverterMixEntry[] | undefined,
+): PlansetInverterMixEntry | null {
+  if (!mix || mix.length === 0) return null
+  return mix.reduce((winner, m) =>
+    m.count * m.acKw > winner.count * winner.acKw ? m : winner,
+  )
+}
+
+/**
+ * When inverterMix is populated, validate consistency with the singular
+ * inverterModel/inverterCount fields. Throws (development) or warns (production)
+ * on mismatch — caller decides which based on env.
+ */
+export function validateInverterMix(
+  data: { inverterModel: string; inverterCount: number; inverterMix?: PlansetInverterMixEntry[] },
+): void {
+  const mix = data.inverterMix
+  if (!mix || mix.length === 0) return
+  const totalCount = mix.reduce((acc, m) => acc + m.count, 0)
+  if (totalCount !== data.inverterCount) {
+    const msg = `[planset-types] inverterMix count sum (${totalCount}) does not match data.inverterCount (${data.inverterCount}).`
+    if (process.env.NODE_ENV === 'development') throw new Error(msg)
+    else console.warn(msg)
+  }
+  if (mix.length === 1 && mix[0].model !== data.inverterModel) {
+    const msg = `[planset-types] single-entry inverterMix model "${mix[0].model}" does not match data.inverterModel "${data.inverterModel}".`
+    if (process.env.NODE_ENV === 'development') throw new Error(msg)
+    else console.warn(msg)
   }
 }
