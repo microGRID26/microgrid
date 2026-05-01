@@ -68,6 +68,28 @@ export interface Project {
   energy_community: boolean
   org_id: string | null
   created_at: string
+  /** Persisted planset generator state (polygon edits, OverridesPanel, image
+   *  URLs). Schema = { overrides, strings, roofFaces, images }. NULL = no
+   *  overrides; planset uses defaults. Migration 211 / greg_actions #446.
+   *  Optional in the type so legacy Project literals (tests, seed data)
+   *  don't all need updating; runtime selects from DB always include it. */
+  planset_overrides?: PlansetOverridesPayload | null
+}
+
+/** Shape of the persisted planset overrides JSONB blob. Mirrors the runtime
+ *  state held by /planset/page.tsx — kept loose (Record<string, unknown>) so
+ *  schema drift on the planset side doesn't break the DB type contract. */
+export interface PlansetOverridesPayload {
+  overrides?: Record<string, unknown>
+  strings?: unknown[]
+  roofFaces?: unknown[]
+  images?: {
+    sitePlanImageUrl?: string | null
+    roofPlanImageUrl?: string | null
+    aerialPhotoUrl?: string | null
+    housePhotoUrl?: string | null
+    equipmentPhotos?: (string | null)[]
+  }
 }
 
 export interface Note {

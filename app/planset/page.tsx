@@ -440,6 +440,36 @@ function PlanSetPageInner() {
   })
   const [driveStatus, setDriveStatus] = useState<{ state: 'idle' | 'loading' | 'success' | 'error', matched?: number, message?: string } | null>(null)
 
+  // Snapshot of the last persisted (or just-loaded) planset state. Used by
+  // the debounced save effect to skip POSTs when nothing actually changed
+  // — without this guard, every loadProject would fire a no-op save that
+  // re-writes what was just hydrated. (#446)
+  const savedSnapshotRef = useRef<string>('')
+
+  // Refs that mirror the latest planset state. loadProject reads these for
+  // its fallback paths so the useCallback deps can stay narrow; without the
+  // ref indirection, loadProject closes over stale state slices and either
+  // (a) misuses old fallbacks or (b) needs the slices in its dep list, which
+  // would re-create loadProject on every edit and cause the mount-effect to
+  // re-run with the same urlProject — a re-load loop. R2 audit Medium-2 fix.
+  const overridesRef = useRef(overrides)
+  const roofFacesRef = useRef(roofFaces)
+  const imagesRef = useRef(images)
+  useEffect(() => { overridesRef.current = overrides }, [overrides])
+  useEffect(() => { roofFacesRef.current = roofFaces }, [roofFaces])
+  useEffect(() => { imagesRef.current = images }, [images])
+
+  // Stable stringify (recursive key sort) so snapshot equality doesn't false-
+  // negative when React-batched setOverrides/setStrings/etc emit the same
+  // logical state with different key insertion order. R2 audit Medium-3 fix.
+  const stableStringify = useCallback((v: unknown): string => {
+    if (v === null || typeof v !== 'object') return JSON.stringify(v)
+    if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']'
+    const obj = v as Record<string, unknown>
+    const keys = Object.keys(obj).sort()
+    return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify(obj[k])).join(',') + '}'
+  }, [])
+
   const loadProject = useCallback(async (id: string) => {
     setLoading(true)
     try {
@@ -450,16 +480,41 @@ function PlanSetPageInner() {
         return
       }
 
-      const panelCount = overrides.panelCount ?? project.module_qty ?? 0
+      // Hydrate persisted overrides from projects.planset_overrides (#446).
+      // Seed runtime state BEFORE building plansetData so the buildPlansetData
+      // call below sees the saved polygons / strings / overrides instead of
+      // the empty-default state. Each branch falls through to defaults when
+      // the persisted blob is missing or malformed.
+      const saved = project.planset_overrides ?? null
+      const savedOverrides = (saved?.overrides ?? null) as PlansetOverrides | null
+      const savedStrings = (saved?.strings ?? null) as PlansetString[] | null
+      const savedRoofFaces = (saved?.roofFaces ?? null) as PlansetRoofFace[] | null
+      const savedImages = saved?.images ?? null
+
+      // Apply saved state to React state up-front. Subsequent reloads of the
+      // same project see the same polygons/strings; new projects start clean.
+      if (savedOverrides) setOverrides(savedOverrides)
+      if (savedImages) {
+        setImages({
+          sitePlanImageUrl: savedImages.sitePlanImageUrl ?? null,
+          roofPlanImageUrl: savedImages.roofPlanImageUrl ?? null,
+          aerialPhotoUrl: savedImages.aerialPhotoUrl ?? null,
+          housePhotoUrl: savedImages.housePhotoUrl ?? null,
+          equipmentPhotos: savedImages.equipmentPhotos ?? [null, null, null, null],
+        })
+      }
+
+      const effectiveOverrides = savedOverrides ?? overridesRef.current
+      const panelCount = effectiveOverrides.panelCount ?? project.module_qty ?? 0
       const d = DURACELL_DEFAULTS
-      const panelVoc = overrides.panelVoc ?? d.panelVoc
+      const panelVoc = effectiveOverrides.panelVoc ?? d.panelVoc
       const absCoeff = Math.abs(d.vocTempCoeff / 100)
       const vocCorrected = panelVoc * (1 + absCoeff * (25 - d.designTempLow))
-      const panelVmp = overrides.panelVmp ?? d.panelVmp
-      const panelImp = overrides.panelImp ?? d.panelImp
-      const inverterCount = overrides.inverterCount ?? project.inverter_qty ?? d.inverterCount
-      const mpptsPerInverter = overrides.mpptsPerInverter ?? d.mpptsPerInverter
-      const stringsPerMppt = overrides.stringsPerMppt ?? d.stringsPerMppt
+      const panelVmp = effectiveOverrides.panelVmp ?? d.panelVmp
+      const panelImp = effectiveOverrides.panelImp ?? d.panelImp
+      const inverterCount = effectiveOverrides.inverterCount ?? project.inverter_qty ?? d.inverterCount
+      const mpptsPerInverter = effectiveOverrides.mpptsPerInverter ?? d.mpptsPerInverter
+      const stringsPerMppt = effectiveOverrides.stringsPerMppt ?? d.stringsPerMppt
       const maxVoc = d.maxVoc // Duracell Max Hybrid: 500V max input voltage
 
       const autoStrings = autoDistributeStrings(
@@ -467,14 +522,46 @@ function PlanSetPageInner() {
         inverterCount, mpptsPerInverter, stringsPerMppt, maxVoc
       )
 
-      const finalStrings = overrides.strings ?? autoStrings
+      // Saved strings override auto-distributed; saved roof faces override
+      // auto-derived. Falls through to defaults when nothing is saved yet.
+      const finalStrings = savedStrings ?? effectiveOverrides.strings ?? autoStrings
       setStrings(finalStrings)
 
-      const plansetData = buildPlansetData(project, { ...overrides, strings: finalStrings, roofFaces: roofFaces.length > 0 ? roofFaces : undefined, sitePlanImageUrl: images.sitePlanImageUrl ?? undefined })
+      const effectiveRoofFaces = savedRoofFaces ?? (roofFacesRef.current.length > 0 ? roofFacesRef.current : undefined)
+      const effectiveSitePlan =
+        savedImages?.sitePlanImageUrl ?? imagesRef.current.sitePlanImageUrl ?? undefined
+
+      const plansetData = buildPlansetData(project, {
+        ...effectiveOverrides,
+        strings: finalStrings,
+        roofFaces: effectiveRoofFaces,
+        sitePlanImageUrl: effectiveSitePlan,
+      })
       plansetData.sheetTotal = computeSheetTotal(enhanced)
-      setRoofFaces(plansetData.roofFaces)
+      // If we have saved polygons, prefer them; otherwise let buildPlansetData's
+      // auto-derivation seed roofFaces from string assignments.
+      const finalRoofFaces = savedRoofFaces ?? plansetData.roofFaces
+      setRoofFaces(finalRoofFaces)
       setData(plansetData)
       setProjectId(id)
+      // Seed the save-effect's snapshot guard to the state we just hydrated
+      // so the next state batch doesn't trigger a redundant POST that re-saves
+      // exactly what we just loaded. stableStringify so key-order changes
+      // across React batches don't false-trigger the effect.
+      savedSnapshotRef.current = stableStringify({
+        overrides: savedOverrides ?? overridesRef.current,
+        strings: finalStrings,
+        roofFaces: finalRoofFaces,
+        images: savedImages
+          ? {
+              sitePlanImageUrl: savedImages.sitePlanImageUrl ?? null,
+              roofPlanImageUrl: savedImages.roofPlanImageUrl ?? null,
+              aerialPhotoUrl: savedImages.aerialPhotoUrl ?? null,
+              housePhotoUrl: savedImages.housePhotoUrl ?? null,
+              equipmentPhotos: savedImages.equipmentPhotos ?? [null, null, null, null],
+            }
+          : imagesRef.current,
+      })
     } catch (err) {
       handleApiError(err, '[planset] loadProject')
       setToast({ message: 'Failed to load project', type: 'error' })
@@ -482,7 +569,11 @@ function PlanSetPageInner() {
     } finally {
       setLoading(false)
     }
-  }, [overrides, roofFaces, images.sitePlanImageUrl])
+    // Deps narrowed: loadProject reads overrides / roofFaces / images via
+    // their refs, so the function identity stays stable even when those
+    // slices change. enhanced + stableStringify are the only true reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enhanced, stableStringify])
 
   useEffect(() => {
     const urlProject = searchParams.get('project')
@@ -490,6 +581,42 @@ function PlanSetPageInner() {
       loadProject(urlProject)
     }
   }, [searchParams, projectId, loadProject])
+
+  // Persist planset state to projects.planset_overrides on edit (#446).
+  // Debounced 1.5s so a polygon-drawing session doesn't fire 60 writes; the
+  // 60/min/user rate limit still gives a wide ceiling. Skip the save when
+  // there's no projectId (initial mount before loadProject), and skip the
+  // first effect after loadProject (the state we just set IS the saved
+  // state — re-saving it is wasted writes). savedSnapshotRef is seeded
+  // synchronously inside loadProject so the rehydration pass doesn't POST.
+  useEffect(() => {
+    if (!projectId) return
+    const snapshot = stableStringify({ overrides, strings, roofFaces, images })
+    if (snapshot === savedSnapshotRef.current) return
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/planset/save-overrides', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ project_id: projectId, payload: { overrides, strings, roofFaces, images } }),
+        })
+        if (res.ok) {
+          savedSnapshotRef.current = snapshot
+        } else {
+          // Surface failure to the user — silent persistence loss is the bug
+          // this whole feature is fixing. Generic message so we don't leak
+          // server error text to the UI; full body to the console for debug.
+          const body = await res.json().catch(() => ({}))
+          console.error('[planset] save-overrides failed', res.status, body)
+          setToast({ message: 'Failed to save planset edits — try again', type: 'error' })
+          setTimeout(() => setToast(null), 4000)
+        }
+      } catch (err) {
+        handleApiError(err, '[planset] save-overrides')
+      }
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [projectId, overrides, strings, roofFaces, images, stableStringify])
 
   const rebuildData = useCallback(async () => {
     if (!projectId) return
