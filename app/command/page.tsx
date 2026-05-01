@@ -8,6 +8,7 @@ import { handleApiError } from '@/lib/errors'
 import { daysAgo, fmt$, fmtDate, STAGE_LABELS, STAGE_ORDER, STAGE_TASKS } from '@/lib/utils'
 import { MetricCard, ActionRow, ActionSection, PipelineBar } from './components/CommandWidgets'
 import { ExportModal } from './components/ExportModal'
+import { SalesPulseCard } from './components/SalesPulseCard'
 import { classify, getStuckTasks } from '@/lib/classify'
 import type { TaskEntry } from '@/lib/classify'
 import { ProjectPanel } from '@/components/project/ProjectPanel'
@@ -550,6 +551,11 @@ export default function CommandPage() {
       {/* ── MAIN SCROLLABLE CONTENT ───────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
+
+          {/* Sales pulse — admin / non-sales only (sales reps see their own pipeline) */}
+          {!currentUser?.isSales && (
+            <SalesPulseCard onRepClick={(rep) => setSearch(rep)} />
+          )}
 
           {/* ── ACTION ITEMS ──────────────────────────────────────────── */}
           <div className="space-y-3">
