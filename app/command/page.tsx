@@ -552,8 +552,10 @@ export default function CommandPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
 
-          {/* Sales pulse — admin / non-sales only (sales reps see their own pipeline) */}
-          {!currentUser?.isSales && (
+          {/* Sales pulse — admin/manager only. Rep-level production is comp-sensitive;
+              don't render for installers / construction / scheduling roles even though
+              they have /command access. (R2 red-team High.) */}
+          {currentUser?.isManager && (
             <SalesPulseCard onRepClick={(rep) => setSearch(rep)} />
           )}
 

@@ -32,11 +32,14 @@ export function SalesPulseCard({ onRepClick }: { onRepClick?: (rep: string) => v
       // Cap at 5000: 30-day window × ~2 sales/day/rep × ~80 reps = headroom for 10K+ project scale.
       // If we hit the cap, the sparkline silently truncates older days — acceptable since today/week
       // counts will be correct (newest first ordering).
+      // Exclusion list mirrors the activeProjects filter on /command (page.tsx) so the Sales Pulse
+      // KPI matches the canonical pipeline view. (R2 red-team Medium.)
+      const EXCLUDED_DISPOSITIONS = ['Cancelled', 'In Service', 'Loyalty', 'Legal', 'On Hold']
       const { data, error } = await supabase
         .from('projects')
         .select('sale_date, consultant, advisor')
         .gte('sale_date', since)
-        .neq('disposition', 'Cancelled')
+        .not('disposition', 'in', `(${EXCLUDED_DISPOSITIONS.map(d => `"${d}"`).join(',')})`)
         .order('sale_date', { ascending: false })
         .limit(5000)
       if (cancelled) return

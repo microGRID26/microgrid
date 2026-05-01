@@ -15,6 +15,8 @@ comment on column public.atlas_agents.primary_model is
 
 -- Seed values from the hardcoded AGENT_MODEL map curated 2026-04-30
 -- in lib/intel/agent-display.ts. NULL = explicitly non-LLM.
+-- Only seed where primary_model is currently NULL — protects operator
+-- edits from being overwritten on re-apply (R2 red-team Low fix).
 update public.atlas_agents set primary_model = case slug
   -- ATLAS HQ — LLM agents
   when 'hq-atlas-ambient'        then 'haiku-4-5'
@@ -40,13 +42,14 @@ update public.atlas_agents set primary_model = case slug
   when 'sentinel-digest'         then 'haiku-4-5'
   else primary_model
 end
-where slug in (
-  'hq-atlas-ambient','hq-atlas-chat','hq-feedback-fixer','hq-feedback-monitor',
-  'hq-meeting-ingest','hq-morning-digest','hq-qa-autofix','hq-release-summaries',
-  'hq-spark-test-failures','hq-capture-snapshots','hq-cost-monitor','hq-refresh-cache',
-  'mg-email-digest','mg-email-onboarding-reminder','mg-email-send-daily','mg-qa-runs-cleanup',
-  'sentinel-collect','sentinel-digest'
-);
+where primary_model is null
+  and slug in (
+    'hq-atlas-ambient','hq-atlas-chat','hq-feedback-fixer','hq-feedback-monitor',
+    'hq-meeting-ingest','hq-morning-digest','hq-qa-autofix','hq-release-summaries',
+    'hq-spark-test-failures','hq-capture-snapshots','hq-cost-monitor','hq-refresh-cache',
+    'mg-email-digest','mg-email-onboarding-reminder','mg-email-send-daily','mg-qa-runs-cleanup',
+    'sentinel-collect','sentinel-digest'
+  );
 
 -- RETURNS TABLE shape changes require drop+recreate.
 drop function if exists public.atlas_list_agents_v2();
@@ -139,8 +142,12 @@ as $function$
   order by a.owner_project, a.slug;
 $function$;
 
--- Grants: keep Postgres default (PUBLIC has EXECUTE on new functions) to
--- match the prior function's effective grants (postgres + service_role +
--- PUBLIC). PostgREST calls this from the anon role via PUBLIC.
+-- Supabase strips default PUBLIC EXECUTE on functions in `public`. The prior
+-- atlas_list_agents_v2 worked from the browser only because earlier migrations
+-- explicitly granted EXECUTE to anon + authenticated. After drop+recreate,
+-- those grants vanish. Re-grant explicitly or /intel and AgentFleet will
+-- 'permission denied for function' on every PostgREST call. (Caught by R2
+-- red-team — original migration claim was wrong.)
+grant execute on function public.atlas_list_agents_v2() to anon, authenticated;
 
 commit;
