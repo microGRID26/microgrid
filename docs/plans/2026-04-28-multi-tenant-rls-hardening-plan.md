@@ -27,9 +27,9 @@ Each phase below is independently applicable, independently rollback-able, and g
 | 2 — Drop 11 `auth_full_access` policies + naked-table coverage + legacy SELECT fallback + helper | **applied 2026-04-29** (closes #351) | `191-rls-phase2-drop-auth-full-access.sql` | 2026-04-29 |
 | 3 — Rewrite 53 NULL-bypass v2 policies | **applied 2026-04-29** (closes #350 + #360) | `193-rls-phase3-drop-null-bypass.sql` | 2026-04-29 |
 | 4 — Enforce `org_id NOT NULL` on 9 backfilled tables | **applied 2026-05-02** | `216-rls-phase4-org-id-not-null.sql` | 2026-05-02 |
-| 5 — Add org-scoping to 130+ internal-writer policies | pending | `187_rls_phase5_internal_writer_org_scope.sql` | — |
+| 5 — Add org-scoping to 158 internal-writer policies | **applied 2026-05-02** (closes #352) | `217-rls-phase5a-helpers.sql` + `218-rls-phase5b-needs-org-scope.sql` + `219-rls-phase5c-needs-project-scope.sql` + `220-rls-phase5d-cross-tenant.sql` | 2026-05-02 |
 | 6 — Customer portal coverage gaps + advisor sweep | pending | `188_rls_phase6_finalization.sql` | — |
-| 7 — Performance indexes for new EXISTS predicates | pending | `189_rls_phase7_indexes.sql` | — |
+| 7 — Performance indexes for new EXISTS predicates | **partially shipped in 219**; CONCURRENTLY promotion deferred | `219-rls-phase5c-needs-project-scope.sql` (5 indexes) | 2026-05-02 |
 
 ---
 

@@ -147,6 +147,12 @@ AS $$
     );
 $$;
 
+-- Re-affirm grants. CREATE OR REPLACE preserves existing privileges, but
+-- restating REVOKE PUBLIC + GRANT authenticated keeps the migration self-
+-- documenting and satisfies the Atlas Migration Guard static check.
+REVOKE EXECUTE ON FUNCTION public.auth_can_see_project(text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.auth_can_see_project(text) TO authenticated;
+
 -- ===========================================================================
 -- C1 — Cross-tenant reference data (MG-org read; admin/platform write)
 -- ===========================================================================
@@ -809,6 +815,9 @@ BEGIN
       OR COALESCE(qual,'')       LIKE '%mentioned_by%'      -- note_mentions self-binding
       OR COALESCE(qual,'')       LIKE '%legacy_projects%'   -- *_legacy_internal kept as-is
       OR COALESCE(with_check,'') LIKE '%mentioned_by%'      -- mention_notifications email check (preserved)
+      OR COALESCE(qual,'')       LIKE '%sales_reps%'        -- rep_notes_select scope through FK
+      OR COALESCE(qual,'')       LIKE '%auth.uid%'          -- self-binding (email_onboarding, user_sessions)
+      OR COALESCE(with_check,'') LIKE '%auth.uid%'          -- self-binding (with_check side)
     );
   IF leftover > 0 THEN
     RAISE EXCEPTION 'Phase 5d post-flight: % policies still rely solely on auth_is_internal_writer() without scope. Review pg_policies and patch.', leftover;
