@@ -19,6 +19,13 @@ const SUPABASE_SECRET = process.env.SUPABASE_SECRET_KEY?.trim()
 // HMAC/bearer comparison (2026-04-17 incident: MG EDGE_WEBHOOK_SECRET had a
 // leading space that broke MG↔EDGE for 14 days).
 const WEBHOOK_SECRET = (process.env.SUBHUB_WEBHOOK_SECRET || '').trim() || undefined
+// Bearer token re-introduced 2026-05-02 (#383) for SubHub specifically: their
+// outbound-webhook UI only supports static headers, no payload signing. To
+// avoid the #370 "same-secret-as-bearer-and-HMAC = leak amplifier" finding,
+// the bearer uses a SEPARATE env var. Replay protection is reduced to
+// transport-layer (HTTPS) plus subhub_id idempotency in lib/subhub/ingest —
+// duplicate POSTs are deduped on the (subhub_id, contract sha) tuple.
+const WEBHOOK_BEARER_TOKEN = (process.env.SUBHUB_WEBHOOK_BEARER_TOKEN || '').trim() || undefined
 const WEBHOOK_ENABLED = process.env.SUBHUB_WEBHOOK_ENABLED === 'true'
 const DRIVE_WEBHOOK_URL = process.env.NEXT_PUBLIC_DRIVE_WEBHOOK_URL ?? ''
 
@@ -32,7 +39,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Webhook is disabled. Set SUBHUB_WEBHOOK_ENABLED=true to activate.' }, { status: 503 })
   }
 
-  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  // R1 audit Medium #3 (2026-05-02): Vercel APPENDS the client IP to
+  // x-forwarded-for; the FIRST entry is attacker-controlled if the request
+  // included its own X-Forwarded-For. Use the LAST entry (Vercel's appended
+  // client IP) so rate-limit keys can't be trivially spoofed for unlimited
+  // 401-bruteforce attempts.
+  const xff = request.headers.get('x-forwarded-for') ?? ''
+  const xffParts = xff.split(',').map(s => s.trim()).filter(Boolean)
+  const clientIp = xffParts.length ? xffParts[xffParts.length - 1] : 'unknown'
   const { success } = await rateLimit(`subhub:${clientIp}`, { max: 20, prefix: 'subhub-webhook' })
   if (!success) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
@@ -40,34 +54,50 @@ export async function POST(request: NextRequest) {
 
   const bodyText = await request.text()
 
-  // Guard against misconfiguration: if the webhook is enabled but no secret
-  // has been set, fail closed rather than accept unsigned traffic. Matches
-  // the subhub-vwc posture (R2 2026-04-17 audit).
-  if (WEBHOOK_ENABLED && !WEBHOOK_SECRET) {
-    console.error('[subhub] SUBHUB_WEBHOOK_ENABLED=true but SUBHUB_WEBHOOK_SECRET not set — rejecting')
+  // Guard against misconfiguration: if the webhook is enabled but neither
+  // an HMAC secret nor a bearer token is set, fail closed rather than accept
+  // unsigned traffic. (Leak-amplifier guard from #370 still applies — the
+  // two values must be different secrets, enforced at the comparison site
+  // below by them being independent env vars.)
+  if (WEBHOOK_ENABLED && !WEBHOOK_SECRET && !WEBHOOK_BEARER_TOKEN) {
+    console.error('[subhub] SUBHUB_WEBHOOK_ENABLED=true but no SUBHUB_WEBHOOK_SECRET or SUBHUB_WEBHOOK_BEARER_TOKEN set — rejecting')
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 503 })
   }
 
-  // Verify webhook secret. HMAC required — bearer fallback removed 2026-04-29
-  // (audit-rotation Critical: same secret as bearer + HMAC = leak amplifier;
-  // greg_action #370).
+  // Verify webhook auth. Two paths accepted, in this precedence order:
   //
-  // Two HMAC header formats accepted:
-  //   1. `X-MicroGRID-Signature: sha256=<hex>`  — SPARK's SparkSign → MG
-  //       webhook sender (see SPARK src/lib/microgrid-webhook.ts). Matches
-  //       the GitHub/Stripe convention of an algorithm prefix on the value.
-  //   2. `x-webhook-signature: <hex>`           — legacy header name used by
-  //       earlier senders and the EDGE ↔ MG webhook path.
+  // 1. **HMAC** (preferred when sender supports it). Header formats:
+  //      a. `X-MicroGRID-Signature: sha256=<hex>` (Stripe/GitHub-style prefix)
+  //      b. `x-webhook-signature: <hex>` (legacy plain hex)
+  //    Replay protection: if `X-MicroGRID-Timestamp` is present, HMAC is over
+  //    `${ts}.${body}` and ts must be within (now-5min, now+30s). Otherwise
+  //    HMAC is over body only, accepted with a deprecation warning.
   //
-  // Replay protection: when `X-MicroGRID-Timestamp` header is present, HMAC is
-  // computed over `${ts}.${body}` (Stripe scheme) and ts must be within
-  // (now - 5min, now + 30s). Senders that haven't migrated yet may send
-  // body-only HMAC without the timestamp header — accepted with warning during
-  // the deprecation window. Activation prerequisite (#370): all senders send
-  // timestamped HMAC, then this fallback is removed.
-  if (WEBHOOK_SECRET) {
-    const microgridHeader = request.headers.get('x-microgrid-signature') ?? ''
-    const legacyHeader = request.headers.get('x-webhook-signature') ?? ''
+  // 2. **Bearer token** (#383, 2026-05-02). For senders whose webhook UI only
+  //    supports static headers (SubHub specifically). `Authorization: Bearer
+  //    <token>` compared timing-safe against SUBHUB_WEBHOOK_BEARER_TOKEN.
+  //    Different secret from the HMAC one — leak of one doesn't compromise
+  //    the other (#370 leak-amplifier guard). No replay protection at this
+  //    layer; relies on (a) HTTPS in transit, (b) subhub_id idempotency in
+  //    lib/subhub/ingest deduping replayed POSTs.
+  //
+  // If HMAC headers are present, ONLY the HMAC path is tried — a sender that
+  // sends a malformed HMAC can't fall through to bearer. If no HMAC headers,
+  // bearer is tried.
+  const microgridHeader = request.headers.get('x-microgrid-signature') ?? ''
+  const legacyHeader = request.headers.get('x-webhook-signature') ?? ''
+  const hasHmacHeader = !!(microgridHeader || legacyHeader)
+
+  // R1 audit High #1 (2026-05-02): if HMAC headers are present we MUST verify
+  // them. If WEBHOOK_SECRET is unset, we cannot verify, so we MUST 401 — falling
+  // through to bearer would let an attacker who learned the bearer attach junk
+  // HMAC headers to downgrade an HMAC-required path. Gate on hasHmacHeader
+  // alone, then check WEBHOOK_SECRET inside the branch.
+  if (hasHmacHeader) {
+    if (!WEBHOOK_SECRET) {
+      console.error('[subhub] HMAC headers present but SUBHUB_WEBHOOK_SECRET unset — refusing to fall through to bearer')
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const microgridHex = microgridHeader.startsWith('sha256=')
       ? microgridHeader.slice('sha256='.length)
       : microgridHeader
@@ -105,6 +135,31 @@ export async function POST(request: NextRequest) {
     if (!secretMatch) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+  } else if (WEBHOOK_BEARER_TOKEN) {
+    // Bearer fallback for HMAC-incapable senders.
+    const authHeader = request.headers.get('authorization') ?? ''
+    if (!authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const provided = authHeader.slice('Bearer '.length).trim()
+    // Explicit empty-token reject (R1 audit Medium #2). timingSafeEqual would
+    // catch this via length mismatch, but cleaner to reject upfront.
+    if (!provided) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    let bearerMatch = false
+    try {
+      const got = Buffer.from(provided)
+      const exp = Buffer.from(WEBHOOK_BEARER_TOKEN)
+      bearerMatch = got.length === exp.length && crypto.timingSafeEqual(got, exp)
+    } catch { bearerMatch = false }
+    if (!bearerMatch) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+  } else {
+    // Webhook is enabled and either: (a) HMAC headers were sent but
+    // WEBHOOK_SECRET is unset, or (b) no auth headers at all. Both are 401.
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   let payload: SubHubPayload

@@ -544,12 +544,153 @@ describe('POST /api/webhooks/subhub — HMAC header compatibility', () => {
     expect(res.status).toBe(401)
   })
 
-  it('bearer-only request without any HMAC header is rejected (#370 — bearer fallback removed 2026-04-29)', async () => {
-    // Direct Request — bypasses the makeRequest auto-HMAC shorthand.
+  it('bearer-only request without any HMAC header is rejected when SUBHUB_WEBHOOK_BEARER_TOKEN is unset', async () => {
+    // Bearer fallback was removed in #370 then re-added in #383, but ONLY
+    // when the dedicated SUBHUB_WEBHOOK_BEARER_TOKEN env var is set. Without
+    // that env var the receiver must reject bearer attempts (otherwise a
+    // misconfigured deploy would re-open the leak-amplifier window).
+    delete process.env.SUBHUB_WEBHOOK_BEARER_TOKEN
     const bodyText = JSON.stringify({ subhub_id: 'SH-BEARER', name: 'Bearer Customer', street: '1 Bearer Ln' })
     const req = new Request('https://localhost/api/webhooks/subhub', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer webhook-secret-123' },
+      body: bodyText,
+    })
+    const { POST } = await import('@/app/api/webhooks/subhub/route')
+    const res = await POST(req as any)
+    expect(res.status).toBe(401)
+  })
+})
+
+// ── Bearer fallback (#383, 2026-05-02) ──────────────────────────────────────
+// SubHub's webhook UI only supports static headers — no payload signing. The
+// bearer fallback uses a SEPARATE env var (SUBHUB_WEBHOOK_BEARER_TOKEN) from
+// the HMAC secret to avoid the #370 leak-amplifier finding (one secret used
+// for both bearer and HMAC = leak of either compromises both paths).
+
+describe('POST /api/webhooks/subhub — bearer fallback (#383)', () => {
+  const BEARER = 'bearer-token-distinct-from-hmac-secret'
+  const HMAC = 'webhook-secret-123'
+
+  it('accepts a valid bearer token when no HMAC headers are present', async () => {
+    process.env.SUBHUB_WEBHOOK_BEARER_TOKEN = BEARER
+    const bodyText = JSON.stringify({ subhub_id: 'SH-B1', name: 'Bearer Customer 1', street: '1 Bearer Ln' })
+    const req = new Request('https://localhost/api/webhooks/subhub', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BEARER}` },
+      body: bodyText,
+    })
+    const { POST } = await import('@/app/api/webhooks/subhub/route')
+    const res = await POST(req as any)
+    // Expect 201 (created) or 200 (duplicate) — not 401. The mocked supabase
+    // pipeline in this file returns success.
+    expect([200, 201]).toContain(res.status)
+  })
+
+  it('rejects a wrong bearer token with timing-safe comparison', async () => {
+    process.env.SUBHUB_WEBHOOK_BEARER_TOKEN = BEARER
+    const bodyText = JSON.stringify({ subhub_id: 'SH-B2', name: 'Bearer Customer 2', street: '2 Bearer Ln' })
+    const req = new Request('https://localhost/api/webhooks/subhub', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer wrong-token' },
+      body: bodyText,
+    })
+    const { POST } = await import('@/app/api/webhooks/subhub/route')
+    const res = await POST(req as any)
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects malformed Authorization header (no Bearer prefix)', async () => {
+    process.env.SUBHUB_WEBHOOK_BEARER_TOKEN = BEARER
+    const bodyText = JSON.stringify({ subhub_id: 'SH-B3', name: 'Bearer Customer 3', street: '3 Bearer Ln' })
+    const req = new Request('https://localhost/api/webhooks/subhub', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: BEARER }, // missing "Bearer " prefix
+      body: bodyText,
+    })
+    const { POST } = await import('@/app/api/webhooks/subhub/route')
+    const res = await POST(req as any)
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects bearer token when no Authorization header is sent', async () => {
+    process.env.SUBHUB_WEBHOOK_BEARER_TOKEN = BEARER
+    const bodyText = JSON.stringify({ subhub_id: 'SH-B4', name: 'Bearer Customer 4', street: '4 Bearer Ln' })
+    const req = new Request('https://localhost/api/webhooks/subhub', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: bodyText,
+    })
+    const { POST } = await import('@/app/api/webhooks/subhub/route')
+    const res = await POST(req as any)
+    expect(res.status).toBe(401)
+  })
+
+  it('does NOT fall through to bearer when HMAC headers are present (HMAC strict-only)', async () => {
+    // Send an INVALID HMAC plus a valid bearer. Without the strict-on-HMAC
+    // gate, an attacker who learned the bearer could bypass HMAC by sending
+    // a deliberately-invalid signature plus the bearer. Code must reject.
+    process.env.SUBHUB_WEBHOOK_BEARER_TOKEN = BEARER
+    const bodyText = JSON.stringify({ subhub_id: 'SH-B5', name: 'Bearer Customer 5', street: '5 Bearer Ln' })
+    const req = new Request('https://localhost/api/webhooks/subhub', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-MicroGRID-Signature': 'sha256=deadbeef',
+        Authorization: `Bearer ${BEARER}`,
+      },
+      body: bodyText,
+    })
+    const { POST } = await import('@/app/api/webhooks/subhub/route')
+    const res = await POST(req as any)
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects HMAC headers with junk signature even when only bearer is configured (R1 High #1 downgrade-attack guard)', async () => {
+    // R1 audit caught this: if SECRET is unset but BEARER_TOKEN is set,
+    // an attacker who learned the bearer could attach a junk HMAC header
+    // PLUS a valid bearer to bypass the strict-on-HMAC gate. Code must
+    // refuse to fall through from a bad-HMAC request to bearer.
+    process.env.SUBHUB_WEBHOOK_BEARER_TOKEN = BEARER
+    delete process.env.SUBHUB_WEBHOOK_SECRET
+    const bodyText = JSON.stringify({ subhub_id: 'SH-DOWNGRADE', name: 'Downgrade Customer', street: '7 Downgrade Ln' })
+    const req = new Request('https://localhost/api/webhooks/subhub', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-MicroGRID-Signature': 'sha256=deadbeef',
+        Authorization: `Bearer ${BEARER}`,
+      },
+      body: bodyText,
+    })
+    const { POST } = await import('@/app/api/webhooks/subhub/route')
+    const res = await POST(req as any)
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects empty bearer token (`Authorization: Bearer ` with only whitespace)', async () => {
+    process.env.SUBHUB_WEBHOOK_BEARER_TOKEN = BEARER
+    const bodyText = JSON.stringify({ subhub_id: 'SH-EMPTY', name: 'Empty Bearer', street: '8 Empty Ln' })
+    const req = new Request('https://localhost/api/webhooks/subhub', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer    ' },
+      body: bodyText,
+    })
+    const { POST } = await import('@/app/api/webhooks/subhub/route')
+    const res = await POST(req as any)
+    expect(res.status).toBe(401)
+  })
+
+  it('uses a SEPARATE secret from the HMAC one (#370 leak-amplifier guard)', async () => {
+    // If a future refactor accidentally aliases the bearer token to the HMAC
+    // secret, this test fails — sending the HMAC secret as a bearer token
+    // would succeed, which is the exact regression #370 closed.
+    process.env.SUBHUB_WEBHOOK_BEARER_TOKEN = BEARER
+    process.env.SUBHUB_WEBHOOK_SECRET = HMAC
+    const bodyText = JSON.stringify({ subhub_id: 'SH-B6', name: 'Bearer Customer 6', street: '6 Bearer Ln' })
+    const req = new Request('https://localhost/api/webhooks/subhub', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HMAC}` },
       body: bodyText,
     })
     const { POST } = await import('@/app/api/webhooks/subhub/route')
