@@ -3,6 +3,14 @@
 // Cursors are base64url-encoded JSON: {"t": <ISO>, "id": "<uuid-or-id>"}. Decoded
 // by the handler, used as a tie-breaking bound on (created_at, id) so the list
 // stays stable under inserts.
+//
+// Cursor inputs ARE interpolated into raw PostgREST `.or()` strings by the
+// route handlers (`created_at.lt.<t>,and(created_at.eq.<t>,id.lt.<id>)`). That
+// means decodeCursor MUST reject any value that could escape the filter (DoS
+// via 500s, schema enumeration via Postgres error echo). The shape here
+// therefore validates `t` as strict ISO-8601 and `id` as a conservative
+// `[A-Za-z0-9_-]{1,64}` allowlist (covers UUIDs and the `LEAD-<hex>` ids the
+// projects table uses). #473.
 
 import { ApiError } from './errors'
 
@@ -15,6 +23,19 @@ export interface Cursor {
 
 const MAX_PAGE = 100
 const DEFAULT_PAGE = 25
+
+// Strict ISO-8601 with mandatory date + time components, optional fractional
+// seconds (up to 6 — PostgREST serializes timestamptz at microsecond
+// precision), and a `Z` or ±HH(:?)MM(?:MM)? offset. Rejects anything with
+// parens, commas, quotes, or PostgREST operator characters. Verified against
+// real `projects.created_at` / `engineering_assignments.created_at` rows
+// which serialize as `2026-03-30T16:00:08.432421+00:00`.
+const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}(?::?\d{2})?)$/
+
+// Conservative id allowlist. UUIDs match `[0-9a-f-]{36}`; `LEAD-<hex>` and
+// `PROJ-<digits>` ids match this too. Anything else is rejected — no parens,
+// commas, spaces, dots, slashes.
+const SAFE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/
 
 export function parseLimit(raw: string | null): number {
   if (!raw) return DEFAULT_PAGE
@@ -31,23 +52,46 @@ export function encodeCursor(c: Cursor): string {
 
 export function decodeCursor(raw: string | null): Cursor | null {
   if (!raw) return null
+
+  // Reason strings are an allowlist — never echo back JSON.parse output, which
+  // can contain attacker-controlled bytes ("Unexpected token X in JSON at
+  // position N"). We classify the failure to one of these labels and surface
+  // only the label to the client.
+  let reason: string | null = null
+  let cursor: Cursor | null = null
   try {
     const json = Buffer.from(raw, 'base64url').toString('utf8')
-    const parsed = JSON.parse(json) as unknown
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(json)
+    } catch {
+      reason = 'cursor payload not valid JSON'
+      throw null // jump to ApiError below with the static reason
+    }
     if (
       !parsed ||
       typeof parsed !== 'object' ||
       typeof (parsed as Cursor).t !== 'string' ||
       typeof (parsed as Cursor).id !== 'string'
     ) {
-      throw new Error('cursor payload must have {t, id} strings')
+      reason = 'cursor payload must have {t, id} strings'
+      throw null
     }
-    return parsed as Cursor
-  } catch (err) {
-    throw new ApiError('invalid_request', 'Invalid cursor', {
-      reason: err instanceof Error ? err.message : String(err),
-    })
+    const c = parsed as Cursor
+    if (!ISO_8601_RE.test(c.t)) {
+      reason = 'cursor.t must be an ISO-8601 timestamp'
+      throw null
+    }
+    if (!SAFE_ID_RE.test(c.id)) {
+      reason = 'cursor.id must match [A-Za-z0-9_-]{1,64}'
+      throw null
+    }
+    cursor = c
+  } catch {
+    if (reason === null) reason = 'cursor decode failed'
+    throw new ApiError('invalid_request', 'Invalid cursor', { reason })
   }
+  return cursor
 }
 
 /** Shape of a paginated list response. Consistent across all list endpoints. */
