@@ -14,7 +14,7 @@ const light = {
   borderLight: '#F0EDE6',
   text: '#1A1A18',
   textSecondary: '#5C5A52',
-  textMuted: '#8A877D',
+  textMuted: '#707068', // ~4.85:1 vs bg — passes WCAG AA for body text. Was #8A877D (~3.69:1, AA-large only).
   accent: '#1D7A5F',
   accentLight: '#E8F5EE',
   accentDark: '#145C47',
@@ -42,7 +42,7 @@ const dark = {
   borderLight: '#1E2723',
   text: '#F0EDE6',
   textSecondary: '#A8A49A',
-  textMuted: '#6B675E',
+  textMuted: '#807C72', // ~4.51:1 vs bg — passes WCAG AA for body text. Was #6B675E (~3.44:1).
   accent: '#2AAA7F',
   accentLight: '#142A22',
   accentDark: '#1D7A5F',

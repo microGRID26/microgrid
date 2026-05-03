@@ -53,10 +53,10 @@ beforeEach(() => {
 // ── getCustomerAccount ─────────────────────────────────────────────────────
 
 describe('getCustomerAccount', () => {
-  it('returns the account row on happy path', async () => {
+  it('returns the account row on happy path (maybeSingle)', async () => {
     mockedGetUser.mockResolvedValueOnce({ data: { user: { id: 'u1' } } })
     mockedFrom.mockReturnValueOnce(makeQuery({
-      data: [{ id: 'a1', auth_user_id: 'u1', project_id: 'p1', status: 'active' }],
+      data: { id: 'a1', auth_user_id: 'u1', project_id: 'p1', status: 'active' },
       error: null,
     }))
     const acct = await getCustomerAccount()
@@ -72,9 +72,9 @@ describe('getCustomerAccount', () => {
     expect(mockedFrom).not.toHaveBeenCalled()
   })
 
-  it('returns null when query returns empty array', async () => {
+  it('returns null when maybeSingle returns no row', async () => {
     mockedGetUser.mockResolvedValueOnce({ data: { user: { id: 'u1' } } })
-    mockedFrom.mockReturnValueOnce(makeQuery({ data: [], error: null }))
+    mockedFrom.mockReturnValueOnce(makeQuery({ data: null, error: null }))
     const acct = await getCustomerAccount()
     expect(acct).toBeNull()
   })

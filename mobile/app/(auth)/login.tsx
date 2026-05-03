@@ -1,8 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
 import { supabase } from '../../lib/supabase'
 import { theme, useThemeColors } from '../../lib/theme'
 import * as Haptics from 'expo-haptics'
+
+const RESEND_COOLDOWN_SECONDS = 30
 
 export default function LoginScreen() {
   const colors = useThemeColors()
@@ -11,10 +13,25 @@ export default function LoginScreen() {
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [cooldownEndAt, setCooldownEndAt] = useState<number | null>(null)
+  const [now, setNow] = useState(() => Date.now())
   const codeRef = useRef<TextInput>(null)
 
+  // Tick once per second while a cooldown is active so the Resend countdown
+  // updates. Cleared once the cooldown elapses.
+  useEffect(() => {
+    if (cooldownEndAt === null) return
+    const tick = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(tick)
+  }, [cooldownEndAt])
+
+  const cooldownRemaining = cooldownEndAt
+    ? Math.max(0, Math.ceil((cooldownEndAt - now) / 1000))
+    : 0
+  const inCooldown = cooldownRemaining > 0
+
   const handleSendCode = async () => {
-    if (!email.trim()) return
+    if (!email.trim() || inCooldown) return
     setLoading(true)
     setError('')
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -28,6 +45,11 @@ export default function LoginScreen() {
       setError('Unable to send code. Please try again.')
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
     } else {
+      // Successful send: start the cooldown so a double-tap or accidental
+      // Resend doesn't blast multiple emails. Supabase's server rate-limit
+      // would also catch this, but the device-side guard is faster and
+      // gives the user clear feedback.
+      setCooldownEndAt(Date.now() + RESEND_COOLDOWN_SECONDS * 1000)
       setStep('code')
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       setTimeout(() => codeRef.current?.focus(), 300)
@@ -115,22 +137,24 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               onPress={handleSendCode}
-              disabled={loading || !email.trim()}
+              disabled={loading || !email.trim() || inCooldown}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Continue — send a 6-digit code to your email"
-              accessibilityState={{ disabled: loading || !email.trim(), busy: loading }}
+              accessibilityLabel={inCooldown
+                ? `Wait ${cooldownRemaining} seconds before requesting another code`
+                : 'Continue — send a 6-digit code to your email'}
+              accessibilityState={{ disabled: loading || !email.trim() || inCooldown, busy: loading }}
               style={{
                 backgroundColor: colors.accent, borderRadius: theme.radius.xl,
                 paddingVertical: 14, marginTop: 16, alignItems: 'center',
-                opacity: loading || !email.trim() ? 0.5 : 1,
+                opacity: loading || !email.trim() || inCooldown ? 0.5 : 1,
               }}
             >
               {loading ? (
                 <ActivityIndicator color={colors.accentText} />
               ) : (
                 <Text style={{ fontSize: 16, fontWeight: '600', color: colors.accentText, fontFamily: 'Inter_600SemiBold' }}>
-                  Continue
+                  {inCooldown ? `Wait ${cooldownRemaining}s` : 'Continue'}
                 </Text>
               )}
             </TouchableOpacity>
@@ -216,11 +240,19 @@ export default function LoginScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSendCode}
+                disabled={loading || inCooldown}
                 accessibilityRole="button"
-                accessibilityLabel="Resend the verification code"
+                accessibilityLabel={inCooldown
+                  ? `Resend available in ${cooldownRemaining} seconds`
+                  : 'Resend the verification code'}
+                accessibilityState={{ disabled: loading || inCooldown }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textMuted, fontFamily: 'Inter_500Medium' }}>
-                  Resend code
+                <Text style={{
+                  fontSize: 13, fontWeight: '500',
+                  color: colors.textMuted, fontFamily: 'Inter_500Medium',
+                  opacity: inCooldown ? 0.5 : 1,
+                }}>
+                  {inCooldown ? `Resend in ${cooldownRemaining}s` : 'Resend code'}
                 </Text>
               </TouchableOpacity>
             </View>

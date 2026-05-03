@@ -2,6 +2,7 @@
 
 import { supabase } from './supabase'
 import Constants from 'expo-constants'
+import { logError } from './log'
 import type { CustomerAccount, CustomerProject, StageHistoryEntry, CustomerScheduleEntry, CustomerTicket, TicketComment, CustomerDocument, CustomerTaskState, EnergyStats, CustomerReferral, CustomerWarranty, BillingStatement, PaymentMethod, PaymentRecord, CustomerMessage } from './types'
 
 const API_BASE = Constants.expoConfig?.extra?.apiBaseUrl ?? 'https://app.gomicrogridenergy.com'
@@ -20,10 +21,10 @@ export async function getCustomerAccount(): Promise<CustomerAccount | null> {
     .select('*')
     .eq('auth_user_id', user.id)
     .eq('status', 'active')
-    .limit(1)
+    .maybeSingle()
 
-  if (error || !data || data.length === 0) return null
-  return data[0] as CustomerAccount
+  if (error || !data) return null
+  return data as CustomerAccount
 }
 
 // ── Project ─────────────────────────────────────────────────────────────────
@@ -35,7 +36,7 @@ export async function loadProject(projectId: string): Promise<CustomerProject | 
     .eq('id', projectId)
     .single()
 
-  if (error) { console.error('[loadProject]', error.message); return null }
+  if (error) { logError('[loadProject]', error.message); return null }
   return data as CustomerProject
 }
 
@@ -47,7 +48,7 @@ export async function loadTimeline(projectId: string): Promise<StageHistoryEntry
     .order('entered', { ascending: true })
     .limit(100)
 
-  if (error) console.error('[loadTimeline]', error.message)
+  if (error) logError('[loadTimeline]', error.message)
   return (data ?? []) as StageHistoryEntry[]
 }
 
@@ -59,7 +60,7 @@ export async function loadSchedule(projectId: string): Promise<CustomerScheduleE
     .order('date', { ascending: true })
     .limit(50)
 
-  if (error) console.error('[loadSchedule]', error.message)
+  if (error) logError('[loadSchedule]', error.message)
   return (data ?? []) as CustomerScheduleEntry[]
 }
 
@@ -73,7 +74,7 @@ export async function loadTickets(projectId: string): Promise<CustomerTicket[]> 
     .order('created_at', { ascending: false })
     .limit(100)
 
-  if (error) console.error('[loadTickets]', error.message)
+  if (error) logError('[loadTickets]', error.message)
   return (data ?? []) as CustomerTicket[]
 }
 
@@ -173,14 +174,14 @@ export async function uploadTicketPhoto(uri: string, ticketId: string, overrideM
       .from('ticket-attachments')
       .upload(fileName, uint8, { contentType: mimeType, upsert: false })
 
-    if (error) { console.error('[upload]', error); return null }
+    if (error) { logError('[upload]', error); return null }
 
     // Bucket flipped private (migration 154). image_url is dead — the reader
     // path uses image_path via resolveMgSignedUrl() server-side. Return null
     // for url so callers stop populating ticket_comments.image_url.
     return { url: null, path: fileName }
   } catch (err) {
-    console.error('[upload] failed:', err)
+    logError('[upload] failed:', err)
     return null
   }
 }
@@ -196,7 +197,7 @@ export async function loadDocuments(projectId: string): Promise<CustomerDocument
     .order('created_at', { ascending: false })
     .limit(200)
 
-  if (filesErr) console.error('[loadDocuments:project_files]', filesErr.message)
+  if (filesErr) logError('[loadDocuments:project_files]', filesErr.message)
 
   // Also try project_documents table if it exists
   const { data: docs, error: docsErr } = await supabase
@@ -207,7 +208,7 @@ export async function loadDocuments(projectId: string): Promise<CustomerDocument
     .limit(200)
 
   if (docsErr && !docsErr.message.includes('does not exist')) {
-    console.error('[loadDocuments:project_documents]', docsErr.message)
+    logError('[loadDocuments:project_documents]', docsErr.message)
   }
 
   // Merge and deduplicate by id
@@ -232,7 +233,7 @@ export async function loadTaskStates(projectId: string): Promise<CustomerTaskSta
     .eq('project_id', projectId)
     .limit(200)
 
-  if (error) console.error('[loadTaskStates]', error.message)
+  if (error) logError('[loadTaskStates]', error.message)
   return (data ?? []) as CustomerTaskState[]
 }
 
@@ -271,7 +272,7 @@ export async function updateNotificationPrefs(
     .eq('auth_user_id', user.id)
 
   if (error) {
-    console.error('[updateNotificationPrefs]', error.message)
+    logError('[updateNotificationPrefs]', error.message)
     return false
   }
   return true
@@ -306,7 +307,7 @@ export async function sendAtlasMessage(
 
   if (!res.ok) {
     const errorText = await res.text().catch(() => 'unknown')
-    console.error('[atlas] error:', res.status, errorText)
+    logError('[atlas] error:', `${res.status} ${errorText}`)
     throw new Error(`Chat failed: ${res.status}`)
   }
   const data = await res.json()
@@ -335,7 +336,7 @@ export async function deleteCustomerAccount(): Promise<{ ok: boolean; error?: st
     }
     return { ok: true }
   } catch (err) {
-    console.error('[deleteCustomerAccount]', err)
+    logError('[deleteCustomerAccount]', err)
     return { ok: false, error: err instanceof Error ? err.message : 'Network error' }
   }
 }
@@ -350,7 +351,7 @@ export async function loadWarranties(projectId: string): Promise<CustomerWarrant
     .order('equipment_type')
     .limit(50)
 
-  if (error) console.error('[loadWarranties]', error.message)
+  if (error) logError('[loadWarranties]', error.message)
   return (data ?? []) as CustomerWarranty[]
 }
 
@@ -377,7 +378,7 @@ export async function loadBillingStatements(accountId: string): Promise<BillingS
     .order('period_start', { ascending: false })
     .limit(24)
 
-  if (error) console.error('[loadBillingStatements]', error.message)
+  if (error) logError('[loadBillingStatements]', error.message)
   return (data ?? []) as BillingStatement[]
 }
 
@@ -389,7 +390,7 @@ export async function loadPaymentMethods(accountId: string): Promise<PaymentMeth
     .order('is_default', { ascending: false })
     .limit(50)
 
-  if (error) console.error('[loadPaymentMethods]', error.message)
+  if (error) logError('[loadPaymentMethods]', error.message)
   return (data ?? []) as PaymentMethod[]
 }
 
@@ -401,7 +402,7 @@ export async function loadPaymentHistory(accountId: string): Promise<PaymentReco
     .order('created_at', { ascending: false })
     .limit(50)
 
-  if (error) console.error('[loadPaymentHistory]', error.message)
+  if (error) logError('[loadPaymentHistory]', error.message)
   return (data ?? []) as PaymentRecord[]
 }
 
@@ -415,7 +416,7 @@ export async function loadMessages(projectId: string): Promise<CustomerMessage[]
     .order('created_at', { ascending: true })
     .limit(500)
 
-  if (error) console.error('[loadMessages]', error.message)
+  if (error) logError('[loadMessages]', error.message)
   return (data ?? []) as CustomerMessage[]
 }
 
@@ -442,7 +443,7 @@ export async function sendMessage(projectId: string, message: string, authorName
     })
 
   if (error) {
-    console.error('[sendMessage]', error.message)
+    logError('[sendMessage]', error.message)
     return false
   }
   return true
@@ -456,7 +457,7 @@ export async function loadUnreadMessageCount(projectId: string): Promise<number>
     .in('author_type', ['pm', 'system'])
     .is('read_at', null)
 
-  if (error) console.error('[loadUnreadMessageCount]', error.message)
+  if (error) logError('[loadUnreadMessageCount]', error.message)
   return count ?? 0
 }
 
@@ -468,7 +469,7 @@ export async function markMessagesRead(projectId: string): Promise<void> {
     .in('author_type', ['pm', 'system'])
     .is('read_at', null)
 
-  if (error) console.error('[markMessagesRead]', error.message)
+  if (error) logError('[markMessagesRead]', error.message)
 }
 
 // ── Referrals ────────────────────────────────────────────────────────────────
@@ -481,7 +482,7 @@ export async function loadReferrals(accountId: string): Promise<CustomerReferral
     .order('created_at', { ascending: false })
     .limit(100)
 
-  if (error) console.error('[loadReferrals]', error.message)
+  if (error) logError('[loadReferrals]', error.message)
   return (data ?? []) as CustomerReferral[]
 }
 
@@ -515,7 +516,7 @@ export async function submitReferral(
     })
 
   if (error) {
-    console.error('[submitReferral]', error.message)
+    logError('[submitReferral]', error.message)
     return false
   }
   return true
