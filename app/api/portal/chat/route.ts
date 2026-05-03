@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
@@ -152,20 +152,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  // Look up customer account using service role to bypass RLS
-  // (Bearer token auth doesn't set auth.uid() for the server client)
-  const serviceKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
-  const serviceClient = serviceKey
-    ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
-    : supabase
-  const { data: account } = await serviceClient
+  // Build an RLS-scoped client for the data fetches below. For bearer
+  // requests we attach the Authorization header so PostgREST evaluates
+  // policies as `auth.uid() = user.id`. For cookie sessions the existing
+  // server client already carries the user's identity. This drops the
+  // route's service-role dependency for the chat context fetch — RLS on
+  // customer_accounts / projects / schedule / stage_history is now the
+  // single boundary instead of an app-layer ctx.uid check + service-role
+  // bypass (#490).
+  const userClient: SupabaseClient = bearerToken
+    ? createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { global: { headers: { Authorization: `Bearer ${bearerToken}` } } },
+      )
+    : (supabase as unknown as SupabaseClient)
+
+  const { data: account, error: acctErr } = await userClient
     .from('customer_accounts')
     .select('id, project_id, name, status')
     .eq('auth_user_id', user.id)
     .eq('status', 'active')
-    .single()
+    .maybeSingle()
 
-  if (!account) {
+  if (acctErr || !account) {
     return NextResponse.json({ error: 'Not a registered customer' }, { status: 403 })
   }
 
@@ -176,15 +186,40 @@ export async function POST(request: NextRequest) {
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return NextResponse.json({ error: 'Messages required' }, { status: 400 })
   }
+  // Cap input size — every token is paid Anthropic spend. Without caps a
+  // logged-in customer could POST a multi-MB body and bill the API budget.
+  // Numbers are conservative (~120KB per request worst-case); raise later
+  // if customer use cases need more headroom.
+  const MAX_TURNS = 30
+  const MAX_CONTENT_CHARS = 4000
+  if (messages.length > MAX_TURNS) {
+    return NextResponse.json({ error: 'Conversation too long' }, { status: 413 })
+  }
+  for (const m of messages) {
+    if (typeof m?.content !== 'string' || m.content.length > MAX_CONTENT_CHARS) {
+      return NextResponse.json({ error: 'Message too long' }, { status: 413 })
+    }
+    if (m.role !== 'user' && m.role !== 'assistant') {
+      return NextResponse.json({ error: 'Invalid message role' }, { status: 400 })
+    }
+  }
 
-  // Load project context (customer-safe fields only)
-  const { data: project } = await serviceClient
+  // Load project context (customer-safe fields only). maybeSingle so an
+  // RLS deny (e.g., admin deactivated mid-request) returns null instead of
+  // throwing PostgrestError into the 500 catch.
+  const { data: project } = await userClient
     .from('projects')
     .select('id, name, address, city, zip, stage, stage_date, sale_date, survey_scheduled_date, survey_date, city_permit_date, utility_permit_date, install_scheduled_date, install_complete_date, city_inspection_date, utility_inspection_date, pto_date, in_service_date, module, module_qty, inverter, inverter_qty, battery, battery_qty, systemkw, financier, disposition')
     .eq('id', account.project_id)
-    .single()
+    .maybeSingle()
+  // If the project disappeared between the account check and this read
+  // (race against admin-driven deactivation / cascade-delete), bail with
+  // 403 instead of letting Atlas hallucinate an answer from empty context.
+  if (!project) {
+    return NextResponse.json({ error: 'Not a registered customer' }, { status: 403 })
+  }
 
-  const { data: scheduleData } = await serviceClient
+  const { data: scheduleData } = await userClient
     .from('schedule')
     .select('job_type, date, end_date, time, status, arrival_window')
     .eq('project_id', account.project_id)
@@ -192,7 +227,7 @@ export async function POST(request: NextRequest) {
     .order('date')
     .limit(5)
 
-  const { data: timeline } = await serviceClient
+  const { data: timeline } = await userClient
     .from('stage_history')
     .select('stage, entered')
     .eq('project_id', account.project_id)
@@ -228,8 +263,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ response: text })
   } catch (err: any) {
+    // Log details server-side; never echo upstream error text to the client.
+    // Anthropic / supabase-js error messages can include request URLs, stack
+    // hints, and Postgres policy names useful for enumeration. Keep the
+    // client-facing response opaque.
     console.error('[portal chat] error:', err?.message ?? err, err?.status, err?.error)
-    return NextResponse.json({ error: `Atlas error: ${err?.message ?? 'unknown'}` }, { status: 500 })
+    return NextResponse.json({ error: 'Atlas is unavailable right now. Please try again.' }, { status: 500 })
   }
 }
 

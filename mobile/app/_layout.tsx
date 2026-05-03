@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useColorScheme, View } from 'react-native'
+import { AppState, useColorScheme, View } from 'react-native'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
@@ -14,6 +14,7 @@ import { getDueNpsMilestone, type NpsMilestone } from '../lib/feedback'
 import { registerForPushNotifications, addNotificationResponseListener } from '../lib/notifications'
 import { loadPersistentCache } from '../lib/cache'
 import { initSentry, wrap } from '../lib/sentry'
+import { getCustomerAccount } from '../lib/api'
 import type { Session } from '@supabase/supabase-js'
 
 // Initialize Sentry as early as possible so any error from this point on is
@@ -79,6 +80,30 @@ function RootLayout() {
       registerForPushNotifications().catch(() => {})
     }
   }, [session, segments, initializing])
+
+  // Re-validate the customer account whenever the app foregrounds. If the
+  // account was deleted (or status flipped to anything but 'active') by an
+  // admin while the app was backgrounded, the JWT is still client-side valid
+  // but the next data fetch would silently RLS-deny. Sign out instead so the
+  // user lands on the login screen and stale UI doesn't persist.
+  useEffect(() => {
+    if (!session) return
+    const sub = AppState.addEventListener('change', async (state) => {
+      if (state !== 'active') return
+      try {
+        const acct = await getCustomerAccount()
+        if (!acct) {
+          await supabase.auth.signOut()
+          // onAuthStateChange will null the session and the navigation guard
+          // above will redirect to /(auth)/login.
+        }
+      } catch {
+        // Network blip on resume — leave the session alone, next user-driven
+        // fetch will surface the issue.
+      }
+    })
+    return () => sub.remove()
+  }, [session])
 
   // Handle notification taps — route to relevant screen
   useEffect(() => {
