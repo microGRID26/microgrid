@@ -67,23 +67,13 @@ export const POST = withPartnerAuth(
       }
     }
 
-    // Scope + existence. Read current partner_documents so we can append.
+    // Atomic append via RPC. The earlier read-modify-write path lost
+    // concurrent uploads when two POSTs raced on the same project (#472).
+    // The RPC uses SELECT FOR UPDATE on the projects row so concurrent
+    // appends serialize. Scope check (origination_partner_org_id) is also
+    // re-enforced inside the RPC for defense in depth.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = partnerApiAdmin() as any
-    const { data: existing, error: readErr } = await sb
-      .from('projects')
-      .select('id, origination_partner_org_id, partner_documents')
-      .eq('id', id)
-      .maybeSingle()
-    if (readErr) throw new ApiError('internal_error', readErr.message)
-    if (!existing) throw new ApiError('not_found', 'Lead not found')
-    const row = existing as {
-      origination_partner_org_id: string | null
-      partner_documents: Record<string, unknown>[] | null
-    }
-    if (ctx.orgType !== 'platform' && row.origination_partner_org_id !== ctx.orgId) {
-      throw new ApiError('forbidden', 'Lead is not owned by this org')
-    }
 
     const doc = {
       id: crypto.randomUUID(),
@@ -94,13 +84,28 @@ export const POST = withPartnerAuth(
       uploaded_by_actor: ctx.actorExternalId,
       uploaded_at: new Date().toISOString(),
     }
-    const nextDocs = [...(row.partner_documents ?? []), doc]
 
-    const { error: updErr } = await sb
-      .from('projects')
-      .update({ partner_documents: nextDocs })
-      .eq('id', id)
-    if (updErr) throw new ApiError('internal_error', updErr.message)
+    const { data: rpcResult, error: rpcErr } = await sb.rpc('partner_api_append_lead_document', {
+      p_project_id: id,
+      p_caller_org_type: ctx.orgType,
+      p_caller_org_id: ctx.orgId,
+      p_doc: doc,
+    })
+    if (rpcErr) {
+      // Map the RPC's RAISE EXCEPTIONs back to the existing ApiError shape.
+      // SQLSTATE P0002 = lead_not_found; 42501 = forbidden.
+      if (rpcErr.code === 'P0002' || /lead_not_found/i.test(rpcErr.message ?? '')) {
+        throw new ApiError('not_found', 'Lead not found')
+      }
+      if (rpcErr.code === '42501' || /forbidden/i.test(rpcErr.message ?? '')) {
+        throw new ApiError('forbidden', 'Lead is not owned by this org')
+      }
+      throw new ApiError('internal_error', rpcErr.message)
+    }
+
+    const documentCount = Array.isArray(rpcResult) && rpcResult[0]
+      ? Number((rpcResult[0] as { document_count: number }).document_count)
+      : 0
 
     void emitPartnerEvent('lead.document_uploaded', {
       lead_id: id,
@@ -109,7 +114,7 @@ export const POST = withPartnerAuth(
       actor_external_id: ctx.actorExternalId,
     })
 
-    const payload = { data: { lead_id: id, document: doc, document_count: nextDocs.length } }
+    const payload = { data: { lead_id: id, document: doc, document_count: documentCount } }
     if (idempKey) {
       await recordResponse(ctx.keyId, idempKey, 201, payload)
     }
