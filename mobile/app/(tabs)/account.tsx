@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Sha
 import { useRouter } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
+import * as SecureStore from 'expo-secure-store'
 import Constants from 'expo-constants'
 import { theme, useThemeColors } from '../../lib/theme'
 import { supabase } from '../../lib/supabase'
@@ -485,6 +486,8 @@ export default function AccountScreen() {
       <TouchableOpacity
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/notifications-settings') }}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Notification settings — manage your alerts and updates"
         style={{
           backgroundColor: colors.surface, borderRadius: theme.radius.xl,
           padding: 16, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -512,6 +515,8 @@ export default function AccountScreen() {
       <TouchableOpacity
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/warranty') }}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Warranty — coverage details and claims"
         style={{
           backgroundColor: colors.surface, borderRadius: theme.radius.xl,
           padding: 16, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -539,6 +544,8 @@ export default function AccountScreen() {
       <TouchableOpacity
         onPress={handleOpenPrivacyPolicy}
         activeOpacity={0.7}
+        accessibilityRole="link"
+        accessibilityLabel="Privacy Policy — how we handle your data, opens external link"
         style={{
           backgroundColor: colors.surface, borderRadius: theme.radius.xl,
           padding: 16, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -564,6 +571,9 @@ export default function AccountScreen() {
 
       {/* Sign Out */}
       <TouchableOpacity onPress={handleSignOut} activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Sign out of your MicroGRID account"
+        accessibilityHint="Returns you to the sign-in screen"
         style={{
           backgroundColor: colors.surface, borderRadius: theme.radius.xl,
           padding: 16, marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -575,6 +585,9 @@ export default function AccountScreen() {
 
       {/* Delete Account — required by Apple App Store guideline 5.1.1(v) */}
       <TouchableOpacity onPress={handleDeleteAccount} activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Delete account permanently"
+        accessibilityHint="Opens a confirmation flow that requires you to type DELETE"
         style={{
           backgroundColor: 'transparent', borderRadius: theme.radius.xl,
           padding: 16, marginTop: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

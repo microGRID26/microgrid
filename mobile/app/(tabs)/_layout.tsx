@@ -78,6 +78,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => <Feather name="home" size={size} color={color} />,
+          tabBarAccessibilityLabel: 'Home tab — your project at a glance',
         }}
       />
       <Tabs.Screen
@@ -85,6 +86,7 @@ export default function TabLayout() {
         options={{
           title: 'Energy',
           tabBarIcon: ({ color, size }) => <Feather name="zap" size={size} color={color} />,
+          tabBarAccessibilityLabel: 'Energy tab — production and savings',
         }}
       />
       <Tabs.Screen
@@ -93,6 +95,9 @@ export default function TabLayout() {
           title: 'Support',
           tabBarIcon: ({ color, size }) => <Feather name="message-square" size={size} color={color} />,
           tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarAccessibilityLabel: unreadCount > 0
+            ? `Support tab, ${unreadCount} unread`
+            : 'Support tab — service tickets and messages',
           tabBarBadgeStyle: {
             backgroundColor: colors.accent,
             color: colors.accentText,
@@ -110,6 +115,7 @@ export default function TabLayout() {
         options={{
           title: 'Billing',
           tabBarIcon: ({ color, size }) => <Feather name="credit-card" size={size} color={color} />,
+          tabBarAccessibilityLabel: 'Billing tab — payments and statements',
         }}
       />
       <Tabs.Screen
@@ -117,6 +123,7 @@ export default function TabLayout() {
         options={{
           title: 'Docs',
           tabBarIcon: ({ color, size }) => <Feather name="file-text" size={size} color={color} />,
+          tabBarAccessibilityLabel: 'Documents tab — contracts and files',
         }}
       />
       <Tabs.Screen
@@ -124,6 +131,7 @@ export default function TabLayout() {
         options={{
           title: 'Atlas',
           tabBarIcon: ({ color, size }) => <Feather name="cpu" size={size} color={color} />,
+          tabBarAccessibilityLabel: 'Atlas tab — chat with your AI assistant',
         }}
       />
       <Tabs.Screen
@@ -131,6 +139,7 @@ export default function TabLayout() {
         options={{
           title: 'Account',
           tabBarIcon: ({ color, size }) => <Feather name="user" size={size} color={color} />,
+          tabBarAccessibilityLabel: 'Account tab — settings and sign out',
         }}
       />
     </Tabs>

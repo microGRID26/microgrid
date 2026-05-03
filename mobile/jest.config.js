@@ -20,5 +20,12 @@ module.exports = {
   moduleNameMapper: {
     // Stub binary assets that Jest can't load
     '\\.(png|jpg|jpeg|svg)$': '<rootDir>/__tests__/__mocks__/fileMock.js',
+    // Stub Expo's winter runtime polyfills — jest-expo 54's setup.js loads
+    // them via `require('expo/src/winter')` and Jest 30's stricter scope
+    // check breaks the lazy __ExpoImportMetaRegistry chain. None of those
+    // polyfills are needed by unit tests (Node 18+ has URL/structuredClone).
+    '^expo/src/winter$': '<rootDir>/__tests__/__mocks__/expoWinter.js',
+    '^expo/src/winter/runtime$': '<rootDir>/__tests__/__mocks__/expoWinter.js',
+    '^expo/src/winter/runtime\\.native$': '<rootDir>/__tests__/__mocks__/expoWinter.js',
   },
 }

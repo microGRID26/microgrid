@@ -117,6 +117,9 @@ export default function LoginScreen() {
               onPress={handleSendCode}
               disabled={loading || !email.trim()}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Continue — send a 6-digit code to your email"
+              accessibilityState={{ disabled: loading || !email.trim(), busy: loading }}
               style={{
                 backgroundColor: colors.accent, borderRadius: theme.radius.xl,
                 paddingVertical: 14, marginTop: 16, alignItems: 'center',
@@ -183,6 +186,9 @@ export default function LoginScreen() {
               onPress={handleVerifyCode}
               disabled={loading || code.length < 6} // enables at 6, works with 6 or 8
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Verify the code and sign in"
+              accessibilityState={{ disabled: loading || code.length < 6, busy: loading }}
               style={{
                 backgroundColor: colors.accent, borderRadius: theme.radius.xl,
                 paddingVertical: 14, marginTop: 16, alignItems: 'center',
@@ -199,12 +205,20 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 16 }}>
-              <TouchableOpacity onPress={() => { setStep('email'); setCode(''); setError('') }}>
+              <TouchableOpacity
+                onPress={() => { setStep('email'); setCode(''); setError('') }}
+                accessibilityRole="button"
+                accessibilityLabel="Change email address"
+              >
                 <Text style={{ fontSize: 13, fontWeight: '500', color: colors.accent, fontFamily: 'Inter_500Medium' }}>
                   Change email
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleSendCode}>
+              <TouchableOpacity
+                onPress={handleSendCode}
+                accessibilityRole="button"
+                accessibilityLabel="Resend the verification code"
+              >
                 <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textMuted, fontFamily: 'Inter_500Medium' }}>
                   Resend code
                 </Text>
