@@ -1326,21 +1326,10 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
   cursorX += 70
 
-  const lcX = cursorX, lcY = mainY - 48, lcW = 110, lcH = 100
-  elements.push({ type: 'rect', x: lcX, y: lcY, w: lcW, h: lcH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(lcX + lcW / 2, lcY + 11, [
-    '(N) PV LOAD CENTER',
-  ], { fontSize: 6, bold: true, anchor: 'middle' })
-  textBlock(lcX + lcW / 2, lcY + 20, [
-    'BRP12L125R 125A',
-    'RATED MLO, NEMA3R,',
-    'UL LISTED',
-    '(EXTERIOR MOUNTED)',
-  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
-  pill(lcX + 28, lcY + 62, 36, 12, '20A/2P', 5)
-  pill(lcX + 82, lcY + 62, 36, 12, '15A/2P', 5)
-  pill(lcX + lcW / 2, lcY + 82, 40, 12, '40A/2P MAIN', 5)
-  elements.push({ type: 'text', x: lcX + 6, y: lcY + lcH - 4, text: 'G', fontSize: 6, bold: true })
+  const lcW = 108, lcH = 72  // 3:2 ratio matching 120×80 native viewBox
+  const lcX = cursorX, lcY = mainY - lcH / 2  // center left anchor on mainY wire
+  elements.push({ type: 'svg-asset', x: lcX, y: lcY, w: lcW, h: lcH, assetId: 'eaton-brp12l125r' })
+  textBlock(lcX + lcW / 2, lcY - 7, ['(N) PV LOAD CENTER'], { fontSize: 6, bold: true, anchor: 'middle' })
   cursorX = lcX + lcW
 
   elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: cursorX + 80, y2: mainY, strokeWidth: 1.4 })
