@@ -2,6 +2,7 @@
 
 import type React from 'react'
 import { EatonDg221Urb } from './eaton-dg221urb'
+import { EatonDg222Nrb } from './eaton-dg222nrb'
 import { EatonDg222Urb } from './eaton-dg222urb'
 import { SonnenScoreP20 } from './sonnen-score-p20'
 
@@ -24,4 +25,5 @@ export const ASSET_REGISTRY: Record<string, React.FC<AssetProps>> = {
   'sonnen-score-p20': SonnenScoreP20,
   'eaton-dg222urb': EatonDg222Urb,
   'eaton-dg221urb': EatonDg221Urb,
+  'eaton-dg222nrb': EatonDg222Nrb,
 }

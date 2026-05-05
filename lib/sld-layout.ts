@@ -1462,18 +1462,10 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
   cursorX += 90
 
-  const cgdX = cursorX, cgdY = mainY - 48, cgdW = 100, cgdH = 100
-  elements.push({ type: 'rect', x: cgdX, y: cgdY, w: cgdW, h: cgdH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(cgdX + cgdW / 2, cgdY + 11, ['(N) CUSTOMER GEN'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(cgdX + cgdW / 2, cgdY + 20, ['DISCONNECT / FUSIBLE'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(cgdX + cgdW / 2, cgdY + 29, [
-    'EATON DG222NRB',
-    '(60A, 2P, 240V 3R)',
-    '(45A FUSES)',
-  ], { fontSize: 4.5, lineHeight: 6, anchor: 'middle', fill: MUTED })
-  fuse(cgdX + 30, cgdY + 70, '45A')
-  fuse(cgdX + cgdW - 30, cgdY + 70, '45A')
-  textBlock(cgdX + cgdW / 2, cgdY + 86, ['2X45A FUSES'], { fontSize: 5, bold: true, anchor: 'middle' })
+  const cgdW = 80, cgdH = 104
+  const cgdX = cursorX, cgdY = mainY - cgdH / 2
+  elements.push({ type: 'svg-asset', x: cgdX, y: cgdY, w: cgdW, h: cgdH, assetId: 'eaton-dg222nrb' })
+  textBlock(cgdX + cgdW / 2, cgdY - 7, ['(N) CUSTOMER GEN DISCONNECT'], { fontSize: 5.5, bold: true, anchor: 'middle' })
   textBlock(cgdX + cgdW / 2, cgdY + cgdH + 4, [
     'VISIBLE, LOCKABLE,',
     'LABELED "AC DISC"',
