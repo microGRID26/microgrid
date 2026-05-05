@@ -47,9 +47,9 @@
     { "type": "line", "color": "pv",   "label": "Hybrid DC IN ← JB",        "points": [[355,296],[355,538],[200,538]] },
     { "type": "line", "color": "batt", "label": "Hybrid BATT ↔ DC bus",     "points": [[200,574],[240,574],[240,500],[510,500]] },
     { "type": "line", "color": "ac",   "label": "Hybrid GRID → ESS DISC",   "points": [[200,592],[230,592],[230,380],[750,380],[750,450]] },
-    { "type": "line", "color": "batt", "label": "ESS DISC → Protected Loads","points": [[800,515],[850,515]] },
+    { "type": "line", "color": "batt", "label": "ESS → Loads","points": [[800,515],[850,515]] },
     { "type": "line", "color": "ac",   "label": "ESS DISC → MSP backup",    "points": [[750,580],[750,690],[950,690],[950,280]] },
-    { "type": "line", "color": "gec",  "label": "GEC · NEC 250.52",         "points": [[835,280],[835,760],[760,760]] },
+    { "type": "line", "color": "gec",  "label": "GEC · NEC 250.52",         "points": [[870,280],[870,760],[760,760]] },
     { "type": "line", "color": "comm", "label": "CT/RS-485 · DPC + hybrid", "points": [[1100,480],[1040,480],[1040,470],[660,470]] },
 
     { "type": "callout", "cx": 220, "cy": 320, "number": 12 },

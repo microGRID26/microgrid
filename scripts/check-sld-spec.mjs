@@ -111,7 +111,25 @@ function check(topology) {
     if (!endNear && !endTap && !endInSection) issues.push(`wire "${w.label || '(no label)'}" end (${end[0]},${end[1]}) lands in mid-air`)
   }
 
-  // 6. Section overlap with title block / legend
+  // 6. Wire labels colliding with each other (estimated text bbox)
+  const labelBoxes = wires.filter(w => w.label).map(w => {
+    let bestSeg = 0, bestLen = 0
+    for (let i = 0; i < w.points.length - 1; i++) {
+      const dx = w.points[i + 1][0] - w.points[i][0]
+      const dy = w.points[i + 1][1] - w.points[i][1]
+      const len = Math.hypot(dx, dy)
+      if (len > bestLen) { bestLen = len; bestSeg = i }
+    }
+    const a = w.points[bestSeg], b = w.points[bestSeg + 1]
+    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2
+    const w_est = w.label.length * 1.8
+    return { id: w.label, x1: mx + 4, y1: my - 6, x2: mx + 4 + w_est, y2: my }
+  })
+  for (let i = 0; i < labelBoxes.length; i++) for (let j = i + 1; j < labelBoxes.length; j++) {
+    if (intersect(labelBoxes[i], labelBoxes[j])) issues.push(`wire labels collide: "${labelBoxes[i].id}" ↔ "${labelBoxes[j].id}"`)
+  }
+
+  // 7. Section overlap with title block / legend
   for (const s of spec.sections) {
     const sb = { x1: s.x, y1: s.y, x2: s.x + s.w, y2: s.y + s.h }
     if (titleBlock && intersect(sb, titleBlock)) issues.push(`section "${s.label}" overlaps titleBlock`)
