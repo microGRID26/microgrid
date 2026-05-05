@@ -19,11 +19,20 @@ import { rateLimit } from '@/lib/rate-limit'
  *    (matching the 223+224 trigger's scope) + customer-feedback via
  *    customer_feedback_attachments
  * 4. Deletes the customer_accounts row by auth_user_id
- *    → BEFORE DELETE trigger (migration 223+224) scrubs PII text fields in
+ *    → BEFORE DELETE trigger (migration 223+224+225) scrubs PII text fields in
  *      customer_messages, ticket_comments, tickets (retained for warranty/legal)
- *    → FK CASCADE removes: customer_feedback, customer_feedback_attachments
- *      (other "cascade" tables in the prior comment didn't actually cascade —
- *      tracked as #507)
+ *    → FK CASCADE removes (post-227):
+ *        - customer_feedback (+ customer_feedback_attachments via transitive cascade)
+ *        - customer_chat_sessions
+ *        - customer_referrals (referrer_id_fkey)
+ *        - customer_billing_statements
+ *        - customer_payment_methods
+ *        - customer_payments
+ *      Pre-227, only the first three CASCADE'd; billing/payment_methods/payments
+ *      were NO ACTION — a customer with rows in those tables would 500 with
+ *      FK violation. Closes #507. Post-launch may revisit financial-record
+ *      retention (Apple 5.1.1(v) carve-out for legal data) and switch those
+ *      three to "anonymize + retain" semantics.
  * 5. Removes the collected storage objects (best-effort; orphan files become
  *    a janitor concern, never block the response — customer's DB rows are
  *    already gone). Closes #491's storage-side complement (#505).
