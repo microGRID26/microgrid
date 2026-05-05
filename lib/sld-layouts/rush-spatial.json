@@ -1,0 +1,87 @@
+{
+  "topology": "rush-spatial",
+  "canvas": { "w": 1500, "h": 950 },
+  "sections": [
+    { "label": "PV ARRAY",                    "x": 40,   "y": 100, "w": 380,  "h": 240 },
+    { "label": "AC SERVICE CONDUCTOR PATH",   "x": 440,  "y": 100, "w": 1020, "h": 240 },
+    { "label": "ENERGY STORAGE SYSTEM",       "x": 40,   "y": 360, "w": 1000, "h": 450 },
+    { "label": "COMMS / MONITORING",          "x": 1060, "y": 360, "w": 400,  "h": 450 }
+  ],
+  "elements": [
+    { "type": "svg-asset",   "assetId": "imo-rsd",            "x": 320, "y": 155, "w": 80,  "h": 28 },
+    { "type": "svg-asset",   "assetId": "jb-nema3-600v",      "x": 320, "y": 240, "w": 70,  "h": 56 },
+    { "type": "svg-asset",   "assetId": "eaton-dg222urb",     "x": 470, "y": 140, "w": 100, "h": 130 },
+    { "type": "svg-asset",   "assetId": "eaton-dg222nrb",     "x": 620, "y": 140, "w": 100, "h": 130 },
+    { "type": "svg-asset",   "assetId": "msp-225a",           "x": 770, "y": 140, "w": 130, "h": 140 },
+    { "type": "svg-asset",   "assetId": "service-disc-200a",  "x": 940, "y": 186, "w": 90,  "h": 36 },
+    { "type": "svg-asset",   "assetId": "utility-meter-200a", "x": 1080,"y": 184, "w": 40,  "h": 40 },
+    { "type": "svg-asset",   "assetId": "surge-protector-spd","x": 1180,"y": 190, "w": 80,  "h": 28 },
+
+    { "type": "placeholder", "assetId": "placeholder-hybrid-inverter", "x": 80,  "y": 420, "w": 130, "h": 170,
+      "label": "RUSH HYBRID INVERTER",
+      "model": "RH-7600-HX",
+      "ports": ["DC IN", "BATT", "AC OUT", "GRID"] },
+
+    { "type": "placeholder", "assetId": "placeholder-dpc-container",   "x": 280, "y": 410, "w": 380, "h": 380,
+      "label": "DURACELL POWER CENTER MAX",
+      "model": "DPC-MAX-20",
+      "style": "dashed-border",
+      "contains": ["battery-stack", "battery-combiner", "jb-nema3-600v-ls"] },
+
+    { "type": "svg-asset",   "assetId": "battery-combiner",   "x": 510, "y": 460, "w": 130, "h": 80 },
+    { "type": "svg-asset",   "assetId": "jb-nema3-600v-ls",   "x": 510, "y": 600, "w": 130, "h": 48 },
+    { "type": "svg-asset",   "assetId": "eaton-dg221urb",     "x": 700, "y": 450, "w": 100, "h": 130 },
+    { "type": "svg-asset",   "assetId": "eaton-brp20b125r",   "x": 850, "y": 500, "w": 120, "h": 130 },
+    { "type": "svg-asset",   "assetId": "dpcrgm-cell",        "x": 1100,"y": 430, "w": 220, "h": 100 },
+
+    { "type": "line", "color": "pv",   "label": "DC string",                "points": [[180,300],[180,320],[300,320],[300,169],[320,169]] },
+    { "type": "line", "color": "pv",   "label": "RSD → JB",                 "points": [[360,183],[360,240]] },
+    { "type": "line", "color": "pv",   "label": "(2) #10 AWG · DC to hybrid", "points": [[355,296],[355,360],[520,360],[520,270]] },
+    { "type": "line", "color": "ac",   "label": "DC Disc → CGD top bus",    "points": [[520,140],[520,124],[670,124],[670,140]] },
+    { "type": "line", "color": "ac",   "label": "CGD → MSP",                "points": [[670,270],[670,290],[720,290],[720,175],[765,175]] },
+    { "type": "line", "color": "ac",   "label": "(2) #2 AWG trunk",         "points": [[880,204],[940,204]] },
+    { "type": "line", "color": "ac",   "points": [[1030,204],[1080,204]] },
+    { "type": "line", "color": "ac",   "points": [[1120,204],[1180,204]] },
+    { "type": "line", "color": "ac",   "points": [[1260,204],[1290,204]] },
+    { "type": "line", "color": "ac",   "label": "Hybrid AC OUT → DC Disc",  "points": [[200,556],[240,556],[240,320],[470,320],[470,270]] },
+    { "type": "line", "color": "pv",   "label": "Hybrid DC IN ← JB",        "points": [[355,296],[355,538],[200,538]] },
+    { "type": "line", "color": "batt", "label": "Hybrid BATT ↔ DC bus",     "points": [[200,574],[240,574],[240,500],[510,500]] },
+    { "type": "line", "color": "ac",   "label": "Hybrid GRID → ESS DISC",   "points": [[200,592],[230,592],[230,380],[750,380],[750,450]] },
+    { "type": "line", "color": "batt", "label": "ESS DISC → Protected Loads","points": [[800,515],[850,515]] },
+    { "type": "line", "color": "ac",   "label": "ESS DISC → MSP backup",    "points": [[750,580],[750,690],[950,690],[950,280]] },
+    { "type": "line", "color": "gec",  "label": "GEC · NEC 250.52",         "points": [[835,280],[835,760],[760,760]] },
+    { "type": "line", "color": "comm", "label": "CT/RS-485 · DPC + hybrid", "points": [[1100,480],[1040,480],[1040,470],[660,470]] },
+
+    { "type": "callout", "cx": 220, "cy": 320, "number": 12 },
+    { "type": "callout", "cx": 360, "cy": 215, "number": 1 },
+    { "type": "callout", "cx": 430, "cy": 360, "number": 2 },
+    { "type": "callout", "cx": 725, "cy": 290, "number": 14 },
+    { "type": "callout", "cx": 910, "cy": 204, "number": 7 },
+    { "type": "callout", "cx": 1055,"cy": 204, "number": 9 },
+    { "type": "callout", "cx": 1150,"cy": 204, "number": 11 },
+    { "type": "callout", "cx": 350, "cy": 320, "number": 3 },
+    { "type": "callout", "cx": 265, "cy": 538, "number": 1 },
+    { "type": "callout", "cx": 370, "cy": 500, "number": 5 },
+    { "type": "callout", "cx": 500, "cy": 380, "number": 4 },
+    { "type": "callout", "cx": 825, "cy": 515, "number": 13 },
+    { "type": "callout", "cx": 900, "cy": 690, "number": 7 },
+    { "type": "callout", "cx": 800, "cy": 760, "number": 10 },
+    { "type": "callout", "cx": 900, "cy": 470, "number": 15 }
+  ],
+  "titleBlock": {
+    "x": 990, "y": 825, "w": 470, "h": 100,
+    "fields": {
+      "project": "RUSH/Duracell Spatial Reference",
+      "sheet": "PV-5 of 25",
+      "scale": "N.T.S.",
+      "address": "— per project",
+      "drawnBy": "MicroGRID Design",
+      "date": "2026-05-05",
+      "title": "PV-5 — ELECTRICAL SINGLE LINE",
+      "stamp": "[ pending review ]",
+      "rev": "1",
+      "projectId": "RUSH-DPC TOPOLOGY"
+    }
+  },
+  "legend": { "x": 40, "y": 825, "w": 500, "h": 100 }
+}
