@@ -1041,15 +1041,11 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
   elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY - 25, text: '200A (INTERIOR)', fontSize: 4, anchor: 'middle', fill: '#999' })
   elements.push({ type: 'line', x1: mspX + mspW / 2, y1: mspY - 10, x2: mspX + mspW / 2, y2: mspY, strokeWidth: 1, dash: true })
 
-  // Surge protector
-  elements.push({ type: 'rect', x: mspX + mspW + 10, y: mspY - 50, w: 80, h: 28, strokeWidth: 1 })
-  elements.push({ type: 'text', x: mspX + mspW + 50, y: mspY - 38, text: '(N) SURGE', fontSize: 4.5, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: mspX + mspW + 50, y: mspY - 28, text: 'PROTECTOR', fontSize: 4.5, anchor: 'middle', bold: true })
+  // Surge protector — Phase 6 svg-asset.
+  elements.push({ type: 'svg-asset', x: mspX + mspW + 10, y: mspY - 50, w: 80, h: 28, assetId: 'surge-protector-spd' })
 
-  // IMO RSD
-  elements.push({ type: 'rect', x: mspX + mspW + 10, y: mspY - 15, w: 80, h: 28, strokeWidth: 1 })
-  elements.push({ type: 'text', x: mspX + mspW + 50, y: mspY - 3, text: '(N) IMO RAPID', fontSize: 4.5, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: mspX + mspW + 50, y: mspY + 7, text: 'SHUTDOWN', fontSize: 4.5, anchor: 'middle', bold: true })
+  // IMO RSD — Phase 6 svg-asset.
+  elements.push({ type: 'svg-asset', x: mspX + mspW + 10, y: mspY - 15, w: 80, h: 28, assetId: 'imo-rsd' })
 
   // ── Utility chain (right of MSP) ──
   const utilY = mspY + mspH / 2
@@ -1057,12 +1053,9 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
   // Wire spec MSP → Service Disconnect
   elements.push({ type: 'text', x: mspX + mspW + 3, y: utilY - 8, text: '(3) 250 kcmil CU THWN-2', fontSize: 3, fill: '#444', italic: true })
 
-  // Service Disconnect
+  // Service Disconnect — Phase 6 svg-asset. anchor-left=(0,18)=utilY, anchor-right=(90,18).
   const sdX = mspX + mspW + 25
-  elements.push({ type: 'rect', x: sdX, y: utilY - 18, w: 90, h: 36 })
-  elements.push({ type: 'text', x: sdX + 45, y: utilY - 5, text: '(N) SERVICE', fontSize: 5, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: sdX + 45, y: utilY + 5, text: 'DISCONNECT', fontSize: 5, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: sdX + 45, y: utilY + 14, text: 'VISIBLE, LOCKABLE', fontSize: 3.5, anchor: 'middle', fill: '#666' })
+  elements.push({ type: 'svg-asset', x: sdX, y: utilY - 18, w: 90, h: 36, assetId: 'service-disc-200a' })
   elements.push({ type: 'callout', cx: sdX + 45, cy: utilY - 28, number: 7 })
 
   // Expansion fittings
@@ -1086,9 +1079,8 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
     const labelX = (sdX + 90 + umCx - 18) / 2 - 35
     elements.push({ type: 'text', x: labelX, y: utilY + 12, text: `${config.serviceEntranceConduit ?? '2" EMT'} TYPE CONDUIT`, fontSize: 3.5, fill: '#444', italic: true })
   }
-  elements.push({ type: 'circle', cx: umCx, cy: utilY, r: 18, strokeWidth: 1.5 })
-  elements.push({ type: 'text', x: umCx, y: utilY - 2, text: 'M', fontSize: 7, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: umCx, y: utilY + 7, text: 'kWh', fontSize: 5, anchor: 'middle' })
+  // Utility meter — Phase 6 svg-asset. anchor-left=(2,20)=wire in, anchor-right=(38,20)=wire out.
+  elements.push({ type: 'svg-asset', x: umCx - 20, y: utilY - 20, w: 40, h: 40, assetId: 'utility-meter-200a' })
   elements.push({ type: 'text', x: umCx, y: utilY - 24, text: 'UTILITY METER', fontSize: 5, anchor: 'middle', fill: '#666', bold: true })
   elements.push({ type: 'text', x: umCx, y: utilY - 32, text: '(E) BI-DIRECTIONAL', fontSize: 4.5, anchor: 'middle', fill: '#666' })
   elements.push({ type: 'callout', cx: umCx, cy: utilY - 42, number: 9 })
@@ -1303,10 +1295,8 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   let cursorX = 320
 
   const jbX = cursorX, jbY = mainY - 28, jbW = 70, jbH = 56
-  elements.push({ type: 'rect', x: jbX, y: jbY, w: jbW, h: jbH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(jbX + jbW / 2, jbY + 12, [
-    '(N) JUNCTION', 'BOX', '600V, NEMA 3', 'UL LISTED',
-  ], { fontSize: 5.5, lineHeight: 7, bold: true, anchor: 'middle' })
+  // JB — Phase 6 svg-asset. anchor-left=(0,28)=mainY wire.
+  elements.push({ type: 'svg-asset', x: jbX, y: jbY, w: jbW, h: jbH, assetId: 'jb-nema3-600v' })
   cursorX = jbX + jbW
 
   elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: cursorX + 70, y2: mainY, strokeWidth: 1.4 })
@@ -1464,8 +1454,8 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   // ── UTILITY METER ──
   const umCx = cursorX + 30, umCy = mainY
   elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: umCx - 18, y2: mainY, strokeWidth: 1.4 })
-  elements.push({ type: 'circle', cx: umCx, cy: umCy, r: 18, strokeWidth: 1.5 })
-  elements.push({ type: 'text', x: umCx, y: umCy + 5, text: 'M', fontSize: 14, bold: true, anchor: 'middle' })
+  // Utility meter — Phase 6 svg-asset. anchor-left=(2,20)=wire in, anchor-right=(38,20)=wire out.
+  elements.push({ type: 'svg-asset', x: umCx - 20, y: umCy - 20, w: 40, h: 40, assetId: 'utility-meter-200a' })
   textBlock(umCx, umCy + 30, [
     '(E) BI-DIRECTIONAL',
     'UTILITY METER',

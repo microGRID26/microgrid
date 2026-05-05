@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 28" font-family="Helvetica, Arial, sans-serif">
+  
+  <rect x="0.5" y="0.5" width="79" height="27" rx="1" ry="1" fill="white" stroke="#888" stroke-width="0.8"></rect>
+
+  
+  <polyline points="13,8 9,14 12,14 8,20" stroke="#555" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round"></polyline>
+
+  
+  <text x="45" y="11" font-size="4.5" font-weight="bold" fill="#222" text-anchor="middle">(N) SURGE PROTECTOR</text>
+  <text x="45" y="20" font-size="4" fill="#555" text-anchor="middle">TYPE 2 SPD</text>
+
+  
+  <g id="anchors" fill="none" stroke="none" pointer-events="none">
+    <g id="anchor-top" transform="translate(40, 0)"></g>
+    <g id="anchor-bottom" transform="translate(40, 28)"></g>
+    <g id="anchor-left" transform="translate(0, 14)"></g>
+    <g id="anchor-right" transform="translate(80, 14)"></g>
+  </g>
+</svg>

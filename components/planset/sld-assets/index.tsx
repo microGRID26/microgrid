@@ -6,8 +6,13 @@ import { EatonBrp20b125r } from './eaton-brp20b125r'
 import { EatonDg221Urb } from './eaton-dg221urb'
 import { EatonDg222Nrb } from './eaton-dg222nrb'
 import { EatonDg222Urb } from './eaton-dg222urb'
+import { ImoRsd } from './imo-rsd'
+import { JbNema3600v } from './jb-nema3-600v'
 import { Msp225a } from './msp-225a'
+import { ServiceDisc200a } from './service-disc-200a'
 import { SonnenScoreP20 } from './sonnen-score-p20'
+import { SurgeProtectorSpd } from './surge-protector-spd'
+import { UtilityMeter200a } from './utility-meter-200a'
 
 // AssetProps is the shape every SLD asset component receives. See README.md.
 export interface AssetProps {
@@ -32,4 +37,9 @@ export const ASSET_REGISTRY: Record<string, React.FC<AssetProps>> = {
   'eaton-brp12l125r': EatonBrp12l125r,
   'eaton-brp20b125r': EatonBrp20b125r,
   'msp-225a': Msp225a,
+  'jb-nema3-600v': JbNema3600v,
+  'utility-meter-200a': UtilityMeter200a,
+  'service-disc-200a': ServiceDisc200a,
+  'surge-protector-spd': SurgeProtectorSpd,
+  'imo-rsd': ImoRsd,
 }
