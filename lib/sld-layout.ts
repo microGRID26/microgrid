@@ -1406,7 +1406,7 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   // ── BATTERY (vertical drop from PLP) ──
   const battX = plpX + 30
   const battY = mainY + 130
-  const battW = 200
+  const battW = 232  // preserves Sonnen asset aspect 360:280 ≈ 1.286 (round-1 fix)
   const battH = 180
 
   elements.push({ type: 'line', x1: plpX + plpW / 2, y1: plpY + plpH, x2: plpX + plpW / 2, y2: battY, strokeWidth: 1.4 })
@@ -1417,44 +1417,15 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
     '3/4" EMT TYPE CONDUIT',
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
 
-  elements.push({ type: 'rect', x: battX, y: battY, w: battW, h: battH, stroke: STROKE, strokeWidth: 1.2 })
-  elements.push({ type: 'line', x1: battX, y1: battY + 22, x2: battX + battW, y2: battY + 22, strokeWidth: 0.5 })
-  textBlock(battX + battW / 2, battY + 14, ['SCORE-P20 (20 kWh) 4.8 kW AC SYSTEM'], {
-    fontSize: 6, bold: true, anchor: 'middle',
-  })
-  elements.push({ type: 'text', x: battX + battW / 2, y: battY + 32, text: 'SonnenCore+', fontSize: 7, italic: true, anchor: 'middle' })
-  const cellW = 75, cellH = 28, cellGapX = 8, cellGapY = 6
-  const cellGridX = battX + 12
-  const cellGridY = battY + 42
-  for (let r = 0; r < 2; r++) {
-    for (let c = 0; c < 2; c++) {
-      const cx = cellGridX + c * (cellW + cellGapX)
-      const cy = cellGridY + r * (cellH + cellGapY)
-      elements.push({ type: 'rect', x: cx, y: cy, w: cellW, h: cellH, stroke: SUBSTROKE, strokeWidth: 0.6 })
-      textBlock(cx + cellW / 2, cy + 11, ['102 VDC NOMINAL', 'LiFePO4'], {
-        fontSize: 4.5, lineHeight: 6, anchor: 'middle',
-      })
-    }
-  }
-  const estopX = battX + battW - 74, estopY = battY + 42
-  elements.push({ type: 'rect', x: estopX, y: estopY, w: 60, h: 26, stroke: STROKE, strokeWidth: 0.8 })
-  elements.push({ type: 'text', x: estopX + 30, y: estopY + 16, text: 'E-STOP', fontSize: 7, bold: true, anchor: 'middle' })
-  textBlock(estopX + 30, estopY + 32, ['E-STOP ISOLATES', 'BATTERY FROM GRID'], {
-    fontSize: 3.8, lineHeight: 5, anchor: 'middle', fill: MUTED,
-  })
-  const pcsY = cellGridY + 2 * (cellH + cellGapY)
-  elements.push({ type: 'rect', x: cellGridX, y: pcsY, w: 158, h: 22, stroke: SUBSTROKE, strokeWidth: 0.6 })
-  elements.push({ type: 'text', x: cellGridX + 79, y: pcsY + 14, text: 'CONTROLS (PCS)', fontSize: 6, bold: true, anchor: 'middle' })
-  textBlock(battX + 16, battY + 30, ['MICRO'], { fontSize: 5, bold: true, fill: MUTED })
-  textBlock(battX + 60, battY + 30, ['GRID'], { fontSize: 5, bold: true, fill: MUTED })
-  textBlock(battX + 100, battY + 30, ['GRID'], { fontSize: 5, bold: true, fill: MUTED })
-  const primaryY = pcsY + 32
-  elements.push({ type: 'text', x: battX + battW / 2, y: primaryY, text: 'PRIMARY', fontSize: 6, bold: true, anchor: 'middle' })
-  const termY = primaryY + 12
-  ;['L1', 'L2', 'N', 'G'].forEach((t, i) => {
-    pill(battX + 50 + i * 28, termY, 22, 10, t, 5)
-  })
-  textBlock(battX + battW + 8, battY + 30, [
+  elements.push({ type: 'svg-asset', x: battX, y: battY, w: battW, h: battH, assetId: 'sonnen-score-p20' })
+  // Map asset-native (360×280) coords to the rendered slot. Used by external
+  // wires connecting INTO the asset's anchor positions.
+  const slotX = (nx: number) => battX + (nx / 360) * battW
+  const slotY = (ny: number) => battY + (ny / 280) * battH
+  const estopRightX = slotX(346)   // anchor-estop-out — right edge of E-STOP block
+  const estopCenterY = slotY(55)
+  // Annotation shifted below the conductor #6 callout band to avoid overlap (round-1 fix)
+  textBlock(battX + battW + 8, battY + 70, [
     '(N) (1) SONNEN INC. -',
     'SONNENCORE+ SCORE-P20',
     '(240 VAC) (20.000 KWH)',
@@ -1467,9 +1438,9 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   const essdX = battX + battW + 100
   const essdY = battY + 30
   const essdW = 90, essdH = 70
-  elements.push({ type: 'line', x1: estopX + 60, y1: estopY + 13, x2: essdX, y2: essdY + essdH / 2, strokeWidth: 1.4 })
-  elements.push({ type: 'callout', cx: estopX + 80, cy: estopY + 4, number: 6 })
-  textBlock(estopX + 90, estopY - 6, [
+  elements.push({ type: 'line', x1: estopRightX, y1: estopCenterY, x2: essdX, y2: essdY + essdH / 2, strokeWidth: 1.4 })
+  elements.push({ type: 'callout', cx: estopRightX + 20, cy: estopCenterY - 9, number: 6 })
+  textBlock(estopRightX + 30, estopCenterY - 19, [
     '(2) #14 AWG CU THWN-2',
     '(1) #8 AWG CU EGC',
     '3/4" EMT TYPE CONDUIT',

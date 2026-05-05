@@ -1,6 +1,7 @@
 'use client'
 
 import type React from 'react'
+import { SonnenScoreP20 } from './sonnen-score-p20'
 
 // AssetProps is the shape every SLD asset component receives. See README.md.
 export interface AssetProps {
@@ -18,5 +19,5 @@ export interface AssetProps {
 // Unknown assetIds render as a fallback placeholder rect with the missing id
 // so visual debugging is obvious.
 export const ASSET_REGISTRY: Record<string, React.FC<AssetProps>> = {
-  // Phase 1 lands the first asset here.
+  'sonnen-score-p20': SonnenScoreP20,
 }
