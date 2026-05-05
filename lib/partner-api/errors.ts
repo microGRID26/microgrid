@@ -10,6 +10,7 @@ export type ApiErrorCode =
   | 'forbidden'
   | 'not_found'
   | 'invalid_request'
+  | 'payload_too_large'
   | 'rate_limited'
   | 'idempotency_conflict'
   | 'signature_required'
@@ -25,6 +26,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   forbidden: 403,
   not_found: 404,
   invalid_request: 400,
+  payload_too_large: 413,
   rate_limited: 429,
   idempotency_conflict: 409,
   signature_required: 401,
@@ -58,21 +60,38 @@ export interface ErrorBody {
   }
 }
 
+// Generic message returned to clients on any internal_error. Schema enumeration
+// via Postgres / handler error text was an audit-rotation 2026-05-02 finding
+// (#475 L1) — Postgres messages embed column names, constraint names, and
+// offending values, which a malformed PATCH body could probe to map the schema.
+const INTERNAL_ERROR_PUBLIC_MESSAGE = 'Internal server error'
+
 export function errorResponse(err: ApiError, requestId: string): NextResponse<ErrorBody> {
+  // For internal_error: log the real message server-side keyed to the
+  // request_id, but never echo it to the client. Partner sees a generic
+  // message + request_id; an operator looking at server logs can correlate.
+  const publicMessage = err.code === 'internal_error'
+    ? INTERNAL_ERROR_PUBLIC_MESSAGE
+    : err.message
+  if (err.code === 'internal_error' && err.message !== INTERNAL_ERROR_PUBLIC_MESSAGE) {
+    console.error(`[partner-api] internal_error request_id=${requestId}: ${err.message}`)
+  }
   const body: ErrorBody = {
     error: {
       code: err.code,
-      message: err.message,
+      message: publicMessage,
       request_id: requestId,
     },
   }
-  if (err.details) body.error.details = err.details
+  // details are still emitted for non-internal errors (validation hints etc).
+  // Internal errors deliberately drop details to avoid the same leak vector.
+  if (err.details && err.code !== 'internal_error') body.error.details = err.details
   return NextResponse.json(body, {
     status: err.status,
     headers: { 'X-Request-Id': requestId },
   })
 }
 
-export function internalError(requestId: string, message = 'Internal server error'): NextResponse<ErrorBody> {
+export function internalError(requestId: string, message = INTERNAL_ERROR_PUBLIC_MESSAGE): NextResponse<ErrorBody> {
   return errorResponse(new ApiError('internal_error', message), requestId)
 }

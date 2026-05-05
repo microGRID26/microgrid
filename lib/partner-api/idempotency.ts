@@ -23,6 +23,14 @@ const MAX_KEY_LEN = 255
 export interface IdempotencyResult {
   cached: boolean
   response?: { status: number; body: unknown }
+  /**
+   * Hash of the request body that originally completed under this
+   * Idempotency-Key. Populated on cache hits ONLY (cached=true). Routes
+   * pass this through `assertPriorBodyMatches` as a belt-and-suspenders
+   * check on top of readOrReserve's own hash compare — guards against a
+   * future helper refactor silently regressing the hash check (#504).
+   */
+  requestHash?: string
 }
 
 export function bodyHash(body: string): string {
@@ -147,6 +155,44 @@ export async function readOrReserve(
   return {
     cached: true,
     response: { status: row.response_status, body: row.response_body },
+    requestHash: row.request_hash,
+  }
+}
+
+/**
+ * Belt-and-suspenders body-hash assertion (#504). `readOrReserve` already
+ * throws idempotency_conflict on hash mismatch, but the route doesn't
+ * verify that contract — a future helper refactor that regresses the
+ * mismatch check would silently let mismatched replays succeed. Calling
+ * this immediately after `readOrReserve` ensures every cache hit's prior
+ * body still matches the current request body, regardless of helper drift.
+ *
+ * Throws ApiError('idempotency_conflict', 409) on mismatch. Safe to call
+ * unconditionally — does nothing on cache miss (requestHash undefined).
+ */
+export function assertPriorBodyMatches(
+  prior: IdempotencyResult,
+  reqHash: string,
+  idempKey: string,
+): void {
+  if (!prior.cached) return
+  // readOrReserve only sets requestHash on cache hits. If it's undefined
+  // here, that's a HELPER CONTRACT VIOLATION (Greg's bug), not a partner
+  // bug — surface as 500 so monitoring pages an operator and the partner's
+  // 4xx-retry logic doesn't loop forever on a stuck idempotency key.
+  // (#504 R1 M3)
+  if (prior.requestHash === undefined) {
+    throw new ApiError(
+      'internal_error',
+      'Idempotency cache hit missing request_hash — readOrReserve contract violation',
+    )
+  }
+  if (prior.requestHash !== reqHash) {
+    throw new ApiError(
+      'idempotency_conflict',
+      'Body content does not match prior request with same Idempotency-Key',
+      { idempotency_key: idempKey },
+    )
   }
 }
 

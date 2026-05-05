@@ -14,7 +14,9 @@ import {
   bodyHash,
   readOrReserve,
   recordResponse,
+  assertPriorBodyMatches,
 } from '@/lib/partner-api/idempotency'
+import { enforceRawBodyLimit } from '@/lib/partner-api/limits'
 import { emitPartnerEvent } from '@/lib/partner-api/events/emit'
 import { validateLeadPatch } from '@/lib/partner-api/leads'
 
@@ -68,6 +70,7 @@ export const PATCH = withPartnerAuth(
     if (!id) throw new ApiError('invalid_request', 'id required')
 
     const raw = await req.text()
+    enforceRawBodyLimit(raw) // #502 R1 H1
     let parsed: unknown
     try {
       parsed = raw ? JSON.parse(raw) : {}
@@ -81,6 +84,7 @@ export const PATCH = withPartnerAuth(
     const reqHash = bodyHash(raw)
     if (idempKey) {
       const prior = await readOrReserve(ctx.keyId, idempKey, reqHash)
+      assertPriorBodyMatches(prior, reqHash, idempKey)
       if (prior.cached && prior.response) {
         return NextResponse.json(prior.response.body, {
           status: prior.response.status,

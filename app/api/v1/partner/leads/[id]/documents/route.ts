@@ -13,10 +13,12 @@ import {
   bodyHash,
   readOrReserve,
   recordResponse,
+  assertPriorBodyMatches,
 } from '@/lib/partner-api/idempotency'
 import { validateOutboundUrl } from '@/lib/partner-api/events/ssrf'
 import { emitPartnerEvent } from '@/lib/partner-api/events/emit'
 import { VALID_LEAD_DOC_TYPES } from '@/lib/partner-api/leads'
+import { enforceRawBodyLimit, validateMetadata, MAX_PARTNER_DOCS_PER_LEAD } from '@/lib/partner-api/limits'
 
 export const runtime = 'nodejs'
 
@@ -34,6 +36,10 @@ export const POST = withPartnerAuth(
     if (!id) throw new ApiError('invalid_request', 'id required')
 
     const raw = await req.text()
+    // Pre-parse body-size cap (#502). Cheaper than JSON.parsing a multi-MB
+    // payload only to throw a different error at the metadata-depth check.
+    enforceRawBodyLimit(raw)
+
     let body: DocInput
     try {
       body = raw ? JSON.parse(raw) : {}
@@ -54,11 +60,20 @@ export const POST = withPartnerAuth(
       throw new ApiError('invalid_request', `type must be one of: ${[...VALID_LEAD_DOC_TYPES].join(', ')}`)
     }
     validateOutboundUrl(body.url)
+    // Post-parse metadata bounds (#502). Caps key count, depth, and
+    // serialized size so a partner can't blow up the partner_documents
+    // JSONB array via deeply-nested or oversized metadata.
+    validateMetadata(body.metadata)
 
     const idempKey = extractIdempotencyKey(req.headers)
     const reqHash = bodyHash(raw)
     if (idempKey) {
       const prior = await readOrReserve(ctx.keyId, idempKey, reqHash)
+      // Belt-and-suspenders body-hash assertion (#504): readOrReserve
+      // already throws on mismatch, but a future helper refactor could
+      // regress that contract. The shared helper enforces it at every
+      // call site without per-route divergence.
+      assertPriorBodyMatches(prior, reqHash, idempKey)
       if (prior.cached && prior.response) {
         return NextResponse.json(prior.response.body, {
           status: prior.response.status,
@@ -74,6 +89,30 @@ export const POST = withPartnerAuth(
     // re-enforced inside the RPC for defense in depth.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = partnerApiAdmin() as any
+
+    // #474 M4: per-lead cap on partner_documents array length. Pre-checked
+    // here before the RPC fires; race window is tiny (two concurrent fires
+    // could each pass at length 49 → 51 final) and acceptable as a
+    // best-effort bound. Hard server-side enforcement belongs in the RPC,
+    // tracked as a separate migration in greg_actions.
+    {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existing } = await (sb as any)
+        .from('projects')
+        .select('partner_documents')
+        .eq('id', id)
+        .maybeSingle()
+      const existingCount = Array.isArray(existing?.partner_documents)
+        ? (existing.partner_documents as unknown[]).length
+        : 0
+      if (existingCount >= MAX_PARTNER_DOCS_PER_LEAD) {
+        throw new ApiError(
+          'payload_too_large',
+          `Lead has reached the maximum of ${MAX_PARTNER_DOCS_PER_LEAD} documents`,
+          { document_count: existingCount, max: MAX_PARTNER_DOCS_PER_LEAD },
+        )
+      }
+    }
 
     const doc = {
       id: crypto.randomUUID(),

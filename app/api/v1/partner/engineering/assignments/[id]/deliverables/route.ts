@@ -17,8 +17,10 @@ import {
   bodyHash,
   readOrReserve,
   recordResponse,
+  assertPriorBodyMatches,
 } from '@/lib/partner-api/idempotency'
 import { validateOutboundUrl } from '@/lib/partner-api/events/ssrf'
+import { enforceRawBodyLimit, validateMetadata } from '@/lib/partner-api/limits'
 
 export const runtime = 'nodejs'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -39,6 +41,7 @@ export const POST = withPartnerAuth(
     if (!UUID_RE.test(id)) throw new ApiError('invalid_request', 'id must be a UUID')
 
     const raw = await req.text()
+    enforceRawBodyLimit(raw) // #502 R1 H1
     let body: DeliverableInput
     try {
       body = raw ? JSON.parse(raw) : {}
@@ -64,6 +67,10 @@ export const POST = withPartnerAuth(
     // Reuse the SSRF guard to refuse obvious bad URLs. It's not strictly SSRF
     // (the URL is stored, not fetched) but the same heuristics catch garbage.
     validateOutboundUrl(body.url)
+    // Bound metadata depth/keys/serialized size — same JSONB write-amplification
+    // surface as the documents route on engineering_assignments.deliverables.
+    // (#502 R1 H2)
+    validateMetadata(body.metadata)
 
     // Idempotency required for uploads since network flakiness on a 20MB PDF
     // retry will otherwise create duplicate deliverable rows.
@@ -71,6 +78,7 @@ export const POST = withPartnerAuth(
     const reqHash = bodyHash(raw)
     if (idempKey) {
       const prior = await readOrReserve(ctx.keyId, idempKey, reqHash)
+      assertPriorBodyMatches(prior, reqHash, idempKey)
       if (prior.cached && prior.response) {
         return NextResponse.json(prior.response.body, {
           status: prior.response.status,

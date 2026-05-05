@@ -15,7 +15,9 @@ import {
   bodyHash,
   readOrReserve,
   recordResponse,
+  assertPriorBodyMatches,
 } from '@/lib/partner-api/idempotency'
+import { enforceRawBodyLimit } from '@/lib/partner-api/limits'
 import { emitPartnerEvent } from '@/lib/partner-api/events/emit'
 import { validateLeadCreate, generateLeadId } from '@/lib/partner-api/leads'
 
@@ -76,6 +78,11 @@ export const POST = withPartnerAuth(
   { scopes: ['leads:create'], category: 'write', requireActor: true },
   async (req, ctx) => {
     const raw = await req.text()
+    // Pre-parse body-size cap (#502 R1 H1). Without this, a partner can
+    // sustain CPU + GC pressure by POSTing 4 MB junk bodies that pass
+    // validateLeadCreate (unknown fields are ignored) but spend bodyHash
+    // sha256 + JSON.parse cycles regardless.
+    enforceRawBodyLimit(raw)
     let parsed: unknown
     try {
       parsed = raw ? JSON.parse(raw) : {}
@@ -91,6 +98,7 @@ export const POST = withPartnerAuth(
     }
     const reqHash = bodyHash(raw)
     const prior = await readOrReserve(ctx.keyId, idempKey, reqHash)
+    assertPriorBodyMatches(prior, reqHash, idempKey)
     if (prior.cached && prior.response) {
       return NextResponse.json(prior.response.body, {
         status: prior.response.status,

@@ -130,6 +130,9 @@ describe('readOrReserve — cached path', () => {
     const out = await readOrReserve('key-1', 'idem-A', 'hashA')
     expect(out.cached).toBe(true)
     expect(out.response).toEqual({ status: 201, body: { data: { id: 'LEAD-abc' } } })
+    // #504: cached results expose the original requestHash so routes can
+    // do a belt-and-suspenders body-hash check.
+    expect(out.requestHash).toBe('hashA')
   })
 })
 
@@ -241,5 +244,63 @@ describe('recordResponse', () => {
     await expect(
       recordResponse('key-1', 'idem-A', 201, { ok: true }),
     ).resolves.toBeUndefined()
+  })
+})
+
+// #504 — assertPriorBodyMatches belt-and-suspenders helper.
+describe('assertPriorBodyMatches', () => {
+  // Imported lazily so the existing scripted-mock setup doesn't get tangled.
+  it('no-ops on cache miss', async () => {
+    const { assertPriorBodyMatches } = await import('@/lib/partner-api/idempotency')
+    expect(() =>
+      assertPriorBodyMatches({ cached: false }, 'hashA', 'idem-A'),
+    ).not.toThrow()
+  })
+
+  it('passes when prior requestHash matches', async () => {
+    const { assertPriorBodyMatches } = await import('@/lib/partner-api/idempotency')
+    expect(() =>
+      assertPriorBodyMatches(
+        { cached: true, response: { status: 201, body: {} }, requestHash: 'hashA' },
+        'hashA',
+        'idem-A',
+      ),
+    ).not.toThrow()
+  })
+
+  it('throws idempotency_conflict on hash mismatch', async () => {
+    const { assertPriorBodyMatches } = await import('@/lib/partner-api/idempotency')
+    try {
+      assertPriorBodyMatches(
+        { cached: true, response: { status: 201, body: {} }, requestHash: 'hashA' },
+        'hashDIFFERENT',
+        'idem-A',
+      )
+      throw new Error('expected throw')
+    } catch (err) {
+      expect(err).toBeInstanceOf(ApiError)
+      expect((err as ApiError).code).toBe('idempotency_conflict')
+      expect((err as ApiError).status).toBe(409)
+    }
+  })
+
+  it('fails closed as internal_error when cached=true but requestHash undefined', async () => {
+    // Defensive: if a future refactor returns cached:true without populating
+    // requestHash, surface as 500 (helper contract violation, not partner's
+    // bug) so monitoring pages an operator and the partner's 4xx-retry logic
+    // doesn't loop forever on a stuck idempotency key. (#504 R1 M3)
+    const { assertPriorBodyMatches } = await import('@/lib/partner-api/idempotency')
+    try {
+      assertPriorBodyMatches(
+        { cached: true, response: { status: 201, body: {} } },
+        'hashA',
+        'idem-A',
+      )
+      throw new Error('expected throw')
+    } catch (err) {
+      expect(err).toBeInstanceOf(ApiError)
+      expect((err as ApiError).code).toBe('internal_error')
+      expect((err as ApiError).status).toBe(500)
+    }
   })
 })

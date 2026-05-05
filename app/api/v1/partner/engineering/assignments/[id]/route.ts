@@ -9,7 +9,8 @@ import { withPartnerAuth } from '@/lib/partner-api/middleware'
 import { partnerApiAdmin } from '@/lib/partner-api/supabase-admin'
 import { ApiError } from '@/lib/partner-api/errors'
 import { updateAssignmentStatus, ASSIGNMENT_STATUSES, type AssignmentStatus } from '@/lib/api/engineering'
-import { extractIdempotencyKey, bodyHash, readOrReserve, recordResponse } from '@/lib/partner-api/idempotency'
+import { extractIdempotencyKey, bodyHash, readOrReserve, recordResponse, assertPriorBodyMatches } from '@/lib/partner-api/idempotency'
+import { enforceRawBodyLimit } from '@/lib/partner-api/limits'
 import { emitPartnerEvent } from '@/lib/partner-api/events/emit'
 
 export const runtime = 'nodejs'
@@ -62,6 +63,7 @@ export const PATCH = withPartnerAuth(
     if (!UUID_RE.test(id)) throw new ApiError('invalid_request', 'id must be a UUID')
 
     const raw = await req.text()
+    enforceRawBodyLimit(raw) // #502 R1 H1
     let body: { status?: string; notes?: string }
     try {
       body = raw ? JSON.parse(raw) : {}
@@ -74,6 +76,7 @@ export const PATCH = withPartnerAuth(
     const reqHash = bodyHash(raw)
     if (idempKey) {
       const prior = await readOrReserve(ctx.keyId, idempKey, reqHash)
+      assertPriorBodyMatches(prior, reqHash, idempKey)
       if (prior.cached && prior.response) {
         return NextResponse.json(prior.response.body, {
           status: prior.response.status,
