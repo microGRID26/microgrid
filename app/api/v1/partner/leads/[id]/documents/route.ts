@@ -90,30 +90,6 @@ export const POST = withPartnerAuth(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = partnerApiAdmin() as any
 
-    // #474 M4: per-lead cap on partner_documents array length. Pre-checked
-    // here before the RPC fires; race window is tiny (two concurrent fires
-    // could each pass at length 49 → 51 final) and acceptable as a
-    // best-effort bound. Hard server-side enforcement belongs in the RPC,
-    // tracked as a separate migration in greg_actions.
-    {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: existing } = await (sb as any)
-        .from('projects')
-        .select('partner_documents')
-        .eq('id', id)
-        .maybeSingle()
-      const existingCount = Array.isArray(existing?.partner_documents)
-        ? (existing.partner_documents as unknown[]).length
-        : 0
-      if (existingCount >= MAX_PARTNER_DOCS_PER_LEAD) {
-        throw new ApiError(
-          'payload_too_large',
-          `Lead has reached the maximum of ${MAX_PARTNER_DOCS_PER_LEAD} documents`,
-          { document_count: existingCount, max: MAX_PARTNER_DOCS_PER_LEAD },
-        )
-      }
-    }
-
     const doc = {
       id: crypto.randomUUID(),
       name: body.name,
@@ -131,13 +107,18 @@ export const POST = withPartnerAuth(
       p_doc: doc,
     })
     if (rpcErr) {
-      // Map the RPC's RAISE EXCEPTIONs back to the existing ApiError shape.
-      // SQLSTATE P0002 = lead_not_found; 42501 = forbidden.
       if (rpcErr.code === 'P0002' || /lead_not_found/i.test(rpcErr.message ?? '')) {
         throw new ApiError('not_found', 'Lead not found')
       }
       if (rpcErr.code === '42501' || /forbidden/i.test(rpcErr.message ?? '')) {
         throw new ApiError('forbidden', 'Lead is not owned by this org')
+      }
+      if (rpcErr.code === 'P0004' || /docs_limit_exceeded/i.test(rpcErr.message ?? '')) {
+        throw new ApiError(
+          'payload_too_large',
+          `Lead has reached the maximum of ${MAX_PARTNER_DOCS_PER_LEAD} documents`,
+          { max: MAX_PARTNER_DOCS_PER_LEAD },
+        )
       }
       throw new ApiError('internal_error', rpcErr.message)
     }
