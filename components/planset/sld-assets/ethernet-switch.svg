@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 30" width="80" height="30">
+  
+  <rect x="0.6" y="0.6" width="78.8" height="28.8" fill="#fff" stroke="#111" stroke-width="0.8" rx="2"></rect>
+  <rect x="0.6" y="0.6" width="78.8" height="9" fill="#111"></rect>
+  <text x="40" y="6.8" fill="#fff" font-family="Helvetica, Arial, sans-serif" font-size="4.6" font-weight="700" letter-spacing="0.06em" text-anchor="middle">ETHERNET SWITCH</text>
+  
+  <g fill="#fafaf6" stroke="#444" stroke-width="0.4">
+    <rect x="6" y="13" width="6.5" height="6"></rect>
+    <rect x="14" y="13" width="6.5" height="6"></rect>
+    <rect x="22" y="13" width="6.5" height="6"></rect>
+    <rect x="30" y="13" width="6.5" height="6"></rect>
+    <rect x="38" y="13" width="6.5" height="6"></rect>
+    <rect x="46" y="13" width="6.5" height="6"></rect>
+    <rect x="54" y="13" width="6.5" height="6"></rect>
+    <rect x="62" y="13" width="6.5" height="6"></rect>
+  </g>
+  
+  <g fill="#2a8c4a">
+    <circle cx="9.2" cy="11" r="0.5"></circle>
+    <circle cx="17.2" cy="11" r="0.5"></circle>
+    <circle cx="25.2" cy="11" r="0.5"></circle>
+    <circle cx="33.2" cy="11" r="0.5"></circle>
+    <circle cx="41.2" cy="11" r="0.5"></circle>
+    <circle cx="49.2" cy="11" r="0.5"></circle>
+    <circle cx="57.2" cy="11" r="0.5"></circle>
+    <circle cx="65.2" cy="11" r="0.5"></circle>
+  </g>
+  <text x="40" y="27" fill="#666" font-family="Helvetica, Arial, sans-serif" font-size="3.6" text-anchor="middle">8-PORT · GIGABIT · UNMANAGED</text>
+  
+  <g id="anchor-left" transform="translate(0, 15)"><circle r="0"></circle></g>
+  <g id="anchor-right" transform="translate(80, 15)"><circle r="0"></circle></g>
+</svg>

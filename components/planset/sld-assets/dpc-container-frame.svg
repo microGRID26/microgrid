@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 380" width="380" height="380">
+  
+  
+  <rect x="2" y="2" width="376" height="376" fill="none" stroke="#111" stroke-width="2" stroke-dasharray="8 5" rx="4"></rect>
+
+  
+  <rect x="2" y="2" width="376" height="28" fill="#111"></rect>
+  <text x="14" y="20" fill="#fff" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" letter-spacing="0.06em">DURACELL POWER CENTER MAX</text>
+  <text x="368" y="20" fill="#fff" font-family="Helvetica, Arial, sans-serif" font-size="9" font-weight="700" text-anchor="end" letter-spacing="0.04em">DPC-MAX-20</text>
+
+  
+  <rect x="2" y="30" width="376" height="16" fill="#fafaf6" stroke="#111" stroke-width="0.4"></rect>
+  <text x="190" y="41" fill="#444" font-family="Helvetica, Arial, sans-serif" font-size="7" letter-spacing="0.04em" text-anchor="middle">DPC-MAX-20 · INSTALLED ON (N) RIGID RACK · EXTERIOR MOUNTED</text>
+
+  
+  <rect x="2" y="358" width="376" height="20" fill="#fafaf6" stroke="#111" stroke-width="0.4"></rect>
+  <text x="190" y="371" fill="#666" font-family="Helvetica, Arial, sans-serif" font-size="6.5" letter-spacing="0.04em" text-anchor="middle">UL 9540 · UL 1973 · NEC 706 · NEMA 3R</text>
+
+  
+  <g id="anchor-top" transform="translate(190, 0)"><circle r="0"></circle></g>
+  <g id="anchor-bottom" transform="translate(190, 380)"><circle r="0"></circle></g>
+  <g id="anchor-left" transform="translate(0, 190)"><circle r="0"></circle></g>
+  <g id="anchor-right" transform="translate(380, 190)"><circle r="0"></circle></g>
+</svg>

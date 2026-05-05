@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 30" width="80" height="30">
+  
+  <rect x="0.6" y="0.6" width="78.8" height="28.8" fill="#fff" stroke="#111" stroke-width="0.8" rx="2"></rect>
+  <rect x="0.6" y="0.6" width="78.8" height="9" fill="#111"></rect>
+  <text x="40" y="6.8" fill="#fff" font-family="Helvetica, Arial, sans-serif" font-size="4.6" font-weight="700" letter-spacing="0.06em" text-anchor="middle">HOMEOWNER ROUTER</text>
+  
+  <line x1="14" y1="14" x2="14" y2="22" stroke="#111" stroke-width="0.5"></line>
+  <line x1="20" y1="14" x2="20" y2="22" stroke="#111" stroke-width="0.5"></line>
+  
+  <circle cx="32" cy="18" r="1.2" fill="#2a8c4a"></circle>
+  <circle cx="38" cy="18" r="1.2" fill="#1a6dc9"></circle>
+  <circle cx="44" cy="18" r="1.2" fill="#d8a82e"></circle>
+  <text x="40" y="27" fill="#666" font-family="Helvetica, Arial, sans-serif" font-size="3.6" text-anchor="middle">WAN · WiFi · LAN</text>
+  
+  <g id="anchor-left" transform="translate(0, 15)"><circle r="0"></circle></g>
+  <g id="anchor-right" transform="translate(80, 15)"><circle r="0"></circle></g>
+</svg>

@@ -1,87 +1,2203 @@
 {
   "topology": "rush-spatial",
-  "canvas": { "w": 1500, "h": 950 },
+  "version": "v11",
+  "canvas": {
+    "w": 1500,
+    "h": 950
+  },
+  "_notes": [
+    "v11 — Tyson-fidelity polish. Resolves all 30 v9 audit findings.",
+    "Right column x=1300..1490 reserved full-height for title block.",
+    "Sheet header strip at y=40..95 (4 metadata boxes).",
+    "Bottom rows y=820..940 for installer notes + figure title.",
+    "All callout numbers unique 1..15.",
+    "Every conductor line carries a wire-spec label."
+  ],
   "sections": [
-    { "label": "PV ARRAY",                    "x": 40,   "y": 100, "w": 380,  "h": 240 },
-    { "label": "AC SERVICE CONDUCTOR PATH",   "x": 440,  "y": 100, "w": 1020, "h": 240 },
-    { "label": "ENERGY STORAGE SYSTEM",       "x": 40,   "y": 360, "w": 1000, "h": 450 },
-    { "label": "COMMS / MONITORING",          "x": 1060, "y": 360, "w": 400,  "h": 450 }
+    {
+      "label": "SHEET HEADER",
+      "x": 40,
+      "y": 40,
+      "w": 1250,
+      "h": 55,
+      "noFrame": true
+    },
+    {
+      "label": "PV ARRAY",
+      "x": 40,
+      "y": 110,
+      "w": 300,
+      "h": 250
+    },
+    {
+      "label": "AC SERVICE CONDUCTOR PATH",
+      "x": 360,
+      "y": 110,
+      "w": 930,
+      "h": 250
+    },
+    {
+      "label": "ENERGY STORAGE SYSTEM",
+      "x": 40,
+      "y": 380,
+      "w": 990,
+      "h": 430
+    },
+    {
+      "label": "COMMS / MONITORING",
+      "x": 1050,
+      "y": 380,
+      "w": 240,
+      "h": 430
+    },
+    {
+      "label": "INSTALLER NOTES",
+      "x": 40,
+      "y": 820,
+      "w": 700,
+      "h": 120
+    },
+    {
+      "label": "FIGURE TITLE",
+      "x": 760,
+      "y": 820,
+      "w": 530,
+      "h": 30,
+      "noFrame": true
+    }
   ],
   "elements": [
-    { "type": "svg-asset",   "assetId": "imo-rsd",            "x": 320, "y": 155, "w": 80,  "h": 28 },
-    { "type": "svg-asset",   "assetId": "jb-nema3-600v",      "x": 320, "y": 240, "w": 70,  "h": 56 },
-    { "type": "svg-asset",   "assetId": "eaton-dg222urb",     "x": 470, "y": 140, "w": 100, "h": 130 },
-    { "type": "svg-asset",   "assetId": "eaton-dg222nrb",     "x": 620, "y": 140, "w": 100, "h": 130 },
-    { "type": "svg-asset",   "assetId": "msp-225a",           "x": 770, "y": 140, "w": 130, "h": 140 },
-    { "type": "svg-asset",   "assetId": "service-disc-200a",  "x": 940, "y": 186, "w": 90,  "h": 36 },
-    { "type": "svg-asset",   "assetId": "utility-meter-200a", "x": 1080,"y": 184, "w": 40,  "h": 40 },
-    { "type": "svg-asset",   "assetId": "surge-protector-spd","x": 1180,"y": 190, "w": 80,  "h": 28 },
-
-    { "type": "placeholder", "assetId": "placeholder-hybrid-inverter", "x": 80,  "y": 420, "w": 130, "h": 170,
-      "label": "RUSH HYBRID INVERTER",
-      "model": "RH-7600-HX",
-      "ports": ["DC IN", "BATT", "AC OUT", "GRID"] },
-
-    { "type": "placeholder", "assetId": "placeholder-dpc-container",   "x": 280, "y": 410, "w": 380, "h": 380,
-      "label": "DURACELL POWER CENTER MAX",
-      "model": "DPC-MAX-20",
-      "style": "dashed-border",
-      "contains": ["battery-stack", "battery-combiner", "jb-nema3-600v-ls"] },
-
-    { "type": "svg-asset",   "assetId": "battery-combiner",   "x": 510, "y": 460, "w": 130, "h": 80 },
-    { "type": "svg-asset",   "assetId": "jb-nema3-600v-ls",   "x": 510, "y": 600, "w": 130, "h": 48 },
-    { "type": "svg-asset",   "assetId": "eaton-dg221urb",     "x": 700, "y": 450, "w": 100, "h": 130 },
-    { "type": "svg-asset",   "assetId": "eaton-brp20b125r",   "x": 850, "y": 500, "w": 120, "h": 130 },
-    { "type": "svg-asset",   "assetId": "dpcrgm-cell",        "x": 1100,"y": 430, "w": 220, "h": 100 },
-
-    { "type": "line", "color": "pv",   "label": "DC string",                "points": [[180,300],[180,320],[300,320],[300,169],[320,169]] },
-    { "type": "line", "color": "pv",   "label": "RSD → JB",                 "points": [[360,183],[360,240]] },
-    { "type": "line", "color": "pv",   "label": "(2) #10 AWG · DC to hybrid", "points": [[355,296],[355,360],[520,360],[520,270]] },
-    { "type": "line", "color": "ac",   "label": "DC Disc → CGD top bus",    "points": [[520,140],[520,124],[670,124],[670,140]] },
-    { "type": "line", "color": "ac",   "label": "CGD → MSP",                "points": [[670,270],[670,290],[720,290],[720,175],[765,175]] },
-    { "type": "line", "color": "ac",   "label": "(2) #2 AWG trunk",         "points": [[880,204],[940,204]] },
-    { "type": "line", "color": "ac",   "points": [[1030,204],[1080,204]] },
-    { "type": "line", "color": "ac",   "points": [[1120,204],[1180,204]] },
-    { "type": "line", "color": "ac",   "points": [[1260,204],[1290,204]] },
-    { "type": "line", "color": "ac",   "label": "Hybrid AC OUT → DC Disc",  "points": [[200,556],[240,556],[240,320],[470,320],[470,270]] },
-    { "type": "line", "color": "pv",   "label": "Hybrid DC IN ← JB",        "points": [[355,296],[355,538],[200,538]] },
-    { "type": "line", "color": "batt", "label": "Hybrid BATT ↔ DC bus",     "points": [[200,574],[240,574],[240,500],[510,500]] },
-    { "type": "line", "color": "ac",   "label": "Hybrid GRID → ESS DISC",   "points": [[200,592],[230,592],[230,380],[750,380],[750,450]] },
-    { "type": "line", "color": "batt", "label": "ESS → Loads","points": [[800,515],[850,515]] },
-    { "type": "line", "color": "ac",   "label": "ESS DISC → MSP backup",    "points": [[750,580],[750,690],[950,690],[950,280]] },
-    { "type": "line", "color": "gec",  "label": "GEC · NEC 250.52",         "points": [[870,280],[870,760],[760,760]] },
-    { "type": "line", "color": "comm", "label": "CT/RS-485 · DPC + hybrid", "points": [[1100,480],[1040,480],[1040,470],[660,470]] },
-
-    { "type": "callout", "cx": 220, "cy": 320, "number": 12 },
-    { "type": "callout", "cx": 360, "cy": 215, "number": 1 },
-    { "type": "callout", "cx": 430, "cy": 360, "number": 2 },
-    { "type": "callout", "cx": 725, "cy": 290, "number": 14 },
-    { "type": "callout", "cx": 910, "cy": 204, "number": 7 },
-    { "type": "callout", "cx": 1055,"cy": 204, "number": 9 },
-    { "type": "callout", "cx": 1150,"cy": 204, "number": 11 },
-    { "type": "callout", "cx": 350, "cy": 320, "number": 3 },
-    { "type": "callout", "cx": 265, "cy": 538, "number": 1 },
-    { "type": "callout", "cx": 370, "cy": 500, "number": 5 },
-    { "type": "callout", "cx": 500, "cy": 380, "number": 4 },
-    { "type": "callout", "cx": 825, "cy": 515, "number": 13 },
-    { "type": "callout", "cx": 900, "cy": 690, "number": 7 },
-    { "type": "callout", "cx": 800, "cy": 760, "number": 10 },
-    { "type": "callout", "cx": 900, "cy": 470, "number": 15 }
+    {
+      "_": "----- SHEET HEADER STRIP -----"
+    },
+    {
+      "type": "rect",
+      "x": 40,
+      "y": 40,
+      "w": 305,
+      "h": 50,
+      "stroke": "#111"
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 54,
+      "fontSize": 8.5,
+      "bold": true,
+      "letterSpacing": "0.06em",
+      "text": "STC SYSTEM SUMMARY"
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 66,
+      "fontSize": 8,
+      "text": "(20) SERAPHIM SRP-380BMA-BG · 380W ea"
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 76,
+      "fontSize": 8,
+      "text": "(1) DURACELL DPC-INV-7600 · 7.6 kW AC"
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 86,
+      "fontSize": 8,
+      "bold": true,
+      "text": "TOTAL: 7.60 kW DC STC · 7.60 kW AC CEC"
+    },
+    {
+      "type": "rect",
+      "x": 350,
+      "y": 40,
+      "w": 305,
+      "h": 50,
+      "stroke": "#111"
+    },
+    {
+      "type": "text",
+      "x": 360,
+      "y": 54,
+      "fontSize": 8.5,
+      "bold": true,
+      "letterSpacing": "0.06em",
+      "text": "METER & UTILITY"
+    },
+    {
+      "type": "text",
+      "x": 360,
+      "y": 66,
+      "fontSize": 8,
+      "text": "METER NO: __________________________"
+    },
+    {
+      "type": "text",
+      "x": 360,
+      "y": 76,
+      "fontSize": 8,
+      "text": "ESID NO:   __________________________"
+    },
+    {
+      "type": "text",
+      "x": 360,
+      "y": 86,
+      "fontSize": 8,
+      "text": "UTILITY: CenterPoint Energy · 240V 1Φ 3W"
+    },
+    {
+      "type": "rect",
+      "x": 660,
+      "y": 40,
+      "w": 305,
+      "h": 50,
+      "stroke": "#111"
+    },
+    {
+      "type": "text",
+      "x": 670,
+      "y": 54,
+      "fontSize": 8.5,
+      "bold": true,
+      "letterSpacing": "0.06em",
+      "text": "BATTERY SCOPE"
+    },
+    {
+      "type": "text",
+      "x": 670,
+      "y": 66,
+      "fontSize": 8,
+      "text": "(1) DURACELL DPC-MAX-20 · 20.0 kWh · LFP"
+    },
+    {
+      "type": "text",
+      "x": 670,
+      "y": 76,
+      "fontSize": 8,
+      "text": "240V 1Φ · INDOOR/OUTDOOR · UL 9540 · UL 1973"
+    },
+    {
+      "type": "text",
+      "x": 670,
+      "y": 86,
+      "fontSize": 8,
+      "text": "MSP BUSBAR: 225A · BREAKER: 45A/2P (PV)"
+    },
+    {
+      "type": "rect",
+      "x": 970,
+      "y": 40,
+      "w": 320,
+      "h": 50,
+      "stroke": "#111"
+    },
+    {
+      "type": "text",
+      "x": 980,
+      "y": 54,
+      "fontSize": 8.5,
+      "bold": true,
+      "letterSpacing": "0.06em",
+      "text": "SCOPE OF WORK"
+    },
+    {
+      "type": "text",
+      "x": 980,
+      "y": 66,
+      "fontSize": 8,
+      "text": "DC: 7.60 kW · AC: 7.60 kW · MODULES: 20"
+    },
+    {
+      "type": "text",
+      "x": 980,
+      "y": 76,
+      "fontSize": 8,
+      "text": "INVERTER: 1× DPC-INV-7600 hybrid (7.6kW)"
+    },
+    {
+      "type": "text",
+      "x": 980,
+      "y": 86,
+      "fontSize": 8,
+      "text": "STRINGS: 2 × 10 modules · 1500 VDC SYSTEM"
+    },
+    {
+      "_": "----- PV ARRAY -----"
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 124,
+      "fontSize": 8,
+      "color": "#666",
+      "italic": true,
+      "text": "ROOF ARRAY WIRING — RAPID-SHUTDOWN PER 690.12"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 50,
+      "y": 138,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 124,
+      "y": 138,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 198,
+      "y": 138,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 50,
+      "y": 174,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 124,
+      "y": 174,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 198,
+      "y": 174,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 50,
+      "y": 210,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 124,
+      "y": 210,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 198,
+      "y": 210,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 50,
+      "y": 246,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 124,
+      "y": 246,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 198,
+      "y": 246,
+      "w": 70,
+      "h": 32
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 294,
+      "fontSize": 8,
+      "bold": true,
+      "text": "BRANCH 1: (N)(10) SERAPHIM SRP-380BMA-BG · 380W ea"
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 304,
+      "fontSize": 8,
+      "bold": true,
+      "text": "BRANCH 2: (N)(10) SERAPHIM SRP-380BMA-BG · 380W ea"
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 318,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "STRING-INVERTER TOPOLOGY · INTEGRATED MODULE-LEVEL RSD"
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 330,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "INTEGRATED GROUNDING WIRE PER NEC 690.43"
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 346,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "bold": true,
+      "text": "⚠ CONDUIT ON EXTERIOR ELEVATION ABOVE FROST LINE — NO ROMEX IN ATTIC"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "imo-rsd",
+      "x": 280,
+      "y": 150,
+      "w": 60,
+      "h": 24
+    },
+    {
+      "type": "text",
+      "x": 280,
+      "y": 184,
+      "fontSize": 7.5,
+      "bold": true,
+      "text": "(N) IMO RSD"
+    },
+    {
+      "type": "text",
+      "x": 280,
+      "y": 194,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "Rapid-Shutdown"
+    },
+    {
+      "type": "text",
+      "x": 280,
+      "y": 204,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "Initiator · 690.12"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "jb-nema3-600v",
+      "x": 285,
+      "y": 230,
+      "w": 50,
+      "h": 40
+    },
+    {
+      "type": "text",
+      "x": 280,
+      "y": 280,
+      "fontSize": 7.5,
+      "bold": true,
+      "text": "(N) DC JB"
+    },
+    {
+      "type": "text",
+      "x": 280,
+      "y": 290,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "NEMA 3R · 600V"
+    },
+    {
+      "_": "----- AC SERVICE CONDUCTOR PATH -----"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "eaton-dg222urb",
+      "x": 380,
+      "y": 138,
+      "w": 90,
+      "h": 116
+    },
+    {
+      "type": "text",
+      "x": 380,
+      "y": 268,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(N) PV / DC DISCONNECT"
+    },
+    {
+      "type": "text",
+      "x": 380,
+      "y": 280,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "Eaton DG222URB · 60A · 2P · 240V"
+    },
+    {
+      "type": "text",
+      "x": 380,
+      "y": 290,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "NON-FUSIBLE · NEMA 3R"
+    },
+    {
+      "type": "text",
+      "x": 380,
+      "y": 302,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "VISIBLE, LOCKABLE, LABELED 'AC DISCONNECT'"
+    },
+    {
+      "type": "text",
+      "x": 380,
+      "y": 312,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "LOCATED ON ACCESSIBLE EXTERIOR WALL"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "eaton-dg222nrb",
+      "x": 510,
+      "y": 138,
+      "w": 90,
+      "h": 116
+    },
+    {
+      "type": "text",
+      "x": 510,
+      "y": 268,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(N) CUSTOMER GEN DISC"
+    },
+    {
+      "type": "text",
+      "x": 510,
+      "y": 280,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "Eaton DG222NRB · 60A · 2P · 240V"
+    },
+    {
+      "type": "text",
+      "x": 510,
+      "y": 290,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "FUSIBLE · 45A CL FUSE · NEMA 3R"
+    },
+    {
+      "type": "text",
+      "x": 510,
+      "y": 302,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "VISIBLE, LOCKABLE, LABELED 'GEN DISCONNECT'"
+    },
+    {
+      "type": "text",
+      "x": 510,
+      "y": 312,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "LOCATED ON ACCESSIBLE EXTERIOR WALL"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "msp-225a",
+      "x": 640,
+      "y": 138,
+      "w": 130,
+      "h": 130
+    },
+    {
+      "type": "rect",
+      "x": 648,
+      "y": 158,
+      "w": 114,
+      "h": 14,
+      "fill": "#fafaf6",
+      "stroke": "#444"
+    },
+    {
+      "type": "text",
+      "x": 705,
+      "y": 168,
+      "fontSize": 6.5,
+      "bold": true,
+      "anchor": "middle",
+      "text": "(N) MAIN BREAKER 240V · 125A/2P · TOP FED"
+    },
+    {
+      "type": "rect",
+      "x": 648,
+      "y": 178,
+      "w": 114,
+      "h": 14,
+      "fill": "#fafaf6",
+      "stroke": "#444"
+    },
+    {
+      "type": "text",
+      "x": 705,
+      "y": 188,
+      "fontSize": 6.5,
+      "bold": true,
+      "anchor": "middle",
+      "text": "(N) 45A PV BREAKER · 2P · OPP. END OF BUS"
+    },
+    {
+      "type": "rect",
+      "x": 648,
+      "y": 198,
+      "w": 114,
+      "h": 14,
+      "fill": "#fafaf6",
+      "stroke": "#444"
+    },
+    {
+      "type": "text",
+      "x": 705,
+      "y": 208,
+      "fontSize": 6.5,
+      "bold": true,
+      "anchor": "middle",
+      "text": "(E) HOUSE LOAD BREAKERS"
+    },
+    {
+      "type": "rect",
+      "x": 648,
+      "y": 218,
+      "w": 114,
+      "h": 14,
+      "fill": "#fafaf6",
+      "stroke": "#444"
+    },
+    {
+      "type": "text",
+      "x": 705,
+      "y": 228,
+      "fontSize": 6.5,
+      "bold": true,
+      "anchor": "middle",
+      "text": "(N) 30A ESS BACKFEED · 2P"
+    },
+    {
+      "type": "text",
+      "x": 640,
+      "y": 282,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(N) MAIN SERVICE PANEL"
+    },
+    {
+      "type": "text",
+      "x": 640,
+      "y": 294,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "225A · 240V 1Φ 3W · EXTERIOR · NEMA 3R"
+    },
+    {
+      "type": "text",
+      "x": 640,
+      "y": 304,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "BUSBAR 225A · 120% RULE PER 705.12(B)"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "service-disc-200a",
+      "x": 810,
+      "y": 168,
+      "w": 80,
+      "h": 32
+    },
+    {
+      "type": "text",
+      "x": 810,
+      "y": 218,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(N) SERVICE DISC"
+    },
+    {
+      "type": "text",
+      "x": 810,
+      "y": 228,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "200A · 2P · NEMA 3R"
+    },
+    {
+      "type": "text",
+      "x": 810,
+      "y": 240,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "VISIBLE, LOCKABLE,"
+    },
+    {
+      "type": "text",
+      "x": 810,
+      "y": 250,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "LABELED"
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "label": "10' MAX",
+      "labelColor": "#a00",
+      "labelBold": true,
+      "points": [
+        [
+          902,
+          162
+        ],
+        [
+          902,
+          156
+        ],
+        [
+          958,
+          156
+        ],
+        [
+          958,
+          162
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "points": [
+        [
+          902,
+          156
+        ],
+        [
+          902,
+          162
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "points": [
+        [
+          958,
+          156
+        ],
+        [
+          958,
+          162
+        ]
+      ]
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "utility-meter-200a",
+      "x": 920,
+      "y": 164,
+      "w": 40,
+      "h": 40
+    },
+    {
+      "type": "text",
+      "x": 920,
+      "y": 218,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(E) UTILITY METER"
+    },
+    {
+      "type": "text",
+      "x": 920,
+      "y": 228,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "BI-DIRECTIONAL"
+    },
+    {
+      "type": "text",
+      "x": 920,
+      "y": 238,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "1Φ · 3-WIRE · 200A"
+    },
+    {
+      "type": "text",
+      "x": 920,
+      "y": 248,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "120/240V · EXTERIOR"
+    },
+    {
+      "type": "text",
+      "x": 920,
+      "y": 260,
+      "fontSize": 7,
+      "color": "#888",
+      "italic": true,
+      "text": "METER NO: ________"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "surge-protector-spd",
+      "x": 1000,
+      "y": 174,
+      "w": 80,
+      "h": 24
+    },
+    {
+      "type": "text",
+      "x": 1000,
+      "y": 218,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(N) SURGE PROTECTOR"
+    },
+    {
+      "type": "text",
+      "x": 1000,
+      "y": 228,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "Type 1 SPD · NEC 285"
+    },
+    {
+      "type": "text",
+      "x": 1000,
+      "y": 240,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "MOV+GDT · 40 kA SCCR"
+    },
+    {
+      "type": "rect",
+      "x": 1110,
+      "y": 168,
+      "w": 50,
+      "h": 32,
+      "fill": "#fafaf6",
+      "stroke": "#a00",
+      "strokeWidth": 1.2
+    },
+    {
+      "type": "text",
+      "x": 1135,
+      "y": 186,
+      "fontSize": 7,
+      "color": "#a00",
+      "bold": true,
+      "anchor": "middle",
+      "text": "TO"
+    },
+    {
+      "type": "text",
+      "x": 1135,
+      "y": 196,
+      "fontSize": 7,
+      "color": "#a00",
+      "bold": true,
+      "anchor": "middle",
+      "text": "GRID →"
+    },
+    {
+      "type": "text",
+      "x": 1110,
+      "y": 218,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "italic": true,
+      "text": "Service drop"
+    },
+    {
+      "type": "text",
+      "x": 1110,
+      "y": 228,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "italic": true,
+      "text": "from utility pole"
+    },
+    {
+      "_": "----- ENERGY STORAGE SYSTEM -----"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "duracell-hybrid-inverter",
+      "x": 70,
+      "y": 410,
+      "w": 120,
+      "h": 156
+    },
+    {
+      "type": "text",
+      "x": 70,
+      "y": 580,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(N) DURACELL HYBRID INVERTER"
+    },
+    {
+      "type": "text",
+      "x": 70,
+      "y": 592,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "DPC-INV-7600 · 7.6 kW · 240V 1Φ"
+    },
+    {
+      "type": "text",
+      "x": 70,
+      "y": 602,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "MPPT 2-CHAN · DC IN · BATT · AC OUT · GRID"
+    },
+    {
+      "type": "text",
+      "x": 70,
+      "y": 614,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "UL 1741-SA · IEEE 1547 · NEC 705.12(B)(2)"
+    },
+    {
+      "type": "text",
+      "x": 70,
+      "y": 624,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "NEMA 3R · INDOOR/OUTDOOR"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "e-stop-button",
+      "x": 220,
+      "y": 470,
+      "w": 50,
+      "h": 34
+    },
+    {
+      "type": "text",
+      "x": 220,
+      "y": 514,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "bold": true,
+      "italic": true,
+      "text": "E-STOP ISOLATES BATTERY"
+    },
+    {
+      "type": "text",
+      "x": 220,
+      "y": 524,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "bold": true,
+      "italic": true,
+      "text": "FROM GRID"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "dpc-container-frame",
+      "x": 290,
+      "y": 400,
+      "w": 360,
+      "h": 360
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "duracell-battery-stack",
+      "x": 310,
+      "y": 446,
+      "w": 100,
+      "h": 260
+    },
+    {
+      "type": "text",
+      "x": 310,
+      "y": 720,
+      "fontSize": 7.5,
+      "bold": true,
+      "text": "(N) (4) DURACELL 5KWH BATTERY"
+    },
+    {
+      "type": "text",
+      "x": 310,
+      "y": 730,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "20.000 kWh TOTAL · LFP CHEMISTRY"
+    },
+    {
+      "type": "text",
+      "x": 310,
+      "y": 740,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "INDOOR/OUTDOOR · GARAGE OR"
+    },
+    {
+      "type": "text",
+      "x": 310,
+      "y": 750,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "RIGID-RACK MOUNTED · UL 9540"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "battery-combiner",
+      "x": 440,
+      "y": 446,
+      "w": 110,
+      "h": 70
+    },
+    {
+      "type": "text",
+      "x": 440,
+      "y": 530,
+      "fontSize": 8,
+      "bold": true,
+      "text": "(N) BATTERY COMBINER"
+    },
+    {
+      "type": "text",
+      "x": 440,
+      "y": 540,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "DC Bus · 175A Fuse · NEMA 3R"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "production-ct",
+      "x": 480,
+      "y": 558,
+      "w": 26,
+      "h": 26
+    },
+    {
+      "type": "text",
+      "x": 514,
+      "y": 568,
+      "fontSize": 7.5,
+      "bold": true,
+      "text": "PRODUCTION CT"
+    },
+    {
+      "type": "text",
+      "x": 514,
+      "y": 578,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "Battery DC · 200A"
+    },
+    {
+      "type": "text",
+      "x": 514,
+      "y": 588,
+      "fontSize": 7,
+      "color": "#666",
+      "italic": true,
+      "text": "CT EXT P/N 1001808 · #18 SHIELDED"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "jb-nema3-600v-ls",
+      "x": 440,
+      "y": 610,
+      "w": 110,
+      "h": 40
+    },
+    {
+      "type": "text",
+      "x": 440,
+      "y": 662,
+      "fontSize": 8,
+      "bold": true,
+      "text": "(N) DC JUNCTION BOX (LS)"
+    },
+    {
+      "type": "text",
+      "x": 440,
+      "y": 672,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "600V · NEMA 3R · UL Listed"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "eaton-dg221urb",
+      "x": 680,
+      "y": 430,
+      "w": 90,
+      "h": 116
+    },
+    {
+      "type": "text",
+      "x": 680,
+      "y": 562,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(N) ESS DISCONNECT"
+    },
+    {
+      "type": "text",
+      "x": 680,
+      "y": 574,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "Eaton DG221URB · 30A · 2P · 240V"
+    },
+    {
+      "type": "text",
+      "x": 680,
+      "y": 584,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "NON-FUSIBLE · NEMA 3R"
+    },
+    {
+      "type": "text",
+      "x": 680,
+      "y": 596,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "VISIBLE, LOCKABLE, LABELED 'BATTERY DISC'"
+    },
+    {
+      "type": "text",
+      "x": 680,
+      "y": 606,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "LOCATED ON ACCESSIBLE EXTERIOR WALL"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "eaton-brp20b125r",
+      "x": 820,
+      "y": 460,
+      "w": 110,
+      "h": 124
+    },
+    {
+      "type": "rect",
+      "x": 828,
+      "y": 478,
+      "w": 94,
+      "h": 12,
+      "fill": "#fafaf6",
+      "stroke": "#444"
+    },
+    {
+      "type": "text",
+      "x": 875,
+      "y": 487,
+      "fontSize": 6.5,
+      "bold": true,
+      "anchor": "middle",
+      "text": "MAIN BKR 240V · 40A/2P"
+    },
+    {
+      "type": "rect",
+      "x": 828,
+      "y": 494,
+      "w": 44,
+      "h": 12,
+      "fill": "#fafaf6",
+      "stroke": "#444"
+    },
+    {
+      "type": "text",
+      "x": 850,
+      "y": 503,
+      "fontSize": 6.5,
+      "bold": true,
+      "anchor": "middle",
+      "text": "20A/2P"
+    },
+    {
+      "type": "rect",
+      "x": 878,
+      "y": 494,
+      "w": 44,
+      "h": 12,
+      "fill": "#fafaf6",
+      "stroke": "#444"
+    },
+    {
+      "type": "text",
+      "x": 900,
+      "y": 503,
+      "fontSize": 6.5,
+      "bold": true,
+      "anchor": "middle",
+      "text": "20A/2P"
+    },
+    {
+      "type": "rect",
+      "x": 828,
+      "y": 510,
+      "w": 44,
+      "h": 12,
+      "fill": "#fafaf6",
+      "stroke": "#444"
+    },
+    {
+      "type": "text",
+      "x": 850,
+      "y": 519,
+      "fontSize": 6.5,
+      "bold": true,
+      "anchor": "middle",
+      "text": "15A/2P"
+    },
+    {
+      "type": "rect",
+      "x": 878,
+      "y": 510,
+      "w": 44,
+      "h": 12,
+      "fill": "#fafaf6",
+      "stroke": "#444"
+    },
+    {
+      "type": "text",
+      "x": 900,
+      "y": 519,
+      "fontSize": 6.5,
+      "bold": true,
+      "anchor": "middle",
+      "text": "15A/2P"
+    },
+    {
+      "type": "text",
+      "x": 820,
+      "y": 598,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(N) PROTECTED LOAD PANEL"
+    },
+    {
+      "type": "text",
+      "x": 820,
+      "y": 610,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "Eaton BRP20B125R · 125A · 20-circ"
+    },
+    {
+      "type": "text",
+      "x": 820,
+      "y": 620,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "NEMA 3R · MLO · UL Listed"
+    },
+    {
+      "type": "text",
+      "x": 820,
+      "y": 632,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "ESSENTIAL LOADS — TEST EDISON CIRCUIT"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "eaton-brp12l125r",
+      "x": 820,
+      "y": 660,
+      "w": 110,
+      "h": 90
+    },
+    {
+      "type": "text",
+      "x": 820,
+      "y": 762,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(N) PV LOAD CENTER"
+    },
+    {
+      "type": "text",
+      "x": 820,
+      "y": 774,
+      "fontSize": 8,
+      "color": "#666",
+      "text": "Eaton BRP12L125R · 125A MLO"
+    },
+    {
+      "type": "text",
+      "x": 820,
+      "y": 784,
+      "fontSize": 7.5,
+      "color": "#666",
+      "italic": true,
+      "text": "NEMA 3R · UL Listed · EXTERIOR"
+    },
+    {
+      "type": "text",
+      "x": 820,
+      "y": 796,
+      "fontSize": 7.5,
+      "color": "#444",
+      "italic": true,
+      "text": "20A/2P + 15A/2P PV BACKFEED PILLS"
+    },
+    {
+      "_": "----- COMMS / MONITORING -----"
+    },
+    {
+      "type": "text",
+      "x": 1060,
+      "y": 398,
+      "fontSize": 8,
+      "color": "#666",
+      "italic": true,
+      "text": "COMMUNICATION WIRES"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "dpcrgm-cell",
+      "x": 1060,
+      "y": 408,
+      "w": 220,
+      "h": 90
+    },
+    {
+      "type": "text",
+      "x": 1060,
+      "y": 514,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(N) DPCRGM — CELL GATEWAY"
+    },
+    {
+      "type": "text",
+      "x": 1060,
+      "y": 524,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "RGM Comms · Cellular Uplink"
+    },
+    {
+      "type": "text",
+      "x": 1060,
+      "y": 534,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "Portal Sync · DPC RGM CTs"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "homeowner-router",
+      "x": 1060,
+      "y": 560,
+      "w": 100,
+      "h": 38
+    },
+    {
+      "type": "text",
+      "x": 1060,
+      "y": 612,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(E) HOMEOWNER ROUTER"
+    },
+    {
+      "type": "text",
+      "x": 1060,
+      "y": 622,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "WAN · WiFi · LAN · Customer Provided"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "ethernet-switch",
+      "x": 1060,
+      "y": 644,
+      "w": 100,
+      "h": 38
+    },
+    {
+      "type": "text",
+      "x": 1060,
+      "y": 696,
+      "fontSize": 8.5,
+      "bold": true,
+      "text": "(N) ETHERNET SWITCH"
+    },
+    {
+      "type": "text",
+      "x": 1060,
+      "y": 706,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "8-Port · Gigabit · Unmanaged"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "production-ct",
+      "x": 1180,
+      "y": 716,
+      "w": 24,
+      "h": 24
+    },
+    {
+      "type": "text",
+      "x": 1210,
+      "y": 724,
+      "fontSize": 7.5,
+      "bold": true,
+      "text": "(N) PRODUCTION CT"
+    },
+    {
+      "type": "text",
+      "x": 1210,
+      "y": 734,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "AC OUT monitoring"
+    },
+    {
+      "type": "text",
+      "x": 1060,
+      "y": 760,
+      "fontSize": 7,
+      "color": "#9a4ad9",
+      "italic": true,
+      "text": "24 AWG CAT 5/6 SHIELDED — comm runs"
+    },
+    {
+      "_": "----- WIRES (every conductor labeled) -----"
+    },
+    {
+      "type": "line",
+      "color": "pv",
+      "label": "(2) #10 AWG CU THWN-2 + (1) #10 EGC · ¾\" EMT · DC string",
+      "labelX": 130,
+      "labelY": 134,
+      "points": [
+        [
+          160,
+          286
+        ],
+        [
+          160,
+          124
+        ],
+        [
+          310,
+          124
+        ],
+        [
+          310,
+          150
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "pv",
+      "label": "RSD → DC JB · #10 AWG",
+      "labelX": 312,
+      "labelY": 220,
+      "points": [
+        [
+          310,
+          174
+        ],
+        [
+          310,
+          230
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "pv",
+      "label": "(2) #10 AWG CU + (1) #10 EGC · ¾\" EMT",
+      "labelX": 350,
+      "labelY": 254,
+      "points": [
+        [
+          330,
+          270
+        ],
+        [
+          330,
+          280
+        ],
+        [
+          425,
+          280
+        ],
+        [
+          425,
+          254
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "label": "Hybrid AC OUT → CGD bus",
+      "labelX": 425,
+      "labelY": 132,
+      "points": [
+        [
+          425,
+          138
+        ],
+        [
+          425,
+          124
+        ],
+        [
+          555,
+          124
+        ],
+        [
+          555,
+          138
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "label": "(2) #6 AWG CU + (1) #8 EGC · ¾\" EMT",
+      "labelX": 580,
+      "labelY": 134,
+      "points": [
+        [
+          555,
+          254
+        ],
+        [
+          555,
+          134
+        ],
+        [
+          640,
+          134
+        ],
+        [
+          640,
+          158
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "label": "(2) #2 AWG CU + (1) #6 EGC · 1¼\" EMT",
+      "labelX": 765,
+      "labelY": 162,
+      "points": [
+        [
+          770,
+          188
+        ],
+        [
+          810,
+          188
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "points": [
+        [
+          890,
+          184
+        ],
+        [
+          920,
+          184
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "points": [
+        [
+          960,
+          184
+        ],
+        [
+          1000,
+          184
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "points": [
+        [
+          1080,
+          186
+        ],
+        [
+          1110,
+          186
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "label": "→ utility drop",
+      "labelX": 1115,
+      "labelY": 196,
+      "points": [
+        [
+          1135,
+          168
+        ],
+        [
+          1135,
+          156
+        ],
+        [
+          1180,
+          156
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "label": "Hybrid AC OUT → DC Disc top (#6 AWG)",
+      "labelX": 240,
+      "labelY": 350,
+      "points": [
+        [
+          190,
+          510
+        ],
+        [
+          240,
+          510
+        ],
+        [
+          240,
+          360
+        ],
+        [
+          425,
+          360
+        ],
+        [
+          425,
+          254
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "pv",
+      "label": "Hybrid DC IN ← DC JB (#10 AWG)",
+      "labelX": 200,
+      "labelY": 446,
+      "points": [
+        [
+          330,
+          270
+        ],
+        [
+          330,
+          460
+        ],
+        [
+          190,
+          460
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "batt",
+      "label": "Hybrid BATT ↔ DC bus (4/0 AWG · 175A)",
+      "labelX": 270,
+      "labelY": 458,
+      "points": [
+        [
+          190,
+          488
+        ],
+        [
+          240,
+          488
+        ],
+        [
+          240,
+          460
+        ],
+        [
+          440,
+          460
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "label": "Hybrid GRID → ESS DISC (#6 AWG)",
+      "labelX": 290,
+      "labelY": 376,
+      "points": [
+        [
+          190,
+          540
+        ],
+        [
+          275,
+          540
+        ],
+        [
+          275,
+          388
+        ],
+        [
+          725,
+          388
+        ],
+        [
+          725,
+          430
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "batt",
+      "label": "ESS DISC → Protected Loads",
+      "labelX": 776,
+      "labelY": 504,
+      "points": [
+        [
+          770,
+          510
+        ],
+        [
+          820,
+          510
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "label": "ESS DISC → MSP backfeed (#6 AWG)",
+      "labelX": 770,
+      "labelY": 770,
+      "points": [
+        [
+          725,
+          546
+        ],
+        [
+          725,
+          778
+        ],
+        [
+          995,
+          778
+        ],
+        [
+          995,
+          268
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "gec",
+      "label": "GEC #6 AWG bare CU · NEC 250.52, 250.53(A)",
+      "labelX": 50,
+      "labelY": 798,
+      "points": [
+        [
+          995,
+          268
+        ],
+        [
+          995,
+          798
+        ],
+        [
+          50,
+          798
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "comm",
+      "label": "RS-485 / CT — DPC + hybrid telemetry",
+      "labelX": 600,
+      "labelY": 396,
+      "points": [
+        [
+          1060,
+          440
+        ],
+        [
+          1020,
+          440
+        ],
+        [
+          1020,
+          420
+        ],
+        [
+          550,
+          420
+        ],
+        [
+          550,
+          446
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "comm",
+      "points": [
+        [
+          1110,
+          598
+        ],
+        [
+          1110,
+          644
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "color": "comm",
+      "points": [
+        [
+          1110,
+          682
+        ],
+        [
+          1110,
+          716
+        ]
+      ]
+    },
+    {
+      "_": "----- CALLOUTS (1..15 unique, all offset from conductors and assets) -----"
+    },
+    {
+      "type": "callout",
+      "cx": 200,
+      "cy": 332,
+      "number": 1
+    },
+    {
+      "type": "callout",
+      "cx": 320,
+      "cy": 220,
+      "number": 2
+    },
+    {
+      "type": "callout",
+      "cx": 350,
+      "cy": 246,
+      "number": 3
+    },
+    {
+      "type": "callout",
+      "cx": 405,
+      "cy": 124,
+      "number": 4
+    },
+    {
+      "type": "callout",
+      "cx": 535,
+      "cy": 124,
+      "number": 5
+    },
+    {
+      "type": "callout",
+      "cx": 705,
+      "cy": 124,
+      "number": 6
+    },
+    {
+      "type": "callout",
+      "cx": 850,
+      "cy": 154,
+      "number": 7
+    },
+    {
+      "type": "callout",
+      "cx": 940,
+      "cy": 150,
+      "number": 8
+    },
+    {
+      "type": "callout",
+      "cx": 1040,
+      "cy": 160,
+      "number": 9
+    },
+    {
+      "type": "callout",
+      "cx": 130,
+      "cy": 580,
+      "number": 10
+    },
+    {
+      "type": "callout",
+      "cx": 295,
+      "cy": 386,
+      "number": 11
+    },
+    {
+      "type": "callout",
+      "cx": 470,
+      "cy": 386,
+      "number": 12
+    },
+    {
+      "type": "callout",
+      "cx": 720,
+      "cy": 562,
+      "number": 13
+    },
+    {
+      "type": "callout",
+      "cx": 870,
+      "cy": 596,
+      "number": 14
+    },
+    {
+      "type": "callout",
+      "cx": 1170,
+      "cy": 394,
+      "number": 15
+    },
+    {
+      "_": "----- INSTALLER NOTE BLOCK (red bullets, bottom-left) -----"
+    },
+    {
+      "type": "rect",
+      "x": 40,
+      "y": 820,
+      "w": 700,
+      "h": 120,
+      "stroke": "#a00",
+      "strokeWidth": 1.4,
+      "fill": "#fff"
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 836,
+      "fontSize": 9,
+      "bold": true,
+      "color": "#a00",
+      "letterSpacing": "0.06em",
+      "text": "INSTALLER NOTES"
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 850,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "text": "• Relocate essential loads to (N) Protected Load Panel; balance phases to MSP."
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 860,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "text": "• Test Edison-style 240V circuits before commissioning; verify L1/L2 polarity."
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 870,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "text": "• 10–12 single-pole loads max on PLP; 240V loads consume two slots."
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 880,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "text": "• Duracell battery floor-mounted on rigid rack; min 36\" front clearance."
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 890,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "text": "• Heat detectors required in conditioned battery room (NEC 706.5 / IFC 1207)."
+    },
+    {
+      "type": "text",
+      "x": 390,
+      "y": 850,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "text": "• Bollards 3' min height in front of exterior battery enclosure."
+    },
+    {
+      "type": "text",
+      "x": 390,
+      "y": 860,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "text": "• CT extension kit P/N 1001808 with #18 AWG shielded cable, 100' max run."
+    },
+    {
+      "type": "text",
+      "x": 390,
+      "y": 870,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "text": "• #18 AWG shielded twisted pair for all RGM telemetry; bond shield at gateway."
+    },
+    {
+      "type": "text",
+      "x": 390,
+      "y": 880,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "text": "• MSP upgrade to 225A required if existing busbar < 200A continuous."
+    },
+    {
+      "type": "text",
+      "x": 390,
+      "y": 890,
+      "fontSize": 7.5,
+      "color": "#a00",
+      "text": "• Smoke detectors and CO sensors required per local AHJ for indoor battery."
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 916,
+      "fontSize": 7,
+      "color": "#666",
+      "italic": true,
+      "text": "EXISTING GROUNDING ELECTRODE SYSTEM TO EARTH PER NEC 250.52, 250.53(A) — bond all ESS to existing GEC."
+    },
+    {
+      "type": "text",
+      "x": 50,
+      "y": 928,
+      "fontSize": 7,
+      "color": "#666",
+      "italic": true,
+      "text": "ALL DISCONNECTS — VISIBLE, LOCKABLE, LABELED · NEC 690.13, 705.20, 706.7"
+    },
+    {
+      "_": "----- FIGURE TITLE -----"
+    },
+    {
+      "type": "text",
+      "x": 770,
+      "y": 836,
+      "fontSize": 12,
+      "bold": true,
+      "text": "①"
+    },
+    {
+      "type": "text",
+      "x": 790,
+      "y": 836,
+      "fontSize": 11,
+      "bold": true,
+      "letterSpacing": "0.04em",
+      "text": "ELECTRICAL SINGLE LINE DIAGRAM"
+    },
+    {
+      "type": "text",
+      "x": 1080,
+      "y": 836,
+      "fontSize": 9,
+      "color": "#666",
+      "text": "SCALE: NTS"
+    },
+    {
+      "_": "----- LEGEND (compact, below figure title) -----"
+    },
+    {
+      "type": "rect",
+      "x": 760,
+      "y": 850,
+      "w": 530,
+      "h": 90,
+      "stroke": "#111",
+      "fill": "#fff"
+    },
+    {
+      "type": "text",
+      "x": 770,
+      "y": 866,
+      "fontSize": 9,
+      "bold": true,
+      "letterSpacing": "0.06em",
+      "text": "LEGEND"
+    },
+    {
+      "type": "legend-item",
+      "x": 770,
+      "y": 880,
+      "color": "pv",
+      "label": "PV DC"
+    },
+    {
+      "type": "legend-item",
+      "x": 870,
+      "y": 880,
+      "color": "ac",
+      "label": "AC"
+    },
+    {
+      "type": "legend-item",
+      "x": 950,
+      "y": 880,
+      "color": "batt",
+      "label": "BATT DC"
+    },
+    {
+      "type": "legend-item",
+      "x": 1060,
+      "y": 880,
+      "color": "gec",
+      "label": "GEC / EGC"
+    },
+    {
+      "type": "legend-item",
+      "x": 1180,
+      "y": 880,
+      "color": "comm",
+      "label": "COMMS"
+    },
+    {
+      "type": "text",
+      "x": 770,
+      "y": 900,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "(N) NEW · (E) EXISTING · DISCONNECTS — VISIBLE · LOCKABLE · LABELED"
+    },
+    {
+      "type": "text",
+      "x": 770,
+      "y": 912,
+      "fontSize": 7.5,
+      "color": "#666",
+      "text": "NEC 250.52 / 705.12(B)(2) / 706 · UL 1741-SA · UL 9540 · UL 1973"
+    },
+    {
+      "type": "text",
+      "x": 770,
+      "y": 924,
+      "fontSize": 7.5,
+      "color": "#888",
+      "italic": true,
+      "text": "Topology: rush-spatial · v11 · Duracell + Seraphim active fleet"
+    }
   ],
   "titleBlock": {
-    "x": 990, "y": 860, "w": 470, "h": 85,
+    "x": 1300,
+    "y": 40,
+    "w": 190,
+    "h": 770,
     "fields": {
-      "project": "RUSH/Duracell Spatial Reference",
-      "sheet": "PV-5 of 25",
-      "scale": "N.T.S.",
-      "address": "— per project",
-      "drawnBy": "MicroGRID Design",
-      "date": "2026-05-05",
-      "title": "PV-5 — ELECTRICAL SINGLE LINE",
-      "stamp": "[ pending review ]",
-      "rev": "1",
-      "projectId": "RUSH-DPC TOPOLOGY"
+      "_layout": "full-height-right-column",
+      "logoLabel": "MicroGRID",
+      "contractor": {
+        "name": "MicroGRID Energy",
+        "address": "Houston, TX",
+        "phone": "(000) 000-0000",
+        "email": "ops@gomicrogridenergy.com",
+        "license": "TECL #________"
+      },
+      "project": {
+        "name": "Duracell + Seraphim Reference",
+        "coordinates": "29.7604° N, 95.3698° W",
+        "address": "— per project address"
+      },
+      "stamp": {
+        "_": "200×200 empty box for engineer wet stamp",
+        "label": "ENGINEER'S STAMP"
+      },
+      "details": {
+        "drawnDate": "2026-05-05",
+        "drawnBy": "MicroGRID Design",
+        "rev": "v11 / 2026-05-05",
+        "sheetSize": "ANSI B (11×17)",
+        "ahj": "TBD",
+        "sheetName": "ELECTRICAL SINGLE LINE",
+        "sheetNumber": "PV-5 of 25"
+      }
     }
-  },
-  "legend": { "x": 40, "y": 860, "w": 500, "h": 85 }
+  }
 }

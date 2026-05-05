@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 40" width="60" height="40">
+  
+  <rect x="0.6" y="0.6" width="58.8" height="38.8" fill="#fff" stroke="#111" stroke-width="0.8" rx="1.5"></rect>
+  
+  <rect x="3" y="3" width="54" height="34" fill="#f4d65b" stroke="#111" stroke-width="0.4" rx="1"></rect>
+  
+  <rect x="9" y="6" width="42" height="22" fill="#c0241e" stroke="#111" stroke-width="0.6" rx="1"></rect>
+  
+  <rect x="11" y="7.5" width="38" height="3" fill="#e85a4f" rx="0.6"></rect>
+  
+  <text x="30" y="20.5" fill="#fff" font-family="Helvetica, Arial, sans-serif" font-size="7" font-weight="700" letter-spacing="0.08em" text-anchor="middle">E-STOP</text>
+  
+  <text x="30" y="34" fill="#111" font-family="Helvetica, Arial, sans-serif" font-size="4.5" font-weight="700" letter-spacing="0.08em" text-anchor="middle">EMERGENCY</text>
+
+  
+  <g id="anchor-top" transform="translate(30, 0)"><circle r="0"></circle></g>
+  <g id="anchor-bottom" transform="translate(30, 40)"><circle r="0"></circle></g>
+  <g id="anchor-left" transform="translate(0, 20)"><circle r="0"></circle></g>
+  <g id="anchor-right" transform="translate(60, 20)"><circle r="0"></circle></g>
+</svg>

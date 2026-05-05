@@ -37,7 +37,8 @@ export interface SldSpec {
   elements: SldSpecElement[]
   titleBlock?: {
     x: number; y: number; w: number; h: number
-    fields: Record<string, string>
+    // v8 = flat string fields. v11+ = nested objects (handled inline by spec text elements)
+    fields: Record<string, unknown>
   }
   legend?: { x: number; y: number; w: number; h: number }
 }
@@ -108,10 +109,10 @@ export function renderSldFromSpec(spec: SldSpec, config: SldConfig): SldLayout {
     }
   }
 
-  // Title block
-  if (spec.titleBlock) {
+  // Title block (v8 only — v11+ specs render the title block inline via text elements)
+  if (spec.titleBlock && spec.titleBlock.fields && !spec.titleBlock.fields._layout) {
     const tb = spec.titleBlock
-    const f = tb.fields
+    const f = tb.fields as Record<string, string | undefined>
     // Override generic fields with project data when available
     const project = config.projectName || f.project || 'Project'
     const address = config.address || f.address || ''

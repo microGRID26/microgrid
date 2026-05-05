@@ -63,8 +63,8 @@ function check(topology) {
       if (!intersect(a, b)) continue
       // Skip intentional: container contains the other
       if (a.contains.includes(b.id) || b.contains.includes(a.id) || a.contains.length > 0 && b.id?.includes('battery') || a.contains.length > 0 && b.id?.includes('jb')) continue
-      // Skip if one is a "container" placeholder (style: dashed-border)
-      const containers = ['placeholder-dpc-container']
+      // Skip if one is a "container" frame (dashed-border equipment that holds children)
+      const containers = ['placeholder-dpc-container', 'dpc-container-frame']
       if (containers.includes(a.id) || containers.includes(b.id)) continue
       issues.push(`equipment overlap: ${a.id} ↔ ${b.id || b.label}`)
     }
@@ -73,8 +73,8 @@ function check(topology) {
   // 2. Callout inside equipment
   for (const c of spec.elements.filter(e => e.type === 'callout')) {
     for (const a of allEquip) {
-      // Skip callouts inside container placeholders (intentional — labels contained equipment)
-      if (a.id === 'placeholder-dpc-container') continue
+      // Skip callouts inside container frames (intentional — labels contained equipment)
+      if (a.id === 'placeholder-dpc-container' || a.id === 'dpc-container-frame') continue
       if (c.cx >= a.x1 - 3 && c.cx <= a.x2 + 3 && c.cy >= a.y1 - 3 && c.cy <= a.y2 + 3) {
         issues.push(`callout #${c.number}@(${c.cx},${c.cy}) inside ${a.id || a.label}`)
       }
@@ -113,17 +113,22 @@ function check(topology) {
 
   // 6. Wire labels colliding with each other (estimated text bbox)
   const labelBoxes = wires.filter(w => w.label).map(w => {
-    let bestSeg = 0, bestLen = 0
-    for (let i = 0; i < w.points.length - 1; i++) {
-      const dx = w.points[i + 1][0] - w.points[i][0]
-      const dy = w.points[i + 1][1] - w.points[i][1]
-      const len = Math.hypot(dx, dy)
-      if (len > bestLen) { bestLen = len; bestSeg = i }
+    let mx, my
+    if (w.labelX != null && w.labelY != null) {
+      mx = w.labelX; my = w.labelY
+    } else {
+      let bestSeg = 0, bestLen = 0
+      for (let i = 0; i < w.points.length - 1; i++) {
+        const dx = w.points[i + 1][0] - w.points[i][0]
+        const dy = w.points[i + 1][1] - w.points[i][1]
+        const len = Math.hypot(dx, dy)
+        if (len > bestLen) { bestLen = len; bestSeg = i }
+      }
+      const a = w.points[bestSeg], b = w.points[bestSeg + 1]
+      mx = (a[0] + b[0]) / 2; my = (a[1] + b[1]) / 2
     }
-    const a = w.points[bestSeg], b = w.points[bestSeg + 1]
-    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2
     const w_est = w.label.length * 1.8
-    return { id: w.label, x1: mx + 4, y1: my - 6, x2: mx + 4 + w_est, y2: my }
+    return { id: w.label, x1: mx, y1: my - 6, x2: mx + w_est, y2: my }
   })
   for (let i = 0; i < labelBoxes.length; i++) for (let j = i + 1; j < labelBoxes.length; j++) {
     if (intersect(labelBoxes[i], labelBoxes[j])) issues.push(`wire labels collide: "${labelBoxes[i].id}" ↔ "${labelBoxes[j].id}"`)

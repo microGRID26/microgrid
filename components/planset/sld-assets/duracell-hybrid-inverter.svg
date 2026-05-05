@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 170" width="130" height="170">
+  
+  
+  <rect x="0.6" y="0.6" width="128.8" height="168.8" fill="#fff" stroke="#111" stroke-width="1.2" rx="2"></rect>
+
+  
+  <rect x="0.6" y="0.6" width="128.8" height="20" fill="#111"></rect>
+  <text x="65" y="13.5" fill="#fff" font-family="Helvetica, Arial, sans-serif" font-size="7" font-weight="700" letter-spacing="0.06em" text-anchor="middle">DURACELL HYBRID INVERTER</text>
+
+  
+  <text x="65" y="34" fill="#111" font-family="Helvetica, Arial, sans-serif" font-size="9" font-weight="700" text-anchor="middle">DPC-INV-7600</text>
+  <text x="65" y="44" fill="#666" font-family="Helvetica, Arial, sans-serif" font-size="6.5" text-anchor="middle">7.6 kW · 240V 1Φ 3W</text>
+
+  
+  <line x1="8" y1="50" x2="122" y2="50" stroke="#ddd" stroke-width="0.5"></line>
+
+  
+  
+  <rect x="6" y="58" width="46" height="14" rx="3" fill="#fff" stroke="#2a8c4a" stroke-width="0.8"></rect>
+  <text x="29" y="67.5" fill="#2a8c4a" font-family="Helvetica, Arial, sans-serif" font-size="6" font-weight="700" text-anchor="middle">DC IN (PV)</text>
+  <circle cx="2" cy="65" r="1.6" fill="#2a8c4a"></circle>
+  <line x1="0" y1="65" x2="6" y2="65" stroke="#2a8c4a" stroke-width="0.8"></line>
+
+  
+  <rect x="6" y="80" width="46" height="14" rx="3" fill="#fff" stroke="#16808a" stroke-width="0.8"></rect>
+  <text x="29" y="89.5" fill="#16808a" font-family="Helvetica, Arial, sans-serif" font-size="6" font-weight="700" text-anchor="middle">BATT DC</text>
+  <circle cx="2" cy="87" r="1.6" fill="#16808a"></circle>
+  <line x1="0" y1="87" x2="6" y2="87" stroke="#16808a" stroke-width="0.8"></line>
+
+  
+  <rect x="6" y="102" width="46" height="14" rx="3" fill="#fff" stroke="#1a6dc9" stroke-width="0.8"></rect>
+  <text x="29" y="111.5" fill="#1a6dc9" font-family="Helvetica, Arial, sans-serif" font-size="6" font-weight="700" text-anchor="middle">AC OUT</text>
+  <circle cx="2" cy="109" r="1.6" fill="#1a6dc9"></circle>
+  <line x1="0" y1="109" x2="6" y2="109" stroke="#1a6dc9" stroke-width="0.8"></line>
+
+  
+  <rect x="78" y="80" width="46" height="14" rx="3" fill="#fff" stroke="#1a6dc9" stroke-width="0.8"></rect>
+  <text x="101" y="89.5" fill="#1a6dc9" font-family="Helvetica, Arial, sans-serif" font-size="6" font-weight="700" text-anchor="middle">GRID</text>
+  <circle cx="128" cy="87" r="1.6" fill="#1a6dc9"></circle>
+  <line x1="124" y1="87" x2="130" y2="87" stroke="#1a6dc9" stroke-width="0.8"></line>
+
+  
+  <g>
+    <circle cx="86" cy="62" r="1.5" fill="#2a8c4a"></circle>
+    <text x="92" y="64" fill="#444" font-family="Helvetica, Arial, sans-serif" font-size="4.5">RUN</text>
+    <circle cx="86" cy="68.5" r="1.5" fill="#d8a82e"></circle>
+    <text x="92" y="70.5" fill="#444" font-family="Helvetica, Arial, sans-serif" font-size="4.5">FAULT</text>
+  </g>
+
+  
+  <line x1="8" y1="128" x2="122" y2="128" stroke="#ddd" stroke-width="0.5"></line>
+  <text x="65" y="138" fill="#444" font-family="Helvetica, Arial, sans-serif" font-size="5" text-anchor="middle">UL 1741-SA · IEEE 1547 · NEC 705</text>
+  <text x="65" y="148" fill="#666" font-family="Helvetica, Arial, sans-serif" font-size="5" text-anchor="middle">NEMA 3R · INDOOR/OUTDOOR</text>
+  <text x="65" y="160" fill="#888" font-family="Helvetica, Arial, sans-serif" font-size="4.5" font-style="italic" text-anchor="middle">RAPID-SHUTDOWN INITIATOR</text>
+
+  
+  <g id="anchor-top" transform="translate(65, 0)"><circle r="0"></circle></g>
+  <g id="anchor-bottom" transform="translate(65, 170)"><circle r="0"></circle></g>
+  <g id="anchor-left-dc" transform="translate(0, 65)"><circle r="0"></circle></g>
+  <g id="anchor-left-batt" transform="translate(0, 87)"><circle r="0"></circle></g>
+  <g id="anchor-left-acout" transform="translate(0, 109)"><circle r="0"></circle></g>
+  <g id="anchor-right-grid" transform="translate(130, 87)"><circle r="0"></circle></g>
+</svg>

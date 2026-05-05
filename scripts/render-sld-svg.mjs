@@ -37,9 +37,10 @@ for (const s of spec.sections) {
   parts.push(`<text x="${s.x + 8}" y="${s.y + 14}" font-size="7" font-weight="bold" fill="#777">${s.label}</text>`)
 }
 
-// Elements — render in z-order: lines/wires → svg-assets → placeholders → callouts → text
-const zOrder = { line: 0, 'svg-asset': 1, placeholder: 1, callout: 2, text: 3 }
-const sorted = [...spec.elements].sort((a, b) => (zOrder[a.type] ?? 1) - (zOrder[b.type] ?? 1))
+// Elements — render in z-order: rect (background) → lines/wires → svg-assets → placeholders → callouts → text → legend-item
+const zOrder = { rect: -1, line: 0, 'svg-asset': 1, placeholder: 1, callout: 2, text: 3, 'legend-item': 4 }
+// Filter out _ comment markers (objects with `_` key, no `type`)
+const sorted = [...spec.elements.filter(e => e.type)].sort((a, b) => (zOrder[a.type] ?? 1) - (zOrder[b.type] ?? 1))
 for (const el of sorted) {
   if (el.type === 'svg-asset') {
     const file = path.join(assetsDir, `${el.assetId}.svg`)
@@ -71,28 +72,52 @@ for (const el of sorted) {
     const pts = el.points.map(p => p.join(',')).join(' ')
     parts.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="1.1" ${dash}/>`)
     if (el.label) {
-      // Place label at midpoint of LONGEST segment (avoids labels stacking at L-bends)
-      let bestSeg = 0, bestLen = 0
-      for (let i = 0; i < el.points.length - 1; i++) {
-        const dx = el.points[i + 1][0] - el.points[i][0]
-        const dy = el.points[i + 1][1] - el.points[i][1]
-        const len = Math.hypot(dx, dy)
-        if (len > bestLen) { bestLen = len; bestSeg = i }
+      let tx, ty
+      if (el.labelX != null && el.labelY != null) {
+        // v11+ provides explicit label position
+        tx = el.labelX; ty = el.labelY
+      } else {
+        // v8/v9 fallback: midpoint of longest segment
+        let bestSeg = 0, bestLen = 0
+        for (let i = 0; i < el.points.length - 1; i++) {
+          const dx = el.points[i + 1][0] - el.points[i][0]
+          const dy = el.points[i + 1][1] - el.points[i][1]
+          const len = Math.hypot(dx, dy)
+          if (len > bestLen) { bestLen = len; bestSeg = i }
+        }
+        const a = el.points[bestSeg], b = el.points[bestSeg + 1]
+        const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2
+        const isVertical = Math.abs(b[1] - a[1]) > Math.abs(b[0] - a[0])
+        tx = isVertical ? mx + 4 : mx - (el.label.length * 0.9)
+        ty = my - 3
       }
-      const a = el.points[bestSeg], b = el.points[bestSeg + 1]
-      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2
-      const isVertical = Math.abs(b[1] - a[1]) > Math.abs(b[0] - a[0])
-      const tx = isVertical ? mx + 4 : mx - (el.label.length * 0.9)
-      const ty = my - 3
       parts.push(`<text x="${tx}" y="${ty}" font-size="3.5" fill="#444" font-style="italic">${el.label}</text>`)
     }
   } else if (el.type === 'callout') {
     parts.push(`<g><circle cx="${el.cx}" cy="${el.cy}" r="7" fill="white" stroke="black" stroke-width="1.2"/><text x="${el.cx}" y="${el.cy + 2.5}" text-anchor="middle" font-size="7" font-weight="bold">${el.number}</text></g>`)
+  } else if (el.type === 'text' && el.text) {
+    const fs = el.fontSize ?? 5
+    const fw = el.bold ? 'font-weight="bold"' : ''
+    const fi = el.italic ? 'font-style="italic"' : ''
+    const fill = el.fill || '#222'
+    const anchor = el.anchor === 'middle' ? 'text-anchor="middle"' : el.anchor === 'end' ? 'text-anchor="end"' : ''
+    parts.push(`<text x="${el.x}" y="${el.y}" font-size="${fs}" fill="${fill}" ${fw} ${fi} ${anchor}>${(el.text + '').replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`)
+  } else if (el.type === 'rect') {
+    const stroke = el.stroke || 'black'
+    const sw = el.strokeWidth ?? 1
+    const fill = el.fill || 'none'
+    const dash = el.dash ? 'stroke-dasharray="4 3"' : ''
+    parts.push(`<rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${dash}/>`)
+  } else if (el.type === 'legend-item') {
+    const stroke = el.color ? COLOR[el.color] : '#333'
+    const dash = (el.color === 'comm' || el.color === 'gec') ? 'stroke-dasharray="4 3"' : ''
+    parts.push(`<line x1="${el.x}" y1="${el.y}" x2="${el.x + 24}" y2="${el.y}" stroke="${stroke}" stroke-width="2" ${dash}/>`)
+    parts.push(`<text x="${el.x + 28}" y="${el.y + 3}" font-size="5">${el.label || ''}</text>`)
   }
 }
 
-// Title block
-if (spec.titleBlock) {
+// Title block — only auto-render if v8 format (flat string fields). v11+ renders inline via text elements.
+if (spec.titleBlock && spec.titleBlock.fields && !spec.titleBlock.fields._layout) {
   const tb = spec.titleBlock
   const f = tb.fields
   parts.push(`<rect x="${tb.x}" y="${tb.y}" width="${tb.w}" height="${tb.h}" fill="white" stroke="black" stroke-width="1.5"/>`)
