@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, Text, ScrollView, RefreshControl, ActivityIndicator,
-  TouchableOpacity, Linking, AppState, TextInput,
+  Linking, AppState, TextInput,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
@@ -11,6 +11,7 @@ import { DOCUMENT_CATEGORIES } from '../../lib/constants'
 import { getCache, setCache } from '../../lib/cache'
 import type { CustomerDocument } from '../../lib/types'
 import { SkeletonLoader } from '../../components/SkeletonLoader'
+import { MgPressable } from '../../components/MgPressable'
 
 const formatDate = (d: string) => {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -159,9 +160,9 @@ export default function DocumentsScreen() {
           }}
         />
         {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')} activeOpacity={0.7}>
+          <MgPressable accessibilityLabel="Clear search" onPress={() => setSearch('')} activeOpacity={0.7}>
             <Feather name="x" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
+          </MgPressable>
         )}
       </View>
 
@@ -172,7 +173,9 @@ export default function DocumentsScreen() {
         style={{ marginTop: 12 }}
         contentContainerStyle={{ gap: 8 }}
       >
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Filter by all categories"
+          accessibilityState={{ selected: activeCategory === null }}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveCategory(null) }}
           activeOpacity={0.7}
           style={{
@@ -187,10 +190,12 @@ export default function DocumentsScreen() {
           }}>
             All
           </Text>
-        </TouchableOpacity>
+        </MgPressable>
         {DOCUMENT_CATEGORIES.map(cat => (
-          <TouchableOpacity
+          <MgPressable
             key={cat}
+            accessibilityLabel={`Filter by ${cat}`}
+            accessibilityState={{ selected: activeCategory === cat }}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveCategory(activeCategory === cat ? null : cat) }}
             activeOpacity={0.7}
             style={{
@@ -205,7 +210,7 @@ export default function DocumentsScreen() {
             }}>
               {cat}
             </Text>
-          </TouchableOpacity>
+          </MgPressable>
         ))}
       </ScrollView>
 
@@ -243,8 +248,9 @@ export default function DocumentsScreen() {
             const category = doc.category ?? 'Other'
             const catColor = CATEGORY_COLORS[category] ?? CATEGORY_COLORS.Other
             return (
-              <TouchableOpacity
+              <MgPressable
                 key={doc.id}
+                accessibilityLabel={`Open ${doc.file_name}`}
                 onPress={() => handleOpen(doc.file_url)}
                 activeOpacity={0.7}
                 style={{
@@ -288,7 +294,7 @@ export default function DocumentsScreen() {
 
                 {/* Open indicator */}
                 <Feather name="external-link" size={14} color={colors.textMuted} />
-              </TouchableOpacity>
+              </MgPressable>
             )
           })}
         </View>

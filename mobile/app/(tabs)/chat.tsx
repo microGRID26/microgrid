@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { View, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
+import { View, Text, ScrollView, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import * as SecureStore from 'expo-secure-store'
@@ -7,6 +7,7 @@ import { theme, useThemeColors } from '../../lib/theme'
 import { getCustomerAccount, sendAtlasMessage } from '../../lib/api'
 import { ATLAS_SUGGESTIONS } from '../../lib/constants'
 import type { ChatMessage } from '../../lib/types'
+import { MgPressable } from '../../components/MgPressable'
 
 const CHAT_HISTORY_KEY = 'atlas_chat_history'
 
@@ -107,7 +108,7 @@ export default function ChatScreen() {
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 24, paddingHorizontal: 16 }}>
               {ATLAS_SUGGESTIONS.map(prompt => (
-                <TouchableOpacity key={prompt} onPress={() => send(prompt)} activeOpacity={0.7}
+                <MgPressable key={prompt} accessibilityLabel={`Ask: ${prompt}`} onPress={() => send(prompt)} activeOpacity={0.7}
                   style={{
                     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
                     borderRadius: theme.radius.xl, paddingHorizontal: 12, paddingVertical: 8,
@@ -115,7 +116,7 @@ export default function ChatScreen() {
                   <Text style={{ fontSize: 12, color: colors.textSecondary, fontFamily: 'Inter_400Regular' }}>
                     {prompt}
                   </Text>
-                </TouchableOpacity>
+                </MgPressable>
               ))}
             </View>
           </View>
@@ -123,7 +124,8 @@ export default function ChatScreen() {
           /* Messages */
           <>
             {/* Clear button */}
-            <TouchableOpacity
+            <MgPressable
+              accessibilityLabel="Clear chat history"
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                 setMessages([])
@@ -134,7 +136,7 @@ export default function ChatScreen() {
             >
               <Feather name="trash-2" size={13} color={colors.textMuted} />
               <Text style={{ fontSize: 13, color: colors.textMuted, fontFamily: 'Inter_400Regular' }}>Clear</Text>
-            </TouchableOpacity>
+            </MgPressable>
 
             {messages.map((msg, i) => (
               <View key={i} style={{
@@ -211,7 +213,9 @@ export default function ChatScreen() {
           returnKeyType="send"
           editable={!sending}
         />
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Send message"
+          accessibilityState={{ disabled: sending || !input.trim() }}
           onPress={() => send(input)}
           disabled={sending || !input.trim()}
           activeOpacity={0.7}
@@ -222,7 +226,7 @@ export default function ChatScreen() {
           }}
         >
           <Feather name="send" size={20} color={colors.accentText} />
-        </TouchableOpacity>
+        </MgPressable>
       </View>
     </KeyboardAvoidingView>
   )

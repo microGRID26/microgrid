@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { View, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Keyboard, Linking } from 'react-native'
+import { View, Text, ScrollView, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Keyboard, Linking } from 'react-native'
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
@@ -13,6 +13,7 @@ import { supabase } from '../../lib/supabase'
 import { loadComments, addComment, getCustomerAccount, uploadTicketPhoto } from '../../lib/api'
 import type { TicketComment } from '../../lib/types'
 import CommentAttachment from '../../components/CommentAttachment'
+import { MgPressable } from '../../components/MgPressable'
 
 const STATUS_LABELS: Record<string, string> = {
   open: 'Opened',
@@ -361,14 +362,22 @@ export default function TicketDetailScreen() {
                     Was your issue resolved?
                   </Text>
                   <View style={{ flexDirection: 'row', gap: 16, marginTop: 12 }}>
-                    <TouchableOpacity onPress={() => handleFeedback(true)} activeOpacity={0.7}
-                      style={{ backgroundColor: colors.accent, borderRadius: theme.radius.xl, paddingHorizontal: 24, paddingVertical: 10 }}>
+                    <MgPressable
+                      accessibilityLabel="Yes, my issue was resolved"
+                      onPress={() => handleFeedback(true)}
+                      activeOpacity={0.7}
+                      style={{ backgroundColor: colors.accent, borderRadius: theme.radius.xl, paddingHorizontal: 24, paddingVertical: 10 }}
+                    >
                       <Text style={{ fontSize: 20 }}>👍</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleFeedback(false)} activeOpacity={0.7}
-                      style={{ backgroundColor: colors.surface, borderRadius: theme.radius.xl, paddingHorizontal: 24, paddingVertical: 10, borderWidth: 1, borderColor: colors.border }}>
+                    </MgPressable>
+                    <MgPressable
+                      accessibilityLabel="No, my issue was not resolved"
+                      onPress={() => handleFeedback(false)}
+                      activeOpacity={0.7}
+                      style={{ backgroundColor: colors.surface, borderRadius: theme.radius.xl, paddingHorizontal: 24, paddingVertical: 10, borderWidth: 1, borderColor: colors.border }}
+                    >
                       <Text style={{ fontSize: 20 }}>👎</Text>
-                    </TouchableOpacity>
+                    </MgPressable>
                   </View>
                 </View>
               )}
@@ -404,20 +413,38 @@ export default function TicketDetailScreen() {
             alignItems: 'center',
           }}>
             {/* Camera button */}
-            <TouchableOpacity onPress={handleCamera} activeOpacity={0.6} disabled={uploading}
-              style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', opacity: uploading ? 0.3 : 1 }}>
+            <MgPressable
+              accessibilityLabel="Take a photo"
+              accessibilityState={{ disabled: uploading }}
+              onPress={handleCamera}
+              activeOpacity={0.6}
+              disabled={uploading}
+              style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', opacity: uploading ? 0.3 : 1 }}
+            >
               <Feather name="camera" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
+            </MgPressable>
             {/* Photo library button */}
-            <TouchableOpacity onPress={handlePhoto} activeOpacity={0.6} disabled={uploading}
-              style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', opacity: uploading ? 0.3 : 1 }}>
+            <MgPressable
+              accessibilityLabel="Attach photo from library"
+              accessibilityState={{ disabled: uploading }}
+              onPress={handlePhoto}
+              activeOpacity={0.6}
+              disabled={uploading}
+              style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', opacity: uploading ? 0.3 : 1 }}
+            >
               <Feather name="image" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
+            </MgPressable>
             {/* Document/file button */}
-            <TouchableOpacity onPress={handleDocument} activeOpacity={0.6} disabled={uploading}
-              style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', opacity: uploading ? 0.3 : 1 }}>
+            <MgPressable
+              accessibilityLabel="Attach a file"
+              accessibilityState={{ disabled: uploading }}
+              onPress={handleDocument}
+              activeOpacity={0.6}
+              disabled={uploading}
+              style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', opacity: uploading ? 0.3 : 1 }}
+            >
               <Feather name="paperclip" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
+            </MgPressable>
             <TextInput
               value={newComment}
               onChangeText={setNewComment}
@@ -432,14 +459,20 @@ export default function TicketDetailScreen() {
               onSubmitEditing={handleSend}
               editable={!sending}
             />
-            <TouchableOpacity onPress={handleSend} disabled={sending || !newComment.trim()} activeOpacity={0.7}
+            <MgPressable
+              accessibilityLabel="Send reply"
+              accessibilityState={{ disabled: sending || !newComment.trim(), busy: sending }}
+              onPress={handleSend}
+              disabled={sending || !newComment.trim()}
+              activeOpacity={0.7}
               style={{
                 backgroundColor: colors.accent, borderRadius: theme.radius.xl,
                 width: 48, height: 48, alignItems: 'center', justifyContent: 'center',
                 opacity: sending || !newComment.trim() ? 0.3 : 1,
-              }}>
+              }}
+            >
               <Feather name="send" size={20} color={colors.accentText} />
-            </TouchableOpacity>
+            </MgPressable>
           </View>
         )}
       </KeyboardAvoidingView>

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Modal, TextInput, KeyboardAvoidingView, Platform, Linking } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, Alert, Share, Modal, TextInput, KeyboardAvoidingView, Platform, Linking } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import * as SecureStore from 'expo-secure-store'
 import Constants from 'expo-constants'
 import { theme, useThemeColors } from '../../lib/theme'
+import { MgPressable } from '../../components/MgPressable'
 import { supabase } from '../../lib/supabase'
 import { getCustomerAccount, loadProject, loadReferrals, submitReferral, deleteCustomerAccount } from '../../lib/api'
 import { clearCache } from '../../lib/cache'
@@ -275,27 +276,31 @@ export default function AccountScreen() {
 
         {/* Action Buttons */}
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-          <TouchableOpacity
+          <MgPressable
+            accessibilityLabel="Share referral link"
             onPress={handleShareReferral}
             activeOpacity={0.8}
             style={{
               flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
               backgroundColor: colors.warm, borderRadius: theme.radius.lg, paddingVertical: 12,
-            }}>
+            }}
+          >
             <Feather name="share" size={15} color="#FFFFFF" />
             <Text style={{ fontSize: 13, fontWeight: '600', color: '#FFFFFF', fontFamily: 'Inter_600SemiBold' }}>Share Link</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </MgPressable>
+          <MgPressable
+            accessibilityLabel="Refer someone — enter their details"
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setReferralModalVisible(true) }}
             activeOpacity={0.8}
             style={{
               flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
               backgroundColor: colors.surface, borderRadius: theme.radius.lg, paddingVertical: 12,
               borderWidth: 1, borderColor: colors.warm,
-            }}>
+            }}
+          >
             <Feather name="user-plus" size={15} color={colors.warm} />
             <Text style={{ fontSize: 13, fontWeight: '600', color: colors.warm, fontFamily: 'Inter_600SemiBold' }}>Refer Someone</Text>
-          </TouchableOpacity>
+          </MgPressable>
         </View>
 
         {/* Stats */}
@@ -339,9 +344,12 @@ export default function AccountScreen() {
             flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
             padding: 16, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: colors.borderLight,
           }}>
-            <TouchableOpacity onPress={() => { setReferralModalVisible(false); setSubmitSuccess(false) }}>
+            <MgPressable
+              accessibilityLabel="Close referral form"
+              onPress={() => { setReferralModalVisible(false); setSubmitSuccess(false) }}
+            >
               <Feather name="x" size={22} color={colors.textMuted} />
-            </TouchableOpacity>
+            </MgPressable>
             <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, fontFamily: 'Inter_600SemiBold' }}>
               Refer a Friend
             </Text>
@@ -437,7 +445,9 @@ export default function AccountScreen() {
               />
 
               {/* Submit */}
-              <TouchableOpacity
+              <MgPressable
+                accessibilityLabel={refName.trim() && refPhone.trim() ? 'Submit referral' : "Enter friend's name and phone before submitting"}
+                accessibilityState={{ disabled: submitting || !refName.trim() || !refPhone.trim(), busy: submitting }}
                 onPress={handleSubmitReferral}
                 disabled={submitting || !refName.trim() || !refPhone.trim()}
                 activeOpacity={0.8}
@@ -445,7 +455,8 @@ export default function AccountScreen() {
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
                   backgroundColor: (!refName.trim() || !refPhone.trim()) ? colors.stageUpcoming : colors.accent,
                   borderRadius: theme.radius.lg, paddingVertical: 16,
-                }}>
+                }}
+              >
                 {submitting ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
@@ -456,7 +467,7 @@ export default function AccountScreen() {
                     </Text>
                   </>
                 )}
-              </TouchableOpacity>
+              </MgPressable>
             </ScrollView>
           )}
         </KeyboardAvoidingView>
@@ -483,11 +494,10 @@ export default function AccountScreen() {
       </View>
 
       {/* Notification Settings */}
-      <TouchableOpacity
+      <MgPressable
+        accessibilityLabel="Notification settings — manage your alerts and updates"
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/notifications-settings') }}
         activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Notification settings — manage your alerts and updates"
         style={{
           backgroundColor: colors.surface, borderRadius: theme.radius.xl,
           padding: 16, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -509,14 +519,13 @@ export default function AccountScreen() {
           </Text>
         </View>
         <Feather name="chevron-right" size={16} color={colors.textMuted} />
-      </TouchableOpacity>
+      </MgPressable>
 
       {/* Warranty */}
-      <TouchableOpacity
+      <MgPressable
+        accessibilityLabel="Warranty — coverage details and claims"
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/warranty') }}
         activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Warranty — coverage details and claims"
         style={{
           backgroundColor: colors.surface, borderRadius: theme.radius.xl,
           padding: 16, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -538,14 +547,14 @@ export default function AccountScreen() {
           </Text>
         </View>
         <Feather name="chevron-right" size={16} color={colors.textMuted} />
-      </TouchableOpacity>
+      </MgPressable>
 
       {/* Privacy Policy */}
-      <TouchableOpacity
+      <MgPressable
+        accessibilityLabel="Privacy Policy — how we handle your data, opens external link"
+        accessibilityRole="link"
         onPress={handleOpenPrivacyPolicy}
         activeOpacity={0.7}
-        accessibilityRole="link"
-        accessibilityLabel="Privacy Policy — how we handle your data, opens external link"
         style={{
           backgroundColor: colors.surface, borderRadius: theme.radius.xl,
           padding: 16, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -567,35 +576,39 @@ export default function AccountScreen() {
           </Text>
         </View>
         <Feather name="external-link" size={14} color={colors.textMuted} />
-      </TouchableOpacity>
+      </MgPressable>
 
       {/* Sign Out */}
-      <TouchableOpacity onPress={handleSignOut} activeOpacity={0.7}
-        accessibilityRole="button"
+      <MgPressable
         accessibilityLabel="Sign out of your MicroGRID account"
         accessibilityHint="Returns you to the sign-in screen"
+        onPress={handleSignOut}
+        activeOpacity={0.7}
         style={{
           backgroundColor: colors.surface, borderRadius: theme.radius.xl,
           padding: 16, marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
           borderWidth: 1, borderColor: colors.borderLight,
-        }}>
+        }}
+      >
         <Feather name="log-out" size={16} color={colors.error} />
         <Text style={{ fontSize: 14, fontWeight: '500', color: colors.error, fontFamily: 'Inter_500Medium' }}>Sign Out</Text>
-      </TouchableOpacity>
+      </MgPressable>
 
       {/* Delete Account — required by Apple App Store guideline 5.1.1(v) */}
-      <TouchableOpacity onPress={handleDeleteAccount} activeOpacity={0.7}
-        accessibilityRole="button"
+      <MgPressable
         accessibilityLabel="Delete account permanently"
         accessibilityHint="Opens a confirmation flow that requires you to type DELETE"
+        onPress={handleDeleteAccount}
+        activeOpacity={0.7}
         style={{
           backgroundColor: 'transparent', borderRadius: theme.radius.xl,
           padding: 16, marginTop: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
           borderWidth: 1, borderColor: colors.error,
-        }}>
+        }}
+      >
         <Feather name="trash-2" size={16} color={colors.error} />
         <Text style={{ fontSize: 14, fontWeight: '500', color: colors.error, fontFamily: 'Inter_500Medium' }}>Delete Account</Text>
-      </TouchableOpacity>
+      </MgPressable>
       <Text style={{ fontSize: 11, color: colors.textMuted, textAlign: 'center', marginTop: 8, paddingHorizontal: 24, fontFamily: 'Inter_400Regular', lineHeight: 16 }}>
         Permanently removes your portal account and personal data. Your installation records remain with MicroGRID for warranty and service.
       </Text>
@@ -616,9 +629,13 @@ export default function AccountScreen() {
             flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
             padding: 16, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: colors.borderLight,
           }}>
-            <TouchableOpacity onPress={() => !deleting && setDeleteModalVisible(false)} disabled={deleting}>
+            <MgPressable
+              accessibilityLabel="Close confirmation dialog"
+              onPress={() => !deleting && setDeleteModalVisible(false)}
+              disabled={deleting}
+            >
               <Feather name="x" size={22} color={colors.textMuted} />
-            </TouchableOpacity>
+            </MgPressable>
             <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, fontFamily: 'Inter_600SemiBold' }}>
               Confirm Deletion
             </Text>
@@ -665,7 +682,9 @@ export default function AccountScreen() {
               }}
             />
 
-            <TouchableOpacity
+            <MgPressable
+              accessibilityLabel={deleteConfirmText.trim().toUpperCase() === 'DELETE' ? 'Delete my account permanently' : 'Type DELETE above to confirm'}
+              accessibilityState={{ disabled: deleting || deleteConfirmText.trim().toUpperCase() !== 'DELETE', busy: deleting }}
               onPress={confirmDelete}
               disabled={deleting || deleteConfirmText.trim().toUpperCase() !== 'DELETE'}
               activeOpacity={0.8}
@@ -673,7 +692,8 @@ export default function AccountScreen() {
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
                 backgroundColor: deleteConfirmText.trim().toUpperCase() === 'DELETE' ? colors.error : colors.stageUpcoming,
                 borderRadius: theme.radius.lg, paddingVertical: 16,
-              }}>
+              }}
+            >
               {deleting ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
@@ -684,16 +704,17 @@ export default function AccountScreen() {
                   </Text>
                 </>
               )}
-            </TouchableOpacity>
+            </MgPressable>
 
-            <TouchableOpacity
+            <MgPressable
+              accessibilityLabel="Cancel account deletion"
               onPress={() => !deleting && setDeleteModalVisible(false)}
               disabled={deleting}
               activeOpacity={0.7}
               style={{ marginTop: 12, paddingVertical: 12, alignItems: 'center' }}
             >
               <Text style={{ fontSize: 14, color: colors.textMuted, fontFamily: 'Inter_500Medium' }}>Cancel</Text>
-            </TouchableOpacity>
+            </MgPressable>
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>

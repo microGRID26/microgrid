@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
+import { View, Text, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
 import { supabase } from '../../lib/supabase'
 import { theme, useThemeColors } from '../../lib/theme'
 import * as Haptics from 'expo-haptics'
+import { MgPressable } from '../../components/MgPressable'
 
 const RESEND_COOLDOWN_SECONDS = 30
 
@@ -135,11 +136,10 @@ export default function LoginScreen() {
               </Text>
             ) : null}
 
-            <TouchableOpacity
+            <MgPressable
               onPress={handleSendCode}
               disabled={loading || !email.trim() || inCooldown}
               activeOpacity={0.8}
-              accessibilityRole="button"
               accessibilityLabel={inCooldown
                 ? `Wait ${cooldownRemaining} seconds before requesting another code`
                 : 'Continue — send a 6-digit code to your email'}
@@ -157,7 +157,7 @@ export default function LoginScreen() {
                   {inCooldown ? `Wait ${cooldownRemaining}s` : 'Continue'}
                 </Text>
               )}
-            </TouchableOpacity>
+            </MgPressable>
 
             <Text style={{
               textAlign: 'center', fontSize: 12, color: colors.textMuted,
@@ -206,11 +206,10 @@ export default function LoginScreen() {
               </Text>
             ) : null}
 
-            <TouchableOpacity
+            <MgPressable
               onPress={handleVerifyCode}
               disabled={loading || code.length < 6} // enables at 6, works with 6 or 8
               activeOpacity={0.8}
-              accessibilityRole="button"
               accessibilityLabel="Verify the code and sign in"
               accessibilityState={{ disabled: loading || code.length < 6, busy: loading }}
               style={{
@@ -226,22 +225,20 @@ export default function LoginScreen() {
                   Verify & Sign In
                 </Text>
               )}
-            </TouchableOpacity>
+            </MgPressable>
 
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 16 }}>
-              <TouchableOpacity
+              <MgPressable
                 onPress={() => { setStep('email'); setCode(''); setError('') }}
-                accessibilityRole="button"
                 accessibilityLabel="Change email address"
               >
                 <Text style={{ fontSize: 13, fontWeight: '500', color: colors.accent, fontFamily: 'Inter_500Medium' }}>
                   Change email
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </MgPressable>
+              <MgPressable
                 onPress={handleSendCode}
                 disabled={loading || inCooldown}
-                accessibilityRole="button"
                 accessibilityLabel={inCooldown
                   ? `Resend available in ${cooldownRemaining} seconds`
                   : 'Resend the verification code'}
@@ -254,7 +251,7 @@ export default function LoginScreen() {
                 }}>
                   {inCooldown ? `Resend in ${cooldownRemaining}s` : 'Resend code'}
                 </Text>
-              </TouchableOpacity>
+              </MgPressable>
             </View>
           </View>
         )}

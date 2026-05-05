@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Switch, Alert, AppState } from 'react-native'
+import { View, Text, ScrollView, RefreshControl, Switch, Alert, AppState } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { theme, useThemeColors } from '../../lib/theme'
@@ -8,6 +8,7 @@ import { getCache, setCache } from '../../lib/cache'
 import type { CustomerAccount, BillingStatement, PaymentMethod, PaymentRecord } from '../../lib/types'
 import { SkeletonLoader } from '../../components/SkeletonLoader'
 import { ErrorState } from '../../components/ErrorState'
+import { MgPressable } from '../../components/MgPressable'
 
 type FeatherIconName = React.ComponentProps<typeof Feather>['name']
 
@@ -243,7 +244,8 @@ export default function BillingScreen() {
               </View>
             )}
           </View>
-          <TouchableOpacity
+          <MgPressable
+            accessibilityLabel="Pay now"
             onPress={handlePayNow}
             activeOpacity={0.8}
             style={{
@@ -256,7 +258,7 @@ export default function BillingScreen() {
             <Text style={{ fontSize: 15, fontWeight: '600', color: colors.accentText, fontFamily: 'Inter_600SemiBold' }}>
               Pay Now
             </Text>
-          </TouchableOpacity>
+          </MgPressable>
         </View>
       )}
 
@@ -307,15 +309,15 @@ export default function BillingScreen() {
               Payment Methods
             </Text>
           </View>
-          <TouchableOpacity onPress={handleAddCard} activeOpacity={0.7}
+          <MgPressable accessibilityLabel="Add payment method" onPress={handleAddCard} activeOpacity={0.7}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Feather name="plus" size={14} color={colors.accent} />
             <Text style={{ fontSize: 13, color: colors.accent, fontFamily: 'Inter_500Medium' }}>Add</Text>
-          </TouchableOpacity>
+          </MgPressable>
         </View>
 
         {paymentMethods.length === 0 ? (
-          <TouchableOpacity onPress={handleAddCard} activeOpacity={0.7}
+          <MgPressable accessibilityLabel="Add a payment method" onPress={handleAddCard} activeOpacity={0.7}
             style={{
               backgroundColor: colors.surfaceAlt, borderRadius: theme.radius.lg,
               padding: 16, alignItems: 'center',
@@ -325,7 +327,7 @@ export default function BillingScreen() {
             <Text style={{ fontSize: 13, color: colors.textMuted, fontFamily: 'Inter_500Medium', marginTop: 8 }}>
               Add a payment method
             </Text>
-          </TouchableOpacity>
+          </MgPressable>
         ) : (
           paymentMethods.map((method) => {
             const brand = method.card_brand ?? 'card'
@@ -393,7 +395,9 @@ export default function BillingScreen() {
 
           return (
             <View key={stmt.id}>
-              <TouchableOpacity
+              <MgPressable
+                accessibilityLabel={`${formatMonth(stmt.period_start)} statement — ${formatCurrency(stmt.amount_due)}`}
+                accessibilityState={{ expanded }}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                   setExpandedStatement(expanded ? null : stmt.id)
@@ -428,7 +432,7 @@ export default function BillingScreen() {
                   </View>
                   <Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
                 </View>
-              </TouchableOpacity>
+              </MgPressable>
 
               {/* Expanded Details */}
               {expanded && (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity, Alert } from 'react-native'
+import { View, Text, ScrollView, RefreshControl, ActivityIndicator, Alert } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { useRouter } from 'expo-router'
@@ -7,6 +7,7 @@ import { theme, useThemeColors } from '../../lib/theme'
 import { getCustomerAccount, loadProject, loadEnergyStats } from '../../lib/api'
 import { getCache, setCache } from '../../lib/cache'
 import type { CustomerAccount, CustomerProject, EnergyStats } from '../../lib/types'
+import { MgPressable } from '../../components/MgPressable'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -82,10 +83,10 @@ export default function EnergyScreen() {
         <Text style={{ color: colors.textMuted, textAlign: 'center', fontFamily: 'Inter_400Regular' }}>
           Unable to load your project.
         </Text>
-        <TouchableOpacity onPress={load} activeOpacity={0.7}
+        <MgPressable accessibilityLabel="Retry loading energy data" onPress={load} activeOpacity={0.7}
           style={{ marginTop: 16, backgroundColor: colors.accent, borderRadius: theme.radius.xl, paddingHorizontal: 24, paddingVertical: 12 }}>
           <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentText, fontFamily: 'Inter_600SemiBold' }}>Tap to retry</Text>
-        </TouchableOpacity>
+        </MgPressable>
       </View>
     )
   }
@@ -391,7 +392,8 @@ export default function EnergyScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Learn how to connect monitoring"
           activeOpacity={0.7}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -409,11 +411,12 @@ export default function EnergyScreen() {
           <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentText, fontFamily: 'Inter_600SemiBold' }}>
             Learn How to Connect
           </Text>
-        </TouchableOpacity>
+        </MgPressable>
       </View>
 
       {/* Outage Mode Card */}
-      <TouchableOpacity
+      <MgPressable
+        accessibilityLabel="Go to outage mode"
         activeOpacity={0.7}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -443,7 +446,7 @@ export default function EnergyScreen() {
           </Text>
         </View>
         <Feather name="chevron-right" size={18} color={colors.textMuted} />
-      </TouchableOpacity>
+      </MgPressable>
 
       {/* Footer note */}
       <Text style={{

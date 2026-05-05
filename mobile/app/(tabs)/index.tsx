@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, ScrollView, RefreshControl, ActivityIndicator, AppState, TouchableOpacity, Modal, Animated } from 'react-native'
+import { View, Text, ScrollView, RefreshControl, ActivityIndicator, AppState, Modal, Animated } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
@@ -9,6 +9,7 @@ import { STAGE_ORDER, STAGE_LABELS, STAGE_DESCRIPTIONS, STAGE_TASKS, STAGE_SLA_D
 import { getCache, setCache } from '../../lib/cache'
 import type { CustomerAccount, CustomerProject, StageHistoryEntry, CustomerScheduleEntry, CustomerTaskState } from '../../lib/types'
 import { SkeletonLoader } from '../../components/SkeletonLoader'
+import { MgPressable } from '../../components/MgPressable'
 
 const formatDate = (d: string | null) => {
   if (!d) return null
@@ -109,10 +110,10 @@ export default function DashboardScreen() {
         <Text style={{ color: colors.textMuted, textAlign: 'center', fontFamily: 'Inter_400Regular' }}>
           Unable to load your project.
         </Text>
-        <TouchableOpacity onPress={load} activeOpacity={0.7}
+        <MgPressable accessibilityLabel="Retry loading project" onPress={load} activeOpacity={0.7}
           style={{ marginTop: 16, backgroundColor: colors.accent, borderRadius: theme.radius.xl, paddingHorizontal: 24, paddingVertical: 12 }}>
           <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentText, fontFamily: 'Inter_600SemiBold' }}>Tap to retry</Text>
-        </TouchableOpacity>
+        </MgPressable>
       </View>
     )
   }
@@ -190,8 +191,10 @@ export default function DashboardScreen() {
         {/* Progress bar — tappable stages */}
         <View style={{ flexDirection: 'row', gap: 4 }}>
           {STAGE_ORDER.map((stage, i) => (
-            <TouchableOpacity
+            <MgPressable
               key={stage}
+              accessibilityLabel={STAGE_LABELS[stage] ?? stage}
+              accessibilityState={{ selected: i === currentStageIdx }}
               activeOpacity={0.7}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -207,7 +210,7 @@ export default function DashboardScreen() {
                     ? colors.stageActive
                     : colors.stageUpcoming,
               }} />
-            </TouchableOpacity>
+            </MgPressable>
           ))}
         </View>
         <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 8, textAlign: 'center', fontFamily: 'Inter_400Regular' }}>
@@ -262,7 +265,8 @@ export default function DashboardScreen() {
           ?? ONBOARDING_MILESTONES[ONBOARDING_MILESTONES.length - 1]
 
         return (
-          <TouchableOpacity
+          <MgPressable
+            accessibilityLabel="View your onboarding journey"
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/onboarding') }}
             activeOpacity={0.7}
             style={{
@@ -295,7 +299,7 @@ export default function DashboardScreen() {
               </View>
             </View>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
+          </MgPressable>
         )
       })()}
 
@@ -336,7 +340,8 @@ export default function DashboardScreen() {
       )}
 
       {/* Quick Actions: Schedule Service */}
-      <TouchableOpacity
+      <MgPressable
+        accessibilityLabel="Schedule a service visit"
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/schedule-service') }}
         activeOpacity={0.7}
         style={{
@@ -360,10 +365,11 @@ export default function DashboardScreen() {
           </Text>
         </View>
         <Feather name="chevron-right" size={16} color={colors.textMuted} />
-      </TouchableOpacity>
+      </MgPressable>
 
       {/* Messages Card */}
-      <TouchableOpacity
+      <MgPressable
+        accessibilityLabel={unreadMessages > 0 ? `Messages — ${unreadMessages} unread` : 'Messages'}
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/messages') }}
         activeOpacity={0.7}
         style={{
@@ -400,7 +406,7 @@ export default function DashboardScreen() {
           </View>
         )}
         <Feather name="chevron-right" size={16} color={colors.textMuted} />
-      </TouchableOpacity>
+      </MgPressable>
 
       {/* Timeline */}
       <View style={{
@@ -702,7 +708,8 @@ export default function DashboardScreen() {
                   )}
 
                   {/* Close button */}
-                  <TouchableOpacity
+                  <MgPressable
+                    accessibilityLabel="Close stage details"
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                       setDrillDownStage(null)
@@ -716,7 +723,7 @@ export default function DashboardScreen() {
                     <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, fontFamily: 'Inter_600SemiBold' }}>
                       Close
                     </Text>
-                  </TouchableOpacity>
+                  </MgPressable>
                 </ScrollView>
               )
             })()}
