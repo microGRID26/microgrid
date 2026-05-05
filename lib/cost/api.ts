@@ -33,23 +33,7 @@ function getAdminClient(): SupabaseClient {
 
 // ── Catalog ─────────────────────────────────────────────────────────────────
 
-// Catalog templates rarely change (Greg/Paul edit them out-of-band) and the
-// /api/projects/[id]/cost-basis route hits this on every project page open.
-// 5-minute in-memory cache cuts DB load to one query per process per 5min.
-let _templateCache: { rows: CostLineItemTemplate[]; loadedAt: number } | null = null
-const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000
-
-/** Bust the template cache (used after admin edits to the catalog). */
-export function clearTemplateCache(): void {
-  _templateCache = null
-}
-
 export async function loadActiveTemplates(): Promise<CostLineItemTemplate[]> {
-  const now = Date.now()
-  if (_templateCache && now - _templateCache.loadedAt < TEMPLATE_CACHE_TTL_MS) {
-    return _templateCache.rows
-  }
-
   const admin = getAdminClient()
   const { data, error } = await admin
     .from('project_cost_line_item_templates')
@@ -60,9 +44,7 @@ export async function loadActiveTemplates(): Promise<CostLineItemTemplate[]> {
   if (error) {
     throw new Error(`[cost-api] failed to load templates: ${error.message}`)
   }
-  const rows = (data ?? []) as CostLineItemTemplate[]
-  _templateCache = { rows, loadedAt: now }
-  return rows
+  return (data ?? []) as CostLineItemTemplate[]
 }
 
 // ── Per-project line items ──────────────────────────────────────────────────

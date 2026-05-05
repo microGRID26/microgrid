@@ -97,6 +97,15 @@ function roundMoney(n: number): number {
   return Math.round(n * 100) / 100
 }
 
+// projects.contract is TEXT in Postgres. Strip currency symbols / commas before
+// coercion so "9,970.00" and "$9,970" both parse correctly. Returns null when
+// the value is absent or not a finite positive number.
+function parseContractValue(raw: string | number | null | undefined): number | null {
+  if (raw === null || raw === undefined || raw === '') return null
+  const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/[$,]/g, ''))
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
 // ── Main calculator ─────────────────────────────────────────────────────────
 
 /**
@@ -128,7 +137,8 @@ export function buildInvoiceFromRule(ctx: CalculatorContext): CalculatorResult {
   const pct = parsePercentageFromRuleName(rule.name)
   const isPercentage = pct !== null
 
-  if (isPercentage && (project.contract === null || project.contract <= 0)) {
+  const contractValue = isPercentage ? parseContractValue(project.contract) : null
+  if (isPercentage && contractValue === null) {
     return { ok: false, reason: 'contract_value_missing' }
   }
 
@@ -148,7 +158,7 @@ export function buildInvoiceFromRule(ctx: CalculatorContext): CalculatorResult {
     if (isPercentage) {
       // Percentage mode: ignore the rule's unit_price (null anyway), compute from contract.
       quantity = 1
-      unit_price = roundMoney((project.contract as number) * (pct as number))
+      unit_price = roundMoney(contractValue! * (pct as number))
     } else if (ruleUnitPrice !== null) {
       // Flat-rate mode: rule carries a concrete price.
       quantity = ruleQty

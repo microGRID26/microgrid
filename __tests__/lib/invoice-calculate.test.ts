@@ -257,6 +257,37 @@ describe('buildInvoiceFromRule — percentage rules', () => {
     if (result.ok) return
     expect(result.reason).toBe('contract_value_missing')
   })
+
+  // projects.contract is TEXT in Postgres (#528). The runtime value can arrive
+  // as a string even though TypeScript types it as number. Verify the guard
+  // handles comma-formatted, currency-prefixed, and non-numeric strings.
+  it('parses comma-formatted contract string correctly', () => {
+    const result = buildInvoiceFromRule(ctx({ project: { ...baseProject, contract: '9,970.00' as unknown as number } }))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.draft.subtotal).toBeCloseTo(9970 * 0.3, 2)
+  })
+
+  it('parses dollar-sign + comma contract string correctly', () => {
+    const result = buildInvoiceFromRule(ctx({ project: { ...baseProject, contract: '$50,000' as unknown as number } }))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.draft.subtotal).toBeCloseTo(50000 * 0.3, 2)
+  })
+
+  it('returns contract_value_missing for empty string contract', () => {
+    const result = buildInvoiceFromRule(ctx({ project: { ...baseProject, contract: '' as unknown as number } }))
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toBe('contract_value_missing')
+  })
+
+  it('returns contract_value_missing for non-numeric contract string', () => {
+    const result = buildInvoiceFromRule(ctx({ project: { ...baseProject, contract: 'pending' as unknown as number } }))
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toBe('contract_value_missing')
+  })
 })
 
 // ── buildInvoiceFromRule — flat rate mode ───────────────────────────────────

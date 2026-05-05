@@ -152,7 +152,10 @@ async function resolveChainOrgByType(
     // fall through to type-based singleton lookup
   }
 
-  // All other types resolve to the oldest active org of that type
+  // All other types resolve to the oldest active org of that type.
+  // ASSUMPTION: exactly one active org of each non-EPC chain type exists.
+  // The moment a second org of the same type onboards, every chain invoice
+  // routes to the oldest one regardless of project context. See #530.
   const { data, error } = await admin
     .from('organizations')
     .select('id')
