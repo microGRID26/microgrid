@@ -377,11 +377,9 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
     elements.push({ type: 'text', x: stringsBaseX + 10, y: afterStringsY + 9, text: `${config.dcStringWire ?? '#10 AWG CU PV WIRE'}, PV TRUNK CABLE`, fontSize: 4.5, fill: '#444' })
     elements.push({ type: 'text', x: stringsBaseX + 10, y: afterStringsY + 17, text: `INSTALLED IN ${config.dcConduit ?? '3/4" EMT'} TYPE CONDUIT`, fontSize: 4.5, fill: '#444' })
 
-    // Junction box — centered under string arrays
+    // Junction box — centered under string arrays. Phase 7 svg-asset (landscape).
     const jbW = 65, jbBoxH = 24
-    elements.push({ type: 'rect', x: invCenterX - jbW / 2, y: jbY, w: jbW, h: jbBoxH })
-    elements.push({ type: 'text', x: invCenterX, y: jbY + 10, text: '(N) JUNCTION BOX', fontSize: 5.5, anchor: 'middle' })
-    elements.push({ type: 'text', x: invCenterX, y: jbY + 19, text: '600V, NEMA 3', fontSize: 5, anchor: 'middle', fill: '#666' })
+    elements.push({ type: 'svg-asset', x: invCenterX - jbW / 2, y: jbY, w: jbW, h: jbBoxH, assetId: 'jb-nema3-600v-ls' })
     // Callout ① — Junction Box
     elements.push({ type: 'callout', cx: invCenterX + jbW / 2 + 14, cy: jbY + jbBoxH / 2, number: 1 })
 
@@ -859,9 +857,8 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
 
   // Junction Box
   const jbX = 230, jbY = topY + 60
-  elements.push({ type: 'rect', x: jbX, y: jbY, w: 60, h: 24 })
-  elements.push({ type: 'text', x: jbX + 30, y: jbY + 10, text: '(N) JUNCTION BOX', fontSize: 5, anchor: 'middle' })
-  elements.push({ type: 'text', x: jbX + 30, y: jbY + 19, text: '600V, NEMA 3R', fontSize: 4, anchor: 'middle', fill: '#666' })
+  // JB landscape — Phase 7 svg-asset. w=60 keeps existing wire at jbX+60 correct.
+  elements.push({ type: 'svg-asset', x: jbX, y: jbY, w: 60, h: 24, assetId: 'jb-nema3-600v-ls' })
   elements.push({ type: 'callout', cx: jbX + 30, cy: jbY - 12, number: 1 })
 
   // Wire from JB → DC Disc (full wire spec stack)
@@ -941,11 +938,9 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
       elements.push({ type: 'text', x: cantexX + 40, y: cantexY + 12, text: '(N) CANTEX HIGH-CURRENT BAR', fontSize: 3.5, anchor: 'middle', bold: true })
     }
 
-    // Battery combiner (center inside DPC)
+    // Battery combiner (center inside DPC) — Phase 7 svg-asset. anchor-left=(0,20)=harness wire.
     const combX = battX + battUnitW + 25, combY = battY + 15
-    elements.push({ type: 'rect', x: combX, y: combY, w: 65, h: 40, strokeWidth: 1 })
-    elements.push({ type: 'text', x: combX + 32, y: combY + 16, text: '(N) BATTERY', fontSize: 4.5, anchor: 'middle', bold: true })
-    elements.push({ type: 'text', x: combX + 32, y: combY + 26, text: 'COMBINER', fontSize: 4.5, anchor: 'middle', bold: true })
+    elements.push({ type: 'svg-asset', x: combX, y: combY, w: 65, h: 40, assetId: 'battery-combiner' })
     // Wire from battery harness to combiner
     const battMidY = battY + (battCount * (battUnitH + 2)) / 2
     elements.push({ type: 'line', x1: battX + battUnitW + 2, y1: battMidY, x2: combX, y2: combY + 20, strokeWidth: 1 })
@@ -1505,24 +1500,11 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   textBlock(dpcCtX + 14, dpcCtY - 2, ['DPC RGM CTs'], { fontSize: 4.5, fill: MUTED })
 
   const dpcX = 620, dpcY = commY + 30, dpcW = 110, dpcH = 50
-  elements.push({ type: 'rect', x: dpcX, y: dpcY, w: dpcW, h: dpcH, stroke: STROKE, strokeWidth: 0.8 })
-  textBlock(dpcX + dpcW / 2, dpcY + 13, ['(N) DPCRGM - CELL'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(dpcX + dpcW / 2, dpcY + 25, [
-    'DURACELL DTU',
-    'PN: PC-PRO-C',
-  ], { fontSize: 5, lineHeight: 7, anchor: 'middle', fill: MUTED })
-  ;[1, 2, 3, 4].forEach((n, i) => {
-    elements.push({
-      type: 'circle', cx: dpcX + 18 + i * 22, cy: dpcY + dpcH + 8, r: 4, strokeWidth: 0.4,
-    })
-    elements.push({
-      type: 'text', x: dpcX + 18 + i * 22, y: dpcY + dpcH + 10, text: `${n}`,
-      fontSize: 4, anchor: 'middle',
-    })
-  })
+  // DPCRGM-Cell — Phase 7 svg-asset. anchor-left=(0,25), anchor-right=(110,25).
+  elements.push({ type: 'svg-asset', x: dpcX, y: dpcY, w: dpcW, h: dpcH, assetId: 'dpcrgm-cell' })
 
-  elements.push({ type: 'line', x1: sonnenCtX + 8, y1: sonnenCtY, x2: dpcX, y2: dpcY + 20, strokeWidth: 0.7, dash: true })
-  elements.push({ type: 'line', x1: dpcCtX - 8, y1: dpcCtY, x2: dpcX + dpcW, y2: dpcY + 20, strokeWidth: 0.7, dash: true })
+  elements.push({ type: 'line', x1: sonnenCtX + 8, y1: sonnenCtY, x2: dpcX, y2: dpcY + 25, strokeWidth: 0.7, dash: true })
+  elements.push({ type: 'line', x1: dpcCtX - 8, y1: dpcCtY, x2: dpcX + dpcW, y2: dpcY + 25, strokeWidth: 0.7, dash: true })
 
   const ethX = dpcX + dpcW + 60, ethY = dpcY, ethW = 90, ethH = 30
   elements.push({ type: 'rect', x: ethX, y: ethY, w: ethW, h: ethH, stroke: STROKE, strokeWidth: 0.8 })
