@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130" font-family="Helvetica, Arial, sans-serif">
+  
+
+  
+  <rect x="0.5" y="0.5" width="99" height="129" rx="3" ry="3" fill="white" stroke="#111" stroke-width="1"></rect>
+
+  
+  <text x="50" y="9.5" font-size="7" font-weight="bold" fill="#222" text-anchor="middle">DG222NRB</text>
+  <text x="50" y="15.5" font-size="5.5" fill="#444" text-anchor="middle">60A / 2P</text>
+  <line x1="0.5" y1="18" x2="99.5" y2="18" stroke="#111" stroke-width="1"></line>
+
+  
+  <text x="35" y="29" font-size="4.5" fill="#666" text-anchor="middle">L1</text>
+  <text x="65" y="29" font-size="4.5" fill="#666" text-anchor="middle">L2</text>
+
+  
+  <g stroke="#111" stroke-linecap="round">
+    <line x1="35" y1="32" x2="35" y2="55" stroke-width="1"></line>
+    <line x1="35" y1="55" x2="29" y2="85" stroke-width="1.1"></line>
+    <line x1="35" y1="85" x2="35" y2="103" stroke-width="1"></line>
+    <line x1="65" y1="32" x2="65" y2="55" stroke-width="1"></line>
+    <line x1="65" y1="55" x2="71" y2="85" stroke-width="1.1"></line>
+    <line x1="65" y1="85" x2="65" y2="103" stroke-width="1"></line>
+  </g>
+
+  
+  <g fill="white" stroke="#111" stroke-width="0.8">
+    <rect x="32" y="88" width="6" height="12" rx="0.5" ry="0.5"></rect>
+    <rect x="62" y="88" width="6" height="12" rx="0.5" ry="0.5"></rect>
+  </g>
+
+  
+  <g fill="#111" stroke="none">
+    <circle cx="35" cy="55" r="2"></circle>
+    <circle cx="65" cy="55" r="2"></circle>
+    <circle cx="35" cy="85" r="2"></circle>
+    <circle cx="65" cy="85" r="2"></circle>
+  </g>
+
+  
+  <g font-size="4" fill="#444" font-weight="600" text-anchor="start">
+    <text x="40" y="96">45A</text>
+    <text x="70" y="96">45A</text>
+  </g>
+
+  
+  <text x="50" y="118" font-size="5" fill="#555" text-anchor="middle">240V, 3R · FUSIBLE</text>
+
+  
+  <g id="anchors" fill="none" stroke="none" pointer-events="none">
+    <g id="anchor-top" transform="translate(50, 0)"></g>
+    <g id="anchor-bottom" transform="translate(50, 130)"></g>
+    <g id="anchor-left" transform="translate(0, 65)"></g>
+    <g id="anchor-right" transform="translate(100, 65)"></g>
+  </g>
+</svg>

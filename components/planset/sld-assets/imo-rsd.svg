@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 28" font-family="Helvetica, Arial, sans-serif">
+  
+  <rect x="0.5" y="0.5" width="79" height="27" rx="1" ry="1" fill="white" stroke="#888" stroke-width="0.8"></rect>
+
+  
+  <g stroke="#d44" stroke-width="1" fill="none">
+    <circle cx="10" cy="14" r="5"></circle>
+    <line x1="10" y1="9" x2="10" y2="19"></line>
+  </g>
+
+  
+  <text x="48" y="11" font-size="4.5" font-weight="bold" fill="#222" text-anchor="middle">(N) IMO RAPID SHUTDOWN</text>
+  <text x="48" y="20" font-size="4" fill="#555" text-anchor="middle">RSD-D-20</text>
+
+  
+  <g id="anchors" fill="none" stroke="none" pointer-events="none">
+    <g id="anchor-top" transform="translate(40, 0)"></g>
+    <g id="anchor-bottom" transform="translate(40, 28)"></g>
+    <g id="anchor-left" transform="translate(0, 14)"></g>
+    <g id="anchor-right" transform="translate(80, 14)"></g>
+  </g>
+</svg>

@@ -17,9 +17,9 @@ See `notes/planset-ahj-standard.md` for the architecture and per-asset workflow.
 
 | # | assetId | Equipment | Native size | Iter# | Status | File path | Notes |
 |---|---|---|---|---|---|---|---|
-| 1 | `sonnen-score-p20` | SonnenCore+ SCORE-P20 battery | 360×280 | 0 | spec | — | Phase 1 first proof |
-| 2 | `eaton-dg222urb` | Eaton DG222URB 60A PV Disconnect | 100×130 | 0 | not started | — | |
-| 3 | `eaton-dg221urb` | Eaton DG221URB 30A ESS Disconnect | 100×130 | 0 | not started | — | |
+| 1 | `sonnen-score-p20` | SonnenCore+ SCORE-P20 battery | 360×280 | 1 | verified | `components/planset/sld-assets/sonnen-score-p20.tsx` | 2026-05-05: round-1 integration + PDF compare complete. Proportions, cell layout, 102V label, anchor wire exits all match Tyson PROJ-26922 Rev1 PV-5 reference. |
+| 2 | `eaton-dg222urb` | Eaton DG222URB 60A PV Disconnect | 100×130 | 0 | spec | — | 2026-05-05: spec written to ~/Desktop/asset-spec-eaton-dg222urb.md. Sent to Claude Design for Phase 2. Note: DG221URB (row 3) is same layout, diff rating — may arrive as pair. |
+| 3 | `eaton-dg221urb` | Eaton DG221URB 30A ESS Disconnect | 100×130 | 0 | spec | — | 2026-05-05: see DG222URB spec note — same asset with 30A label. Pending Claude Design delivery. |
 | 4 | `eaton-dg222nrb-fused` | Eaton DG222NRB 60A Customer Gen Disc, 2×45A fuses | 120×130 | 0 | not started | — | |
 | 5 | `brp12l125r` | Eaton BRP12L125R PV Load Center | 130×140 | 0 | not started | — | Internal: 20A/2P + 15A/2P branch breakers + 40A/2P main |
 | 6 | `brp20b125r` | Eaton BRP20B125R Protected Load Panel | 140×160 | 0 | not started | — | Internal: 35A/2P PV + 40A/2P main on opposite bus ends |

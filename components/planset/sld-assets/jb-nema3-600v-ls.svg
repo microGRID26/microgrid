@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 65 24" font-family="Helvetica, Arial, sans-serif">
+  
+  <rect x="0.5" y="0.5" width="64" height="23" rx="1" ry="1" fill="white" stroke="#111" stroke-width="1"></rect>
+  <text x="32" y="9" font-size="4.5" font-weight="bold" fill="#222" text-anchor="middle">(N) DC JUNCTION BOX</text>
+  <text x="32" y="18" font-size="3.5" fill="#666" text-anchor="middle">600V · NEMA 3R</text>
+  <g id="anchors" fill="none" stroke="none" pointer-events="none">
+    <g id="anchor-left" transform="translate(0, 12)"></g>
+    <g id="anchor-right" transform="translate(65, 12)"></g>
+  </g>
+</svg>

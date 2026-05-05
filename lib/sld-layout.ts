@@ -377,11 +377,9 @@ export function calculateSldLayout(config: SldConfig): SldLayout {
     elements.push({ type: 'text', x: stringsBaseX + 10, y: afterStringsY + 9, text: `${config.dcStringWire ?? '#10 AWG CU PV WIRE'}, PV TRUNK CABLE`, fontSize: 4.5, fill: '#444' })
     elements.push({ type: 'text', x: stringsBaseX + 10, y: afterStringsY + 17, text: `INSTALLED IN ${config.dcConduit ?? '3/4" EMT'} TYPE CONDUIT`, fontSize: 4.5, fill: '#444' })
 
-    // Junction box — centered under string arrays
+    // Junction box — centered under string arrays. Phase 7 svg-asset (landscape).
     const jbW = 65, jbBoxH = 24
-    elements.push({ type: 'rect', x: invCenterX - jbW / 2, y: jbY, w: jbW, h: jbBoxH })
-    elements.push({ type: 'text', x: invCenterX, y: jbY + 10, text: '(N) JUNCTION BOX', fontSize: 5.5, anchor: 'middle' })
-    elements.push({ type: 'text', x: invCenterX, y: jbY + 19, text: '600V, NEMA 3', fontSize: 5, anchor: 'middle', fill: '#666' })
+    elements.push({ type: 'svg-asset', x: invCenterX - jbW / 2, y: jbY, w: jbW, h: jbBoxH, assetId: 'jb-nema3-600v-ls' })
     // Callout ① — Junction Box
     elements.push({ type: 'callout', cx: invCenterX + jbW / 2 + 14, cy: jbY + jbBoxH / 2, number: 1 })
 
@@ -859,9 +857,8 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
 
   // Junction Box
   const jbX = 230, jbY = topY + 60
-  elements.push({ type: 'rect', x: jbX, y: jbY, w: 60, h: 24 })
-  elements.push({ type: 'text', x: jbX + 30, y: jbY + 10, text: '(N) JUNCTION BOX', fontSize: 5, anchor: 'middle' })
-  elements.push({ type: 'text', x: jbX + 30, y: jbY + 19, text: '600V, NEMA 3R', fontSize: 4, anchor: 'middle', fill: '#666' })
+  // JB landscape — Phase 7 svg-asset. w=60 keeps existing wire at jbX+60 correct.
+  elements.push({ type: 'svg-asset', x: jbX, y: jbY, w: 60, h: 24, assetId: 'jb-nema3-600v-ls' })
   elements.push({ type: 'callout', cx: jbX + 30, cy: jbY - 12, number: 1 })
 
   // Wire from JB → DC Disc (full wire spec stack)
@@ -876,15 +873,12 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
 
   // PV Load Center (RUSH: BRP12L125R)
   const pvlcX = 310, pvlcY = jbY - 20
-  elements.push({ type: 'rect', x: pvlcX, y: pvlcY, w: 80, h: 55, strokeWidth: 1.5 })
-  elements.push({ type: 'text', x: pvlcX + 40, y: pvlcY + 12, text: '(N) PV LOAD CENTER', fontSize: 4.5, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: pvlcX + 40, y: pvlcY + 22, text: 'BRP12L125R 125A', fontSize: 4, anchor: 'middle', fill: '#666' })
-  elements.push({ type: 'text', x: pvlcX + 40, y: pvlcY + 30, text: 'RATED 100A MAIN', fontSize: 4, anchor: 'middle', fill: '#666' })
-  elements.push({ type: 'text', x: pvlcX + 40, y: pvlcY + 38, text: 'NEMA3R, UL LISTED', fontSize: 3.5, anchor: 'middle', fill: '#999' })
-  elements.push({ type: 'text', x: pvlcX + 40, y: pvlcY + 48, text: '(EXTERIOR)', fontSize: 3.5, anchor: 'middle', fill: '#999' })
+  const pvlcW = 80, pvlcH = 54  // 3:2 ratio matching 120×80 native viewBox
+  elements.push({ type: 'svg-asset', x: pvlcX, y: pvlcY, w: pvlcW, h: pvlcH, assetId: 'eaton-brp12l125r' })
+  elements.push({ type: 'text', x: pvlcX + pvlcW / 2, y: pvlcY - 6, text: '(N) PV LOAD CENTER', fontSize: 4.5, anchor: 'middle', bold: true })
 
   // Wire from PV LC down to DC Disconnect
-  elements.push({ type: 'line', x1: pvlcX + 40, y1: pvlcY + 55, x2: pvlcX + 40, y2: pvlcY + 75, strokeWidth: 1.5 })
+  elements.push({ type: 'line', x1: pvlcX + pvlcW / 2, y1: pvlcY + pvlcH, x2: pvlcX + pvlcW / 2, y2: pvlcY + pvlcH + 20, strokeWidth: 1.5 })
 
   // DC Disconnect (below PV LC)
   const dcDiscX = pvlcX + 40
@@ -944,11 +938,9 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
       elements.push({ type: 'text', x: cantexX + 40, y: cantexY + 12, text: '(N) CANTEX HIGH-CURRENT BAR', fontSize: 3.5, anchor: 'middle', bold: true })
     }
 
-    // Battery combiner (center inside DPC)
+    // Battery combiner (center inside DPC) — Phase 7 svg-asset. anchor-left=(0,20)=harness wire.
     const combX = battX + battUnitW + 25, combY = battY + 15
-    elements.push({ type: 'rect', x: combX, y: combY, w: 65, h: 40, strokeWidth: 1 })
-    elements.push({ type: 'text', x: combX + 32, y: combY + 16, text: '(N) BATTERY', fontSize: 4.5, anchor: 'middle', bold: true })
-    elements.push({ type: 'text', x: combX + 32, y: combY + 26, text: 'COMBINER', fontSize: 4.5, anchor: 'middle', bold: true })
+    elements.push({ type: 'svg-asset', x: combX, y: combY, w: 65, h: 40, assetId: 'battery-combiner' })
     // Wire from battery harness to combiner
     const battMidY = battY + (battCount * (battUnitH + 2)) / 2
     elements.push({ type: 'line', x1: battX + battUnitW + 2, y1: battMidY, x2: combX, y2: combY + 20, strokeWidth: 1 })
@@ -1020,18 +1012,10 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
   // RIGHT: Main Service Panel + Utility Chain (x: 830-1340)
   // ══════════════════════════════════════════════════════════════
   const mspX = 830, mspY = topY + 30
-  const mspW = 130, mspH = 180
+  const mspW = 130, mspH = 140
 
-  // MSP box
-  elements.push({ type: 'rect', x: mspX, y: mspY, w: mspW, h: mspH, strokeWidth: 2 })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 20, text: '(E) MAIN SERVICE', fontSize: 6, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 30, text: 'PANEL', fontSize: 6, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 44, text: '200A RATED, 240V,', fontSize: 4.5, anchor: 'middle', fill: '#666' })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 52, text: '200A MAIN', fontSize: 4.5, anchor: 'middle', fill: '#666' })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 66, text: '(EXTERIOR MOUNTED)', fontSize: 4, anchor: 'middle', fill: '#999' })
-
-  // Backfeed breaker inside MSP
-  elements.push({ type: 'breaker', x: mspX + mspW / 2, y: mspY + mspH - 30, label: `(N) ${config.backfeedBreakerA ?? 100}A`, amps: 'BACKFEED' })
+  // MSP — Phase 5 svg-asset. anchor-left=(0,70), anchor-right=(130,70) → utilY = mspY + 70.
+  elements.push({ type: 'svg-asset', x: mspX, y: mspY, w: mspW, h: mspH, assetId: 'msp-225a' })
   elements.push({ type: 'callout', cx: mspX + mspW / 2, cy: mspY - 12, number: 6 })
 
   // Main breaker below MSP
@@ -1052,15 +1036,11 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
   elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY - 25, text: '200A (INTERIOR)', fontSize: 4, anchor: 'middle', fill: '#999' })
   elements.push({ type: 'line', x1: mspX + mspW / 2, y1: mspY - 10, x2: mspX + mspW / 2, y2: mspY, strokeWidth: 1, dash: true })
 
-  // Surge protector
-  elements.push({ type: 'rect', x: mspX + mspW + 10, y: mspY - 50, w: 80, h: 28, strokeWidth: 1 })
-  elements.push({ type: 'text', x: mspX + mspW + 50, y: mspY - 38, text: '(N) SURGE', fontSize: 4.5, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: mspX + mspW + 50, y: mspY - 28, text: 'PROTECTOR', fontSize: 4.5, anchor: 'middle', bold: true })
+  // Surge protector — Phase 6 svg-asset.
+  elements.push({ type: 'svg-asset', x: mspX + mspW + 10, y: mspY - 50, w: 80, h: 28, assetId: 'surge-protector-spd' })
 
-  // IMO RSD
-  elements.push({ type: 'rect', x: mspX + mspW + 10, y: mspY - 15, w: 80, h: 28, strokeWidth: 1 })
-  elements.push({ type: 'text', x: mspX + mspW + 50, y: mspY - 3, text: '(N) IMO RAPID', fontSize: 4.5, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: mspX + mspW + 50, y: mspY + 7, text: 'SHUTDOWN', fontSize: 4.5, anchor: 'middle', bold: true })
+  // IMO RSD — Phase 6 svg-asset.
+  elements.push({ type: 'svg-asset', x: mspX + mspW + 10, y: mspY - 15, w: 80, h: 28, assetId: 'imo-rsd' })
 
   // ── Utility chain (right of MSP) ──
   const utilY = mspY + mspH / 2
@@ -1068,12 +1048,9 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
   // Wire spec MSP → Service Disconnect
   elements.push({ type: 'text', x: mspX + mspW + 3, y: utilY - 8, text: '(3) 250 kcmil CU THWN-2', fontSize: 3, fill: '#444', italic: true })
 
-  // Service Disconnect
+  // Service Disconnect — Phase 6 svg-asset. anchor-left=(0,18)=utilY, anchor-right=(90,18).
   const sdX = mspX + mspW + 25
-  elements.push({ type: 'rect', x: sdX, y: utilY - 18, w: 90, h: 36 })
-  elements.push({ type: 'text', x: sdX + 45, y: utilY - 5, text: '(N) SERVICE', fontSize: 5, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: sdX + 45, y: utilY + 5, text: 'DISCONNECT', fontSize: 5, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: sdX + 45, y: utilY + 14, text: 'VISIBLE, LOCKABLE', fontSize: 3.5, anchor: 'middle', fill: '#666' })
+  elements.push({ type: 'svg-asset', x: sdX, y: utilY - 18, w: 90, h: 36, assetId: 'service-disc-200a' })
   elements.push({ type: 'callout', cx: sdX + 45, cy: utilY - 28, number: 7 })
 
   // Expansion fittings
@@ -1097,9 +1074,8 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
     const labelX = (sdX + 90 + umCx - 18) / 2 - 35
     elements.push({ type: 'text', x: labelX, y: utilY + 12, text: `${config.serviceEntranceConduit ?? '2" EMT'} TYPE CONDUIT`, fontSize: 3.5, fill: '#444', italic: true })
   }
-  elements.push({ type: 'circle', cx: umCx, cy: utilY, r: 18, strokeWidth: 1.5 })
-  elements.push({ type: 'text', x: umCx, y: utilY - 2, text: 'M', fontSize: 7, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: umCx, y: utilY + 7, text: 'kWh', fontSize: 5, anchor: 'middle' })
+  // Utility meter — Phase 6 svg-asset. anchor-left=(2,20)=wire in, anchor-right=(38,20)=wire out.
+  elements.push({ type: 'svg-asset', x: umCx - 20, y: utilY - 20, w: 40, h: 40, assetId: 'utility-meter-200a' })
   elements.push({ type: 'text', x: umCx, y: utilY - 24, text: 'UTILITY METER', fontSize: 5, anchor: 'middle', fill: '#666', bold: true })
   elements.push({ type: 'text', x: umCx, y: utilY - 32, text: '(E) BI-DIRECTIONAL', fontSize: 4.5, anchor: 'middle', fill: '#666' })
   elements.push({ type: 'callout', cx: umCx, cy: utilY - 42, number: 9 })
@@ -1314,10 +1290,8 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   let cursorX = 320
 
   const jbX = cursorX, jbY = mainY - 28, jbW = 70, jbH = 56
-  elements.push({ type: 'rect', x: jbX, y: jbY, w: jbW, h: jbH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(jbX + jbW / 2, jbY + 12, [
-    '(N) JUNCTION', 'BOX', '600V, NEMA 3', 'UL LISTED',
-  ], { fontSize: 5.5, lineHeight: 7, bold: true, anchor: 'middle' })
+  // JB — Phase 6 svg-asset. anchor-left=(0,28)=mainY wire.
+  elements.push({ type: 'svg-asset', x: jbX, y: jbY, w: jbW, h: jbH, assetId: 'jb-nema3-600v' })
   cursorX = jbX + jbW
 
   elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: cursorX + 70, y2: mainY, strokeWidth: 1.4 })
@@ -1329,21 +1303,10 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
   cursorX += 70
 
-  const lcX = cursorX, lcY = mainY - 48, lcW = 110, lcH = 100
-  elements.push({ type: 'rect', x: lcX, y: lcY, w: lcW, h: lcH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(lcX + lcW / 2, lcY + 11, [
-    '(N) PV LOAD CENTER',
-  ], { fontSize: 6, bold: true, anchor: 'middle' })
-  textBlock(lcX + lcW / 2, lcY + 20, [
-    'BRP12L125R 125A',
-    'RATED MLO, NEMA3R,',
-    'UL LISTED',
-    '(EXTERIOR MOUNTED)',
-  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
-  pill(lcX + 28, lcY + 62, 36, 12, '20A/2P', 5)
-  pill(lcX + 82, lcY + 62, 36, 12, '15A/2P', 5)
-  pill(lcX + lcW / 2, lcY + 82, 40, 12, '40A/2P MAIN', 5)
-  elements.push({ type: 'text', x: lcX + 6, y: lcY + lcH - 4, text: 'G', fontSize: 6, bold: true })
+  const lcW = 108, lcH = 72  // 3:2 ratio matching 120×80 native viewBox
+  const lcX = cursorX, lcY = mainY - lcH / 2  // center left anchor on mainY wire
+  elements.push({ type: 'svg-asset', x: lcX, y: lcY, w: lcW, h: lcH, assetId: 'eaton-brp12l125r' })
+  textBlock(lcX + lcW / 2, lcY - 7, ['(N) PV LOAD CENTER'], { fontSize: 6, bold: true, anchor: 'middle' })
   cursorX = lcX + lcW
 
   elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: cursorX + 80, y2: mainY, strokeWidth: 1.4 })
@@ -1355,17 +1318,10 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
   cursorX += 80
 
-  const pvdX = cursorX, pvdY = mainY - 38, pvdW = 90, pvdH = 80
-  elements.push({ type: 'rect', x: pvdX, y: pvdY, w: pvdW, h: pvdH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(pvdX + pvdW / 2, pvdY + 11, ['(N) PV DISCONNECT'], { fontSize: 6, bold: true, anchor: 'middle' })
-  textBlock(pvdX + pvdW / 2, pvdY + 20, [
-    'NON-FUSIBLE',
-    'EATON DG222URB',
-    '(60A, 2P, 240V 3R)',
-  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
-  elements.push({ type: 'text', x: pvdX + 6, y: pvdY + 56, text: 'LINE', fontSize: 4.5, fill: MUTED })
-  elements.push({ type: 'text', x: pvdX + pvdW - 18, y: pvdY + 56, text: 'LOAD', fontSize: 4.5, fill: MUTED })
-  elements.push({ type: 'disconnect', x: pvdX + pvdW / 2 - 10, y: pvdY + 50, label: '60A' })
+  const pvdW = 80, pvdH = 104  // 10:13 native Eaton viewBox ratio
+  const pvdX = cursorX, pvdY = mainY - pvdH / 2  // left anchor centered on mainY
+  elements.push({ type: 'svg-asset', x: pvdX, y: pvdY, w: pvdW, h: pvdH, assetId: 'eaton-dg222urb' })
+  textBlock(pvdX + pvdW / 2, pvdY - 7, ['(N) PV DISCONNECT'], { fontSize: 5.5, bold: true, anchor: 'middle' })
   textBlock(pvdX + pvdW / 2, pvdY + pvdH + 4, [
     'VISIBLE, LOCKABLE,',
     'LABELED "AC DISC"',
@@ -1374,39 +1330,23 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   cursorX = pvdX + pvdW
 
   elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: cursorX + 70, y2: mainY, strokeWidth: 1.4 })
-  elements.push({ type: 'callout', cx: cursorX + 12, cy: mainY - 18, number: 4 })
-  textBlock(cursorX + 22, mainY - 28, [
+  elements.push({ type: 'callout', cx: cursorX + 25, cy: mainY - 18, number: 4 })
+  textBlock(cursorX + 35, mainY - 28, [
     '(2) #8 AWG CU THWN-2',
     '(1) #8 AWG CU EGC',
     '3/4" EMT TYPE CONDUIT',
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
   cursorX += 70
 
-  const plpX = cursorX, plpY = mainY - 60, plpW = 120, plpH = 130
-  elements.push({ type: 'rect', x: plpX, y: plpY, w: plpW, h: plpH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(plpX + plpW / 2, plpY + 11, ['(N) PROTECTED LOAD PANEL'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(plpX + plpW / 2, plpY + 20, [
-    'BRP20B125R',
-    '125A RATED, NEMA3R,',
-    'UL LISTED (EXTERIOR)',
-  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
-  pill(plpX + 22, plpY + 60, 36, 12, '35A/2P', 5)
-  elements.push({ type: 'text', x: plpX + 22, y: plpY + 70, text: 'PV', fontSize: 4.5, anchor: 'middle', fill: MUTED })
-  pill(plpX + plpW - 22, plpY + 60, 36, 12, '40A/2P', 5)
-  elements.push({ type: 'text', x: plpX + plpW - 22, y: plpY + 70, text: 'MAIN', fontSize: 4.5, anchor: 'middle', fill: MUTED })
-  textBlock(plpX + plpW / 2, plpY + 88, [
-    '(N) 35A PV BREAKER AT',
-    'OPPOSITE END OF BUS',
-    'FROM MAIN BREAKER',
-  ], { fontSize: 4, lineHeight: 5, anchor: 'middle', fill: MUTED })
-  elements.push({ type: 'text', x: plpX + 6, y: plpY + plpH - 4, text: 'G', fontSize: 6, bold: true })
-  elements.push({ type: 'line', x1: plpX + 8, y1: plpY + 50, x2: plpX + plpW - 8, y2: plpY + 50, strokeWidth: 0.7 })
+  const plpW = 120, plpH = 130  // matches 120×130 native viewBox exactly
+  const plpX = cursorX, plpY = mainY - plpH / 2  // center left anchor on mainY wire
+  elements.push({ type: 'svg-asset', x: plpX, y: plpY, w: plpW, h: plpH, assetId: 'eaton-brp20b125r' })
   cursorX = plpX + plpW
 
   // ── BATTERY (vertical drop from PLP) ──
   const battX = plpX + 30
   const battY = mainY + 130
-  const battW = 200
+  const battW = 232  // preserves Sonnen asset aspect 360:280 ≈ 1.286 (round-1 fix)
   const battH = 180
 
   elements.push({ type: 'line', x1: plpX + plpW / 2, y1: plpY + plpH, x2: plpX + plpW / 2, y2: battY, strokeWidth: 1.4 })
@@ -1417,44 +1357,15 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
     '3/4" EMT TYPE CONDUIT',
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
 
-  elements.push({ type: 'rect', x: battX, y: battY, w: battW, h: battH, stroke: STROKE, strokeWidth: 1.2 })
-  elements.push({ type: 'line', x1: battX, y1: battY + 22, x2: battX + battW, y2: battY + 22, strokeWidth: 0.5 })
-  textBlock(battX + battW / 2, battY + 14, ['SCORE-P20 (20 kWh) 4.8 kW AC SYSTEM'], {
-    fontSize: 6, bold: true, anchor: 'middle',
-  })
-  elements.push({ type: 'text', x: battX + battW / 2, y: battY + 32, text: 'SonnenCore+', fontSize: 7, italic: true, anchor: 'middle' })
-  const cellW = 75, cellH = 28, cellGapX = 8, cellGapY = 6
-  const cellGridX = battX + 12
-  const cellGridY = battY + 42
-  for (let r = 0; r < 2; r++) {
-    for (let c = 0; c < 2; c++) {
-      const cx = cellGridX + c * (cellW + cellGapX)
-      const cy = cellGridY + r * (cellH + cellGapY)
-      elements.push({ type: 'rect', x: cx, y: cy, w: cellW, h: cellH, stroke: SUBSTROKE, strokeWidth: 0.6 })
-      textBlock(cx + cellW / 2, cy + 11, ['102 VDC NOMINAL', 'LiFePO4'], {
-        fontSize: 4.5, lineHeight: 6, anchor: 'middle',
-      })
-    }
-  }
-  const estopX = battX + battW - 74, estopY = battY + 42
-  elements.push({ type: 'rect', x: estopX, y: estopY, w: 60, h: 26, stroke: STROKE, strokeWidth: 0.8 })
-  elements.push({ type: 'text', x: estopX + 30, y: estopY + 16, text: 'E-STOP', fontSize: 7, bold: true, anchor: 'middle' })
-  textBlock(estopX + 30, estopY + 32, ['E-STOP ISOLATES', 'BATTERY FROM GRID'], {
-    fontSize: 3.8, lineHeight: 5, anchor: 'middle', fill: MUTED,
-  })
-  const pcsY = cellGridY + 2 * (cellH + cellGapY)
-  elements.push({ type: 'rect', x: cellGridX, y: pcsY, w: 158, h: 22, stroke: SUBSTROKE, strokeWidth: 0.6 })
-  elements.push({ type: 'text', x: cellGridX + 79, y: pcsY + 14, text: 'CONTROLS (PCS)', fontSize: 6, bold: true, anchor: 'middle' })
-  textBlock(battX + 16, battY + 30, ['MICRO'], { fontSize: 5, bold: true, fill: MUTED })
-  textBlock(battX + 60, battY + 30, ['GRID'], { fontSize: 5, bold: true, fill: MUTED })
-  textBlock(battX + 100, battY + 30, ['GRID'], { fontSize: 5, bold: true, fill: MUTED })
-  const primaryY = pcsY + 32
-  elements.push({ type: 'text', x: battX + battW / 2, y: primaryY, text: 'PRIMARY', fontSize: 6, bold: true, anchor: 'middle' })
-  const termY = primaryY + 12
-  ;['L1', 'L2', 'N', 'G'].forEach((t, i) => {
-    pill(battX + 50 + i * 28, termY, 22, 10, t, 5)
-  })
-  textBlock(battX + battW + 8, battY + 30, [
+  elements.push({ type: 'svg-asset', x: battX, y: battY, w: battW, h: battH, assetId: 'sonnen-score-p20' })
+  // Map asset-native (360×280) coords to the rendered slot. Used by external
+  // wires connecting INTO the asset's anchor positions.
+  const slotX = (nx: number) => battX + (nx / 360) * battW
+  const slotY = (ny: number) => battY + (ny / 280) * battH
+  const estopRightX = slotX(346)   // anchor-estop-out — right edge of E-STOP block
+  const estopCenterY = slotY(55)
+  // Annotation shifted below the conductor #6 callout band to avoid overlap (round-1 fix)
+  textBlock(battX + battW + 8, battY + 70, [
     '(N) (1) SONNEN INC. -',
     'SONNENCORE+ SCORE-P20',
     '(240 VAC) (20.000 KWH)',
@@ -1464,31 +1375,27 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   ], { fontSize: 5, lineHeight: 6.5, fill: ANNOT })
 
   // ── ESS DISCONNECT (right of battery) ──
+  const essdW = 70, essdH = 91  // 10:13 native Eaton viewBox ratio
   const essdX = battX + battW + 100
-  const essdY = battY + 30
-  const essdW = 90, essdH = 70
-  elements.push({ type: 'line', x1: estopX + 60, y1: estopY + 13, x2: essdX, y2: essdY + essdH / 2, strokeWidth: 1.4 })
-  elements.push({ type: 'callout', cx: estopX + 80, cy: estopY + 4, number: 6 })
-  textBlock(estopX + 90, estopY - 6, [
+  const essdY = estopCenterY - essdH / 2  // left anchor centered on E-STOP output wire
+  elements.push({ type: 'line', x1: estopRightX, y1: estopCenterY, x2: essdX, y2: essdY + essdH / 2, strokeWidth: 1.4 })
+  elements.push({ type: 'callout', cx: estopRightX + 20, cy: estopCenterY - 9, number: 6 })
+  textBlock(estopRightX + 30, estopCenterY - 19, [
     '(2) #14 AWG CU THWN-2',
     '(1) #8 AWG CU EGC',
     '3/4" EMT TYPE CONDUIT',
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
-  elements.push({ type: 'rect', x: essdX, y: essdY, w: essdW, h: essdH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(essdX + essdW / 2, essdY + 11, ['(N) ESS DISCONNECT'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(essdX + essdW / 2, essdY + 20, [
-    'NON-FUSIBLE',
-    'EATON DG221URB',
-    '(30A, 2P, 240V 3R)',
-  ], { fontSize: 4.5, lineHeight: 6, anchor: 'middle', fill: MUTED })
-  elements.push({ type: 'disconnect', x: essdX + essdW / 2 - 10, y: essdY + 46, label: '30A' })
+  elements.push({ type: 'svg-asset', x: essdX, y: essdY, w: essdW, h: essdH, assetId: 'eaton-dg221urb' })
+  textBlock(essdX + essdW / 2, essdY - 7, ['(N) ESS DISCONNECT'], { fontSize: 5.5, bold: true, anchor: 'middle' })
   textBlock(essdX + essdW / 2, essdY + essdH + 4, [
     'VISIBLE, LOCKABLE,',
     'LABELED "AC DISC"',
   ], { fontSize: 4, lineHeight: 5, anchor: 'middle', fill: MUTED })
 
-  elements.push({ type: 'line', x1: essdX, y1: essdY + essdH - 8, x2: battX + 100, y2: essdY + essdH - 8, strokeWidth: 1.4, dash: true })
-  elements.push({ type: 'line', x1: battX + 100, y1: essdY + essdH - 8, x2: battX + 100, y2: battY + 36, strokeWidth: 1.4, dash: true })
+  // Dashed control wire routes BELOW battery to avoid crossing the Sonnen rectangle.
+  elements.push({ type: 'line', x1: essdX + essdW / 2, y1: essdY + essdH, x2: essdX + essdW / 2, y2: battY + battH + 15, strokeWidth: 1.4, dash: true })
+  elements.push({ type: 'line', x1: essdX + essdW / 2, y1: battY + battH + 15, x2: battX + 100, y2: battY + battH + 15, strokeWidth: 1.4, dash: true })
+  elements.push({ type: 'line', x1: battX + 100, y1: battY + battH + 15, x2: battX + 100, y2: battY + 36, strokeWidth: 1.4, dash: true })
   elements.push({ type: 'callout', cx: essdX - 14, cy: essdY + essdH - 16, number: 7 })
 
   // ── CUSTOMER GENERATION DISCONNECT (back at main row) ──
@@ -1502,18 +1409,10 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
   cursorX += 90
 
-  const cgdX = cursorX, cgdY = mainY - 48, cgdW = 100, cgdH = 100
-  elements.push({ type: 'rect', x: cgdX, y: cgdY, w: cgdW, h: cgdH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(cgdX + cgdW / 2, cgdY + 11, ['(N) CUSTOMER GEN'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(cgdX + cgdW / 2, cgdY + 20, ['DISCONNECT / FUSIBLE'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(cgdX + cgdW / 2, cgdY + 29, [
-    'EATON DG222NRB',
-    '(60A, 2P, 240V 3R)',
-    '(45A FUSES)',
-  ], { fontSize: 4.5, lineHeight: 6, anchor: 'middle', fill: MUTED })
-  fuse(cgdX + 30, cgdY + 70, '45A')
-  fuse(cgdX + cgdW - 30, cgdY + 70, '45A')
-  textBlock(cgdX + cgdW / 2, cgdY + 86, ['2X45A FUSES'], { fontSize: 5, bold: true, anchor: 'middle' })
+  const cgdW = 80, cgdH = 104
+  const cgdX = cursorX, cgdY = mainY - cgdH / 2
+  elements.push({ type: 'svg-asset', x: cgdX, y: cgdY, w: cgdW, h: cgdH, assetId: 'eaton-dg222nrb' })
+  textBlock(cgdX + cgdW / 2, cgdY - 7, ['(N) CUSTOMER GEN DISCONNECT'], { fontSize: 5.5, bold: true, anchor: 'middle' })
   textBlock(cgdX + cgdW / 2, cgdY + cgdH + 4, [
     'VISIBLE, LOCKABLE,',
     'LABELED "AC DISC"',
@@ -1536,19 +1435,8 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   cursorX += 90
 
   const mspX = cursorX, mspY = mainY - 60, mspW = 130, mspH = 140
-  elements.push({ type: 'rect', x: mspX, y: mspY, w: mspW, h: mspH, stroke: STROKE, strokeWidth: 1.2 })
-  textBlock(mspX + mspW / 2, mspY + 11, ['(N) MAIN SERVICE PANEL'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(mspX + mspW / 2, mspY + 20, [
-    `${config.mspBusbarA ?? 225}A RATED 240v`,
-    '(EXTERIOR MOUNTED)',
-  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
-  elements.push({ type: 'line', x1: mspX + 8, y1: mspY + 60, x2: mspX + mspW - 8, y2: mspY + 60, strokeWidth: 0.7 })
-  pill(mspX + 22, mspY + 70, 36, 12, '45A/2P', 5)
-  textBlock(mspX + 22, mspY + 82, ['PV'], { fontSize: 4.5, anchor: 'middle', fill: MUTED })
-  pill(mspX + mspW - 22, mspY + 70, 36, 12, '125A/2P', 5)
-  textBlock(mspX + mspW - 22, mspY + 82, ['MAIN'], { fontSize: 4.5, anchor: 'middle', fill: MUTED })
-  elements.push({ type: 'rect', x: mspX + mspW / 2 - 28, y: mspY + 95, w: 56, h: 16, stroke: SUBSTROKE, strokeWidth: 0.6 })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 105, text: '(N) SURGE PROTECTOR', fontSize: 4.5, anchor: 'middle' })
+  // MSP — Phase 5 svg-asset. anchor-left=(0,70)=mainY wire, anchor-right=(130,70)=utility meter.
+  elements.push({ type: 'svg-asset', x: mspX, y: mspY, w: mspW, h: mspH, assetId: 'msp-225a' })
   textBlock(mspX + mspW / 2, mspY + mspH + 4, [
     '(N) MAIN BREAKER TO HOUSE',
     '240v, 125A/2P TOP FED',
@@ -1561,8 +1449,8 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   // ── UTILITY METER ──
   const umCx = cursorX + 30, umCy = mainY
   elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: umCx - 18, y2: mainY, strokeWidth: 1.4 })
-  elements.push({ type: 'circle', cx: umCx, cy: umCy, r: 18, strokeWidth: 1.5 })
-  elements.push({ type: 'text', x: umCx, y: umCy + 5, text: 'M', fontSize: 14, bold: true, anchor: 'middle' })
+  // Utility meter — Phase 6 svg-asset. anchor-left=(2,20)=wire in, anchor-right=(38,20)=wire out.
+  elements.push({ type: 'svg-asset', x: umCx - 20, y: umCy - 20, w: 40, h: 40, assetId: 'utility-meter-200a' })
   textBlock(umCx, umCy + 30, [
     '(E) BI-DIRECTIONAL',
     'UTILITY METER',
@@ -1612,24 +1500,11 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   textBlock(dpcCtX + 14, dpcCtY - 2, ['DPC RGM CTs'], { fontSize: 4.5, fill: MUTED })
 
   const dpcX = 620, dpcY = commY + 30, dpcW = 110, dpcH = 50
-  elements.push({ type: 'rect', x: dpcX, y: dpcY, w: dpcW, h: dpcH, stroke: STROKE, strokeWidth: 0.8 })
-  textBlock(dpcX + dpcW / 2, dpcY + 13, ['(N) DPCRGM - CELL'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(dpcX + dpcW / 2, dpcY + 25, [
-    'DURACELL DTU',
-    'PN: PC-PRO-C',
-  ], { fontSize: 5, lineHeight: 7, anchor: 'middle', fill: MUTED })
-  ;[1, 2, 3, 4].forEach((n, i) => {
-    elements.push({
-      type: 'circle', cx: dpcX + 18 + i * 22, cy: dpcY + dpcH + 8, r: 4, strokeWidth: 0.4,
-    })
-    elements.push({
-      type: 'text', x: dpcX + 18 + i * 22, y: dpcY + dpcH + 10, text: `${n}`,
-      fontSize: 4, anchor: 'middle',
-    })
-  })
+  // DPCRGM-Cell — Phase 7 svg-asset. anchor-left=(0,25), anchor-right=(110,25).
+  elements.push({ type: 'svg-asset', x: dpcX, y: dpcY, w: dpcW, h: dpcH, assetId: 'dpcrgm-cell' })
 
-  elements.push({ type: 'line', x1: sonnenCtX + 8, y1: sonnenCtY, x2: dpcX, y2: dpcY + 20, strokeWidth: 0.7, dash: true })
-  elements.push({ type: 'line', x1: dpcCtX - 8, y1: dpcCtY, x2: dpcX + dpcW, y2: dpcY + 20, strokeWidth: 0.7, dash: true })
+  elements.push({ type: 'line', x1: sonnenCtX + 8, y1: sonnenCtY, x2: dpcX, y2: dpcY + 25, strokeWidth: 0.7, dash: true })
+  elements.push({ type: 'line', x1: dpcCtX - 8, y1: dpcCtY, x2: dpcX + dpcW, y2: dpcY + 25, strokeWidth: 0.7, dash: true })
 
   const ethX = dpcX + dpcW + 60, ethY = dpcY, ethW = 90, ethH = 30
   elements.push({ type: 'rect', x: ethX, y: ethY, w: ethW, h: ethH, stroke: STROKE, strokeWidth: 0.8 })

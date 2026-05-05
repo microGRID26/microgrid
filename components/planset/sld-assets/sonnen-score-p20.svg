@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 280" font-family="Helvetica, Arial, sans-serif">
+  
+
+  
+  
+  
+  <rect x="0.6" y="0.6" width="358.8" height="278.8" rx="6" ry="6" fill="white" stroke="#111" stroke-width="1.2"></rect>
+
+  
+  <line x1="0.6" y1="22" x2="359.4" y2="22" stroke="#111" stroke-width="1.2"></line>
+
+  
+  
+  
+  <text x="80" y="15" font-size="10" font-style="italic" fill="#222" text-anchor="middle">SonnenCore+</text>
+
+  
+  <g fill="#222" stroke="#111" stroke-width="0.4">
+    <rect x="140" y="8" width="6" height="6"></rect>
+    <rect x="148" y="8" width="6" height="6"></rect>
+    <rect x="156" y="8" width="6" height="6"></rect>
+    <rect x="164" y="8" width="6" height="6"></rect>
+  </g>
+  <text x="155" y="20" font-size="5" font-weight="bold" fill="#222" text-anchor="middle">MICRO</text>
+
+  
+  <g fill="#222" stroke="#111" stroke-width="0.4">
+    <rect x="200" y="8" width="6" height="6"></rect>
+    <rect x="208" y="8" width="6" height="6"></rect>
+    <rect x="216" y="8" width="6" height="6"></rect>
+    <rect x="224" y="8" width="6" height="6"></rect>
+  </g>
+  <text x="215" y="20" font-size="5" font-weight="bold" fill="#222" text-anchor="middle">GRID</text>
+
+  
+  <g fill="#222" stroke="#111" stroke-width="0.4">
+    <rect x="240" y="8" width="6" height="6"></rect>
+    <rect x="248" y="8" width="6" height="6"></rect>
+    <rect x="256" y="8" width="6" height="6"></rect>
+    <rect x="264" y="8" width="6" height="6"></rect>
+  </g>
+  <text x="255" y="20" font-size="5" font-weight="bold" fill="#222" text-anchor="middle">GRID</text>
+
+  
+  
+  
+  <text x="180" y="34" font-size="7" font-weight="bold" fill="#222" text-anchor="middle">SCORE-P20 (20 kWh) 4.8 kW AC SYSTEM</text>
+
+  
+  
+  
+  
+  
+  
+  <g id="cell-grid" stroke="#444" fill="white">
+    
+    <symbol id="lifepo4-cell" viewBox="0 0 75 55" overflow="visible">
+      <rect x="0.3" y="0.3" width="74.4" height="54.4" rx="2" ry="2" stroke="#444" stroke-width="0.6" fill="white"></rect>
+      
+      <g stroke="#444" stroke-width="0.35" opacity="0.85">
+        <line x1="3" y1="8" x2="72" y2="8"></line>
+        <line x1="3" y1="13" x2="72" y2="13"></line>
+        <line x1="3" y1="18" x2="72" y2="18"></line>
+        <line x1="3" y1="23" x2="72" y2="23"></line>
+        <line x1="3" y1="32" x2="72" y2="32"></line>
+        <line x1="3" y1="37" x2="72" y2="37"></line>
+        <line x1="3" y1="42" x2="72" y2="42"></line>
+        <line x1="3" y1="47" x2="72" y2="47"></line>
+      </g>
+      
+      <text x="37.5" y="28.2" font-size="4.5" font-weight="600" fill="#222" text-anchor="middle" font-family="Helvetica, Arial, sans-serif">102 VDC NOMINAL</text>
+      <text x="37.5" y="34.2" font-size="4.5" fill="#222" text-anchor="middle" font-family="Helvetica, Arial, sans-serif">LiFePO4</text>
+    </symbol>
+
+    <use href="#lifepo4-cell" x="12" y="42" width="75" height="55"></use>
+    <use href="#lifepo4-cell" x="95" y="42" width="75" height="55"></use>
+    <use href="#lifepo4-cell" x="12" y="103" width="75" height="55"></use>
+    <use href="#lifepo4-cell" x="95" y="103" width="75" height="55"></use>
+  </g>
+
+  
+  
+  
+  <rect x="12" y="160" width="158" height="20" rx="1.5" ry="1.5" fill="white" stroke="#444" stroke-width="0.6"></rect>
+  <text x="91" y="173" font-size="6" font-weight="bold" fill="#222" text-anchor="middle">CONTROLS (PCS)</text>
+  
+  <g stroke="#444" stroke-width="0.3" opacity="0.6">
+    <line x1="40" y1="164" x2="40" y2="176"></line>
+    <line x1="142" y1="164" x2="142" y2="176"></line>
+  </g>
+
+  
+  
+  
+  
+  <text x="172" y="192" font-size="6" font-weight="bold" fill="#222" text-anchor="middle">PRIMARY</text>
+
+  
+  <g fill="white" stroke="#111" stroke-width="0.7">
+    <rect x="119" y="208" width="22" height="10" rx="2" ry="2"></rect>
+    <rect x="147" y="208" width="22" height="10" rx="2" ry="2"></rect>
+    <rect x="175" y="208" width="22" height="10" rx="2" ry="2"></rect>
+    <rect x="203" y="208" width="22" height="10" rx="2" ry="2"></rect>
+  </g>
+  <g font-size="5" font-weight="bold" fill="#222" text-anchor="middle" font-family="Helvetica, Arial, sans-serif">
+    <text x="130" y="215.5">L1</text>
+    <text x="158" y="215.5">L2</text>
+    <text x="186" y="215.5">N</text>
+    <text x="214" y="215.5">G</text>
+  </g>
+
+  
+  
+  
+  <rect x="286" y="42" width="60" height="26" rx="1.5" ry="1.5" fill="white" stroke="#111" stroke-width="0.8"></rect>
+  <text x="316" y="59" font-size="7" font-weight="bold" fill="#222" text-anchor="middle">E-STOP</text>
+
+  
+  <text x="316" y="76" font-size="3.8" fill="#666" text-anchor="middle">E-STOP ISOLATES</text>
+  <text x="316" y="80.5" font-size="3.8" fill="#666" text-anchor="middle">BATTERY FROM GRID</text>
+
+  
+  
+  
+  
+  
+  <text x="180" y="248" font-size="4.5" fill="#666" text-anchor="middle" font-family="Helvetica, Arial, sans-serif">UL 9540 · UL 1741 · IEEE 1547 · PREPA 2013</text>
+  <text x="180" y="256" font-size="4.5" fill="#666" text-anchor="middle" font-family="Helvetica, Arial, sans-serif">240 VAC, 1Φ 3W</text>
+
+  
+  
+  
+  <g id="anchors" fill="none" stroke="none" pointer-events="none">
+    <g id="anchor-micro-in" transform="translate(155, 8)"></g>
+    <g id="anchor-grid-in" transform="translate(215, 8)"></g>
+    <g id="anchor-grid-out" transform="translate(255, 8)"></g>
+    <g id="anchor-estop-out" transform="translate(346, 55)"></g>
+    <g id="anchor-primary-l1" transform="translate(130, 218)"></g>
+    <g id="anchor-primary-l2" transform="translate(158, 218)"></g>
+    <g id="anchor-primary-n" transform="translate(186, 218)"></g>
+    <g id="anchor-primary-g" transform="translate(214, 218)"></g>
+  </g>
+</svg>

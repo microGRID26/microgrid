@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 140" font-family="Helvetica, Arial, sans-serif">
+  
+
+  
+  <rect x="0.5" y="0.5" width="129" height="139" rx="2" ry="2" fill="white" stroke="#111" stroke-width="1.2"></rect>
+
+  
+  <text x="65" y="11" font-size="6" font-weight="bold" fill="#222" text-anchor="middle">(N) MAIN SERVICE PANEL</text>
+  <text x="65" y="20" font-size="4.8" fill="#444" text-anchor="middle">225A RATED 240V</text>
+  <text x="65" y="27" font-size="4" fill="#999" text-anchor="middle">(EXTERIOR MOUNTED)</text>
+  <line x1="0.5" y1="32" x2="129.5" y2="32" stroke="#111" stroke-width="1"></line>
+
+  
+
+  
+  <rect x="9" y="43" width="38" height="14" rx="1.5" ry="1.5" fill="white" stroke="#111" stroke-width="0.8"></rect>
+  <text x="28" y="53" font-size="5" font-weight="bold" fill="#222" text-anchor="middle">45A / 2P</text>
+  <text x="28" y="74" font-size="4" fill="#444" text-anchor="middle">PV</text>
+
+  
+  <rect x="83" y="43" width="38" height="14" rx="1.5" ry="1.5" fill="white" stroke="#111" stroke-width="1.4"></rect>
+  <text x="102" y="53" font-size="5" font-weight="bold" fill="#222" text-anchor="middle">125A / 2P</text>
+  <text x="102" y="74" font-size="4" fill="#444" text-anchor="middle">MAIN</text>
+
+  
+  <line x1="10" y1="62" x2="120" y2="62" stroke="#888" stroke-width="0.8"></line>
+
+  
+  <rect x="37" y="82" width="56" height="18" rx="1" ry="1" fill="white" stroke="#888" stroke-width="0.6"></rect>
+  <text x="65" y="93" font-size="4" fill="#555" text-anchor="middle">(N) SURGE PROTECTOR</text>
+
+  
+  <text x="6" y="136" font-size="6" font-weight="bold" fill="#222">G</text>
+
+  
+  <text x="65" y="134" font-size="4" fill="#888" text-anchor="middle">NEMA 3R · UL</text>
+
+  
+  <g id="anchors" fill="none" stroke="none" pointer-events="none">
+    <g id="anchor-top" transform="translate(65, 0)"></g>
+    <g id="anchor-bottom" transform="translate(65, 140)"></g>
+    <g id="anchor-left" transform="translate(0, 70)"></g>
+    <g id="anchor-right" transform="translate(130, 70)"></g>
+  </g>
+</svg>
