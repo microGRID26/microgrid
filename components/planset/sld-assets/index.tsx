@@ -6,6 +6,7 @@ import { EatonBrp20b125r } from './eaton-brp20b125r'
 import { EatonDg221Urb } from './eaton-dg221urb'
 import { EatonDg222Nrb } from './eaton-dg222nrb'
 import { EatonDg222Urb } from './eaton-dg222urb'
+import { Msp225a } from './msp-225a'
 import { SonnenScoreP20 } from './sonnen-score-p20'
 
 // AssetProps is the shape every SLD asset component receives. See README.md.
@@ -30,4 +31,5 @@ export const ASSET_REGISTRY: Record<string, React.FC<AssetProps>> = {
   'eaton-dg222nrb': EatonDg222Nrb,
   'eaton-brp12l125r': EatonBrp12l125r,
   'eaton-brp20b125r': EatonBrp20b125r,
+  'msp-225a': Msp225a,
 }

@@ -1017,18 +1017,10 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
   // RIGHT: Main Service Panel + Utility Chain (x: 830-1340)
   // ══════════════════════════════════════════════════════════════
   const mspX = 830, mspY = topY + 30
-  const mspW = 130, mspH = 180
+  const mspW = 130, mspH = 140
 
-  // MSP box
-  elements.push({ type: 'rect', x: mspX, y: mspY, w: mspW, h: mspH, strokeWidth: 2 })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 20, text: '(E) MAIN SERVICE', fontSize: 6, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 30, text: 'PANEL', fontSize: 6, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 44, text: '200A RATED, 240V,', fontSize: 4.5, anchor: 'middle', fill: '#666' })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 52, text: '200A MAIN', fontSize: 4.5, anchor: 'middle', fill: '#666' })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 66, text: '(EXTERIOR MOUNTED)', fontSize: 4, anchor: 'middle', fill: '#999' })
-
-  // Backfeed breaker inside MSP
-  elements.push({ type: 'breaker', x: mspX + mspW / 2, y: mspY + mspH - 30, label: `(N) ${config.backfeedBreakerA ?? 100}A`, amps: 'BACKFEED' })
+  // MSP — Phase 5 svg-asset. anchor-left=(0,70), anchor-right=(130,70) → utilY = mspY + 70.
+  elements.push({ type: 'svg-asset', x: mspX, y: mspY, w: mspW, h: mspH, assetId: 'msp-225a' })
   elements.push({ type: 'callout', cx: mspX + mspW / 2, cy: mspY - 12, number: 6 })
 
   // Main breaker below MSP
