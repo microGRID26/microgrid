@@ -1355,17 +1355,10 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
   cursorX += 80
 
-  const pvdX = cursorX, pvdY = mainY - 38, pvdW = 90, pvdH = 80
-  elements.push({ type: 'rect', x: pvdX, y: pvdY, w: pvdW, h: pvdH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(pvdX + pvdW / 2, pvdY + 11, ['(N) PV DISCONNECT'], { fontSize: 6, bold: true, anchor: 'middle' })
-  textBlock(pvdX + pvdW / 2, pvdY + 20, [
-    'NON-FUSIBLE',
-    'EATON DG222URB',
-    '(60A, 2P, 240V 3R)',
-  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
-  elements.push({ type: 'text', x: pvdX + 6, y: pvdY + 56, text: 'LINE', fontSize: 4.5, fill: MUTED })
-  elements.push({ type: 'text', x: pvdX + pvdW - 18, y: pvdY + 56, text: 'LOAD', fontSize: 4.5, fill: MUTED })
-  elements.push({ type: 'disconnect', x: pvdX + pvdW / 2 - 10, y: pvdY + 50, label: '60A' })
+  const pvdW = 80, pvdH = 104  // 10:13 native Eaton viewBox ratio
+  const pvdX = cursorX, pvdY = mainY - pvdH / 2  // left anchor centered on mainY
+  elements.push({ type: 'svg-asset', x: pvdX, y: pvdY, w: pvdW, h: pvdH, assetId: 'eaton-dg222urb' })
+  textBlock(pvdX + pvdW / 2, pvdY - 7, ['(N) PV DISCONNECT'], { fontSize: 5.5, bold: true, anchor: 'middle' })
   textBlock(pvdX + pvdW / 2, pvdY + pvdH + 4, [
     'VISIBLE, LOCKABLE,',
     'LABELED "AC DISC"',
@@ -1374,8 +1367,8 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   cursorX = pvdX + pvdW
 
   elements.push({ type: 'line', x1: cursorX, y1: mainY, x2: cursorX + 70, y2: mainY, strokeWidth: 1.4 })
-  elements.push({ type: 'callout', cx: cursorX + 12, cy: mainY - 18, number: 4 })
-  textBlock(cursorX + 22, mainY - 28, [
+  elements.push({ type: 'callout', cx: cursorX + 25, cy: mainY - 18, number: 4 })
+  textBlock(cursorX + 35, mainY - 28, [
     '(2) #8 AWG CU THWN-2',
     '(1) #8 AWG CU EGC',
     '3/4" EMT TYPE CONDUIT',
@@ -1435,9 +1428,9 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   ], { fontSize: 5, lineHeight: 6.5, fill: ANNOT })
 
   // ── ESS DISCONNECT (right of battery) ──
+  const essdW = 70, essdH = 91  // 10:13 native Eaton viewBox ratio
   const essdX = battX + battW + 100
-  const essdY = battY + 30
-  const essdW = 90, essdH = 70
+  const essdY = estopCenterY - essdH / 2  // left anchor centered on E-STOP output wire
   elements.push({ type: 'line', x1: estopRightX, y1: estopCenterY, x2: essdX, y2: essdY + essdH / 2, strokeWidth: 1.4 })
   elements.push({ type: 'callout', cx: estopRightX + 20, cy: estopCenterY - 9, number: 6 })
   textBlock(estopRightX + 30, estopCenterY - 19, [
@@ -1445,21 +1438,17 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
     '(1) #8 AWG CU EGC',
     '3/4" EMT TYPE CONDUIT',
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
-  elements.push({ type: 'rect', x: essdX, y: essdY, w: essdW, h: essdH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(essdX + essdW / 2, essdY + 11, ['(N) ESS DISCONNECT'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(essdX + essdW / 2, essdY + 20, [
-    'NON-FUSIBLE',
-    'EATON DG221URB',
-    '(30A, 2P, 240V 3R)',
-  ], { fontSize: 4.5, lineHeight: 6, anchor: 'middle', fill: MUTED })
-  elements.push({ type: 'disconnect', x: essdX + essdW / 2 - 10, y: essdY + 46, label: '30A' })
+  elements.push({ type: 'svg-asset', x: essdX, y: essdY, w: essdW, h: essdH, assetId: 'eaton-dg221urb' })
+  textBlock(essdX + essdW / 2, essdY - 7, ['(N) ESS DISCONNECT'], { fontSize: 5.5, bold: true, anchor: 'middle' })
   textBlock(essdX + essdW / 2, essdY + essdH + 4, [
     'VISIBLE, LOCKABLE,',
     'LABELED "AC DISC"',
   ], { fontSize: 4, lineHeight: 5, anchor: 'middle', fill: MUTED })
 
-  elements.push({ type: 'line', x1: essdX, y1: essdY + essdH - 8, x2: battX + 100, y2: essdY + essdH - 8, strokeWidth: 1.4, dash: true })
-  elements.push({ type: 'line', x1: battX + 100, y1: essdY + essdH - 8, x2: battX + 100, y2: battY + 36, strokeWidth: 1.4, dash: true })
+  // Dashed control wire routes BELOW battery to avoid crossing the Sonnen rectangle.
+  elements.push({ type: 'line', x1: essdX + essdW / 2, y1: essdY + essdH, x2: essdX + essdW / 2, y2: battY + battH + 15, strokeWidth: 1.4, dash: true })
+  elements.push({ type: 'line', x1: essdX + essdW / 2, y1: battY + battH + 15, x2: battX + 100, y2: battY + battH + 15, strokeWidth: 1.4, dash: true })
+  elements.push({ type: 'line', x1: battX + 100, y1: battY + battH + 15, x2: battX + 100, y2: battY + 36, strokeWidth: 1.4, dash: true })
   elements.push({ type: 'callout', cx: essdX - 14, cy: essdY + essdH - 16, number: 7 })
 
   // ── CUSTOMER GENERATION DISCONNECT (back at main row) ──
