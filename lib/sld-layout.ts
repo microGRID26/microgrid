@@ -1450,19 +1450,8 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   cursorX += 90
 
   const mspX = cursorX, mspY = mainY - 60, mspW = 130, mspH = 140
-  elements.push({ type: 'rect', x: mspX, y: mspY, w: mspW, h: mspH, stroke: STROKE, strokeWidth: 1.2 })
-  textBlock(mspX + mspW / 2, mspY + 11, ['(N) MAIN SERVICE PANEL'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(mspX + mspW / 2, mspY + 20, [
-    `${config.mspBusbarA ?? 225}A RATED 240v`,
-    '(EXTERIOR MOUNTED)',
-  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
-  elements.push({ type: 'line', x1: mspX + 8, y1: mspY + 60, x2: mspX + mspW - 8, y2: mspY + 60, strokeWidth: 0.7 })
-  pill(mspX + 22, mspY + 70, 36, 12, '45A/2P', 5)
-  textBlock(mspX + 22, mspY + 82, ['PV'], { fontSize: 4.5, anchor: 'middle', fill: MUTED })
-  pill(mspX + mspW - 22, mspY + 70, 36, 12, '125A/2P', 5)
-  textBlock(mspX + mspW - 22, mspY + 82, ['MAIN'], { fontSize: 4.5, anchor: 'middle', fill: MUTED })
-  elements.push({ type: 'rect', x: mspX + mspW / 2 - 28, y: mspY + 95, w: 56, h: 16, stroke: SUBSTROKE, strokeWidth: 0.6 })
-  elements.push({ type: 'text', x: mspX + mspW / 2, y: mspY + 105, text: '(N) SURGE PROTECTOR', fontSize: 4.5, anchor: 'middle' })
+  // MSP — Phase 5 svg-asset. anchor-left=(0,70)=mainY wire, anchor-right=(130,70)=utility meter.
+  elements.push({ type: 'svg-asset', x: mspX, y: mspY, w: mspW, h: mspH, assetId: 'msp-225a' })
   textBlock(mspX + mspW / 2, mspY + mspH + 4, [
     '(N) MAIN BREAKER TO HOUSE',
     '240v, 125A/2P TOP FED',
