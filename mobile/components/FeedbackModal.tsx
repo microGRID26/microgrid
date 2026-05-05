@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity, Modal, ScrollView, Image,
+  View, Text, TextInput, Modal, ScrollView, Image,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics'
 import { X, Star, Camera, Trash2, Send } from 'lucide-react-native'
 import { useThemeColors, theme } from '../lib/theme'
 import { submitFeedback, type FeedbackCategory } from '../lib/feedback'
+import { MgPressable } from './MgPressable'
 
 interface Props {
   visible: boolean
@@ -160,9 +161,14 @@ export function FeedbackModal({ visible, onClose, screenPath, initialScreenshotU
           <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, fontFamily: 'Inter_700Bold' }}>
             Send Feedback
           </Text>
-          <TouchableOpacity onPress={handleClose} hitSlop={12} disabled={submitting}>
+          <MgPressable
+            accessibilityLabel="Close feedback form"
+            onPress={handleClose}
+            hitSlop={12}
+            disabled={submitting}
+          >
             <X size={24} color={colors.textMuted} />
-          </TouchableOpacity>
+          </MgPressable>
         </View>
 
         <ScrollView
@@ -177,8 +183,10 @@ export function FeedbackModal({ visible, onClose, screenPath, initialScreenshotU
             {CATEGORIES.map(c => {
               const selected = category === c.key
               return (
-                <TouchableOpacity
+                <MgPressable
                   key={c.key}
+                  accessibilityLabel={`${c.label} feedback`}
+                  accessibilityState={{ selected }}
                   onPress={() => { setCategory(c.key); Haptics.selectionAsync() }}
                   style={{
                     paddingHorizontal: 14, paddingVertical: 10,
@@ -195,7 +203,7 @@ export function FeedbackModal({ visible, onClose, screenPath, initialScreenshotU
                   }}>
                     {c.emoji}  {c.label}
                   </Text>
-                </TouchableOpacity>
+                </MgPressable>
               )
             })}
           </View>
@@ -208,8 +216,10 @@ export function FeedbackModal({ visible, onClose, screenPath, initialScreenshotU
             {[1, 2, 3, 4, 5].map(n => {
               const filled = (rating ?? 0) >= n
               return (
-                <TouchableOpacity
+                <MgPressable
                   key={n}
+                  accessibilityLabel={`Rate ${n} star${n > 1 ? 's' : ''}`}
+                  accessibilityState={{ selected: filled }}
                   onPress={() => { setRating(rating === n ? null : n); Haptics.selectionAsync() }}
                   hitSlop={6}
                 >
@@ -218,7 +228,7 @@ export function FeedbackModal({ visible, onClose, screenPath, initialScreenshotU
                     color={filled ? colors.warm : colors.border}
                     fill={filled ? colors.warm : 'transparent'}
                   />
-                </TouchableOpacity>
+                </MgPressable>
               )
             })}
           </View>
@@ -263,7 +273,8 @@ export function FeedbackModal({ visible, onClose, screenPath, initialScreenshotU
                   source={{ uri: a.uri }}
                   style={{ width: 80, height: 80, borderRadius: theme.radius.md, backgroundColor: colors.surface }}
                 />
-                <TouchableOpacity
+                <MgPressable
+                  accessibilityLabel={`Remove screenshot ${idx + 1}`}
                   onPress={() => removeAttachment(idx)}
                   style={{
                     position: 'absolute', top: -6, right: -6,
@@ -272,11 +283,12 @@ export function FeedbackModal({ visible, onClose, screenPath, initialScreenshotU
                   }}
                 >
                   <Trash2 size={14} color="white" />
-                </TouchableOpacity>
+                </MgPressable>
               </View>
             ))}
             {attachments.length < 5 && (
-              <TouchableOpacity
+              <MgPressable
+                accessibilityLabel="Add screenshot"
                 onPress={handleAttach}
                 style={{
                   width: 80, height: 80, borderRadius: theme.radius.md,
@@ -289,7 +301,7 @@ export function FeedbackModal({ visible, onClose, screenPath, initialScreenshotU
                 <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4, fontFamily: 'Inter_500Medium' }}>
                   Add
                 </Text>
-              </TouchableOpacity>
+              </MgPressable>
             )}
           </View>
 
@@ -299,7 +311,9 @@ export function FeedbackModal({ visible, onClose, screenPath, initialScreenshotU
           </Text>
 
           {/* Submit */}
-          <TouchableOpacity
+          <MgPressable
+            accessibilityLabel={canSubmit ? 'Send feedback' : 'Select a category and add a message before sending'}
+            accessibilityState={{ disabled: !canSubmit, busy: submitting }}
             onPress={handleSubmit}
             disabled={!canSubmit}
             activeOpacity={0.8}
@@ -324,7 +338,7 @@ export function FeedbackModal({ visible, onClose, screenPath, initialScreenshotU
                 </Text>
               </>
             )}
-          </TouchableOpacity>
+          </MgPressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>

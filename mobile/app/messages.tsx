@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
+import { View, Text, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase'
 import type { CustomerAccount, CustomerProject, CustomerMessage } from '../lib/types'
 import { SkeletonLoader } from '../components/SkeletonLoader'
 import { ErrorState } from '../components/ErrorState'
+import { MgPressable } from '../components/MgPressable'
 
 const formatMessageTime = (d: string) =>
   new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
@@ -277,13 +278,14 @@ export default function MessagesScreen() {
         paddingTop: 56, paddingBottom: 12, paddingHorizontal: 16,
         flexDirection: 'row', alignItems: 'center', gap: 12,
       }}>
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Go back"
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back() }}
           activeOpacity={0.7}
           style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}
         >
           <Feather name="arrow-left" size={20} color={colors.text} />
-        </TouchableOpacity>
+        </MgPressable>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 17, fontWeight: '600', color: colors.text, fontFamily: 'Inter_600SemiBold' }}>
             Messages
@@ -347,7 +349,9 @@ export default function MessagesScreen() {
             }}
           />
         </View>
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Send message"
+          accessibilityState={{ disabled: !inputText.trim() || sending, busy: sending }}
           onPress={handleSend}
           activeOpacity={0.7}
           disabled={!inputText.trim() || sending}
@@ -363,7 +367,7 @@ export default function MessagesScreen() {
           ) : (
             <Feather name="send" size={18} color={inputText.trim() ? colors.accentText : colors.textMuted} />
           )}
-        </TouchableOpacity>
+        </MgPressable>
       </View>
     </KeyboardAvoidingView>
   )

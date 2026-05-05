@@ -1,7 +1,8 @@
 import React from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useThemeColors, theme } from '../lib/theme'
+import { MgPressable } from './MgPressable'
 
 type FeatherIconName = React.ComponentProps<typeof Feather>['name']
 
@@ -38,7 +39,8 @@ export function ErrorState({
       </Text>
 
       {onRetry && (
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Try again"
           style={[styles.button, { backgroundColor: colors.accent }]}
           onPress={onRetry}
           activeOpacity={0.8}
@@ -47,7 +49,7 @@ export function ErrorState({
           <Text style={[styles.buttonText, { color: colors.accentText }]}>
             Try Again
           </Text>
-        </TouchableOpacity>
+        </MgPressable>
       )}
     </View>
   )

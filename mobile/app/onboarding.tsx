@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Animated, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, Animated, RefreshControl } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { theme, useThemeColors } from '../lib/theme'
 import { getCustomerAccount, loadProject } from '../lib/api'
+import { MgPressable } from '../components/MgPressable'
 import { ONBOARDING_MILESTONES } from '../lib/constants'
 import { getCache } from '../lib/cache'
 import type { CustomerProject } from '../lib/types'
@@ -119,10 +120,14 @@ export default function OnboardingScreen() {
         <Text style={{ color: colors.textMuted, fontFamily: 'Inter_400Regular', textAlign: 'center' }}>
           Unable to load your project.
         </Text>
-        <TouchableOpacity onPress={load} activeOpacity={0.7}
-          style={{ marginTop: 16, backgroundColor: colors.accent, borderRadius: theme.radius.xl, paddingHorizontal: 24, paddingVertical: 12 }}>
+        <MgPressable
+          accessibilityLabel="Retry loading project"
+          onPress={load}
+          activeOpacity={0.7}
+          style={{ marginTop: 16, backgroundColor: colors.accent, borderRadius: theme.radius.xl, paddingHorizontal: 24, paddingVertical: 12 }}
+        >
           <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentText, fontFamily: 'Inter_600SemiBold' }}>Retry</Text>
-        </TouchableOpacity>
+        </MgPressable>
       </View>
     )
   }
@@ -132,13 +137,14 @@ export default function OnboardingScreen() {
       {/* Header */}
       <View style={{ paddingTop: 56, paddingHorizontal: 16, paddingBottom: 8, backgroundColor: colors.bg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-          <TouchableOpacity
+          <MgPressable
+            accessibilityLabel="Go back"
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back() }}
             activeOpacity={0.7}
             style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}
           >
             <Feather name="arrow-left" size={20} color={colors.text} />
-          </TouchableOpacity>
+          </MgPressable>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, fontFamily: 'Inter_700Bold' }}>
               Your Journey
@@ -205,7 +211,9 @@ export default function OnboardingScreen() {
                 }} />
               )}
 
-              <TouchableOpacity
+              <MgPressable
+                accessibilityLabel={`${milestone.title} — Day ${milestone.day}${isLocked ? ', locked' : isCompleted ? ', completed' : isCurrent ? ', current milestone' : ''}`}
+                accessibilityState={{ selected: isExpanded, disabled: isLocked }}
                 activeOpacity={isLocked ? 1 : 0.7}
                 onPress={() => {
                   if (isLocked) return
@@ -316,7 +324,7 @@ export default function OnboardingScreen() {
                     </View>
                   </View>
                 )}
-              </TouchableOpacity>
+              </MgPressable>
             </View>
           )
         })}

@@ -1,7 +1,8 @@
 import React from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useThemeColors, theme } from '../lib/theme'
+import { MgPressable } from './MgPressable'
 
 type FeatherIconName = React.ComponentProps<typeof Feather>['name']
 
@@ -48,7 +49,8 @@ export function EmptyState({
       )}
 
       {actionLabel && onAction && (
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel={actionLabel}
           style={[styles.button, { backgroundColor: colors.accent }]}
           onPress={onAction}
           activeOpacity={0.8}
@@ -56,7 +58,7 @@ export function EmptyState({
           <Text style={[styles.buttonText, { color: colors.accentText }]}>
             {actionLabel}
           </Text>
-        </TouchableOpacity>
+        </MgPressable>
       )}
     </View>
   )

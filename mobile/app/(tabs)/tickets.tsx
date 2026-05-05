@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, AppState } from 'react-native'
+import { View, Text, FlatList, TextInput, RefreshControl, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, AppState } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 import { getCustomerAccount, loadTickets, createTicket } from '../../lib/api'
 import type { CustomerAccount, CustomerTicket } from '../../lib/types'
 import { SkeletonLoader } from '../../components/SkeletonLoader'
+import { MgPressable } from '../../components/MgPressable'
 
 // Quick issue templates — one tap to create
 const QUICK_ISSUES: { icon: React.ComponentProps<typeof Feather>['name']; title: string; category: string; color: string }[] = [
@@ -155,17 +156,21 @@ export default function TicketsScreen() {
               {openCount > 0 ? `${openCount} open request${openCount > 1 ? 's' : ''}` : 'All clear'}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => setShowCreate(true)} activeOpacity={0.8}
+          <MgPressable
+            accessibilityLabel="Create new support request"
+            onPress={() => setShowCreate(true)}
+            activeOpacity={0.8}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 6,
               backgroundColor: colors.accent, borderRadius: theme.radius.xl,
               paddingHorizontal: 16, paddingVertical: 10,
-            }}>
+            }}
+          >
             <Feather name="plus" size={16} color={colors.accentText} />
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentText, fontFamily: 'Inter_600SemiBold' }}>
               New
             </Text>
-          </TouchableOpacity>
+          </MgPressable>
         </View>
 
         {/* Quick issue templates */}
@@ -176,15 +181,20 @@ export default function TicketsScreen() {
             </Text>
             <View style={{ gap: 8 }}>
               {QUICK_ISSUES.map(qi => (
-                <TouchableOpacity key={qi.title} activeOpacity={0.7}
+                <MgPressable
+                  key={qi.title}
+                  accessibilityLabel={qi.title}
+                  accessibilityState={{ disabled: creating }}
                   onPress={() => handleCreate(qi.title, qi.category)}
                   disabled={creating}
+                  activeOpacity={0.7}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 12,
                     backgroundColor: colors.surface, borderRadius: theme.radius.xl,
                     padding: 16, borderWidth: 1, borderColor: colors.borderLight,
                     ...theme.shadow.card,
-                  }}>
+                  }}
+                >
                   <View style={{
                     width: 36, height: 36, borderRadius: 18,
                     backgroundColor: qi.color + '15', alignItems: 'center', justifyContent: 'center',
@@ -195,7 +205,7 @@ export default function TicketsScreen() {
                     {qi.title}
                   </Text>
                   <Feather name="chevron-right" size={16} color={colors.textMuted} />
-                </TouchableOpacity>
+                </MgPressable>
               ))}
             </View>
           </View>
@@ -205,26 +215,32 @@ export default function TicketsScreen() {
         {tickets.length > 0 && (
           <View style={{ marginTop: 16, marginBottom: 8, flexDirection: 'row', gap: 8 }}>
             {QUICK_ISSUES.slice(0, 3).map(qi => (
-              <TouchableOpacity key={qi.title} activeOpacity={0.7}
+              <MgPressable
+                key={qi.title}
+                accessibilityLabel={qi.title}
+                accessibilityState={{ disabled: creating }}
                 onPress={() => handleCreate(qi.title, qi.category)}
                 disabled={creating}
+                activeOpacity={0.7}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 6,
                   backgroundColor: colors.surface, borderRadius: theme.radius.pill,
                   paddingHorizontal: 12, paddingVertical: 8,
                   borderWidth: 1, borderColor: colors.borderLight,
-                }}>
+                }}
+              >
                 <Feather name={qi.icon} size={12} color={qi.color} />
                 <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Inter_500Medium' }}>
                   {qi.title.length > 20 ? qi.title.slice(0, 20) + '...' : qi.title}
                 </Text>
-              </TouchableOpacity>
+              </MgPressable>
             ))}
           </View>
         )}
 
         {/* Request Service Visit */}
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Request service visit"
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/schedule-service') }}
           activeOpacity={0.7}
           style={{
@@ -243,19 +259,23 @@ export default function TicketsScreen() {
             Request Service Visit
           </Text>
           <Feather name="chevron-right" size={14} color={colors.textMuted} />
-        </TouchableOpacity>
+        </MgPressable>
         </>}
         renderItem={({ item: ticket }) => {
           const status = statusMap[ticket.status] ?? statusMap.open
           const isResolved = ticket.status === 'resolved' || ticket.status === 'closed'
           return (
-            <TouchableOpacity activeOpacity={0.7} onPress={() => openTicket(ticket)}
+            <MgPressable
+              accessibilityLabel={`${ticket.title} — ${status.label}`}
+              onPress={() => openTicket(ticket)}
+              activeOpacity={0.7}
               style={{
                 backgroundColor: colors.surface, borderRadius: theme.radius.xl,
                 padding: 16, borderWidth: 1, borderColor: colors.borderLight,
                 opacity: isResolved ? 0.6 : 1, marginBottom: 8,
                 ...theme.shadow.card,
-              }}>
+              }}
+            >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text, fontFamily: 'Inter_500Medium' }} numberOfLines={1}>
@@ -277,7 +297,7 @@ export default function TicketsScreen() {
                 </View>
                 <Feather name="chevron-right" size={16} color={colors.textMuted} />
               </View>
-            </TouchableOpacity>
+            </MgPressable>
           )
         }}
       />
@@ -290,9 +310,12 @@ export default function TicketsScreen() {
               <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, fontFamily: 'Inter_700Bold' }}>
                 New Request
               </Text>
-              <TouchableOpacity onPress={() => setShowCreate(false)}>
+              <MgPressable
+                accessibilityLabel="Close new request form"
+                onPress={() => setShowCreate(false)}
+              >
                 <Feather name="x" size={24} color={colors.textMuted} />
-              </TouchableOpacity>
+              </MgPressable>
             </View>
 
             <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginBottom: 6, fontFamily: 'Inter_500Medium' }}>
@@ -321,12 +344,18 @@ export default function TicketsScreen() {
               }}
             />
 
-            <TouchableOpacity onPress={() => handleCreate()} disabled={creating || !title.trim()} activeOpacity={0.8}
+            <MgPressable
+              accessibilityLabel={title.trim() ? 'Submit support request' : 'Enter a description before submitting'}
+              accessibilityState={{ disabled: creating || !title.trim(), busy: creating }}
+              onPress={() => handleCreate()}
+              disabled={creating || !title.trim()}
+              activeOpacity={0.8}
               style={{
                 backgroundColor: colors.accent, borderRadius: theme.radius.xl,
                 paddingVertical: 14, marginTop: 24, alignItems: 'center',
                 opacity: creating || !title.trim() ? 0.5 : 1,
-              }}>
+              }}
+            >
               {creating ? (
                 <ActivityIndicator color={colors.accentText} />
               ) : (
@@ -334,7 +363,7 @@ export default function TicketsScreen() {
                   Submit Request
                 </Text>
               )}
-            </TouchableOpacity>
+            </MgPressable>
           </View>
         </KeyboardAvoidingView>
       </Modal>

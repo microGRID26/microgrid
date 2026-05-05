@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Switch, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
+import { View, Text, ScrollView, Switch, ActivityIndicator, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { theme, useThemeColors } from '../lib/theme'
 import { getCustomerAccount, updateNotificationPrefs } from '../lib/api'
+import { MgPressable } from '../components/MgPressable'
 import type { CustomerAccount } from '../lib/types'
 
 const DEFAULT_PREFS: CustomerAccount['notification_prefs'] = {
@@ -110,7 +111,8 @@ export default function NotificationsSettingsScreen() {
     >
       {/* Header with back button */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Go back"
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back() }}
           activeOpacity={0.7}
           style={{
@@ -120,7 +122,7 @@ export default function NotificationsSettingsScreen() {
           }}
         >
           <Feather name="arrow-left" size={18} color={colors.text} />
-        </TouchableOpacity>
+        </MgPressable>
         <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text, fontFamily: 'Inter_700Bold' }}>
           Notification Preferences
         </Text>
@@ -177,7 +179,9 @@ export default function NotificationsSettingsScreen() {
       </View>
 
       {/* Save button */}
-      <TouchableOpacity
+      <MgPressable
+        accessibilityLabel="Save notification preferences"
+        accessibilityState={{ disabled: saving, busy: saving }}
         onPress={handleSave}
         disabled={saving}
         activeOpacity={0.8}
@@ -194,7 +198,7 @@ export default function NotificationsSettingsScreen() {
             Save Preferences
           </Text>
         )}
-      </TouchableOpacity>
+      </MgPressable>
     </ScrollView>
   )
 }

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import * as ImagePicker from 'expo-image-picker'
 import { theme, useThemeColors } from '../lib/theme'
 import { getCustomerAccount, loadProject, loadWarranties, loadTickets, fileWarrantyClaim, uploadTicketPhoto, createTicket } from '../lib/api'
+import { MgPressable } from '../components/MgPressable'
 import type { CustomerAccount, CustomerProject, CustomerWarranty, CustomerTicket } from '../lib/types'
 
 const EQUIPMENT_ICONS: Record<string, React.ComponentProps<typeof Feather>['name']> = {
@@ -168,9 +169,9 @@ export default function WarrantyScreen() {
       >
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+          <MgPressable accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7}>
             <Feather name="arrow-left" size={22} color={colors.text} />
-          </TouchableOpacity>
+          </MgPressable>
           <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text, fontFamily: 'Inter_700Bold' }}>
             Warranty
           </Text>
@@ -304,7 +305,8 @@ export default function WarrantyScreen() {
               )}
 
               {/* File a Claim button */}
-              <TouchableOpacity
+              <MgPressable
+                accessibilityLabel={`File a warranty claim for ${w.manufacturer ?? w.equipment_type}`}
                 onPress={() => openClaimForm(w.equipment_type, w.manufacturer, w.model)}
                 activeOpacity={0.7}
                 style={{
@@ -318,7 +320,7 @@ export default function WarrantyScreen() {
                 <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent, fontFamily: 'Inter_600SemiBold' }}>
                   File a Claim
                 </Text>
-              </TouchableOpacity>
+              </MgPressable>
             </View>
           )
         })}
@@ -347,8 +349,9 @@ export default function WarrantyScreen() {
                 : ticket.status.replace(/_/g, ' ')
 
               return (
-                <TouchableOpacity
+                <MgPressable
                   key={ticket.id}
+                  accessibilityLabel={`${ticket.title} — ${ticket.status.replace(/_/g, ' ')}`}
                   activeOpacity={0.7}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -389,7 +392,7 @@ export default function WarrantyScreen() {
                     </View>
                   </View>
                   <Feather name="chevron-right" size={16} color={colors.textMuted} />
-                </TouchableOpacity>
+                </MgPressable>
               )
             })}
           </View>
@@ -412,9 +415,12 @@ export default function WarrantyScreen() {
             flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
             padding: 16, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: colors.borderLight,
           }}>
-            <TouchableOpacity onPress={() => { setClaimModalVisible(false); setSubmitSuccess(false) }}>
+            <MgPressable
+              accessibilityLabel="Close warranty claim form"
+              onPress={() => { setClaimModalVisible(false); setSubmitSuccess(false) }}
+            >
               <Feather name="x" size={22} color={colors.textMuted} />
-            </TouchableOpacity>
+            </MgPressable>
             <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, fontFamily: 'Inter_600SemiBold' }}>
               File Warranty Claim
             </Text>
@@ -477,7 +483,8 @@ export default function WarrantyScreen() {
               <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, fontFamily: 'Inter_600SemiBold' }}>
                 Photo (optional)
               </Text>
-              <TouchableOpacity
+              <MgPressable
+                accessibilityLabel={claimPhotoUri ? 'Photo attached — tap to change' : 'Add a photo of the issue'}
                 onPress={pickPhoto}
                 activeOpacity={0.7}
                 style={{
@@ -491,10 +498,12 @@ export default function WarrantyScreen() {
                 <Text style={{ fontSize: 14, color: claimPhotoUri ? colors.accent : colors.textMuted, fontFamily: 'Inter_500Medium' }}>
                   {claimPhotoUri ? 'Photo attached' : 'Tap to add a photo'}
                 </Text>
-              </TouchableOpacity>
+              </MgPressable>
 
               {/* Submit */}
-              <TouchableOpacity
+              <MgPressable
+                accessibilityLabel={claimDescription.trim() ? 'Submit warranty claim' : 'Describe the issue before submitting'}
+                accessibilityState={{ disabled: submitting || !claimDescription.trim(), busy: submitting }}
                 onPress={handleSubmitClaim}
                 disabled={submitting || !claimDescription.trim()}
                 activeOpacity={0.8}
@@ -514,7 +523,7 @@ export default function WarrantyScreen() {
                     </Text>
                   </>
                 )}
-              </TouchableOpacity>
+              </MgPressable>
             </ScrollView>
           )}
         </KeyboardAvoidingView>

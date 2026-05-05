@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Image, Linking, Text, TouchableOpacity, View } from 'react-native'
+import { Image, Linking, Text, View } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 // Use the legacy submodule for `cacheDirectory` + `downloadAsync`. These
 // moved to a new Paths/File API in expo-file-system 19; the legacy namespace
@@ -7,6 +7,7 @@ import { Feather } from '@expo/vector-icons'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 import { resolveSignedUrl } from '../lib/signed-url'
+import { MgPressable } from './MgPressable'
 
 interface Props {
   imagePath?: string | null
@@ -66,7 +67,8 @@ export default function CommentAttachment({
 
   if (isFile) {
     return (
-      <TouchableOpacity
+      <MgPressable
+        accessibilityLabel="Download attached file"
         onPress={async () => {
           try {
             const ext = nameForTypeCheck.split('.').pop()?.split('?')[0] ?? 'file'
@@ -103,7 +105,7 @@ export default function CommentAttachment({
         <Text style={{ fontSize: 10, color: textMutedColor, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
           Tap to open file
         </Text>
-      </TouchableOpacity>
+      </MgPressable>
     )
   }
 

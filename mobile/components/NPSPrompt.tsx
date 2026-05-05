@@ -12,13 +12,14 @@
 
 import { useState } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity, Modal,
+  View, Text, TextInput, Modal,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { X } from 'lucide-react-native'
 import { useThemeColors, theme } from '../lib/theme'
 import { submitNpsRating, dismissNpsPrompt, type NpsMilestone } from '../lib/feedback'
+import { MgPressable } from './MgPressable'
 
 interface Props {
   visible: boolean
@@ -105,9 +106,14 @@ export function NPSPrompt({ visible, milestone, onClose }: Props) {
           flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
           paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12,
         }}>
-          <TouchableOpacity onPress={handleDismiss} hitSlop={12} disabled={submitting}>
+          <MgPressable
+            accessibilityLabel="Dismiss feedback prompt"
+            onPress={handleDismiss}
+            hitSlop={12}
+            disabled={submitting}
+          >
             <X size={24} color={colors.textMuted} />
-          </TouchableOpacity>
+          </MgPressable>
         </View>
 
         <View style={{ flex: 1, paddingHorizontal: 24 }}>
@@ -123,8 +129,10 @@ export function NPSPrompt({ visible, milestone, onClose }: Props) {
             {Array.from({ length: 11 }, (_, i) => i).map(n => {
               const selected = score === n
               return (
-                <TouchableOpacity
+                <MgPressable
                   key={n}
+                  accessibilityLabel={`Rate ${n} out of 10 — ${n <= 6 ? 'not likely' : n <= 8 ? 'somewhat likely' : 'very likely'} to recommend`}
+                  accessibilityState={{ selected }}
                   onPress={() => { setScore(n); Haptics.selectionAsync() }}
                   style={{
                     width: 48, height: 48, borderRadius: 24,
@@ -141,7 +149,7 @@ export function NPSPrompt({ visible, milestone, onClose }: Props) {
                   }}>
                     {n}
                   </Text>
-                </TouchableOpacity>
+                </MgPressable>
               )
             })}
           </View>
@@ -178,7 +186,9 @@ export function NPSPrompt({ visible, milestone, onClose }: Props) {
           />
 
           {/* Submit */}
-          <TouchableOpacity
+          <MgPressable
+            accessibilityLabel={score !== null ? 'Submit rating' : 'Select a score before submitting'}
+            accessibilityState={{ disabled: score === null || submitting, busy: submitting }}
             onPress={handleSubmit}
             disabled={score === null || submitting}
             activeOpacity={0.8}
@@ -199,13 +209,19 @@ export function NPSPrompt({ visible, milestone, onClose }: Props) {
                 Submit
               </Text>
             )}
-          </TouchableOpacity>
+          </MgPressable>
 
-          <TouchableOpacity onPress={handleDismiss} disabled={submitting} style={{ alignItems: 'center', marginTop: 16 }}>
+          <MgPressable
+            accessibilityLabel="Skip for now — dismiss feedback prompt"
+            accessibilityState={{ disabled: submitting }}
+            onPress={handleDismiss}
+            disabled={submitting}
+            style={{ alignItems: 'center', marginTop: 16 }}
+          >
             <Text style={{ fontSize: 13, color: colors.textMuted, fontFamily: 'Inter_500Medium' }}>
               Maybe later
             </Text>
-          </TouchableOpacity>
+          </MgPressable>
         </View>
       </KeyboardAvoidingView>
     </Modal>

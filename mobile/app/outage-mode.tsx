@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, Text, ScrollView, RefreshControl, ActivityIndicator,
-  TouchableOpacity, Alert, Linking, Animated, Easing,
+  Alert, Linking, Animated, Easing,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { useRouter } from 'expo-router'
 import { theme, useThemeColors } from '../lib/theme'
 import { getCustomerAccount, loadProject, createTicket } from '../lib/api'
+import { MgPressable } from '../components/MgPressable'
 import { getCache, setCache } from '../lib/cache'
 import type { CustomerAccount, CustomerProject } from '../lib/types'
 import type { ThemeColors } from '../lib/theme'
@@ -451,7 +452,8 @@ export default function OutageModeScreen() {
     >
       {/* Header with back button */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 56, marginBottom: 8 }}>
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Go back"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
             router.back()
@@ -465,7 +467,7 @@ export default function OutageModeScreen() {
           }}
         >
           <Feather name="arrow-left" size={18} color={colors.text} />
-        </TouchableOpacity>
+        </MgPressable>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text, fontFamily: 'Inter_700Bold' }}>
             Outage Mode
@@ -653,7 +655,8 @@ export default function OutageModeScreen() {
         </View>
 
         {/* MicroGRID Support */}
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Call MicroGRID support at (800) 555-1234"
           activeOpacity={0.7}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -680,7 +683,7 @@ export default function OutageModeScreen() {
             </Text>
           </View>
           <Feather name="phone-call" size={16} color={colors.accent} />
-        </TouchableOpacity>
+        </MgPressable>
 
         {/* PM — from project (placeholder name since we don't have PM on CustomerProject) */}
         <View style={{
@@ -703,7 +706,8 @@ export default function OutageModeScreen() {
               Contact via Messages tab
             </Text>
           </View>
-          <TouchableOpacity
+          <MgPressable
+            accessibilityLabel="Message your project manager"
             activeOpacity={0.7}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -711,11 +715,12 @@ export default function OutageModeScreen() {
             }}
           >
             <Feather name="message-circle" size={16} color={colors.warm} />
-          </TouchableOpacity>
+          </MgPressable>
         </View>
 
         {/* 911 */}
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Call 911 — emergency services"
           activeOpacity={0.7}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
@@ -750,10 +755,12 @@ export default function OutageModeScreen() {
             </Text>
           </View>
           <Feather name="phone-call" size={16} color={colors.error} />
-        </TouchableOpacity>
+        </MgPressable>
 
         {/* Report Outage Button */}
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Report a power outage"
+          accessibilityState={{ disabled: submittingReport, busy: submittingReport }}
           activeOpacity={0.7}
           disabled={submittingReport}
           onPress={handleReportOutage}
@@ -775,7 +782,7 @@ export default function OutageModeScreen() {
           <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF', fontFamily: 'Inter_600SemiBold' }}>
             {submittingReport ? 'Submitting...' : 'Report a Power Outage'}
           </Text>
-        </TouchableOpacity>
+        </MgPressable>
       </View>
 
       {/* ── Safety Tips Card ────────────────────────────────────────────── */}

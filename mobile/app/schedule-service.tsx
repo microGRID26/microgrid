@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, Alert, TextInput, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { theme, useThemeColors } from '../lib/theme'
 import { getCustomerAccount, loadSchedule, createTicket } from '../lib/api'
+import { MgPressable } from '../components/MgPressable'
 import { JOB_TYPE_LABELS } from '../lib/constants'
 import type { CustomerAccount, CustomerScheduleEntry } from '../lib/types'
 
@@ -177,9 +178,9 @@ export default function ScheduleServiceScreen() {
       >
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+          <MgPressable accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7}>
             <Feather name="arrow-left" size={22} color={colors.text} />
-          </TouchableOpacity>
+          </MgPressable>
           <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text, fontFamily: 'Inter_700Bold' }}>
             Schedule Service
           </Text>
@@ -223,7 +224,8 @@ export default function ScheduleServiceScreen() {
                       </Text>
                     )}
                   </View>
-                  <TouchableOpacity
+                  <MgPressable
+                    accessibilityLabel={`Reschedule ${JOB_TYPE_LABELS[entry.job_type] ?? entry.job_type}`}
                     onPress={() => handleReschedule(entry)}
                     activeOpacity={0.7}
                     style={{
@@ -236,7 +238,7 @@ export default function ScheduleServiceScreen() {
                     <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Inter_500Medium' }}>
                       Reschedule
                     </Text>
-                  </TouchableOpacity>
+                  </MgPressable>
                 </View>
               </View>
             ))}
@@ -265,8 +267,10 @@ export default function ScheduleServiceScreen() {
             {ISSUE_TYPES.map((type) => {
               const selected = issueType === type.value
               return (
-                <TouchableOpacity
+                <MgPressable
                   key={type.value}
+                  accessibilityLabel={type.label}
+                  accessibilityState={{ selected }}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                     setIssueType(type.value)
@@ -288,7 +292,7 @@ export default function ScheduleServiceScreen() {
                   }}>
                     {type.label}
                   </Text>
-                </TouchableOpacity>
+                </MgPressable>
               )
             })}
           </View>
@@ -306,8 +310,10 @@ export default function ScheduleServiceScreen() {
                     const isSelectable = idx >= today.getMonth() || selectedYear > today.getFullYear()
                     const selected = idx === selectedMonth
                     return (
-                      <TouchableOpacity
+                      <MgPressable
                         key={m}
+                        accessibilityLabel={m}
+                        accessibilityState={{ selected, disabled: !isSelectable }}
                         onPress={() => {
                           if (!isSelectable) return
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -327,7 +333,7 @@ export default function ScheduleServiceScreen() {
                         }}>
                           {m}
                         </Text>
-                      </TouchableOpacity>
+                      </MgPressable>
                     )
                   })}
                 </View>
@@ -342,21 +348,27 @@ export default function ScheduleServiceScreen() {
               borderWidth: 1, borderColor: colors.borderLight, padding: 12,
               flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
             }}>
-              <TouchableOpacity onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                setSelectedDay(d => Math.max(1, d - 1))
-              }}>
+              <MgPressable
+                accessibilityLabel="Decrease day"
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                  setSelectedDay(d => Math.max(1, d - 1))
+                }}
+              >
                 <Feather name="minus" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
+              </MgPressable>
               <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, fontFamily: 'Inter_700Bold' }}>
                 {selectedDay}
               </Text>
-              <TouchableOpacity onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                setSelectedDay(d => Math.min(daysInMonth, d + 1))
-              }}>
+              <MgPressable
+                accessibilityLabel="Increase day"
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                  setSelectedDay(d => Math.min(daysInMonth, d + 1))
+                }}
+              >
                 <Feather name="plus" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
+              </MgPressable>
             </View>
             <View style={{
               flex: 1, backgroundColor: colors.surfaceAlt, borderRadius: theme.radius.md,
@@ -364,8 +376,10 @@ export default function ScheduleServiceScreen() {
               flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
             }}>
               {years.map(y => (
-                <TouchableOpacity
+                <MgPressable
                   key={y}
+                  accessibilityLabel={String(y)}
+                  accessibilityState={{ selected: y === selectedYear }}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                     setSelectedYear(y)
@@ -382,7 +396,7 @@ export default function ScheduleServiceScreen() {
                   }}>
                     {y}
                   </Text>
-                </TouchableOpacity>
+                </MgPressable>
               ))}
             </View>
           </View>
@@ -399,8 +413,11 @@ export default function ScheduleServiceScreen() {
             {TIME_PREFERENCES.map((tp) => {
               const selected = timePreference === tp.value
               return (
-                <TouchableOpacity
+                <MgPressable
                   key={tp.value}
+                  accessibilityLabel={tp.label}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                     setTimePreference(tp.value)
@@ -434,7 +451,7 @@ export default function ScheduleServiceScreen() {
                   }}>
                     {tp.label}
                   </Text>
-                </TouchableOpacity>
+                </MgPressable>
               )
             })}
           </View>
@@ -460,7 +477,9 @@ export default function ScheduleServiceScreen() {
           />
 
           {/* Submit */}
-          <TouchableOpacity
+          <MgPressable
+            accessibilityLabel={issueType ? 'Submit service request' : 'Select an issue type before submitting'}
+            accessibilityState={{ disabled: submitting || !issueType, busy: submitting }}
             onPress={handleSubmit}
             disabled={submitting || !issueType}
             activeOpacity={0.8}
@@ -480,7 +499,7 @@ export default function ScheduleServiceScreen() {
                 </Text>
               </>
             )}
-          </TouchableOpacity>
+          </MgPressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

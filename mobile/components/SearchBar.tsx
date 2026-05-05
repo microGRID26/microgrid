@@ -1,7 +1,8 @@
 import React from 'react'
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, TextInput, StyleSheet } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useThemeColors, theme } from '../lib/theme'
+import { MgPressable } from './MgPressable'
 
 interface SearchBarProps {
   value: string
@@ -44,7 +45,8 @@ export function SearchBar({
       />
 
       {value.length > 0 && (
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Clear search"
           onPress={() => onChangeText('')}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={styles.clearButton}
@@ -57,7 +59,7 @@ export function SearchBar({
           >
             <Feather name="x" size={12} color={colors.textSecondary} />
           </View>
-        </TouchableOpacity>
+        </MgPressable>
       )}
     </View>
   )

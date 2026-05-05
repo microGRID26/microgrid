@@ -8,13 +8,14 @@
  */
 
 import { useState, type RefObject } from 'react'
-import { TouchableOpacity, View } from 'react-native'
+import { View } from 'react-native'
 import { usePathname } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { captureRef } from 'react-native-view-shot'
 import { MessageSquarePlus } from 'lucide-react-native'
 import { useThemeColors } from '../lib/theme'
 import { FeedbackModal } from './FeedbackModal'
+import { MgPressable } from './MgPressable'
 
 // Tab bar is 84pt high (see app/(tabs)/_layout.tsx) — FAB sits above with breathing room
 const FAB_BOTTOM_OFFSET = 100
@@ -71,11 +72,10 @@ export function FeedbackButton({ screenRef }: Props) {
           zIndex: FAB_Z_INDEX,
         }}
       >
-        <TouchableOpacity
+        <MgPressable
+          accessibilityLabel="Send feedback"
           onPress={handlePress}
           activeOpacity={0.85}
-          accessibilityLabel="Send feedback"
-          accessibilityRole="button"
           style={{
             width: 52,
             height: 52,
@@ -91,7 +91,7 @@ export function FeedbackButton({ screenRef }: Props) {
           }}
         >
           <MessageSquarePlus size={24} color={colors.accentText} />
-        </TouchableOpacity>
+        </MgPressable>
       </View>
 
       <FeedbackModal

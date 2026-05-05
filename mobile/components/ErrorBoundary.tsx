@@ -1,6 +1,7 @@
 import React from 'react'
-import { View, Text, TouchableOpacity } from 'react-native'
+import { View, Text } from 'react-native'
 import { Feather } from '@expo/vector-icons'
+import { MgPressable } from './MgPressable'
 
 interface Props {
   children: React.ReactNode
@@ -71,7 +72,8 @@ export default class ErrorBoundary extends React.Component<Props, State> {
           }}>
             An unexpected error occurred. Please try again.
           </Text>
-          <TouchableOpacity
+          <MgPressable
+            accessibilityLabel="Try again"
             onPress={this.handleReset}
             activeOpacity={0.7}
             style={{
@@ -92,7 +94,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
             }}>
               Try Again
             </Text>
-          </TouchableOpacity>
+          </MgPressable>
         </View>
       )
     }
