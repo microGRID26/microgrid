@@ -55,7 +55,15 @@ export function withPartnerAuth<P = unknown>(
     // partner_api_logs. A partner can otherwise stuff arbitrarily large
     // values into the path / headers and bloat the logs table.
     const path = new URL(req.url).pathname.slice(0, 512)
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()?.slice(0, 64) ?? null
+    // Resolve client IP for rate-limit + audit log. The pre-auth bucket at
+    // step 0 is the bearer-guess gate, so an attacker who can rotate this
+    // value defeats it. NextRequest.ip (set by Vercel from its trusted edge)
+    // is the right answer when present. Fallback: x-forwarded-for is a
+    // comma-separated chain (`client, proxy1, proxy2`) where each hop appends.
+    // The LEFTMOST entry is attacker-controlled (any client can prepend any
+    // value before sending to the first proxy); only the RIGHTMOST entry is
+    // set by our trusted edge. Take the rightmost. (#475 L3)
+    const ip = resolveClientIp(req)
     const userAgent = req.headers.get('user-agent')?.slice(0, 512) ?? null
 
     let ctx: PartnerContext | null = null
@@ -202,6 +210,41 @@ export function withPartnerAuth<P = unknown>(
 
     return response
   }
+}
+
+/** Resolve the trusted client IP for rate-limit + log. (#475 L3)
+ *
+ *  Order:
+ *  1. NextRequest.ip — set by Vercel's edge from its trusted proxy chain.
+ *     Not spoofable from outside Vercel's network.
+ *  2. Rightmost x-forwarded-for entry — added by the last trusted proxy.
+ *  3. null — caller buckets to 'unknown' (still rate-limited together).
+ */
+function resolveClientIp(req: NextRequest): string | null {
+  // NextRequest exposes `ip` as a top-level property in App Router runtimes.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fromVercel = (req as any).ip as string | undefined
+  if (fromVercel) return fromVercel.trim().slice(0, 64)
+  const xff = req.headers.get('x-forwarded-for')
+  if (xff) {
+    const parts = xff.split(',').map((s) => s.trim()).filter(Boolean)
+    if (parts.length > 0) {
+      // Rightmost (closest-to-trusted-proxy) hop.
+      return parts[parts.length - 1].slice(0, 64)
+    }
+  }
+  // R1 MEDIUM: on Vercel prod, NextRequest.ip is always set by the edge.
+  // Reaching here in NODE_ENV=production means the deploy topology changed
+  // (different host? edge-bypass route?) — surface it loudly so we notice
+  // before a brute-force pools onto the shared 'unknown' rate-limit bucket.
+  if (process.env.NODE_ENV === 'production') {
+    console.warn(
+      '[partner-api] resolveClientIp: no NextRequest.ip and no x-forwarded-for in production — ' +
+        'rate-limit bucket will fall back to "unknown" (shared across all callers without IP). ' +
+        'Check edge config.',
+    )
+  }
+  return null
 }
 
 /** Clone a response to peek at its JSON error.message without consuming it. */

@@ -135,9 +135,27 @@ async function deliverToSubscription(
       },
       body,
       signal: controller.signal,
+      // #503 closure: refuse to follow redirects. A partner's validated URL
+      // could 302 to a private IP (169.254.169.254 etc), bypassing the
+      // submit-time + DNS-time SSRF guards. With manual redirect handling,
+      // any 30x is surfaced as a delivery error and the destination is
+      // never fetched. Partners running real webhooks return 2xx on accept.
+      redirect: 'manual',
     })
     if (res.status >= 200 && res.status < 300) {
       return { ok: true, status: res.status }
+    }
+    if (res.status >= 300 && res.status < 400) {
+      // R1 HIGH: do NOT reflect Location into the surfaced error. The redirect
+      // target is fully attacker-controlled and `result.errors` lands in
+      // atlas_fleet_runs.error_message via the cron route — that would turn
+      // this guard into a recon channel (probe 169.254.169.254 / metadata
+      // endpoints, read the Location back out of HQ logs). Status code only.
+      return {
+        ok: false,
+        status: res.status,
+        error: `${sub.org_slug} → redirect refused (${res.status})`,
+      }
     }
     const text = (await res.text().catch(() => '')).slice(0, 200)
     return {

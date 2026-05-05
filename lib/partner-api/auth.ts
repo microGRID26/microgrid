@@ -15,6 +15,10 @@ import { ApiError } from './errors'
 const BEARER_PREFIX = 'mg_live_'        // production keys; consider mg_test_ in future
 const KEY_BODY_LEN = 32                 // 32 base62 chars ≈ 190 bits of entropy
 const KEY_DISPLAY_PREFIX_LEN = 12       // first N chars shown in admin UI
+// Defense-in-depth: legitimate tokens are exactly BEARER_PREFIX (8) + 32 = 40 chars.
+// A 64-char ceiling leaves headroom for any future prefix change while still
+// rejecting pathological tokens before they hit sha256/DB lookup. (#475 L2)
+const MAX_BEARER_LEN = 64
 
 const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 
@@ -61,6 +65,9 @@ export function extractBearer(headers: Headers): string {
   if (!m) throw new ApiError('unauthorized', 'Authorization header must be of the form "Bearer <token>"')
   const token = m[1].trim()
   if (!token.startsWith(BEARER_PREFIX)) {
+    throw new ApiError('unauthorized', 'Invalid API key format')
+  }
+  if (token.length > MAX_BEARER_LEN) {
     throw new ApiError('unauthorized', 'Invalid API key format')
   }
   return token
