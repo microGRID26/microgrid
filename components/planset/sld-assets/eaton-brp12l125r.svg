@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80" font-family="Helvetica, Arial, sans-serif">
+  
+
+  
+  <rect x="0.5" y="0.5" width="119" height="79" rx="2" ry="2" fill="white" stroke="#111" stroke-width="1.5"></rect>
+
+  
+  <text x="60" y="10" font-size="6" font-weight="bold" fill="#222" text-anchor="middle">BRP12L125R</text>
+  <text x="60" y="17" font-size="4.5" fill="#444" text-anchor="middle">125A / MLO</text>
+  <line x1="0.5" y1="20" x2="119.5" y2="20" stroke="#111" stroke-width="1"></line>
+
+  
+
+  
+  <rect x="4" y="30" width="28" height="16" rx="1.5" ry="1.5" fill="white" stroke="#111" stroke-width="0.8"></rect>
+  <text x="18" y="37.5" font-size="4.5" font-weight="bold" fill="#222" text-anchor="middle">20A / 2P</text>
+  <text x="18" y="43" font-size="3.5" fill="#666" text-anchor="middle">BR220</text>
+
+  
+  <rect x="46" y="30" width="28" height="16" rx="1.5" ry="1.5" fill="white" stroke="#111" stroke-width="0.8"></rect>
+  <text x="60" y="37.5" font-size="4.5" font-weight="bold" fill="#222" text-anchor="middle">15A / 2P</text>
+  <text x="60" y="43" font-size="3.5" fill="#666" text-anchor="middle">BR215</text>
+
+  
+  <rect x="88" y="30" width="28" height="16" rx="1.5" ry="1.5" fill="white" stroke="#111" stroke-width="1.4"></rect>
+  <text x="102" y="37.5" font-size="4.5" font-weight="bold" fill="#222" text-anchor="middle">40A / 2P</text>
+  <text x="102" y="43" font-size="3.5" fill="#666" text-anchor="middle">BRN240</text>
+  
+  <text x="102" y="27" font-size="3.5" font-weight="bold" fill="#222" text-anchor="middle" letter-spacing="0.4">MAIN</text>
+
+  
+  <line x1="6" y1="55" x2="114" y2="55" stroke="#888" stroke-width="0.5"></line>
+
+  
+  <text x="6" y="75" font-size="6" font-weight="bold" fill="#222">G</text>
+
+  
+  <text x="60" y="74" font-size="4" fill="#888" text-anchor="middle">NEMA 3R · UL</text>
+
+  
+  <g id="anchors" fill="none" stroke="none" pointer-events="none">
+    <g id="anchor-top" transform="translate(60, 0)"></g>
+    <g id="anchor-bottom" transform="translate(60, 80)"></g>
+    <g id="anchor-left" transform="translate(0, 40)"></g>
+    <g id="anchor-right" transform="translate(120, 40)"></g>
+  </g>
+</svg>

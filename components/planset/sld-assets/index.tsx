@@ -1,6 +1,8 @@
 'use client'
 
 import type React from 'react'
+import { EatonBrp12l125r } from './eaton-brp12l125r'
+import { EatonBrp20b125r } from './eaton-brp20b125r'
 import { EatonDg221Urb } from './eaton-dg221urb'
 import { EatonDg222Nrb } from './eaton-dg222nrb'
 import { EatonDg222Urb } from './eaton-dg222urb'
@@ -26,4 +28,6 @@ export const ASSET_REGISTRY: Record<string, React.FC<AssetProps>> = {
   'eaton-dg222urb': EatonDg222Urb,
   'eaton-dg221urb': EatonDg221Urb,
   'eaton-dg222nrb': EatonDg222Nrb,
+  'eaton-brp12l125r': EatonBrp12l125r,
+  'eaton-brp20b125r': EatonBrp20b125r,
 }

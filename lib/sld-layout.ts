@@ -876,15 +876,12 @@ function calculateSldLayoutSpatial(config: SldConfig): SldLayout {
 
   // PV Load Center (RUSH: BRP12L125R)
   const pvlcX = 310, pvlcY = jbY - 20
-  elements.push({ type: 'rect', x: pvlcX, y: pvlcY, w: 80, h: 55, strokeWidth: 1.5 })
-  elements.push({ type: 'text', x: pvlcX + 40, y: pvlcY + 12, text: '(N) PV LOAD CENTER', fontSize: 4.5, anchor: 'middle', bold: true })
-  elements.push({ type: 'text', x: pvlcX + 40, y: pvlcY + 22, text: 'BRP12L125R 125A', fontSize: 4, anchor: 'middle', fill: '#666' })
-  elements.push({ type: 'text', x: pvlcX + 40, y: pvlcY + 30, text: 'RATED 100A MAIN', fontSize: 4, anchor: 'middle', fill: '#666' })
-  elements.push({ type: 'text', x: pvlcX + 40, y: pvlcY + 38, text: 'NEMA3R, UL LISTED', fontSize: 3.5, anchor: 'middle', fill: '#999' })
-  elements.push({ type: 'text', x: pvlcX + 40, y: pvlcY + 48, text: '(EXTERIOR)', fontSize: 3.5, anchor: 'middle', fill: '#999' })
+  const pvlcW = 80, pvlcH = 54  // 3:2 ratio matching 120×80 native viewBox
+  elements.push({ type: 'svg-asset', x: pvlcX, y: pvlcY, w: pvlcW, h: pvlcH, assetId: 'eaton-brp12l125r' })
+  elements.push({ type: 'text', x: pvlcX + pvlcW / 2, y: pvlcY - 6, text: '(N) PV LOAD CENTER', fontSize: 4.5, anchor: 'middle', bold: true })
 
   // Wire from PV LC down to DC Disconnect
-  elements.push({ type: 'line', x1: pvlcX + 40, y1: pvlcY + 55, x2: pvlcX + 40, y2: pvlcY + 75, strokeWidth: 1.5 })
+  elements.push({ type: 'line', x1: pvlcX + pvlcW / 2, y1: pvlcY + pvlcH, x2: pvlcX + pvlcW / 2, y2: pvlcY + pvlcH + 20, strokeWidth: 1.5 })
 
   // DC Disconnect (below PV LC)
   const dcDiscX = pvlcX + 40
@@ -1375,25 +1372,9 @@ function calculateSldLayoutMicroInverter(config: SldConfig): SldLayout {
   ], { fontSize: 4.5, lineHeight: 5.5, fill: MUTED })
   cursorX += 70
 
-  const plpX = cursorX, plpY = mainY - 60, plpW = 120, plpH = 130
-  elements.push({ type: 'rect', x: plpX, y: plpY, w: plpW, h: plpH, stroke: STROKE, strokeWidth: 1 })
-  textBlock(plpX + plpW / 2, plpY + 11, ['(N) PROTECTED LOAD PANEL'], { fontSize: 5.5, bold: true, anchor: 'middle' })
-  textBlock(plpX + plpW / 2, plpY + 20, [
-    'BRP20B125R',
-    '125A RATED, NEMA3R,',
-    'UL LISTED (EXTERIOR)',
-  ], { fontSize: 4.8, lineHeight: 6.5, anchor: 'middle', fill: MUTED })
-  pill(plpX + 22, plpY + 60, 36, 12, '35A/2P', 5)
-  elements.push({ type: 'text', x: plpX + 22, y: plpY + 70, text: 'PV', fontSize: 4.5, anchor: 'middle', fill: MUTED })
-  pill(plpX + plpW - 22, plpY + 60, 36, 12, '40A/2P', 5)
-  elements.push({ type: 'text', x: plpX + plpW - 22, y: plpY + 70, text: 'MAIN', fontSize: 4.5, anchor: 'middle', fill: MUTED })
-  textBlock(plpX + plpW / 2, plpY + 88, [
-    '(N) 35A PV BREAKER AT',
-    'OPPOSITE END OF BUS',
-    'FROM MAIN BREAKER',
-  ], { fontSize: 4, lineHeight: 5, anchor: 'middle', fill: MUTED })
-  elements.push({ type: 'text', x: plpX + 6, y: plpY + plpH - 4, text: 'G', fontSize: 6, bold: true })
-  elements.push({ type: 'line', x1: plpX + 8, y1: plpY + 50, x2: plpX + plpW - 8, y2: plpY + 50, strokeWidth: 0.7 })
+  const plpW = 120, plpH = 130  // matches 120×130 native viewBox exactly
+  const plpX = cursorX, plpY = mainY - plpH / 2  // center left anchor on mainY wire
+  elements.push({ type: 'svg-asset', x: plpX, y: plpY, w: plpW, h: plpH, assetId: 'eaton-brp20b125r' })
   cursorX = plpX + plpW
 
   // ── BATTERY (vertical drop from PLP) ──
