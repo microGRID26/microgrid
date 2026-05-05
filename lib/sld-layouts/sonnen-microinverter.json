@@ -19,7 +19,7 @@
     { "type": "svg-asset", "assetId": "eaton-brp12l125r",   "x": 80,  "y": 420, "w": 120, "h": 80  },
     { "type": "svg-asset", "assetId": "sonnen-score-p20",   "x": 380, "y": 430, "w": 360, "h": 280 },
     { "type": "svg-asset", "assetId": "eaton-dg221urb",     "x": 800, "y": 450, "w": 100, "h": 130 },
-    { "type": "svg-asset", "assetId": "eaton-brp20b125r",   "x": 430, "y": 730, "w": 120, "h": 130 },
+    { "type": "svg-asset", "assetId": "eaton-brp20b125r",   "x": 430, "y": 720, "w": 120, "h": 130 },
     { "type": "svg-asset", "assetId": "dpcrgm-cell",        "x": 1100,"y": 430, "w": 220, "h": 100 },
     { "type": "svg-asset", "assetId": "battery-combiner",   "x": 1140,"y": 600, "w": 130, "h": 80  },
     { "type": "svg-asset", "assetId": "jb-nema3-600v-ls",   "x": 1140,"y": 730, "w": 130, "h": 48  },
@@ -53,7 +53,7 @@
     { "type": "callout", "cx": 710,  "cy": 290, "number": 14 },
     { "type": "callout", "cx": 910,  "cy": 204, "number": 7 },
     { "type": "callout", "cx": 1055, "cy": 204, "number": 9 },
-    { "type": "callout", "cx": 1150, "cy": 204, "number": 11 },
+    { "type": "callout", "cx": 1220, "cy": 175, "number": 11 },
     { "type": "callout", "cx": 500,  "cy": 400, "number": 6 },
     { "type": "callout", "cx": 380,  "cy": 410, "number": 5 },
     { "type": "callout", "cx": 800,  "cy": 405, "number": 4 },
@@ -61,10 +61,10 @@
     { "type": "callout", "cx": 490,  "cy": 715, "number": 13 },
     { "type": "callout", "cx": 910,  "cy": 620, "number": 7 },
     { "type": "callout", "cx": 780,  "cy": 760, "number": 10 },
-    { "type": "callout", "cx": 900,  "cy": 540, "number": 15 }
+    { "type": "callout", "cx": 1080, "cy": 420, "number": 15 }
   ],
   "titleBlock": {
-    "x": 990, "y": 825, "w": 470, "h": 100,
+    "x": 990, "y": 860, "w": 470, "h": 85,
     "fields": {
       "project": "Tyson Residence · 7.2 kW PV + ESS",
       "sheet": "PV-5 of 25",
@@ -78,5 +78,5 @@
       "projectId": "PROJ-26922 REV 1"
     }
   },
-  "legend": { "x": 40, "y": 825, "w": 500, "h": 100 }
+  "legend": { "x": 40, "y": 860, "w": 500, "h": 85 }
 }
