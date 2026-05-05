@@ -1,6 +1,8 @@
 'use client'
 
 import type React from 'react'
+import { EatonDg221Urb } from './eaton-dg221urb'
+import { EatonDg222Urb } from './eaton-dg222urb'
 import { SonnenScoreP20 } from './sonnen-score-p20'
 
 // AssetProps is the shape every SLD asset component receives. See README.md.
@@ -20,4 +22,6 @@ export interface AssetProps {
 // so visual debugging is obvious.
 export const ASSET_REGISTRY: Record<string, React.FC<AssetProps>> = {
   'sonnen-score-p20': SonnenScoreP20,
+  'eaton-dg222urb': EatonDg222Urb,
+  'eaton-dg221urb': EatonDg221Urb,
 }
