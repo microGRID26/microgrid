@@ -154,9 +154,14 @@ export default function TicketDetailScreen() {
 
     const uploaded = await uploadTicketPhoto(result.assets[0].uri, id)
     if (uploaded) {
-      await addComment(id, `📷 Photo`, customerName, uploaded.url, uploaded.path)
-      const c = await loadComments(id)
-      setComments(c)
+      const ok = await addComment(id, `📷 Photo`, customerName, uploaded.url, uploaded.path)
+      if (!ok) {
+        await supabase.storage.from('ticket-attachments').remove([uploaded.path]).catch(() => {})
+        console.error('[ticket-comment] insert failed; storage rolled back', uploaded.path)
+      } else {
+        const c = await loadComments(id)
+        setComments(c)
+      }
     }
     setUploading(false)
   }
@@ -178,9 +183,14 @@ export default function TicketDetailScreen() {
 
     const uploaded = await uploadTicketPhoto(result.assets[0].uri, id)
     if (uploaded) {
-      await addComment(id, `📷 Photo`, customerName, uploaded.url, uploaded.path)
-      const c = await loadComments(id)
-      setComments(c)
+      const ok = await addComment(id, `📷 Photo`, customerName, uploaded.url, uploaded.path)
+      if (!ok) {
+        await supabase.storage.from('ticket-attachments').remove([uploaded.path]).catch(() => {})
+        console.error('[ticket-comment] insert failed; storage rolled back', uploaded.path)
+      } else {
+        const c = await loadComments(id)
+        setComments(c)
+      }
     }
     setUploading(false)
   }
@@ -203,9 +213,14 @@ export default function TicketDetailScreen() {
     const uploaded = await uploadTicketPhoto(asset.uri, id, asset.mimeType ?? undefined, ext)
     if (uploaded) {
       const label = isImage ? '📷 Photo' : `📎 ${asset.name}`
-      await addComment(id, label, customerName, uploaded.url, uploaded.path)
-      const c = await loadComments(id)
-      setComments(c)
+      const ok = await addComment(id, label, customerName, uploaded.url, uploaded.path)
+      if (!ok) {
+        await supabase.storage.from('ticket-attachments').remove([uploaded.path]).catch(() => {})
+        console.error('[ticket-comment] insert failed; storage rolled back', uploaded.path)
+      } else {
+        const c = await loadComments(id)
+        setComments(c)
+      }
     }
     setUploading(false)
   }

@@ -259,7 +259,12 @@ export function TicketRow({
                           // Bucket is private post-flip; image_url is dead. Render via image_path.
                           const isImage = file.type.startsWith('image/')
                           const label = isImage ? '\u{1F4F7} Photo' : `\u{1F4CE} ${file.name}`
-                          await addTicketComment(t.id, userName ?? 'Unknown', user?.id, label, commentInternal, null, fileName)
+                          const ok = await addTicketComment(t.id, userName ?? 'Unknown', user?.id, label, commentInternal, null, fileName)
+                          if (!ok) {
+                            await supabaseClient.storage.from('ticket-attachments').remove([fileName]).catch(() => {})
+                            console.error('[ticket-comment] insert failed; storage rolled back', fileName)
+                            return
+                          }
                           const c = await loadTicketComments(t.id)
                           setComments(c)
                           e.target.value = ''
