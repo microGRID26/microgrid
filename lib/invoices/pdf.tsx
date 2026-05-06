@@ -396,6 +396,7 @@ export function InvoicePDF({ invoice, lineItems, fromOrg, toOrg }: InvoicePDFPro
             <Text style={styles.totalsLabel}>Subtotal</Text>
             <Text style={styles.totalsValue}>{fmtMoney(invoice.subtotal)}</Text>
           </View>
+          {/* Invoice-level tax only — do not render per-line. See lib/invoices/CLAUDE.md (#531). */}
           {invoice.tax > 0 ? (
             <View style={styles.totalsRow}>
               <Text style={styles.totalsLabel}>TX Sales Tax (8.25%)</Text>

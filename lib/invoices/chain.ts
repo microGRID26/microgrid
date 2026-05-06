@@ -434,6 +434,7 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
     const draft = calc.draft
 
     // Apply 8.25% TX sales tax on the EPC → EDGE link only.
+    // Invoice-level tax only — never per-line. See lib/invoices/CLAUDE.md (#531).
     let tax = 0
     let total = draft.total
     if (shouldApplySalesTax(rule)) {
