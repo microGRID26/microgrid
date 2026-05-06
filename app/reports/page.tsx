@@ -312,6 +312,15 @@ const DATA_QUERY_STARTERS = [
   'change orders pending site survey',
 ]
 
+interface CanonicalVerification {
+  verified_at: string | null
+  verified_by: string | null
+  method: string | null
+  source: string | null
+  expected_row_count: number | null
+  drift_detected: boolean
+}
+
 interface DataQueryResult {
   ok: boolean
   explanation?: string
@@ -322,6 +331,11 @@ interface DataQueryResult {
   columns?: string[]
   count?: number
   truncated?: boolean
+  // Canonical-router payload — present when the question matched a verified report
+  canonical?: boolean
+  report_id?: string
+  params?: Record<string, unknown>
+  verification?: CanonicalVerification
 }
 
 // Cap UI-rendered error messages at 500 chars so a regressed backend can't
@@ -334,6 +348,19 @@ function capErr(s: string | undefined, fallback: string): string {
 // Defensive shape-validate the API response. Backend can ship malformed payloads
 // after a deploy regression; this prevents a `columns.map is not a function`
 // crash that would blank the whole /reports page. (R1 H2 on #375.)
+function coerceVerification(v: unknown): CanonicalVerification | undefined {
+  if (!v || typeof v !== 'object') return undefined
+  const o = v as Record<string, unknown>
+  return {
+    verified_at: typeof o.verified_at === 'string' ? o.verified_at : null,
+    verified_by: typeof o.verified_by === 'string' ? o.verified_by : null,
+    method: typeof o.method === 'string' ? o.method : null,
+    source: typeof o.source === 'string' ? o.source : null,
+    expected_row_count: typeof o.expected_row_count === 'number' ? o.expected_row_count : null,
+    drift_detected: o.drift_detected === true,
+  }
+}
+
 function coerceQueryResult(body: unknown): DataQueryResult & { error?: string } {
   if (!body || typeof body !== 'object') return { ok: false, reason: 'Server returned an unexpected response.' }
   const b = body as Record<string, unknown>
@@ -347,6 +374,10 @@ function coerceQueryResult(body: unknown): DataQueryResult & { error?: string } 
     count: typeof b.count === 'number' ? b.count : undefined,
     truncated: b.truncated === true,
     error: typeof b.error === 'string' ? b.error : undefined,
+    canonical: b.canonical === true,
+    report_id: typeof b.report_id === 'string' ? b.report_id : undefined,
+    params: b.params && typeof b.params === 'object' ? (b.params as Record<string, unknown>) : undefined,
+    verification: coerceVerification(b.verification),
   }
 }
 
@@ -514,6 +545,31 @@ function DataQueryPanel({ onClickProject }: { onClickProject: (id: string) => Pr
         <div className="bg-red-900/20 border border-red-800/50 rounded-lg px-3 py-2 flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
           <p className="text-xs text-red-300/80">{errorBanner.msg}</p>
+        </div>
+      )}
+
+      {/* Verified report banner — shown when canonical router matched */}
+      {result?.canonical && result?.verification && (
+        <div className="bg-green-950/30 border border-green-900/50 rounded-lg px-3 py-2 flex items-start gap-2">
+          <Sparkles className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 text-xs">
+            <div className="text-green-300 font-medium mb-0.5">
+              Verified report{result.report_id ? ` · ${result.report_id}` : ''}
+              {result.verification.drift_detected && (
+                <span className="ml-2 text-amber-400">⚠ Drift detected vs expected count</span>
+              )}
+            </div>
+            <div className="text-gray-400 leading-snug">
+              {result.verification.method && <span>Method: <span className="text-gray-300">{result.verification.method}</span>. </span>}
+              {result.verification.verified_by && <span>Verified by <span className="text-gray-300">{result.verification.verified_by}</span></span>}
+              {result.verification.verified_at && <span> on <span className="text-gray-300">{new Date(result.verification.verified_at).toLocaleDateString()}</span></span>}
+              {result.verification.expected_row_count != null && <span>. Expected count: <span className="text-gray-300">{result.verification.expected_row_count}</span></span>}
+              {result.verification.method !== 'spot_check_of_5_rows' && '.'}
+            </div>
+            {result.verification.source && (
+              <div className="text-gray-500 mt-1 italic">{result.verification.source}</div>
+            )}
+          </div>
         </div>
       )}
 
@@ -747,22 +803,23 @@ export default function ReportsPage() {
       <Nav active="Atlas" />
 
       <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full px-4">
-        {/* Experimental banner — until canonical reports catalog lands.
-            Recent verification: an LLM-generated answer was off by 9-13%
-            (166 returned vs 175 actual) on a sales count. Plan:
-            ~/.claude/plans/twinkly-jumping-thimble.md */}
-        <div className="mt-6 mb-4 bg-amber-950/40 border border-amber-700/60 rounded-lg px-4 py-3">
+        {/* Catalog status banner — distinguishes verified-router answers
+            (green Verified badge appears on the result) from legacy LLM-SQL
+            answers (no badge — verify before trusting). */}
+        <div className="mt-6 mb-4 bg-gray-800/60 border border-gray-700 rounded-lg px-4 py-3">
           <div className="flex items-start gap-3">
-            <span className="text-amber-400 text-xs font-bold uppercase tracking-wide mt-0.5">Experimental</span>
-            <div className="text-xs text-amber-100 flex-1 leading-relaxed">
-              <strong className="text-amber-200">Verify against NetSuite before trusting numbers.</strong> Atlas
-              generates SQL on-the-fly and has been wrong by ~9-13% on recent sales counts.
-              A NetSuite-verified reports catalog is in progress; until it lands, treat
-              answers here as a draft and confirm with a saved search before relying on
-              the result.{' '}
+            <Sparkles className="text-green-400 w-4 h-4 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-gray-300 flex-1 leading-relaxed">
+              <strong className="text-white">Verified canonical reports are rolling out.</strong>{' '}
+              Questions that match a verified report show a green{' '}
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-950/40 border border-green-900/50 text-green-300">
+                Verified
+              </span>{' '}
+              footer with the source. Other questions still use on-the-fly SQL — treat those
+              answers as drafts and verify against NetSuite.{' '}
               <a
                 href="mailto:greg@gomicrogridenergy.com?subject=Atlas%20returned%20a%20wrong%20number"
-                className="underline text-amber-300 hover:text-amber-100"
+                className="underline text-gray-400 hover:text-gray-200"
               >
                 Report a wrong number
               </a>
