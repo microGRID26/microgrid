@@ -176,7 +176,7 @@ describe('POST /api/customer/delete-account — Stripe cleanup (#544)', () => {
     expect(stripeRetrieveMock).toHaveBeenCalledTimes(2)
     expect(stripeDelMock).toHaveBeenCalledTimes(2)
     // idempotencyKey present on every del call
-    for (const call of stripeDelMock.mock.calls) {
+    for (const call of stripeDelMock.mock.calls as unknown[][]) {
       expect(call[1]).toMatchObject({ idempotencyKey: expect.stringMatching(/^del-cust-cus_real_/) })
     }
   })

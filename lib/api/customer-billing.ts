@@ -1,6 +1,31 @@
 // lib/api/customer-billing.ts — Customer billing data access layer
 // Monthly kWh billing at $0.12/kWh, Stripe payment methods, payment history
 // Separate from B2B invoices — this is customer-facing billing
+//
+// ── Stripe customer creation contract (read before adding intake code) ──
+// When the Stripe customer-creation flow ships here, every `stripe.customers
+// .create()` MUST include both metadata fields:
+//
+//   await stripe.customers.create({
+//     email,
+//     metadata: {
+//       auth_user_id: <supabase auth user id>,
+//       customer_account_id: <customer_accounts.id>,
+//     },
+//   })
+//
+// /api/customer/delete-account does a metadata round-trip on every Stripe
+// customer.del() — it refuses to delete a Stripe customer whose metadata
+// doesn't claim the deleting user. If creation skips the metadata, every
+// future right-to-erasure delete will silently log "metadata mismatch" and
+// leave the Stripe record live, breaking Apple 5.1.1(v) / GDPR / CCPA.
+//
+// Migration 230 (#544) also dropped the customer-side INSERT policy on
+// customer_payment_methods. Rows are now written by Stripe webhooks
+// (service_role) only — no direct customer-app insert path.
+//
+// Set STRIPE_SECRET_KEY in Vercel envs when this work starts. The delete-
+// account route no-ops cleanly until then.
 
 import { db } from '@/lib/db'
 
