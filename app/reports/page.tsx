@@ -747,8 +747,31 @@ export default function ReportsPage() {
       <Nav active="Atlas" />
 
       <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full px-4">
+        {/* Experimental banner — until canonical reports catalog lands.
+            Recent verification: an LLM-generated answer was off by 9-13%
+            (166 returned vs 175 actual) on a sales count. Plan:
+            ~/.claude/plans/twinkly-jumping-thimble.md */}
+        <div className="mt-6 mb-4 bg-amber-950/40 border border-amber-700/60 rounded-lg px-4 py-3">
+          <div className="flex items-start gap-3">
+            <span className="text-amber-400 text-xs font-bold uppercase tracking-wide mt-0.5">Experimental</span>
+            <div className="text-xs text-amber-100 flex-1 leading-relaxed">
+              <strong className="text-amber-200">Verify against NetSuite before trusting numbers.</strong> Atlas
+              generates SQL on-the-fly and has been wrong by ~9-13% on recent sales counts.
+              A NetSuite-verified reports catalog is in progress; until it lands, treat
+              answers here as a draft and confirm with a saved search before relying on
+              the result.{' '}
+              <a
+                href="mailto:greg@gomicrogridenergy.com?subject=Atlas%20returned%20a%20wrong%20number"
+                className="underline text-amber-300 hover:text-amber-100"
+              >
+                Report a wrong number
+              </a>
+            </div>
+          </div>
+        </div>
+
         {/* Header */}
-        <div className="pt-6 pb-4 flex items-start justify-between">
+        <div className="pb-4 flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-green-400" />

@@ -41,6 +41,20 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => mockDb),
 }))
 
+// Route now uses @supabase/ssr's createServerClient + next/headers cookies()
+// for the auth-checking client (the basic createClient doesn't parse Supabase
+// auth cookies). Mock both so getUserSupabase() returns the same mockDb.
+vi.mock('@supabase/ssr', () => ({
+  createServerClient: vi.fn(() => mockDb),
+}))
+
+vi.mock('next/headers', () => ({
+  cookies: vi.fn(async () => ({
+    getAll: () => [{ name: 'sb-test', value: 'session-cookie' }],
+    setAll: () => {},
+  })),
+}))
+
 vi.mock('@/lib/utils', () => ({
   escapeIlike: vi.fn((str: string) => str),
 }))
