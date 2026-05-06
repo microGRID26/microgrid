@@ -69,11 +69,11 @@ describe('anon-user-cleanup cron', () => {
     expect(res.status).toBe(401)
   })
 
-  it('500 when CRON_SECRET missing', async () => {
+  it('401 when CRON_SECRET missing (fail-closed uniformly; #555)', async () => {
     delete process.env.CRON_SECRET
     const { GET } = await import('../route')
     const res = await GET(mkReq('whatever'))
-    expect(res.status).toBe(500)
+    expect(res.status).toBe(401)
   })
 
   it('500 when service creds missing', async () => {

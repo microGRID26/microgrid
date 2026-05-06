@@ -4,23 +4,18 @@
  * QA_RUN_ABANDON_AFTER_HOURS as `abandoned`.
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { timingSafeEqual } from 'crypto'
 import { getQaAdmin, QA_RUN_ABANDON_AFTER_HOURS } from '@/lib/qa/server'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
+import { checkCronSecret } from '@/lib/auth/check-cron-secret'
+
+export const runtime = 'nodejs'
+// Audit 2026-05 H2 + L2.
+export const maxDuration = 60
 
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET?.trim()
-  if (!cronSecret) return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
-
-  const auth = request.headers.get('authorization') ?? ''
-  const token = auth.replace(/^Bearer\s+/i, '').trim()
-  let ok = false
-  try {
-    if (token.length === cronSecret.length) {
-      ok = timingSafeEqual(Buffer.from(token), Buffer.from(cronSecret))
-    }
-  } catch { ok = false }
-  if (!ok) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!checkCronSecret(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const fleetStartedAt = new Date()
   let fleetStatus: FleetRunStatus = 'success'

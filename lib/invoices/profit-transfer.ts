@@ -50,24 +50,18 @@ export const PROFIT_TARGET_ENTITY = 'SPE2'
 
 /**
  * Compute the profit for a chain invoice from a set of line items.
- * Pure function — no DB access. The line items must come from the invoice's
- * `invoice_line_items` rows (which carry the EPC price as `total`) and are
- * cross-referenced against the chain rule's embedded `raw_cost` field for
- * the cost side.
+ * Pure function — no DB access. Each invoice_line_items row now carries its
+ * own project-scaled `raw_cost` (#527, migration 221). NULL raw_cost means
+ * the line is pure markup/fee — its revenue is 100% profit by definition.
  *
- * If a line item has no embedded raw_cost (e.g. a pure markup or fee row),
- * its raw cost is treated as 0 — which means 100% of its revenue counts as
- * profit. This is intentional: pure markup rows ARE profit by definition.
- *
- * Inputs:
- *   - lineItems: invoice_line_items rows (description, quantity, unit_price, total)
- *   - rawCostByDescription: optional lookup of raw_cost per item description
- *     pulled from the originating invoice_rules.line_items JSONB. If absent,
- *     all raw costs default to 0 (so revenue == profit).
+ * #527 fix: previously read raw_cost from invoice_rules.line_items JSONB,
+ * which was static (pre-scaled to default 80 kWh / 16 batteries). For any
+ * non-default-sized project the lookup returned wrong values. Now reads
+ * from the line item rows themselves, which the chain orchestrator
+ * populates with project-scaled raw_cost at insert time.
  */
 export function computeProfit(
-  lineItems: Pick<InvoiceLineItem, 'description' | 'quantity' | 'unit_price' | 'total'>[],
-  rawCostByDescription: Record<string, number> = {},
+  lineItems: Pick<InvoiceLineItem, 'description' | 'quantity' | 'unit_price' | 'total' | 'raw_cost'>[],
 ): ProfitCalculation {
   let revenue = 0
   let raw_cost = 0
@@ -79,7 +73,7 @@ export function computeProfit(
       ? Number(total)
       : Number(li.quantity ?? 0) * Number(li.unit_price ?? 0)
     revenue += lineRevenue
-    const rawForItem = rawCostByDescription[li.description] ?? 0
+    const rawForItem = li.raw_cost ?? 0
     raw_cost += Number(rawForItem)
   }
   revenue = Math.round(revenue * 100) / 100
@@ -155,16 +149,18 @@ export async function recordProfitTransferIfApplicable(
   }
   const inv = invoice as Pick<Invoice, 'id' | 'generated_by' | 'rule_id' | 'from_org' | 'project_id'>
 
-  // 2. Load rule
+  // 2. Load rule (rule_kind / from_org_type only — line_items JSONB is no
+  //    longer the cost-basis source after #527; raw_cost lives on each
+  //    invoice_line_items row directly).
   if (!inv.rule_id) {
     return { inserted: false, reason: 'not_chain_invoice', detail: 'invoice has no rule_id' }
   }
   const { data: rule } = await admin
     .from('invoice_rules')
-    .select('id, from_org_type, rule_kind, line_items')
+    .select('id, from_org_type, rule_kind')
     .eq('id', inv.rule_id)
     .single()
-  const ruleRow = rule as { id: string; from_org_type: string; rule_kind: string; line_items: Array<Record<string, unknown>> } | null
+  const ruleRow = rule as { id: string; from_org_type: string; rule_kind: string } | null
 
   // 3. Predicate check
   if (!shouldTriggerProfitTransfer(inv, ruleRow)) {
@@ -174,28 +170,21 @@ export async function recordProfitTransferIfApplicable(
     }
   }
 
-  // 4. Load invoice line items + build raw_cost lookup from rule's line_items JSONB
+  // 4. Load invoice line items — each row carries project-scaled raw_cost
+  //    after #527 (migration 221). Pre-#527 rows return raw_cost=NULL, which
+  //    computeProfit treats as 0 (matches old missing-description default).
   const { data: lineItems } = await admin
     .from('invoice_line_items')
-    .select('description, quantity, unit_price, total')
+    .select('description, quantity, unit_price, total, raw_cost')
     .eq('invoice_id', invoiceId)
     .limit(100)
-  const items = (lineItems ?? []) as Pick<InvoiceLineItem, 'description' | 'quantity' | 'unit_price' | 'total'>[]
+  const items = (lineItems ?? []) as Pick<InvoiceLineItem, 'description' | 'quantity' | 'unit_price' | 'total' | 'raw_cost'>[]
   if (items.length === 0) {
     return { inserted: false, reason: 'no_line_items' }
   }
 
-  const rawCostByDescription: Record<string, number> = {}
-  for (const ruleItem of ruleRow!.line_items) {
-    const desc = typeof ruleItem.description === 'string' ? ruleItem.description : null
-    const rawCost = typeof ruleItem.raw_cost === 'number' ? ruleItem.raw_cost : null
-    if (desc && rawCost !== null) {
-      rawCostByDescription[desc] = rawCost
-    }
-  }
-
   // 5. Compute profit
-  const calculation = computeProfit(items, rawCostByDescription)
+  const calculation = computeProfit(items)
 
   // 6. Insert profit transfer row (idempotent via unique partial index)
   const { data: inserted, error: insertErr } = await admin

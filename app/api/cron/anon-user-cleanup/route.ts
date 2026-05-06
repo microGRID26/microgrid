@@ -14,32 +14,17 @@
  * auth.users never appears in SQL.
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { createHash, timingSafeEqual } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
+import { checkCronSecret } from '@/lib/auth/check-cron-secret'
 
 export const runtime = 'nodejs'
-
-/**
- * Constant-time bearer compare. sha256 both sides before timingSafeEqual so
- * the byte buffers are always 32 bytes — removes the length-branch timing
- * channel and the utf-8 encoding quirk that would otherwise make
- * `Buffer.from(multibyte)` vary in length from the raw char count. R1 M2.
- */
-function constantTimeBearerOk(token: string, secret: string): boolean {
-  const a = createHash('sha256').update(token).digest()
-  const b = createHash('sha256').update(secret).digest()
-  return timingSafeEqual(a, b)
-}
+// Monthly cleanup, can iterate up to 500 users with per-user RPCs.
+// Audit 2026-05 H2.
+export const maxDuration = 60
 
 export async function GET(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET?.trim()
-  if (!cronSecret) {
-    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
-  }
-  const auth = request.headers.get('authorization') ?? ''
-  const token = auth.replace(/^Bearer\s+/i, '').trim()
-  if (!constantTimeBearerOk(token, cronSecret)) {
+  if (!checkCronSecret(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

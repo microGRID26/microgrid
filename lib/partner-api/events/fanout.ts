@@ -13,6 +13,10 @@ import { validateOutboundUrl, validateOutboundUrlWithDns } from './ssrf'
 
 const OUTBOX_BATCH_SIZE = 100
 const HTTP_TIMEOUT_MS = 10_000
+// Bound concurrent outbound POSTs per fanout invocation. With 50 partners
+// configured, the previous Promise.all(targets.map(...)) per event could
+// fire 5000 in-flight requests in a tick (audit 2026-05 cron-fanout H3).
+const PER_EVENT_CONCURRENCY = 10
 
 export interface FanoutResult {
   events_processed: number
@@ -36,16 +40,21 @@ export async function runFanout(nowMs: number = Date.now()): Promise<FanoutResul
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const client = sb as any
 
-  // Pull a batch of unfanned events ordered by age.
+  // ATOMIC CLAIM (audit 2026-05 cron-fanout C1, migration 226). Calls the
+  // partner_event_outbox_claim_batch RPC which uses FOR UPDATE SKIP LOCKED
+  // inside a CTE — concurrent fanout workers (Vercel routinely double-fires
+  // crons + retries on 5xx) get disjoint batches. Stale-claim window: rows
+  // claimed > 5 min ago without fanned_out_at are re-claimable, so a worker
+  // crash doesn't permanently lose events. A proper persistent retry queue
+  // + DLQ is the High 1 follow-up.
   const { data: events, error } = await client
-    .from('partner_event_outbox')
-    .select('id, event_type, event_id, payload, emitted_at')
-    .is('fanned_out_at', null)
-    .order('emitted_at', { ascending: true })
-    .limit(OUTBOX_BATCH_SIZE)
+    .rpc('partner_event_outbox_claim_batch', {
+      p_limit: OUTBOX_BATCH_SIZE,
+      p_now: new Date(nowMs).toISOString(),
+    })
 
   if (error) {
-    result.errors.push(`[fanout] outbox read failed: ${error.message}`)
+    result.errors.push(`[fanout] outbox claim failed: ${error.message}`)
     return result
   }
 
@@ -64,11 +73,7 @@ export async function runFanout(nowMs: number = Date.now()): Promise<FanoutResul
     // Even if no targets match, mark fanned_out so we don't re-scan forever.
     const deliveries = targets.length === 0
       ? []
-      : await Promise.all(targets.map((s) => deliverToSubscription(s, evt, nowMs).catch((err) => ({
-          ok: false,
-          status: 0,
-          error: err instanceof Error ? err.message : String(err),
-        }))))
+      : await deliverWithBoundedConcurrency(targets, evt, nowMs, PER_EVENT_CONCURRENCY)
 
     for (const d of deliveries) {
       result.deliveries_attempted++
@@ -89,6 +94,35 @@ export async function runFanout(nowMs: number = Date.now()): Promise<FanoutResul
   }
 
   return result
+}
+
+/** Per-event delivery with bounded concurrency. Caps in-flight HTTP at
+ *  `limit` so a 50-partner event doesn't fire 50 concurrent fetches.
+ *  No external deps (would otherwise reach for p-limit). */
+async function deliverWithBoundedConcurrency(
+  targets: PartnerSubscription[],
+  evt: { event_type: string; event_id: string; payload: Record<string, unknown>; emitted_at: string },
+  nowMs: number,
+  limit: number,
+): Promise<DeliveryOutcome[]> {
+  const results: DeliveryOutcome[] = new Array(targets.length)
+  let next = 0
+  async function worker() {
+    while (true) {
+      const idx = next++
+      if (idx >= targets.length) return
+      results[idx] = await deliverToSubscription(targets[idx], evt, nowMs).catch((err) => ({
+        ok: false,
+        status: 0,
+        error: err instanceof Error ? err.message : String(err),
+      }))
+    }
+  }
+  const workers: Promise<void>[] = []
+  const n = Math.min(limit, targets.length)
+  for (let i = 0; i < n; i++) workers.push(worker())
+  await Promise.all(workers)
+  return results
 }
 
 interface DeliveryOutcome {

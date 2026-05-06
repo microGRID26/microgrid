@@ -942,6 +942,7 @@ export interface InvoiceLineItem {
   quantity: number
   unit_price: number
   total: number
+  raw_cost: number | null
   category: string | null
   sort_order: number
   created_at: string
@@ -959,6 +960,10 @@ export interface InvoiceRule {
   active: boolean
   rule_kind: InvoiceRuleKind
   use_project_catalog: boolean
+  /** Percentage of project.contract billed by this rule (0..1). Source-of-
+   *  truth for percentage-mode milestone rules. NULL = not a percentage rule
+   *  (flat or chain). #532. */
+  percentage: number | null
   created_at: string
   updated_at: string
 }
