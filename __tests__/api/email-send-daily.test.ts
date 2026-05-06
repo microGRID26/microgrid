@@ -69,14 +69,12 @@ function makeRequest(headers: Record<string, string> = {}): Request {
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
 describe('GET /api/email/send-daily — auth', () => {
-  it('returns 503 when CRON_SECRET is not configured', async () => {
+  it('returns 401 when CRON_SECRET is not configured (fail-closed uniformly; #555)', async () => {
     delete process.env.CRON_SECRET
     const req = makeRequest({ Authorization: 'Bearer anything' })
     const { GET } = await import('@/app/api/email/send-daily/route')
     const res = await GET(req)
-    expect(res.status).toBe(503)
-    const json = await res.json()
-    expect(json.error).toBe('CRON_SECRET not configured')
+    expect(res.status).toBe(401)
   })
 
   it('returns 401 when bearer token is wrong', async () => {

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import { timingSafeEqual } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
 import { getTemplate, getMaxDay } from '@/lib/email-templates'
 import { rateLimit } from '@/lib/rate-limit'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
+import { checkCronSecret } from '@/lib/auth/check-cron-secret'
 
 // Daily onboarding email scan + per-recipient send. Audit 2026-05 H2.
 export const maxDuration = 60
@@ -24,19 +24,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
   }
 
-  // Verify cron secret — if env var is NOT set, reject all requests (#7)
-  const authHeader = req.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET?.trim()
-  if (!cronSecret) {
-    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 })
-  }
-  const provided = authHeader?.replace('Bearer ', '') ?? ''
-  let cronMatch = false
-  try {
-    cronMatch = provided.length === cronSecret.length &&
-      timingSafeEqual(Buffer.from(provided), Buffer.from(cronSecret))
-  } catch { cronMatch = false }
-  if (!cronMatch) {
+  if (!checkCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

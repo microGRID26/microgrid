@@ -6,9 +6,9 @@
 //   3. sweep_partner_idempotency_keys(24) — delete idempotency rows > 24h old
 
 import { NextRequest, NextResponse } from 'next/server'
-import { timingSafeEqual } from 'crypto'
 import { partnerApiAdmin } from '@/lib/partner-api/supabase-admin'
 import { reportFleetRun } from '@/lib/hq-fleet'
+import { checkCronSecret } from '@/lib/auth/check-cron-secret'
 
 export const runtime = 'nodejs'
 // Partition drops on a 90-day window can take a while. Audit 2026-05 H2.
@@ -16,20 +16,8 @@ export const maxDuration = 60
 
 const FLEET_SLUG = 'mg-partner-logs-retention'
 
-function checkSecret(request: NextRequest): boolean {
-  const header = (request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? '').trim()
-  const expected = (process.env.CRON_SECRET ?? '').trim()
-  if (!expected || !header) return false
-  if (header.length !== expected.length) return false
-  try {
-    return timingSafeEqual(Buffer.from(header, 'utf8'), Buffer.from(expected, 'utf8'))
-  } catch {
-    return false
-  }
-}
-
 export async function GET(request: NextRequest) {
-  if (!checkSecret(request)) {
+  if (!checkCronSecret(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

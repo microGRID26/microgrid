@@ -4,9 +4,9 @@
 // Vercel cron. Secret gate on CRON_SECRET. Reports to ATLAS HQ /intel.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { timingSafeEqual } from 'crypto'
 import { runFanout } from '@/lib/partner-api/events/fanout'
 import { reportFleetRun } from '@/lib/hq-fleet'
+import { checkCronSecret } from '@/lib/auth/check-cron-secret'
 
 export const runtime = 'nodejs'
 // Vercel default is 10s. Partner fanout posts to N partners with 10s
@@ -16,20 +16,8 @@ export const maxDuration = 60
 
 const FLEET_SLUG = 'mg-partner-event-fanout'
 
-function checkSecret(request: NextRequest): boolean {
-  const header = (request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? '').trim()
-  const expected = (process.env.CRON_SECRET ?? '').trim()
-  if (!expected || !header) return false
-  if (header.length !== expected.length) return false
-  try {
-    return timingSafeEqual(Buffer.from(header, 'utf8'), Buffer.from(expected, 'utf8'))
-  } catch {
-    return false
-  }
-}
-
 export async function GET(request: NextRequest) {
-  if (!checkSecret(request)) {
+  if (!checkCronSecret(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
