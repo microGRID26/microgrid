@@ -160,3 +160,25 @@ describe('validateAtlasSql — allowlist health check', () => {
     }
   })
 })
+
+// R1 audit H1 (2026-05-06): \b in JS treats underscore as a word char,
+// so /\bpg_sleep\b/ does NOT terminate between "pg_sleep" and "_for"/"_until".
+// pg_sleep_for(interval) and pg_sleep_until(timestamptz) are real Postgres
+// functions and were a boolean-blind exfil oracle until this fix.
+describe('validator H1: pg_sleep variants', () => {
+  it('rejects pg_sleep', () => {
+    const r = validateAtlasSql("SELECT pg_sleep(2) FROM projects LIMIT 1")
+    expect(r.ok).toBe(false)
+    expect(r.reason).toMatch(/forbidden function/i)
+  })
+  it('rejects pg_sleep_for', () => {
+    const r = validateAtlasSql("SELECT pg_sleep_for(interval '4 seconds') FROM projects LIMIT 1")
+    expect(r.ok).toBe(false)
+    expect(r.reason).toMatch(/forbidden function/i)
+  })
+  it('rejects pg_sleep_until', () => {
+    const r = validateAtlasSql("SELECT pg_sleep_until(now() + interval '4 seconds') FROM projects LIMIT 1")
+    expect(r.ok).toBe(false)
+    expect(r.reason).toMatch(/forbidden function/i)
+  })
+})

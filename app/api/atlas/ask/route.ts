@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { rateLimit } from '@/lib/rate-limit'
+import { checkScope } from '@/lib/atlas/scope'
 
 const HIGH_CONF = 0.55
 const LOW_CONF = 0.25
@@ -58,6 +59,20 @@ export async function POST(request: NextRequest) {
   }
   if (question.length > 2000) {
     return NextResponse.json({ error: 'Question too long (max 2000 chars)' }, { status: 400 })
+  }
+
+  // Scope guard: in-app Atlas is project + sales + workflow + domain only.
+  // Engineering / infra / AI-tooling questions get a flat refusal here, before
+  // any KB retrieval, so creative phrasings can't slip past via embeddings.
+  const scope = checkScope(question)
+  if (!scope.inScope) {
+    return NextResponse.json({
+      id: null,
+      answer: scope.refusal,
+      citations: [],
+      confidence: 'high' as const,
+      escalation_suggested: false,
+    })
   }
 
   const { data: profile } = await supabase

@@ -5,7 +5,10 @@
  * The RPC enforces the same rules server-side, so this is defense in depth.
  *
  * Three layers:
- *   1. Prefix: must start with SELECT or WITH (case-insensitive, after trim)
+ *   1. Prefix: must start with SELECT (case-insensitive, after trim).
+ *      WITH (CTEs) is rejected — alias-vs-table needs a real parser to
+ *      enforce safely; a regex allowlist would silently accept
+ *      "JOIN <cte_alias>" as if it were a table.
  *   2. Forbidden tokens: no ; -- /* INSERT UPDATE etc.
  *   3. Allowlist: every \bFROM <ident> and \bJOIN <ident> must be in
  *      ALLOWED_TABLES (modulo `public.` schema prefix).
@@ -68,7 +71,12 @@ export function validateAtlasSql(sql: unknown): ValidationResult {
   if (dml.test(lower)) {
     return { ok: false, reason: 'SQL contains forbidden keyword (DML/DDL/transaction control)' }
   }
-  const dangerousFns = /\b(pg_read_file|pg_read_binary_file|lo_import|lo_export|dblink|pg_terminate_backend|pg_cancel_backend|pg_sleep|copy_program)\b/
+  // R1 audit H1 (2026-05-06): \b in JS treats underscore as a word char,
+  // so \b(pg_sleep)\b does NOT terminate between pg_sleep and _for/_until.
+  // pg_sleep_for / pg_sleep_until are real Postgres functions. Use
+  // non-word-boundary anchors (^|[^a-z0-9_]) instead so all pg_sleep_*
+  // variants are caught.
+  const dangerousFns = /(^|[^a-z0-9_])(pg_read_file|pg_read_binary_file|lo_import|lo_export|dblink|pg_terminate_backend|pg_cancel_backend|pg_sleep|pg_sleep_for|pg_sleep_until|copy_program)([^a-z0-9_]|$)/
   if (dangerousFns.test(lower)) {
     return { ok: false, reason: 'SQL references a forbidden function' }
   }
