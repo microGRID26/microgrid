@@ -460,30 +460,53 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
       continue
     }
 
-    // Persist: insert invoice + line items.
-    const { data: insertedInvoice, error: invErr } = await admin
-      .from('invoices')
-      .insert({
-        invoice_number: draft.invoice_number,
-        project_id: draft.project_id,
-        from_org: draft.from_org,
-        to_org: draft.to_org,
-        status: 'draft',
-        milestone: CHAIN_MILESTONE,
-        subtotal: draft.subtotal,
-        tax,
-        total,
-        due_date: draft.due_date,
-        rule_id: draft.rule_id,
-        generated_by: 'rule',
-        notes: `Auto-generated chain rule "${rule.name}" — chain orchestrator${tax > 0 ? ` (incl. ${(TX_SALES_TAX_RATE * 100).toFixed(2)}% TX sales tax)` : ''}`,
-      })
-      .select('id, invoice_number')
-      .single()
+    // Persist: insert invoice + line items. Two unique indexes can trip
+    // 23505 — invoices_invoice_number_key (same-ms collision; retry with new
+    // number per #537) and idx_invoices_rule_idempotency on
+    // (project_id, rule_id, milestone) (already generated; skip cleanly).
+    // Distinguish via constraint name in error.message.
+    let currentInvoiceNumber = draft.invoice_number
+    let insertedInvoice: { id: string; invoice_number: string } | null = null
+    let lastErr: { code?: string; message?: string } | null = null
+    const MAX_INVOICE_NUM_RETRIES = 3
+    for (let attempt = 0; attempt < MAX_INVOICE_NUM_RETRIES; attempt++) {
+      const { data, error: invErr } = await admin
+        .from('invoices')
+        .insert({
+          invoice_number: currentInvoiceNumber,
+          project_id: draft.project_id,
+          from_org: draft.from_org,
+          to_org: draft.to_org,
+          status: 'draft',
+          milestone: CHAIN_MILESTONE,
+          subtotal: draft.subtotal,
+          tax,
+          total,
+          due_date: draft.due_date,
+          rule_id: draft.rule_id,
+          generated_by: 'rule',
+          notes: `Auto-generated chain rule "${rule.name}" — chain orchestrator${tax > 0 ? ` (incl. ${(TX_SALES_TAX_RATE * 100).toFixed(2)}% TX sales tax)` : ''}`,
+        })
+        .select('id, invoice_number')
+        .single()
+      if (!invErr) {
+        insertedInvoice = data as { id: string; invoice_number: string }
+        break
+      }
+      lastErr = invErr
+      if (invErr.code !== '23505') break
+      const msg = (invErr.message ?? '').toLowerCase()
+      if (msg.includes('invoice_number') && attempt < MAX_INVOICE_NUM_RETRIES - 1) {
+        currentInvoiceNumber = await generateChainInvoiceNumber(admin)
+        continue
+      }
+      break
+    }
 
-    if (invErr) {
-      // Unique index on (project_id, rule_id, milestone) → already generated
-      if (invErr.code === '23505') {
+    if (!insertedInvoice) {
+      const errCode = lastErr?.code
+      const errMsg = (lastErr?.message ?? '').toLowerCase()
+      if (errCode === '23505' && !errMsg.includes('invoice_number')) {
         result.skippedExisting.push({ ruleId: rule.id, ruleName: rule.name })
         continue
       }
@@ -491,12 +514,12 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
         ruleId: rule.id,
         ruleName: rule.name,
         reason: 'insert_failed',
-        detail: invErr.message,
+        detail: lastErr?.message,
       })
       continue
     }
 
-    const invoiceRow = insertedInvoice as { id: string; invoice_number: string }
+    const invoiceRow = insertedInvoice
 
     // Bulk-insert line items
     const items = draft.line_items.map((li) => ({
