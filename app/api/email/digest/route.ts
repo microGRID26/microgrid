@@ -44,7 +44,7 @@ export async function GET(req: Request) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SECRET_KEY?.trim()
+  const serviceKey = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)?.trim()
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 })
   }

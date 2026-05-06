@@ -233,7 +233,7 @@ function getSupabase() {
   // Service role key is intentionally used here — the anon key returns empty results
   // because RLS restricts row-level access. This route is protected by the Manager+
   // role gate below (server-side session check) so only authorized users can invoke it.
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !key) throw new Error('Missing Supabase configuration')
   return createClient(url, key)
 }

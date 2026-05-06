@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     // Role gate — manager+ only. Email-based lookup (see lib/auth/role-gate.ts
     // for why id-based lookups silently 403 most legitimate users).
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceKey = process.env.SUPABASE_SECRET_KEY?.trim()
+    const serviceKey = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)?.trim()
     if (!supabaseUrl || !serviceKey) {
       return NextResponse.json({ error: 'Not configured' }, { status: 503 })
     }
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SECRET_KEY
+  const serviceKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json({ error: 'Not configured' }, { status: 503 })
   }

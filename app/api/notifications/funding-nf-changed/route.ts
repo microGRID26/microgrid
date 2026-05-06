@@ -44,7 +44,7 @@ export async function POST(req: Request) {
   }
 
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim()
-  const serviceKey = (process.env.SUPABASE_SECRET_KEY ?? '').trim()
+  const serviceKey = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim()
   const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim()
   if (!supabaseUrl || !serviceKey || !anonKey) {
     return NextResponse.json({ error: 'Not configured' }, { status: 503 })

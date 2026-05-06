@@ -11,10 +11,10 @@ import {
 import { checkRole, getCallerOrgIds, MANAGER_PLUS, ADMIN_PLUS } from '@/lib/auth/role-gate'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SECRET_KEY?.trim()
+const supabaseKey = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)?.trim()
 
 function getServiceClient() {
-  if (!supabaseKey) throw new Error('SUPABASE_SECRET_KEY is required for calendar sync')
+  if (!supabaseKey) throw new Error('SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY) is required for calendar sync')
   return createClient(supabaseUrl, supabaseKey)
 }
 
@@ -35,7 +35,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   if (!supabaseKey) {
-    return NextResponse.json({ error: 'SUPABASE_SECRET_KEY not configured' }, { status: 500 })
+    return NextResponse.json({ error: 'SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY) not configured' }, { status: 500 })
   }
 
   if (!isGoogleCalendarConfigured()) {
