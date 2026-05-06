@@ -45,7 +45,7 @@ CREATE OR REPLACE FUNCTION public.partner_event_outbox_claim_batch(
 RETURNS TABLE (
   id uuid,
   event_type text,
-  event_id text,
+  event_id uuid,
   payload jsonb,
   emitted_at timestamptz
 )

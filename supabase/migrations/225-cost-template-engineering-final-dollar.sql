@@ -28,7 +28,7 @@ UPDATE public.project_cost_line_item_templates
 SET default_raw_cost = 10000.00,
     default_markup_to_distro = 0.0
 WHERE sort_order = 150
-  AND name = 'Engineering / CAD / Design / Stamps'
+  AND item_name = 'Engineering / CAD / Design / Stamps'
   AND default_raw_cost = 100.00
   AND default_markup_to_distro = 99.0;
 
@@ -36,6 +36,6 @@ UPDATE public.project_cost_line_item_templates
 SET default_raw_cost = 3500.00,
     default_markup_to_distro = 0.0
 WHERE sort_order = 160
-  AND name = 'Third-Party Inspection / Plan Review'
+  AND item_name = 'Third-Party Inspection / Plan Review'
   AND default_raw_cost = 350.00
   AND default_markup_to_distro = 9.0;
