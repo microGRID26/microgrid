@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import Stripe from 'stripe'
 import { cookies } from 'next/headers'
 import { rateLimit } from '@/lib/rate-limit'
+
+// Pinned to whatever stripe-node 22 ships with at the time of writing —
+// matches default so no behavior change today. Pinned (rather than
+// implicit) so a future SDK upgrade can't quietly bump the API version
+// under us on a security-sensitive call site. See #544 R1 H3.
+const STRIPE_API_VERSION = '2026-04-22.dahlia'
+
+// Per-call ceiling for stripe.customers.retrieve / del. 8s leaves room
+// for Vercel function-time budget while still failing fast under Stripe
+// degradation.
+const STRIPE_REQUEST_TIMEOUT_MS = 8_000
+
+// Soft cap on how many distinct Stripe customers one delete-account call
+// will touch. Realistic case is 1–2; >10 indicates row-stuffing or a
+// historical data anomaly worth flagging. Not a hard refuse — partial
+// cleanup is worse for right-to-erasure than processing all of them via
+// the bounded-timeout parallel loop below.
+const MAX_STRIPE_CUSTOMERS_WARN_THRESHOLD = 10
 
 /**
  * POST /api/customer/delete-account
@@ -109,13 +128,16 @@ export async function POST(request: NextRequest) {
     .eq('auth_user_id', user.id)
     .maybeSingle()
 
-  // ── Collect storage paths BEFORE the delete fires the scrub trigger ────
-  // The trigger nulls ticket_comments.image_path when it scrubs, so we
-  // have to read these before the cascade. customer_feedback_attachments
-  // get cascade-deleted on customer_accounts delete; we read the file
-  // paths first because the rows are gone post-cascade.
+  // ── Collect storage paths + Stripe customer IDs BEFORE the cascade ────
+  // The BEFORE DELETE trigger nulls ticket_comments.image_path when it
+  // scrubs, so we read those first. customer_feedback_attachments and
+  // customer_payment_methods CASCADE on customer_accounts delete (migration
+  // 227), so we read those rows first too. Stripe deletion happens AFTER
+  // the DB delete succeeds (#544) so a Stripe outage never blocks the
+  // customer's right-to-erasure.
   let ticketImagePaths: string[] = []
   let feedbackFilePaths: string[] = []
+  let stripeCustomerIds: string[] = []
 
   if (account) {
     // ticket-attachments — match the trigger's exact scope:
@@ -182,6 +204,20 @@ export async function POST(request: NextRequest) {
         .map((r) => r.file_path)
         .filter((p): p is string => !!p)
     }
+
+    // Stripe customer IDs — `customer_payment_methods` rows cascade-delete
+    // on `customer_accounts` delete. One auth user can hold multiple cards
+    // (and historically multiple Stripe customer records); dedupe before
+    // the API calls.
+    const { data: paymentMethodRows } = await admin
+      .from('customer_payment_methods')
+      .select('stripe_customer_id')
+      .eq('customer_account_id', account.id)
+    stripeCustomerIds = Array.from(new Set(
+      ((paymentMethodRows ?? []) as Array<{ stripe_customer_id: string | null }>)
+        .map((r) => r.stripe_customer_id)
+        .filter((id): id is string => !!id),
+    ))
   }
 
   // ── Delete customer_accounts row (BEFORE DELETE trigger scrubs PII; ───
@@ -219,12 +255,106 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // ── Stripe customer cleanup (best-effort; metadata-verified) ──────────
+  // `stripe.customers.del()` cascades server-side to attached payment
+  // methods, subscriptions, etc. — single call covers everything for one
+  // customer.
+  //
+  // R1 Critical (#544): the prior version trusted the stripe_customer_id
+  // value stored on customer_payment_methods. Migration 230 closes the
+  // INSERT side (RLS + column-level revoke + unique partial index), but
+  // we still verify metadata here as a runtime check so a stale row from
+  // before the migration — or a bug in a future writer — can't trigger a
+  // cross-tenant Stripe wipe.
+  //
+  // Each call is bounded by STRIPE_REQUEST_TIMEOUT_MS via the SDK's own
+  // timeout, run via Promise.allSettled so one slow customer doesn't
+  // block the rest, and tagged with an idempotencyKey so retries
+  // (whenever they're added) don't double-bill.
+  //
+  // No-ops cleanly when STRIPE_SECRET_KEY is not configured (preview /
+  // dev / pre-Stripe-go-live).
+  if (stripeCustomerIds.length > 0 && process.env.STRIPE_SECRET_KEY) {
+    if (stripeCustomerIds.length > MAX_STRIPE_CUSTOMERS_WARN_THRESHOLD) {
+      console.warn(
+        '[delete-account] unusual stripe-customer count for one user',
+        'count:', stripeCustomerIds.length,
+        'auth_user:', user.id,
+      )
+    }
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: STRIPE_API_VERSION,
+      timeout: STRIPE_REQUEST_TIMEOUT_MS,
+    })
+    const expectedAccountId = account?.id
+    const expectedAuthUserId = user.id
+    const results = await Promise.allSettled(
+      stripeCustomerIds.map(async (sc) => {
+        const last8 = sc.slice(-8)
+        let customer: Stripe.Customer | Stripe.DeletedCustomer
+        try {
+          customer = await stripe.customers.retrieve(sc)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          if (msg.includes('No such customer')) {
+            return { last8, status: 'already_gone' as const }
+          }
+          throw err
+        }
+        if ((customer as { deleted?: boolean }).deleted) {
+          return { last8, status: 'already_deleted' as const }
+        }
+        const meta = (customer as Stripe.Customer).metadata ?? {}
+        const claims =
+          meta.auth_user_id === expectedAuthUserId ||
+          (!!expectedAccountId && meta.customer_account_id === expectedAccountId)
+        if (!claims) {
+          // Critical defense: refuse to delete a Stripe customer whose
+          // metadata doesn't claim this user/account. Closes #544 R1
+          // Critical (cross-tenant Stripe wipe via stamped foreign ID).
+          console.error(
+            '[delete-account] refusing stripe.customers.del — metadata mismatch',
+            'sc-last8:', last8,
+          )
+          return { last8, status: 'metadata_mismatch' as const }
+        }
+        await stripe.customers.del(sc, {
+          idempotencyKey: `del-cust-${sc}-${expectedAuthUserId}`,
+        })
+        return { last8, status: 'deleted' as const }
+      }),
+    )
+    for (const r of results) {
+      if (r.status === 'rejected') {
+        console.error(
+          '[delete-account] stripe customer delete failed:',
+          r.reason instanceof Error ? r.reason.message : String(r.reason),
+        )
+      }
+    }
+  }
+
   // ── Delete auth.users row ──────────────────────────────────────────────
   const { error: deleteUserError } = await admin.auth.admin.deleteUser(user.id)
   if (deleteUserError) {
     console.error('[delete-account] auth.users delete failed:', deleteUserError.message)
     // Customer data is already gone — return success so the user isn't stuck.
-    // Any orphaned auth.users row can be cleaned up manually.
+    // Persist the partial-success state to pending_auth_deletions (migration 230)
+    // so a janitor cron can retry the auth delete instead of relying on a
+    // human reading console.error in Vercel logs.
+    const { error: pendingErr } = await admin
+      .from('pending_auth_deletions')
+      .upsert(
+        {
+          auth_user_id: user.id,
+          customer_account_id: account?.id ?? null,
+          reason: deleteUserError.message,
+        },
+        { onConflict: 'auth_user_id' },
+      )
+    if (pendingErr) {
+      console.error('[delete-account] pending_auth_deletions insert failed:', pendingErr.message)
+    }
     return NextResponse.json({
       ok: true,
       warning: 'Account data deleted; auth removal pending',

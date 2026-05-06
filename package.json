@@ -37,6 +37,7 @@
     "react-dom": "19.2.3",
     "react-leaflet": "^5.0.0",
     "resend": "^6.9.4",
+    "stripe": "^22.1.0",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
