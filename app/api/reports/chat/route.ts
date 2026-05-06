@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { escapeIlike } from '@/lib/utils'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -239,13 +241,24 @@ function getSupabase() {
 }
 
 /** Create a user-scoped Supabase client from request cookies for auth checks */
-function getUserSupabase(request: NextRequest) {
+async function getUserSupabase(_request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !key) return null
-  // Pass cookies from the request for session-based auth
-  const cookieHeader = request.headers.get('cookie') ?? ''
-  return createClient(url, key, { global: { headers: { cookie: cookieHeader } } })
+  // The basic @supabase/supabase-js createClient does NOT parse Supabase
+  // auth cookies — it expects Authorization: Bearer. Forwarding the cookie
+  // header to it as global headers is a no-op for auth.getUser(), which is
+  // why every Chat-tab call from /reports was returning 'Authentication
+  // required' even for logged-in users. Use @supabase/ssr's createServerClient
+  // (same pattern as /api/atlas/ask + /api/atlas/query) which DOES parse
+  // sb-* cookies and produces a real authed client.
+  const cookieStore = await cookies()
+  return createServerClient(url, key, {
+    cookies: {
+      getAll() { return cookieStore.getAll() },
+      setAll() {},
+    },
+  })
 }
 
 // ── Query Execution ──────────────────────────────────────────────────────────
@@ -404,7 +417,7 @@ export async function POST(request: NextRequest) {
 
   // Server-side auth check — Manager+ role required.
   // This supplements the frontend role gate (isManager check in the Reports page).
-  const userSupabase = getUserSupabase(request)
+  const userSupabase = await getUserSupabase(request)
   if (!userSupabase) {
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
   }

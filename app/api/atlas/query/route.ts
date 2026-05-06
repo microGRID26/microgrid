@@ -22,72 +22,128 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Anthropic from '@anthropic-ai/sdk'
 import { rateLimit } from '@/lib/rate-limit'
-import { validateAtlasSql } from '@/lib/atlas/sql-validator'
+import { validateAtlasSql, ALLOWED_TABLES } from '@/lib/atlas/sql-validator'
+import { checkScope } from '@/lib/atlas/scope'
 
 // Schema hints for Claude. Keep this terse — full information_schema is
 // too noisy and burns tokens. Hand-curated to match Heidi's likely
 // reporting needs.
+//
+// IMPORTANT: many MicroGRID columns that *look* numeric or date-typed are
+// actually stored as TEXT (legacy import shape). The LLM must cast before
+// aggregating or date-filtering, otherwise the query errors out at exec.
+// The cast pattern below uses NULLIF to skip empty strings safely.
 const SCHEMA_HINTS = `
 Schema (PostgreSQL, all in 'public'):
 
-projects (the central table)
+projects (the central table — 1700+ rows; ALL data columns are TEXT in storage)
   id text PRIMARY KEY (e.g. 'PROJ-30188')
   name text, email text, phone text
   address text, city text, state text, zip text
   stage text ('evaluation','survey','design','permit','install','inspection','complete')
-  stage_date date, sale_date date
-  contract numeric, systemkw numeric  (system size in kW)
-  module text, module_qty integer  (panel quantity)
-  inverter text, inverter_qty integer
-  battery text, battery_qty integer
+  stage_date text  -- ISO YYYY-MM-DD, cast: (NULLIF(stage_date,'')::date)
+  sale_date text   -- ISO YYYY-MM-DD, cast: (NULLIF(sale_date,'')::date)
+  contract text    -- dollars, cast: (NULLIF(contract,'')::numeric)
+  systemkw text    -- system size in kW, cast: (NULLIF(systemkw,'')::numeric)
+  module text, module_qty text       -- panel quantity, cast to ::int when summing
+  inverter text, inverter_qty text
+  battery text, battery_qty text
   utility text, hoa text
-  consultant text  (rep name as denormalized text)
+  consultant text       -- rep name as denormalized text. THIS is what employees mean by 'EC' / 'Energy Consultant'
   consultant_email text
-  disposition text ('Sale','Cancel','Test', etc.)
+  disposition text  ('Sale','Cancel','Test', etc.) — exclude 'Test' from reports unless asked
   subhub_id text  (SubHub project id; non-null for SubHub-sourced rows)
   org_id uuid
 
 change_orders
   id uuid, proposal_id uuid, status text, reason text
-  output_purchased_kwh_override numeric  (Heidi's admin override)
+  output_purchased_kwh_override numeric  (Heidi's admin override; truly numeric)
   production_override_reason text
   snapshot_json jsonb
-  requested_at timestamptz, resolved_at timestamptz
+  requested_at timestamptz, resolved_at timestamptz  (truly timestamptz)
 
 project_funding
-  project_id text, funded_amount numeric, funded_date date
+  project_id text, funded_amount numeric, funded_date date  (truly typed)
 
 task_state
   project_id text, task_id text, status text  ('Not Ready', 'Ready To Start', 'In Progress', 'Complete')
 
 stage_history
-  project_id text, stage text, entered timestamptz
+  project_id text, stage text, entered timestamptz  (truly typed)
 
 project_files
   project_id text, file_name text, file_url text, folder_name text
   (folder_name='SubHub' for backfilled SubHub docs)
 
-users (auth identity)
-  id uuid, email text, role text  ('admin','manager','team_leader','rep','viewer')
-
 sales_reps
-  id uuid, name text, email text
+  id uuid, name text, email text  -- use this for rep-level org-scoped queries
 
 invoices
-  id uuid, project_id text, amount numeric, status text, sent_at timestamptz
+  id uuid, project_id text, amount numeric, status text, sent_at timestamptz  (truly typed)
 
 welcome_call_logs
   id uuid, project_id text, payload jsonb, processed boolean, received_at timestamptz
 
-Common helpful filters:
-  projects.disposition <> 'Test'  -- exclude test rows
-  projects.sale_date >= current_date - interval '30 days'  -- last 30 days
-  projects.systemkw > 15  -- large systems
+Casting rules (mandatory — projects.* is text in storage):
+  When SUMming or AVGing numeric-looking text columns, ALWAYS cast with NULLIF:
+    SUM(NULLIF(systemkw,'')::numeric) -- correct
+    SUM(systemkw)                     -- WRONG, throws at exec
+  When filtering or sorting by date-looking text columns, cast with NULLIF:
+    WHERE NULLIF(sale_date,'')::date >= current_date - interval '30 days'
+    ORDER BY NULLIF(sale_date,'')::date DESC NULLS LAST
+  For integer counts:
+    SUM(NULLIF(module_qty,'')::int)
+
+Vocabulary:
+  'EC' or 'Energy Consultant' = projects.consultant (text)
+  'rep' = projects.consultant for project-level rollups; sales_reps.name when joining identity
+  'cancelled' = disposition = 'Cancel'
+
+CRITICAL: 'sold' / 'sale' / 'how many sales' is UNRESOLVED.
+  This codebase has three conflicting filter rules across surfaces, and
+  none has been verified against the NetSuite ground-truth count. Recent
+  measurement: an LLM-generated answer was off by 9-13% (166 returned
+  vs 175 actual). Until the canonical-reports catalog lands (P3), DO
+  NOT generate aggregate sales counts. If the user asks "how many sales..."
+  return the scope-refusal pattern and explain that verified sales reports
+  are coming soon. See docs/atlas/disposition-canonical.md for the open
+  question and the catalog plan.
+
+Common helpful filters (for non-sales queries):
+  projects.disposition <> 'Test'  -- exclude test rows by default
+  NULLIF(systemkw,'')::numeric > 15  -- large systems
 `.trim()
 
-const SYSTEM_PROMPT = `You are an SQL generator for a solar / energy CRM.
+const SYSTEM_PROMPT = `You are MicroGRID Atlas — a data assistant for a solar/energy CRM.
 
-Given a user's natural-language question, generate ONE SQL SELECT statement that answers it. Output ONLY a JSON object with two fields:
+SCOPE (only answer these):
+- Project data: status, stage, sale date, system size, contract value, address, customer name, EC/consultant
+- Single-project lookups: "what's the status of PROJ-30188", "show me Patricia Smith's project"
+- Install/permit/inspection workflow questions tied to project rows
+- Solar/financing/install domain terms as they apply to data in the CRM
+
+EXPLICITLY OUT OF SCOPE UNTIL CANONICAL REPORTS LAND:
+- Sales count rollups ("how many sales did X have", "how much KW sold")
+- Pipeline aggregates ("count by stage", "deals last 30 days")
+- Any aggregate where the answer's correctness depends on a "what counts as
+  active" rule. The current LLM rules disagree by 9-13% with the NetSuite
+  ground truth, and we'd rather refuse than ship a wrong number. Refuse
+  with: {"sql":"","explanation":"Sales and pipeline counts are being moved
+  to a verified-against-NetSuite reports catalog. Until then I won't generate
+  those numbers — they've been wrong by 9-13% in the past. Greg has been
+  notified of your question."}
+
+OUT OF SCOPE (always refuse — return empty sql + scope-refusal explanation):
+- Anything about the underlying database, Supabase, Postgres, schema design
+- Anything about the codebase, repos, deploys, Vercel, GitHub, branches, migrations
+- Anything about the AI tooling: Claude, Anthropic, the harness, models, prompts, MCP, hooks
+- Anything about Atlas HQ, action queues, recaps, sessions, fleet, agents
+- Employee PII, salary, internal strategy, system internals
+
+If the user asks anything out of scope, return:
+{"sql": "", "explanation": "I'm your MicroGRID assistant — I help with projects, sales, and install workflow. I can't answer questions about our infrastructure or tooling."}
+
+Given an in-scope user question, generate ONE SQL SELECT statement that answers it. Output ONLY a JSON object with two fields:
   - "sql":         a single SELECT statement (no semicolons, no comments, no CTEs)
   - "explanation": one sentence describing what the query does
 
@@ -98,19 +154,10 @@ RULES:
 4. NO INSERT, UPDATE, DELETE, DROP, ALTER, GRANT, COPY, or other DDL/DML.
 5. NO CTEs (no WITH clauses) — they will be rejected.
 6. ONLY reference these tables (no schema prefix, or use public.X):
-${[...Array.from(new Set([
-  'projects', 'change_orders', 'project_funding', 'task_state',
-  'stage_history', 'project_files', 'project_folders',
-  'project_documents', 'project_adders', 'project_materials',
-  'project_boms', 'notes', 'users', 'sales_reps', 'sales_teams',
-  'crews', 'invoices', 'invoice_line_items', 'commission_records',
-  'service_calls', 'work_orders', 'equipment', 'financiers',
-  'utilities', 'hoas', 'ahjs', 'welcome_call_logs', 'task_due_dates',
-  'task_history', 'task_reasons',
-]))].sort().map(t => '   - ' + t).join('\n')}
+${[...ALLOWED_TABLES].sort().map(t => '   - ' + t).join('\n')}
 7. Add LIMIT 1000 if no LIMIT is in the question, to keep responses bounded.
 8. Use parameter-style values inline (the tool does not bind params); cast types correctly.
-9. If the question can't be answered safely with a SELECT against the allowed tables, return: {"sql": "", "explanation": "<why it can't be answered>"}.
+9. If the question is out of scope per the rules above, refuse using the scope-refusal pattern. Do NOT explain how the system works.
 
 ${SCHEMA_HINTS}`.trim()
 
@@ -150,7 +197,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden — Atlas data query is for managers and above' }, { status: 403 })
   }
 
-  // Rate limit
+  // Lookup org for the rate-limit key (R2 fix: don't use email domain).
+  // org_memberships is the source of truth; pick the first (deterministic
+  // ordering) — for single-tenant orgs this is just the one membership.
+  const { data: memb } = await supabase
+    .from('org_memberships')
+    .select('org_id')
+    .eq('user_id', authUser.id)
+    .order('org_id', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  const orgId = (memb as { org_id?: string } | null)?.org_id ?? `solo:${authUser.id}`
+
+  // Rate limit (per-user) + org-wide cap (R1 audit M1, 2026-05-06).
   const { success: minuteOk } = await rateLimit(`atlas-query:${authUser.id}`, { max: 10, prefix: 'atlas-query' })
   if (!minuteOk) {
     return NextResponse.json({ error: 'Rate limit: 10 queries per minute' }, { status: 429 })
@@ -165,6 +224,17 @@ export async function POST(request: NextRequest) {
   if (!dailyOk) {
     return NextResponse.json({ error: 'Daily limit: 25 queries per day' }, { status: 429 })
   }
+  // R1 audit M1 (2026-05-06): org-wide cap defends against multi-account
+  // collusion (one attacker with N manager accounts gets N×25/day if we
+  // only key off authUser.id). Cap is 100/day per org.
+  // R2 fix: key on users.org_id, not email domain. Email-domain keying
+  // collides for orgs that use shared providers (e.g. @gmail.com).
+  const { success: orgOk } = await rateLimit(`atlas-query-org:${orgId}`, {
+    max: 100, windowMs: 86_400_000, prefix: 'atlas-query-org',
+  })
+  if (!orgOk) {
+    return NextResponse.json({ error: 'Org-wide daily limit reached (100/day)' }, { status: 429 })
+  }
 
   // Body
   let body: { question?: unknown; page_path?: unknown }
@@ -176,6 +246,19 @@ export async function POST(request: NextRequest) {
   }
   if (question.length > 2000) {
     return NextResponse.json({ error: 'Question too long (max 2000 chars)' }, { status: 400 })
+  }
+
+  // Scope guard: same scope as /api/atlas/ask. In-app Atlas refuses
+  // engineering / infra / AI-tooling questions before the LLM hop.
+  // Belt + suspenders: SYSTEM_PROMPT also refuses, but pre-LLM refusal
+  // saves tokens and protects against creative jailbreaks.
+  const scope = checkScope(question)
+  if (!scope.inScope) {
+    return NextResponse.json({
+      ok: false,
+      explanation: scope.refusal,
+      reason: scope.refusal,
+    })
   }
 
   // Anthropic
@@ -220,15 +303,18 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  // Validator (defense in depth — RPC enforces too)
+  // Validator (defense in depth — RPC enforces too).
+  // R1 audit M2 (2026-05-06): do NOT echo the rejected SQL back to the
+  // client — that gives a prompt-injection attacker an iterative
+  // feedback channel ("here's what your bypass produced, refine it").
+  // The full SQL stays in atlas_query_log + console.error for ops.
   const validation = validateAtlasSql(sql)
   if (!validation.ok) {
-    console.error(`[atlas/query] validator rejected for user=${authUser.email}: ${validation.reason}`)
+    console.error(`[atlas/query] validator rejected for user=${authUser.email}: ${validation.reason} | sql=${sql.slice(0, 200)}`)
     return NextResponse.json({
       ok: false,
       explanation,
       reason: validation.reason,
-      sql,  // returned so the user sees what was rejected
     }, { status: 400 })
   }
 
@@ -259,11 +345,11 @@ export async function POST(request: NextRequest) {
     } else if (msg.includes('query failed:')) {
       safeReason = 'Query failed during execution. Try simpler filters or column names.'
     }
+    // R1 audit M2 (2026-05-06): drop sql from RPC-rejection response too.
     return NextResponse.json({
       ok: false,
       explanation,
       reason: safeReason,
-      sql,
     }, { status: 400 })
   }
 

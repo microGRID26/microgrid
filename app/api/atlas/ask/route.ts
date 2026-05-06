@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { rateLimit } from '@/lib/rate-limit'
+import { checkScope } from '@/lib/atlas/scope'
 
 const HIGH_CONF = 0.55
 const LOW_CONF = 0.25
@@ -60,6 +61,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Question too long (max 2000 chars)' }, { status: 400 })
   }
 
+  // Scope guard: in-app Atlas is project + sales + workflow + domain only.
+  // Engineering / infra / AI-tooling questions get a flat refusal here, before
+  // any KB retrieval, so creative phrasings can't slip past via embeddings.
+  const scope = checkScope(question)
+  if (!scope.inScope) {
+    return NextResponse.json({
+      id: null,
+      answer: scope.refusal,
+      citations: [],
+      confidence: 'high' as const,
+      escalation_suggested: false,
+    })
+  }
+
   const { data: profile } = await supabase
     .from('users')
     .select('role')
@@ -84,10 +99,7 @@ export async function POST(request: NextRequest) {
   const confidence: 'high' | 'medium' | 'low' =
     topSim >= HIGH_CONF ? 'high' : topSim >= LOW_CONF ? 'medium' : 'low'
 
-  const answer =
-    top && confidence !== 'low'
-      ? top.answer_md
-      : null
+  const answer = top && confidence !== 'low' ? top.answer_md : null
 
   const citations = hits.slice(0, 3).map((h) => ({
     id: h.id,
@@ -96,6 +108,16 @@ export async function POST(request: NextRequest) {
     source_of_truth: h.source_of_truth,
     similarity: Number(h.similarity.toFixed(3)),
   }))
+
+  // No data fallthrough on the widget — by design. The widget only answers
+  // from the KB. Data questions (sales counts, pipeline rollups, etc.) are
+  // handled by /reports, where the canonical-reports catalog will land in
+  // P3. Until then, the widget low-confidence path escalates to greg_actions.
+  // Reason: an LLM-generated SQL answer was off by 9-13% on a recent
+  // verification (166 vs 175 sales), and one wrong number erodes more trust
+  // than 100 honest "I don't know" responses.
+  // See ~/.claude/plans/twinkly-jumping-thimble.md for the canonical-catalog
+  // architecture that replaces ad-hoc SQL.
 
   const { data: logged, error: logError } = await supabase
     .from('atlas_questions')
