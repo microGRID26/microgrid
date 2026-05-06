@@ -101,7 +101,7 @@ describe('EDGE webhook — SUPABASE_SECRET_KEY missing', () => {
     const { POST } = await import('@/app/api/webhooks/edge/route')
 
     // The throw propagates because the route doesn't wrap supabase() in try/catch
-    await expect(POST(req as any)).rejects.toThrow('SUPABASE_SECRET_KEY not configured')
+    await expect(POST(req as any)).rejects.toThrow(/SUPABASE_SECRET_KEY.*not configured/)
   })
 })
 

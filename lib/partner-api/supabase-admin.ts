@@ -9,7 +9,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_SECRET = process.env.SUPABASE_SECRET_KEY?.trim()
+const SUPABASE_SECRET = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)?.trim()
 
 let cached: SupabaseClient | null = null
 
@@ -17,7 +17,7 @@ let cached: SupabaseClient | null = null
 export function partnerApiAdmin(): SupabaseClient {
   if (cached) return cached
   if (!SUPABASE_URL) throw new Error('[partner-api] NEXT_PUBLIC_SUPABASE_URL not configured')
-  if (!SUPABASE_SECRET) throw new Error('[partner-api] SUPABASE_SECRET_KEY not configured')
+  if (!SUPABASE_SECRET) throw new Error('[partner-api] SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY) not configured')
   cached = createClient(SUPABASE_URL, SUPABASE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   })

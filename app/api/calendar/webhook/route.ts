@@ -5,10 +5,10 @@ import { listCalendarEvents } from '@/lib/google-calendar'
 import { rateLimit } from '@/lib/rate-limit'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SECRET_KEY?.trim()
+const supabaseKey = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)?.trim()
 
 function getServiceClient() {
-  if (!supabaseKey) throw new Error('SUPABASE_SECRET_KEY is required for calendar webhook')
+  if (!supabaseKey) throw new Error('SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY) is required for calendar webhook')
   return createClient(supabaseUrl, supabaseKey)
 }
 
