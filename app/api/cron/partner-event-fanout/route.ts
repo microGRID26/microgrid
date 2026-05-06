@@ -9,6 +9,10 @@ import { runFanout } from '@/lib/partner-api/events/fanout'
 import { reportFleetRun } from '@/lib/hq-fleet'
 
 export const runtime = 'nodejs'
+// Vercel default is 10s. Partner fanout posts to N partners with 10s
+// timeout each — easily blows the default. 60s gives headroom and stops
+// mid-fanout kills that double-send on Vercel retry. Audit 2026-05 H2.
+export const maxDuration = 60
 
 const FLEET_SLUG = 'mg-partner-event-fanout'
 

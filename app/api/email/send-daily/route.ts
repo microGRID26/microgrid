@@ -6,6 +6,9 @@ import { getTemplate, getMaxDay } from '@/lib/email-templates'
 import { rateLimit } from '@/lib/rate-limit'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
 
+// Daily onboarding email scan + per-recipient send. Audit 2026-05 H2.
+export const maxDuration = 60
+
 // Supabase admin client for server-side cron (no user auth)
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL

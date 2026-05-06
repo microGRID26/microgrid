@@ -8,6 +8,10 @@ import { timingSafeEqual } from 'crypto'
 import { getQaAdmin, QA_RUN_ABANDON_AFTER_HOURS } from '@/lib/qa/server'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
 
+export const runtime = 'nodejs'
+// Audit 2026-05 H2 + L2.
+export const maxDuration = 60
+
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET?.trim()
   if (!cronSecret) return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })

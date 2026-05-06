@@ -6,6 +6,10 @@ import { rateLimit } from '@/lib/rate-limit'
 import { SLA_THRESHOLDS, INTERNAL_DOMAINS } from '@/lib/utils'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
 
+// Digest fans out to ~200 active PMs over a portfolio scan + Resend send
+// per PM. Vercel default 10s is way too tight. Audit 2026-05 H2.
+export const maxDuration = 60
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://nova.gomicrogridenergy.com'
 
 /**

@@ -11,6 +11,8 @@ import { partnerApiAdmin } from '@/lib/partner-api/supabase-admin'
 import { reportFleetRun } from '@/lib/hq-fleet'
 
 export const runtime = 'nodejs'
+// Partition drops on a 90-day window can take a while. Audit 2026-05 H2.
+export const maxDuration = 60
 
 const FLEET_SLUG = 'mg-partner-logs-retention'
 

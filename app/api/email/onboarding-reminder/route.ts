@@ -5,6 +5,9 @@ import { sendEmail } from '@/lib/email'
 import { rateLimit } from '@/lib/rate-limit'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
 
+// Reminder scan + per-recipient send. Audit 2026-05 H2.
+export const maxDuration = 60
+
 /**
  * GET /api/email/onboarding-reminder
  *

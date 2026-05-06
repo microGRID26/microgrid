@@ -19,6 +19,9 @@ import { createClient } from '@supabase/supabase-js'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
 
 export const runtime = 'nodejs'
+// Monthly cleanup, can iterate up to 500 users with per-user RPCs.
+// Audit 2026-05 H2.
+export const maxDuration = 60
 
 /**
  * Constant-time bearer compare. sha256 both sides before timingSafeEqual so
