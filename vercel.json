@@ -28,6 +28,10 @@
     {
       "path": "/api/cron/anon-user-cleanup",
       "schedule": "0 6 1 * *"
+    },
+    {
+      "path": "/api/cron/pending-auth-deletions",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
