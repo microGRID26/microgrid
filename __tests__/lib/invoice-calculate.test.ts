@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   buildInvoiceFromRule,
   parsePercentageFromRuleName,
+  resolveRulePercentage,
   addDays,
   DEFAULT_INVOICE_CEILING_USD,
   type CalculatorContext,
@@ -92,6 +93,7 @@ const ntpRule: InvoiceRule = {
   active: true,
   rule_kind: 'milestone',
   use_project_catalog: false,
+  percentage: 0.30,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
@@ -108,6 +110,7 @@ const engineeringRule: InvoiceRule = {
   active: true,
   rule_kind: 'milestone',
   use_project_catalog: false,
+  percentage: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
@@ -124,6 +127,7 @@ const monthlyRule: InvoiceRule = {
   active: true,
   rule_kind: 'monthly',
   use_project_catalog: false,
+  percentage: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
@@ -140,6 +144,7 @@ const priceTbdRule: InvoiceRule = {
   active: false,
   rule_kind: 'milestone',
   use_project_catalog: false,
+  percentage: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
@@ -223,6 +228,7 @@ describe('buildInvoiceFromRule — percentage rules', () => {
       id: 'rule-install-50',
       name: 'EPC Services — Install (50%)',
       milestone: 'installation',
+      percentage: 0.50,
     }
     const result = buildInvoiceFromRule(ctx({ rule: installRule }))
     expect(result.ok).toBe(true)
@@ -237,6 +243,7 @@ describe('buildInvoiceFromRule — percentage rules', () => {
       id: 'rule-pto-20',
       name: 'EPC Services — PTO (20%)',
       milestone: 'pto',
+      percentage: 0.20,
     }
     const result = buildInvoiceFromRule(ctx({ rule: ptoRule }))
     expect(result.ok).toBe(true)
@@ -375,7 +382,7 @@ describe('buildInvoiceFromRule — invariants', () => {
 
   it('rounds money to cents', () => {
     // 33.33% of $100 = $33.333 → rounds to $33.33
-    const oddRule = { ...ntpRule, name: 'X (33.33%)' }
+    const oddRule = { ...ntpRule, name: 'X (33.33%)', percentage: 0.3333 }
     const result = buildInvoiceFromRule(ctx({
       rule: oddRule,
       project: { ...baseProject, contract: 100 },
@@ -383,5 +390,35 @@ describe('buildInvoiceFromRule — invariants', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.draft.subtotal).toBe(33.33)
+  })
+})
+
+describe('resolveRulePercentage (#532)', () => {
+  it('prefers rule.percentage column over name regex', () => {
+    expect(resolveRulePercentage({ name: 'EPC Services — NTP (30%)', percentage: 0.45 })).toBe(0.45)
+  })
+
+  it('falls back to name regex when percentage column is null', () => {
+    expect(resolveRulePercentage({ name: 'EPC Services — NTP (30%)', percentage: null })).toBe(0.30)
+  })
+
+  it('falls back to name regex when percentage column is NaN', () => {
+    expect(resolveRulePercentage({ name: 'EPC Services — NTP (30%)', percentage: NaN })).toBe(0.30)
+  })
+
+  it('rejects out-of-range column value, falls to name regex', () => {
+    expect(resolveRulePercentage({ name: 'NTP (30%)', percentage: 1.5 })).toBe(0.30)
+    expect(resolveRulePercentage({ name: 'NTP (30%)', percentage: 0 })).toBe(0.30)
+  })
+
+  it('returns null when neither column nor name yields a percentage', () => {
+    expect(resolveRulePercentage({ name: 'Engineering Services', percentage: null })).toBe(null)
+  })
+
+  it('rename-the-rule is now safe — column wins (regression #532)', () => {
+    // Pre-#532, dropping the "(30%)" suffix would silently break the rule.
+    // Post-#532, the column carries truth.
+    const renamed = { name: 'EPC Services NTP', percentage: 0.30 }
+    expect(resolveRulePercentage(renamed)).toBe(0.30)
   })
 })

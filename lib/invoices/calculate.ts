@@ -83,13 +83,27 @@ export type CalculatorError =
 
 const PERCENTAGE_RE = /\((\d+(?:\.\d+)?)%\)/
 
-/** Extract the NN from "EPC Services — NTP (30%)" → 0.30. Returns null if absent. */
+/** Extract the NN from "EPC Services — NTP (30%)" → 0.30. Returns null if absent.
+ *  Legacy fallback path — #532 added rule.percentage column as source-of-truth.
+ *  This regex only fires when percentage column is NULL (e.g. rule created via
+ *  direct DB insert that skipped the new column). */
 export function parsePercentageFromRuleName(name: string): number | null {
   const match = name.match(PERCENTAGE_RE)
   if (!match) return null
   const pct = Number(match[1])
   if (!Number.isFinite(pct) || pct <= 0 || pct > 100) return null
   return pct / 100
+}
+
+/** Resolve a rule's percentage. Prefers the rule.percentage column (#532
+ *  source-of-truth), falls back to parsing the rule name for legacy rules
+ *  that haven't been migrated yet. Returns null when neither yields a valid
+ *  percentage in (0, 1]. */
+export function resolveRulePercentage(rule: Pick<InvoiceRule, 'name' | 'percentage'>): number | null {
+  if (typeof rule.percentage === 'number' && Number.isFinite(rule.percentage)) {
+    if (rule.percentage > 0 && rule.percentage <= 1) return rule.percentage
+  }
+  return parsePercentageFromRuleName(rule.name)
 }
 
 /** ISO date string (YYYY-MM-DD) for today + N days. */
@@ -128,9 +142,10 @@ export function buildInvoiceFromRule(ctx: CalculatorContext): CalculatorResult {
     return { ok: false, reason: 'per_unit_not_supported' }
   }
 
-  // Detect pricing mode from rule name. Percentage mode applies to every line item
-  // (the 30/50/20 rules have exactly one line item anyway).
-  const pct = parsePercentageFromRuleName(rule.name)
+  // Detect pricing mode. Prefer rule.percentage (#532 source-of-truth column);
+  // fall back to parsing the rule name for legacy rules. Percentage mode applies
+  // to every line item (the 30/50/20 rules have exactly one line item anyway).
+  const pct = resolveRulePercentage(rule)
   const isPercentage = pct !== null
 
   if (isPercentage && (project.contract === null || project.contract <= 0)) {

@@ -31,6 +31,7 @@ function buildRule(from: string, to: string, name = 'test rule'): InvoiceRule {
     active: true,
     rule_kind: 'chain',
     use_project_catalog: false,
+    percentage: null,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   }
