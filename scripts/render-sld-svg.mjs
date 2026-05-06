@@ -26,10 +26,13 @@ const parts = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" 
 
 // Outer border
 parts.push(`<rect x="4" y="4" width="${W - 8}" height="${H - 8}" fill="white" stroke="black" stroke-width="1.5"/>`)
-// Title strip
-parts.push(`<rect x="4" y="4" width="${W - 8}" height="28" fill="#f0f0f0" stroke="black" stroke-width="1"/>`)
-parts.push(`<text x="16" y="22" font-size="11" font-weight="bold" fill="#111">ELECTRICAL SINGLE LINE DIAGRAM</text>`)
-parts.push(`<text x="${W - 16}" y="22" font-size="9" text-anchor="end" fill="#666">${spec.topology.toUpperCase()}</text>`)
+// v11+ specs render their own sheet header; v8 needs the auto-strip
+const v11Like = spec.titleBlock && spec.titleBlock.fields && spec.titleBlock.fields._layout
+if (!v11Like) {
+  parts.push(`<rect x="4" y="4" width="${W - 8}" height="28" fill="#f0f0f0" stroke="black" stroke-width="1"/>`)
+  parts.push(`<text x="16" y="22" font-size="11" font-weight="bold" fill="#111">ELECTRICAL SINGLE LINE DIAGRAM</text>`)
+  parts.push(`<text x="${W - 16}" y="22" font-size="9" text-anchor="end" fill="#666">${spec.topology.toUpperCase()}</text>`)
+}
 
 // Sections
 for (const s of spec.sections) {
