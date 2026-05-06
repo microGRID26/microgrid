@@ -23,7 +23,13 @@ function getRoleCookieSecret(): string | null {
 
 // Routes that require no authentication
 const PUBLIC_ROUTES = ['/login', '/auth', '/portal/login', '/portal/auth', '/privacy']
-const PUBLIC_PREFIXES = ['/api/webhooks/', '/api/email/send-daily', '/api/email/onboarding-reminder', '/api/email/digest', '/api/calendar/webhook', '/api/portal/chat', '/api/customer/delete-account', '/api/v1/partner/', '/_next/', '/favicon.ico']
+// /api/cron/* — Vercel cron routes. Each route runs its own CRON_SECRET
+// bearer-token check (timingSafeEqual). Listing the prefix here keeps
+// proxy.ts from 307-redirecting unauthenticated cron requests to /login.
+// Audit 2026-05 #560: 4 crons silently dead since c1653c3 (proxy.ts intro)
+// only enumerated /api/email/* — partner_event_outbox accumulated 598 stuck
+// events.
+const PUBLIC_PREFIXES = ['/api/webhooks/', '/api/cron/', '/api/email/send-daily', '/api/email/onboarding-reminder', '/api/email/digest', '/api/calendar/webhook', '/api/portal/chat', '/api/customer/delete-account', '/api/v1/partner/', '/_next/', '/favicon.ico']
 
 // Role hierarchy levels (must match lib/useCurrentUser.ts ROLE_LEVEL)
 const ROLE_LEVEL: Record<string, number> = {
