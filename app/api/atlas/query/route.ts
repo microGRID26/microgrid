@@ -24,6 +24,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { rateLimit } from '@/lib/rate-limit'
 import { validateAtlasSql, ALLOWED_TABLES } from '@/lib/atlas/sql-validator'
 import { checkScope } from '@/lib/atlas/scope'
+import { routeToCanonicalReport } from '@/lib/atlas/router'
 
 // Schema hints for Claude. Keep this terse — full information_schema is
 // too noisy and burns tokens. Hand-curated to match Heidi's likely
@@ -267,6 +268,76 @@ export async function POST(request: NextRequest) {
     console.error('[atlas/query] ANTHROPIC_API_KEY not set')
     return NextResponse.json({ error: 'AI not configured' }, { status: 500 })
   }
+
+  // Canonical-router pre-pass. If the question maps to a verified report,
+  // run that report instead of generating SQL. The router's catalog comes
+  // from atlas_router_catalog() which only returns status='verified' rows;
+  // the LLM never sees SQL, only example_questions + parameter_schema.
+  // On no-match we fall through to the legacy NL-to-SQL path (which is
+  // currently scoped to refuse aggregates).
+  //
+  // R1 audit H1 (2026-05-06) — cost note: a /api/atlas/query call that
+  // hits the router AND falls through to the legacy LLM path runs TWO
+  // Anthropic Sonnet calls per request. The 25/day-per-user cap above
+  // accounts for this 2× amplification (effective ~12 productive
+  // questions/day at full match-miss rate). If router-only budget needs
+  // to be enforced separately later, add an `atlas-router:` rate-limit
+  // bucket.
+  const routed = await routeToCanonicalReport(supabase, question, apiKey)
+  if (routed.match === 'exact' || routed.match === 'param_tweak') {
+    const { data: runResult, error: runError } = await supabase.rpc('atlas_run_canonical_report', {
+      p_report_id: routed.report_id,
+      p_params: routed.params,
+      p_question: question,
+      p_page_path: pagePath,
+    })
+    if (runError) {
+      // R1 audit M4 (2026-05-06) — surface canonical-path failures instead
+      // of silently falling through. Falling through hid regressions: a
+      // verified report that breaks (column dropped, etc.) used to render
+      // as a generic "I refuse aggregates" answer with no signal to ops.
+      // Now we 502 with a clear marker so Heidi can ping Greg and Greg
+      // sees the SQLERRM in the console log.
+      console.error(`[atlas/query] canonical run failed for ${routed.report_id}: ${runError.message}`)
+      return NextResponse.json({
+        ok: false,
+        canonical: true,
+        canonical_attempted_report_id: routed.report_id,
+        explanation: `Verified report '${routed.report_id}' attempted but failed to execute. Greg has been notified — try again in a few minutes.`,
+        reason: 'canonical_report_execution_failed',
+      }, { status: 502 })
+    } else if (runResult && typeof runResult === 'object') {
+      const r = runResult as Record<string, unknown>
+      const rows = Array.isArray(r.rows) ? (r.rows as Record<string, unknown>[]) : []
+      const resultColumns = Array.isArray(r.result_columns) ? (r.result_columns as Array<Record<string, unknown>>) : []
+      const columns = resultColumns
+        .map((c) => (typeof c.key === 'string' ? c.key : ''))
+        .filter((k) => k.length > 0)
+      const interp = routed.interpretation_note
+      const explanation = interp
+        ? `${interp}`
+        : `Verified report: ${routed.report_id}.`
+      return NextResponse.json({
+        ok: true,
+        canonical: true,
+        report_id: routed.report_id,
+        explanation,
+        rows,
+        columns,
+        count: typeof r.row_count === 'number' ? r.row_count : rows.length,
+        params: routed.params,
+        verification: {
+          verified_at: r.verified_at ?? null,
+          verified_by: r.verified_by ?? null,
+          method: r.verification_method ?? null,
+          source: r.ground_truth_source ?? null,
+          expected_row_count: r.expected_row_count ?? null,
+          drift_detected: r.drift_detected === true,
+        },
+      })
+    }
+  }
+
   const anthropic = new Anthropic({ apiKey })
 
   let plan: ClaudeQueryPlan
