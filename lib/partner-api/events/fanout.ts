@@ -1,10 +1,20 @@
 // lib/partner-api/events/fanout.ts — Drain the outbox and POST to partners.
 //
-// Called by the partner-event-fanout cron on a 1-minute schedule. For v1 the
-// delivery is inline (no retry queue): each event is POSTed to each matching
-// env-configured partner with a 10s timeout. Non-2xx responses are logged
-// but do NOT re-queue the event. Phase 4 introduces persistent retries via
-// partner_webhook_deliveries + partner-webhook-deliver cron.
+// Called by the partner-event-fanout cron on a 1-minute schedule. Each event
+// is POSTed to each matching env-configured partner with a 10s timeout.
+//
+// Retry semantics (#553, audit 2026-05 cron-fanout High 1):
+//   - On any non-2xx / timeout, fanned_out_at is NOT stamped — the row's
+//     claimed_at is set by the claim RPC, so it stays unclaimable for 5 min,
+//     then becomes re-claimable on the next stale-reclaim cycle.
+//   - delivery_attempts increments on every pass. After 5 failed passes the
+//     row is force-stamped fanned_out_at and given up (effective DLQ).
+//   - Trades: per-event retries (not per-(event, partner)). If partner A
+//     succeeded but partner B failed, the next attempt re-delivers to BOTH.
+//     Partners are required to be idempotent on event_id (signed payload).
+//
+// Phase 4 follow-up: per-(event, partner) tracking via partner_webhook_deliveries
+// (table from migration 109, currently unused — registry is env-driven).
 
 import { partnerApiAdmin } from '../supabase-admin'
 import { loadPartnerRegistry, subscriptionsForEvent, type PartnerSubscription } from './partner-registry'
@@ -84,12 +94,19 @@ export async function runFanout(nowMs: number = Date.now()): Promise<FanoutResul
       }
     }
 
-    const markErr = await client
-      .from('partner_event_outbox')
-      .update({ fanned_out_at: new Date(nowMs).toISOString() })
-      .eq('id', evt.id)
-    if (markErr?.error) {
-      result.errors.push(`[fanout] mark fanned_out failed for ${evt.id}: ${markErr.error.message}`)
+    // #553: atomically increment delivery_attempts and conditionally stamp
+    // fanned_out_at. Stamps when (a) all deliveries succeeded OR (b) attempts
+    // hit the 5-pass cap (give up). On partial failure with attempts < 5,
+    // fanned_out_at stays NULL — stale-reclaim (5 min) re-queues the row.
+    const allOk = targets.length === 0 || deliveries.every((d) => d.ok)
+    const recordErr = await client.rpc('partner_event_outbox_record_attempt', {
+      p_id: evt.id,
+      p_all_ok: allOk,
+      p_max_attempts: 5,
+      p_now: new Date(nowMs).toISOString(),
+    })
+    if (recordErr?.error) {
+      result.errors.push(`[fanout] record_attempt failed for ${evt.id}: ${recordErr.error.message}`)
     }
   }
 
