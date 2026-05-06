@@ -942,6 +942,7 @@ export interface InvoiceLineItem {
   quantity: number
   unit_price: number
   total: number
+  raw_cost: number | null
   category: string | null
   sort_order: number
   created_at: string

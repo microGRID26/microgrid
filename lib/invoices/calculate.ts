@@ -31,6 +31,11 @@ export interface InvoiceDraftLineItem {
   description: string
   quantity: number
   unit_price: number
+  /** Project-scaled raw cost basis for this line (chain rules from catalog).
+   *  null when the rule doesn't carry a cost side (Rush flat-rate, MG Sales
+   *  commission, percentage milestones — these are pure revenue from the
+   *  recorder's perspective). #527. */
+  raw_cost: number | null
   category: string | null
   sort_order: number
 }
@@ -141,6 +146,10 @@ export function buildInvoiceFromRule(ctx: CalculatorContext): CalculatorResult {
     const category = typeof raw.category === 'string' ? raw.category : null
     const ruleQty = typeof raw.quantity === 'number' ? raw.quantity : 1
     const ruleUnitPrice = typeof raw.unit_price === 'number' ? raw.unit_price : null
+    // #527: chain rules synthesized from the project catalog carry raw_cost
+    // per line. Flat-rate rules (Rush, MG Sales) and percentage milestones
+    // don't — read as null and recorder treats as 0.
+    const ruleRawCost = typeof raw.raw_cost === 'number' ? raw.raw_cost : null
 
     let quantity: number
     let unit_price: number
@@ -166,6 +175,7 @@ export function buildInvoiceFromRule(ctx: CalculatorContext): CalculatorResult {
       description,
       quantity,
       unit_price,
+      raw_cost: ruleRawCost,
       category,
       sort_order: i,
     })

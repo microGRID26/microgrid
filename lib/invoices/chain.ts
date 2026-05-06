@@ -238,7 +238,7 @@ export function buildChainLineItemsFromCatalog(
   catalog: ProjectCostLineItem[],
   fromOrgType: string,
   toOrgType: string,
-): Array<{ description: string; quantity: number; unit_price: number; category: string | null }> {
+): Array<{ description: string; quantity: number; unit_price: number; raw_cost: number; category: string | null }> {
   const priceField = pickChainPriceField(fromOrgType, toOrgType)
   if (priceField === null) return []
   const includeEpcInternal = fromOrgType === 'epc' && toOrgType === 'platform'
@@ -251,6 +251,11 @@ export function buildChainLineItemsFromCatalog(
       // project_cost_line_items is NUMERIC in Postgres → may arrive as string
       // through PostgREST; coerce defensively. Session 47 taught us this bites.
       unit_price: Number(li[priceField]),
+      // #527: project-scaled raw cost basis (always present on catalog rows
+      // since Session 47 backfill). Carried through invoice_line_items so
+      // profit-transfer.ts can read project-scaled values, not the static
+      // rule.line_items JSONB.
+      raw_cost: Number(li.raw_cost),
       category: li.section ?? null,
     }))
 }
@@ -500,6 +505,9 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
       quantity: li.quantity,
       unit_price: li.unit_price,
       total: li.quantity * li.unit_price,
+      // #527: persist project-scaled raw_cost so profit-transfer reads from
+      // the per-invoice line items, not the static rule.line_items JSONB.
+      raw_cost: li.raw_cost,
       category: li.category,
       sort_order: li.sort_order,
     }))

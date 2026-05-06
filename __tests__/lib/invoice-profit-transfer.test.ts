@@ -25,43 +25,34 @@ describe('computeProfit', () => {
     expect(result).toEqual({ raw_cost: 0, revenue: 0, profit_amount: 0 })
   })
 
-  it('treats revenue as profit when no raw_cost lookup is provided', () => {
+  it('treats NULL raw_cost on a line as 0 (pure markup/fee)', () => {
     const result = computeProfit([
-      { description: 'Battery Modules', quantity: 1, unit_price: 49684.88, total: 49684.88 },
+      { description: 'Battery Modules', quantity: 1, unit_price: 49684.88, total: 49684.88, raw_cost: null },
     ])
     expect(result.revenue).toBe(49684.88)
     expect(result.raw_cost).toBe(0)
     expect(result.profit_amount).toBe(49684.88)
   })
 
-  it('subtracts raw_cost from revenue when lookup matches by description', () => {
-    // Proforma sample: Battery Modules raw 22471.68 → distro 49437.70 (× 2.2) → epc 49684.88 (× 1.005)
-    // For DSE → NewCo, the invoice line shows the distro_price as `total` (no 0.5% markup)
-    // and the rule.line_items embeds raw_cost = 22471.68 for the lookup
-    const result = computeProfit(
-      [
-        { description: 'Battery Modules', quantity: 1, unit_price: 49437.70, total: 49437.70 },
-        { description: 'PV Modules', quantity: 1, unit_price: 24600.00, total: 24600.00 },
-      ],
-      {
-        'Battery Modules': 22471.68,
-        'PV Modules': 4920.00,
-      },
-    )
+  it('subtracts each line item raw_cost from its revenue (#527: per-row, not lookup)', () => {
+    // Proforma sample: Battery Modules raw 22471.68 → distro 49437.70 (× 2.2) → epc 49684.88 (× 1.005).
+    // For DSE → NewCo, the invoice line shows distro_price as `total` and carries
+    // its own project-scaled raw_cost (post-#527, migration 221).
+    const result = computeProfit([
+      { description: 'Battery Modules', quantity: 1, unit_price: 49437.70, total: 49437.70, raw_cost: 22471.68 },
+      { description: 'PV Modules', quantity: 1, unit_price: 24600.00, total: 24600.00, raw_cost: 4920.00 },
+    ])
     expect(result.raw_cost).toBe(27391.68) // 22471.68 + 4920
     expect(result.revenue).toBe(74037.7) // 49437.70 + 24600
     expect(result.profit_amount).toBe(46646.02) // 74037.70 - 27391.68
   })
 
-  it('handles missing description in the raw_cost lookup as $0 raw cost', () => {
-    const result = computeProfit(
-      [
-        { description: 'Known Item', quantity: 1, unit_price: 1000, total: 1000 },
-        { description: 'Unknown Item', quantity: 1, unit_price: 500, total: 500 },
-      ],
-      { 'Known Item': 400 },
-    )
-    expect(result.raw_cost).toBe(400) // only Known Item has a lookup
+  it('treats per-line null raw_cost as $0 alongside priced lines', () => {
+    const result = computeProfit([
+      { description: 'Known Item', quantity: 1, unit_price: 1000, total: 1000, raw_cost: 400 },
+      { description: 'Unknown Item', quantity: 1, unit_price: 500, total: 500, raw_cost: null },
+    ])
+    expect(result.raw_cost).toBe(400)
     expect(result.revenue).toBe(1500)
     expect(result.profit_amount).toBe(1100)
   })
@@ -69,29 +60,53 @@ describe('computeProfit', () => {
   it('handles string-typed numeric inputs from the database', () => {
     // Postgres NUMERIC fields can come back as strings via PostgREST.
     // Same defensive pattern as the cost calculator.
-    const result = computeProfit(
-      [
-        { description: 'Item', quantity: 1, unit_price: '100' as unknown as number, total: '100' as unknown as number },
-      ],
-      { 'Item': 60 },
-    )
+    const result = computeProfit([
+      {
+        description: 'Item',
+        quantity: 1,
+        unit_price: '100' as unknown as number,
+        total: '100' as unknown as number,
+        raw_cost: '60' as unknown as number,
+      },
+    ])
     expect(result.revenue).toBe(100)
     expect(result.raw_cost).toBe(60)
     expect(result.profit_amount).toBe(40)
   })
 
   it('rounds to cents to avoid floating-point drift', () => {
-    const result = computeProfit(
-      [
-        { description: 'Item A', quantity: 1, unit_price: 33.333, total: 33.333 },
-        { description: 'Item B', quantity: 1, unit_price: 33.333, total: 33.333 },
-        { description: 'Item C', quantity: 1, unit_price: 33.333, total: 33.333 },
-      ],
-      { 'Item A': 10, 'Item B': 10, 'Item C': 10 },
-    )
+    const result = computeProfit([
+      { description: 'Item A', quantity: 1, unit_price: 33.333, total: 33.333, raw_cost: 10 },
+      { description: 'Item B', quantity: 1, unit_price: 33.333, total: 33.333, raw_cost: 10 },
+      { description: 'Item C', quantity: 1, unit_price: 33.333, total: 33.333, raw_cost: 10 },
+    ])
     expect(result.revenue).toBe(100) // 99.999 rounds to 100
     expect(result.raw_cost).toBe(30)
     expect(result.profit_amount).toBe(70)
+  })
+
+  it('uses each line item project-scaled raw_cost (regression for #527)', () => {
+    // Pre-#527: raw_cost was looked up by description from a STATIC rule.line_items
+    // JSONB pre-scaled to default 80 kWh / 16 batteries. A 5-battery project's
+    // distro_price scaled to 5× but raw_cost still pulled the 16-battery default
+    // → profit went negative ~$25k → SPE2 short ~$25k. Now: raw_cost rides on
+    // each invoice_line_items row at project-scaled value, so 5 batteries gives
+    // 5/16 of the default raw_cost too.
+    const fiveBatteryDistroPrice = (49437.70 / 16) * 5 // 15449.28125 → 15449.28
+    const fiveBatteryRawCost = (22471.68 / 16) * 5 // 7022.4
+    const result = computeProfit([
+      {
+        description: 'Battery Modules',
+        quantity: 1,
+        unit_price: fiveBatteryDistroPrice,
+        total: fiveBatteryDistroPrice,
+        raw_cost: fiveBatteryRawCost,
+      },
+    ])
+    expect(result.raw_cost).toBe(7022.4)
+    expect(Math.abs(result.profit_amount - (fiveBatteryDistroPrice - fiveBatteryRawCost))).toBeLessThan(0.01)
+    // Profit must NEVER be negative on a downscaled project (the pre-fix bug).
+    expect(result.profit_amount).toBeGreaterThan(0)
   })
 })
 
