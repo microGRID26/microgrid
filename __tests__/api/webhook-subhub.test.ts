@@ -345,6 +345,34 @@ describe('POST /api/webhooks/subhub — project creation', () => {
     expect(json.error).toBe('Internal server error')
   })
 
+  it('returns duplicate (200) when concurrent INSERT loses to unique constraint (R464)', async () => {
+    // Two webhook deliveries with same subhub_id race past the SELECT; only
+    // one wins the INSERT — the loser hits unique partial index from
+    // migration 119 (code 23505). Should re-query and return as clean
+    // duplicate, not 500.
+    let callCount = 0
+    mockDb.from.mockImplementation(() => {
+      callCount++
+      if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup (race window: empty)
+      if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
+      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30000' }], error: null }) // getNextProjectId
+      if (callCount === 4) return mockChain({ data: null, error: { code: '23505', message: 'duplicate key' } }) // INSERT loser
+      if (callCount === 5) return mockChain({ data: [{ id: 'PROJ-30001' }], error: null }) // re-query after race-loss
+      return mockChain({ data: null, error: null })
+    })
+
+    const req = makeRequest(
+      { subhub_id: 'SH-RACE', name: 'Race Test', street: '111 Concurrent Ln' },
+      { Authorization: 'Bearer webhook-secret-123' }
+    )
+    const { POST } = await import('@/app/api/webhooks/subhub/route')
+    const res = await POST(req as any)
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.duplicate).toBe(true)
+    expect(json.project_id).toBe('PROJ-30001')
+  })
+
   it('imports adders when present in payload', async () => {
     let callCount = 0
     const insertedTables: string[] = []

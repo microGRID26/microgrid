@@ -227,6 +227,28 @@ export async function processSubhubProject(
 
     const { error: projErr } = await db.from('projects').insert(project)
     if (projErr) {
+      // R464: race-loser path. Two webhook deliveries with the same subhub_id
+      // can both pass the SELECT above; only one wins the INSERT — the other
+      // hits the unique partial index on projects.subhub_id (migration 119)
+      // and returns error.code = 23505. Re-query and return the winner's row
+      // as a clean duplicate so SubHub's retry doesn't see a 500. Side
+      // effects (task_state, stage_history, Drive folder, edge sync) come
+      // AFTER this point, so they never amplified on the loser path.
+      if ((projErr as { code?: string }).code === '23505' && payload.subhub_id != null) {
+        const { data: winner } = await db
+          .from('projects')
+          .select('id')
+          .eq('subhub_id', payload.subhub_id)
+          .limit(1)
+        if (winner && winner.length > 0) {
+          return {
+            success: true,
+            project_id: winner[0].id as string,
+            duplicate: true,
+            matched_by: 'subhub_id',
+          }
+        }
+      }
       return { success: false, error: `project insert failed: ${projErr.message}` }
     }
 
