@@ -36,6 +36,10 @@
     {
       "path": "/api/cron/subhub-ingest-health",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/atlas-canonical-drift-check",
+      "schedule": "0 11 * * *"
     }
   ]
 }
