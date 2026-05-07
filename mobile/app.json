@@ -55,6 +55,12 @@
       "supabaseUrl": "https://hzymsezqfxzpbcqryeim.supabase.co",
       "supabaseAnonKey": "sb_publishable_9yPXBcL2QGdKrYgHHWUKfg_kBKznGQT",
       "apiBaseUrl": "https://app.gomicrogridenergy.com"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0d5246ca-5473-4fdd-9821-dc23285ad5d5"
     }
   }
 }
