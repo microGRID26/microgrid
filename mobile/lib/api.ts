@@ -186,41 +186,21 @@ export async function uploadTicketPhoto(uri: string, ticketId: string, overrideM
 }
 
 // ── Documents ──────────────────────────────────────────────────────────────
+// project_files real columns: folder_name, mime_type. CustomerDocument type
+// uses category/file_type — alias at the SELECT layer rather than rename the
+// type and break every consumer. Customer visibility is gated by the
+// `customer_project_files_read` RLS policy with a folder allowlist.
 
 export async function loadDocuments(projectId: string): Promise<CustomerDocument[]> {
-  // Try project_files first (primary table)
-  const { data: files, error: filesErr } = await supabase
+  const { data, error } = await supabase
     .from('project_files')
-    .select('id, project_id, file_name, file_type, file_url, category, created_at')
+    .select('id, project_id, file_name, file_type:mime_type, file_url, category:folder_name, created_at')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
     .limit(200)
 
-  if (filesErr) console.error('[loadDocuments:project_files]', filesErr.message)
-
-  // Also try project_documents table if it exists
-  const { data: docs, error: docsErr } = await supabase
-    .from('project_documents')
-    .select('id, project_id, file_name, file_type, file_url, category, created_at')
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: false })
-    .limit(200)
-
-  if (docsErr && !docsErr.message.includes('does not exist')) {
-    console.error('[loadDocuments:project_documents]', docsErr.message)
-  }
-
-  // Merge and deduplicate by id
-  const all = [...(files ?? []), ...(docs ?? [])]
-  const seen = new Set<string>()
-  const unique: CustomerDocument[] = []
-  for (const doc of all) {
-    if (!seen.has(doc.id)) {
-      seen.add(doc.id)
-      unique.push(doc as CustomerDocument)
-    }
-  }
-  return unique
+  if (error) console.error('[loadDocuments]', error.message)
+  return (data ?? []) as unknown as CustomerDocument[]
 }
 
 // ── Task States ────────────────────────────────────────────────────────────
