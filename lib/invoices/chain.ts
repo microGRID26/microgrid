@@ -40,7 +40,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import type { ProjectCostLineItem } from '@/lib/cost/calculator'
-import { buildInvoiceFromRule, type CalculatorError } from '@/lib/invoices/calculate'
+import {
+  buildInvoiceFromRule,
+  roundMoney,
+  sumLineItemsToCents,
+  type CalculatorError,
+} from '@/lib/invoices/calculate'
 import type { InvoiceRule, OrgType, Project } from '@/types/database'
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -213,10 +218,12 @@ export function computeChainTax(
   shouldApply: boolean,
 ): number {
   if (!shouldApply) return 0
-  const taxableSubtotal = lineItems
-    .filter((li) => li.is_taxable_tpp)
-    .reduce((sum, li) => Math.round((sum + li.quantity * li.unit_price) * 100) / 100, 0)
-  return Math.round(taxableSubtotal * TX_SALES_TAX_RATE * 100) / 100
+  // #583: shared rounding contract — sumLineItemsToCents matches the per-line-
+  // round + running-sum-round pattern that buildInvoiceFromRule uses for the
+  // overall subtotal, so taxable subtotal and total subtotal can never drift
+  // by a future change to one and not the other.
+  const taxableSubtotal = sumLineItemsToCents(lineItems, (li) => li.is_taxable_tpp)
+  return roundMoney(taxableSubtotal * TX_SALES_TAX_RATE)
 }
 
 // ── Project catalog → chain line items (Phase 1.5) ──────────────────────────

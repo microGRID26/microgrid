@@ -118,8 +118,27 @@ export function addDays(base: Date, days: number): string {
   return d.toISOString().split('T')[0]
 }
 
-function roundMoney(n: number): number {
+/** Round to whole cents (2dp). Single source of truth for the invoice
+ *  rounding policy used by both `buildInvoiceFromRule` (subtotal) and
+ *  `chain.ts computeChainTax` (taxable subtotal). #583. */
+export function roundMoney(n: number): number {
   return Math.round(n * 100) / 100
+}
+
+/** Sum line-item totals using the canonical invoice rounding contract:
+ *  round each `quantity * unit_price` to 2dp, then round the running sum
+ *  to 2dp. Optional predicate filters which rows participate (e.g. only
+ *  taxable-TPP rows for sales-tax base). Callers must pass already-2dp
+ *  `unit_price` (catalog rows go through `roundMoney` upstream). #583. */
+export function sumLineItemsToCents<T extends { quantity: number; unit_price: number }>(
+  lineItems: ReadonlyArray<T>,
+  predicate?: (li: T) => boolean,
+): number {
+  return lineItems.reduce((sum, li) => {
+    if (predicate && !predicate(li)) return sum
+    const lineTotal = roundMoney(li.quantity * li.unit_price)
+    return roundMoney(sum + lineTotal)
+  }, 0)
 }
 
 // ── Main calculator ─────────────────────────────────────────────────────────
