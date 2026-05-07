@@ -248,45 +248,84 @@ export async function updateInvoiceStatus(
   }
 
   const now = new Date().toISOString()
-  const updates: Record<string, unknown> = { status }
 
+  // #613: paid transitions go through apply_paid_invoice (migration 240),
+  // a single PG TX that atomically locks the invoice, claims funding_deductions
+  // FIFO via FOR UPDATE SKIP LOCKED, and writes paid_amount/paid_at/payment_*.
+  // If the TX fails (TOCTOU lost, invoice not found, etc.), Postgres rolls
+  // everything back — no orphaned 'applied' deductions can survive caller
+  // process death (the failure mode of the prior two-step design).
+  if (status === 'paid') {
+    const { data: rpc, error: rpcErr } = await supabase
+      .rpc('apply_paid_invoice', {
+        p_invoice_id: invoiceId,
+        p_current_status: currentStatus,
+        p_paid_at: now,
+        p_payment_method: details?.payment_method ?? null,
+        p_payment_reference: details?.payment_reference ?? null,
+        p_explicit_paid_amount: details?.paid_amount ?? null,
+      })
+      .single()
+
+    if (rpcErr) {
+      // 40001 = serialization_failure → TOCTOU lost (invoice transitioned
+      // out from under us). P0002 = invoice_not_found. Anything else is a
+      // real error — surface it but don't write anything.
+      const code = (rpcErr as { code?: string }).code
+      if (code === '40001') {
+        console.warn(
+          `[updateInvoiceStatus] race lost: invoice ${invoiceId} status changed during paid transition`,
+        )
+      } else if (code === 'P0002') {
+        console.error(`[updateInvoiceStatus] invoice ${invoiceId} not found`)
+      } else {
+        console.error('[updateInvoiceStatus] apply_paid_invoice RPC failed:', rpcErr.message)
+      }
+      return null
+    }
+    if (!rpc) return null
+
+    const r = rpc as {
+      invoice: Invoice
+      applied_ids: string[] | null
+      total_deducted: number | string
+      net_amount: number | string
+      gross_amount: number | string
+    }
+    if (r.applied_ids && r.applied_ids.length > 0) {
+      console.log(
+        '[funding-deductions] netted',
+        Number(r.total_deducted),
+        'from invoice',
+        invoiceId,
+        '→ net paid_amount:',
+        Number(r.net_amount),
+        '(applied',
+        r.applied_ids.length,
+        'deductions)',
+      )
+    }
+
+    // Phase 3.2 hook: profit transfer (fire-and-forget, idempotent).
+    void import('@/lib/invoices/profit-transfer').then(({ recordProfitTransferIfApplicable }) =>
+      recordProfitTransferIfApplicable(invoiceId).then((result) => {
+        if (result.inserted) {
+          console.log('[profit-transfer] recorded', result.transferId, 'profit:', result.calculation?.profit_amount)
+        } else if (result.reason && result.reason !== 'not_chain_invoice' && result.reason !== 'not_dse_origin') {
+          console.warn('[profit-transfer] skipped:', result.reason, result.detail)
+        }
+      }),
+    ).catch((err) => {
+      console.error('[profit-transfer] fire-and-forget failed:', err instanceof Error ? err.message : err)
+    })
+
+    return r.invoice
+  }
+
+  // Non-paid transitions: existing flow (no deductions involvement).
+  const updates: Record<string, unknown> = { status }
   if (status === 'sent') {
     updates.sent_at = now
-  }
-  // Phase 4.2 hook: before writing the paid transition, check whether this is
-  // an EPC → EDGE invoice with open funding_deductions (warranty chargebacks).
-  // If so, net them from paid_amount in this same write so the invoice records
-  // the correct disbursement amount from day one. Must be synchronous here —
-  // paid_amount is set once and not re-derived later.
-  let pendingDeductionIds: string[] = []
-  if (status === 'paid') {
-    updates.paid_at = now
-    if (details?.paid_amount !== undefined) {
-      updates.paid_amount = details.paid_amount
-    } else {
-      // Wrapped in try-catch: if credentials aren't set (test env) or the
-      // check errors, proceed with no deduction rather than failing the update.
-      try {
-        const { computeInvoiceDeductions } = await import('@/lib/invoices/funding-deductions')
-        const deductionResult = await computeInvoiceDeductions(invoiceId)
-        if (deductionResult) {
-          updates.paid_amount = deductionResult.netAmount
-          pendingDeductionIds = deductionResult.appliedDeductionIds
-          console.log(
-            '[funding-deductions] netting',
-            deductionResult.totalDeducted,
-            'from invoice',
-            invoiceId,
-            '→ net paid_amount:',
-            deductionResult.netAmount,
-          )
-        }
-      } catch (err) {
-        console.warn('[funding-deductions] pre-check skipped:', err instanceof Error ? err.message : err)
-      }
-    }
-    if (details?.payment_method) updates.payment_method = details.payment_method
-    if (details?.payment_reference) updates.payment_reference = details.payment_reference
   }
 
   // TOCTOU: gate the UPDATE on the status we read above so two concurrent
@@ -306,39 +345,6 @@ export async function updateInvoiceStatus(
   if (!data) {
     console.warn(`[updateInvoiceStatus] race lost: ${invoiceId} was not in status ${currentStatus} at write time`)
     return null
-  }
-
-  // After a successful paid transition: mark any deductions as applied.
-  // Fire-and-await (not forget) so the deduction rows update atomically with
-  // the invoice, but failures are logged rather than surfaced to the caller.
-  if (pendingDeductionIds.length > 0) {
-    const { markDeductionsApplied } = await import('@/lib/invoices/funding-deductions')
-    await markDeductionsApplied(pendingDeductionIds, invoiceId).catch((err) => {
-      console.error('[funding-deductions] markDeductionsApplied failed:', err instanceof Error ? err.message : err)
-    })
-  }
-
-  // Phase 3.2 hook: if the invoice just transitioned to 'paid' AND it's a
-  // chain invoice from DSE Corp → NewCo Distribution, fire the profit
-  // transfer recorder. Fire-and-forget — failures are logged but don't
-  // break the status update. The recorder is idempotent (unique index on
-  // triggered_by_invoice_id) so a duplicate call is safe.
-  //
-  // Dynamic import keeps this file's bundle small for non-paid transitions
-  // and avoids a hard dependency cycle if profit-transfer.ts ever imports
-  // from this file.
-  if (status === 'paid') {
-    void import('@/lib/invoices/profit-transfer').then(({ recordProfitTransferIfApplicable }) =>
-      recordProfitTransferIfApplicable(invoiceId).then((result) => {
-        if (result.inserted) {
-          console.log('[profit-transfer] recorded', result.transferId, 'profit:', result.calculation?.profit_amount)
-        } else if (result.reason && result.reason !== 'not_chain_invoice' && result.reason !== 'not_dse_origin') {
-          console.warn('[profit-transfer] skipped:', result.reason, result.detail)
-        }
-      }),
-    ).catch((err) => {
-      console.error('[profit-transfer] fire-and-forget failed:', err instanceof Error ? err.message : err)
-    })
   }
 
   return data as Invoice
