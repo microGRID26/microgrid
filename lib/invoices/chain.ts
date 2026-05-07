@@ -101,6 +101,10 @@ export interface ChainTriggerResult {
   skippedExisting: Array<{ ruleId: string; ruleName: string }>
   skippedError: ChainSkippedRule[]
   dryRun: boolean
+  /** Set to the error message when the post-orchestration `clearing_runs`
+   *  audit-row insert fails. Chain invoices already persisted; this field
+   *  surfaces the audit-trail gap to callers + monitoring. #539. */
+  clearingRunInsertFailed?: string
 }
 
 // ── Service-role client ─────────────────────────────────────────────────────
@@ -644,6 +648,56 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
       // and let the chain invoices stand. The clearing run can be backfilled
       // from invoice history if needed.
       console.error('[invoice-chain] clearing_runs insert failed:', clearingErr.message)
+      // #539: surface the gap to callers + file a dedup'd P0 in greg_actions so
+      // Mark/Greg see the audit-trail break instead of relying on console scrape.
+      result.clearingRunInsertFailed = clearingErr.message
+      try {
+        const sourceSession = `clearing-runs-insert-failure:${input.projectId}`
+        const { data: existingOpen } = await admin
+          .from('greg_actions')
+          .select('id')
+          .eq('source_session', sourceSession)
+          .eq('status', 'open')
+          .limit(1)
+        if (!existingOpen || existingOpen.length === 0) {
+          await admin.from('greg_actions').insert({
+            priority: 'P0',
+            owner: 'greg',
+            title: `clearing_runs insert failed for ${input.projectId} — tax-equity audit-trail gap`,
+            body_md: [
+              '## What happened',
+              '',
+              `Chain orchestrator fired for project ${input.projectId} and persisted ${result.created.length} invoices, but the clearing_runs audit row insert failed:`,
+              '',
+              `> ${clearingErr.message}`,
+              '',
+              `total_gross: $${(Math.round(totalGross * 100) / 100).toFixed(2)}`,
+              `fired_rule_ids: ${firedRuleIds.join(', ')}`,
+              '',
+              '## Why this is P0',
+              '',
+              'Mark cited tax-equity audit substantiation in the 2026-04-13 meeting — every chain run must have a clearing_runs row. The invoices are valid; the audit trail is the gap.',
+              '',
+              '## How to close',
+              '',
+              `1. Insert a backfill row into clearing_runs for project ${input.projectId} matching the persisted invoices (mode='gross_substantiation', total_gross above, status='recorded', notes='Backfill for failed insert').`,
+              '2. Investigate why the live insert failed (RLS regression? column drift? service-role token expiry?).',
+              '3. Close this row when both backfill + RCA are complete.',
+              '',
+              '## Source',
+              '',
+              'Filed automatically by `lib/invoices/chain.ts` on clearing_runs insert failure (#539).',
+            ].join('\n'),
+            source_session: sourceSession,
+            effort_estimate: 'small',
+            status: 'open',
+          })
+        }
+      } catch (filerErr) {
+        // Best-effort — if greg_actions itself is broken we can't recover
+        // here. The console.error above is the floor.
+        console.error('[invoice-chain] greg_actions file failed:', (filerErr as Error).message)
+      }
     }
   }
 
