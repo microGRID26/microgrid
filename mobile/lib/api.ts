@@ -1,8 +1,9 @@
-// Mobile API layer — talks directly to Supabase (except Atlas chat which uses Vercel API)
+// Mobile API layer — talks directly to Supabase (except account deletion which uses Vercel API)
 
 import { supabase } from './supabase'
 import Constants from 'expo-constants'
-import type { CustomerAccount, CustomerProject, StageHistoryEntry, CustomerScheduleEntry, CustomerTicket, TicketComment, CustomerDocument, CustomerTaskState, EnergyStats, CustomerReferral, CustomerWarranty, BillingStatement, PaymentMethod, PaymentRecord, CustomerMessage } from './types'
+import type { CustomerAccount, CustomerProject, StageHistoryEntry, CustomerScheduleEntry, CustomerTicket, TicketComment, CustomerDocument, CustomerTaskState, EnergyStats, CustomerReferral, CustomerWarranty, BillingStatement, PaymentMethod, PaymentRecord, CustomerMessage, ActivityItem } from './types'
+import { STAGE_LABELS, STAGE_DESCRIPTIONS, JOB_TYPE_LABELS } from './constants'
 
 const API_BASE = Constants.expoConfig?.extra?.apiBaseUrl ?? 'https://app.gomicrogridenergy.com'
 
@@ -186,41 +187,21 @@ export async function uploadTicketPhoto(uri: string, ticketId: string, overrideM
 }
 
 // ── Documents ──────────────────────────────────────────────────────────────
+// project_files real columns: folder_name, mime_type. CustomerDocument type
+// uses category/file_type — alias at the SELECT layer rather than rename the
+// type and break every consumer. Customer visibility is gated by the
+// `customer_project_files_read` RLS policy with a folder allowlist.
 
 export async function loadDocuments(projectId: string): Promise<CustomerDocument[]> {
-  // Try project_files first (primary table)
-  const { data: files, error: filesErr } = await supabase
+  const { data, error } = await supabase
     .from('project_files')
-    .select('id, project_id, file_name, file_type, file_url, category, created_at')
+    .select('id, project_id, file_name, file_type:mime_type, file_url, category:folder_name, created_at')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
     .limit(200)
 
-  if (filesErr) console.error('[loadDocuments:project_files]', filesErr.message)
-
-  // Also try project_documents table if it exists
-  const { data: docs, error: docsErr } = await supabase
-    .from('project_documents')
-    .select('id, project_id, file_name, file_type, file_url, category, created_at')
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: false })
-    .limit(200)
-
-  if (docsErr && !docsErr.message.includes('does not exist')) {
-    console.error('[loadDocuments:project_documents]', docsErr.message)
-  }
-
-  // Merge and deduplicate by id
-  const all = [...(files ?? []), ...(docs ?? [])]
-  const seen = new Set<string>()
-  const unique: CustomerDocument[] = []
-  for (const doc of all) {
-    if (!seen.has(doc.id)) {
-      seen.add(doc.id)
-      unique.push(doc as CustomerDocument)
-    }
-  }
-  return unique
+  if (error) console.error('[loadDocuments]', error.message)
+  return (data ?? []) as unknown as CustomerDocument[]
 }
 
 // ── Task States ────────────────────────────────────────────────────────────
@@ -277,41 +258,6 @@ export async function updateNotificationPrefs(
   return true
 }
 
-// ── Atlas Chat ──────────────────────────────────────────────────────────────
-// Uses the Vercel API route (needs ANTHROPIC_API_KEY server-side)
-
-export async function sendAtlasMessage(
-  messages: { role: 'user' | 'assistant'; content: string }[]
-): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.access_token) throw new Error('Not authenticated')
-
-  const url = `${API_BASE}/api/portal/chat`
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 30000)
-  let res: Response
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ messages }),
-      signal: controller.signal,
-    })
-  } finally {
-    clearTimeout(timeout)
-  }
-
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => 'unknown')
-    console.error('[atlas] error:', res.status, errorText)
-    throw new Error(`Chat failed: ${res.status}`)
-  }
-  const data = await res.json()
-  return data.response
-}
 
 // ── Account Deletion ──────────────────────────────────────────────────────
 // Apple App Store guideline 5.1.1(v): users must be able to delete their account in-app.
@@ -469,6 +415,134 @@ export async function markMessagesRead(projectId: string): Promise<void> {
     .is('read_at', null)
 
   if (error) console.error('[markMessagesRead]', error.message)
+}
+
+// ── Project Activity Feed ──────────────────────────────────────────────────
+// Unifies stage transitions + schedule events + ticket lifecycle into one
+// chronological feed. Each source is queried in parallel, normalized to
+// ActivityItem, merged, and sorted descending by timestamp.
+//
+// Excluded sources:
+//   - project_files: customer RLS gap (action #607). Re-add once policy ships.
+//   - customer_messages: would duplicate the Messages tab; signal via tab badge.
+//
+// schedule rows have a `date` (text YYYY-MM-DD) but no row-creation timestamp,
+// so we use `date` as the activity timestamp. That matches the customer's
+// mental model — "this is when the visit is" rather than "this is when the
+// PM typed it in."
+
+const ACTIVITY_LIMIT_PER_SOURCE = 50
+const ACTIVITY_LIMIT_TOTAL = 100
+
+export async function loadProjectActivity(projectId: string): Promise<ActivityItem[]> {
+  const [stagesRes, scheduleRes, ticketsRes] = await Promise.all([
+    supabase
+      .from('stage_history')
+      .select('id, stage, entered')
+      .eq('project_id', projectId)
+      .order('entered', { ascending: false })
+      .limit(ACTIVITY_LIMIT_PER_SOURCE),
+    supabase
+      .from('schedule')
+      .select('id, job_type, date, status, arrival_window')
+      .eq('project_id', projectId)
+      .order('date', { ascending: false })
+      .limit(ACTIVITY_LIMIT_PER_SOURCE),
+    supabase
+      .from('tickets')
+      .select('id, ticket_number, title, category, status, created_at, resolved_at')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+      .limit(ACTIVITY_LIMIT_PER_SOURCE),
+  ])
+
+  if (stagesRes.error) console.error('[loadProjectActivity:stage_history]', stagesRes.error.message)
+  if (scheduleRes.error) console.error('[loadProjectActivity:schedule]', scheduleRes.error.message)
+  if (ticketsRes.error) console.error('[loadProjectActivity:tickets]', ticketsRes.error.message)
+
+  // If every source errored, surface a real failure to the caller instead of
+  // pretending the project has no activity.
+  if (stagesRes.error && scheduleRes.error && ticketsRes.error) {
+    throw new Error('activity: all sources failed')
+  }
+
+  const items: ActivityItem[] = []
+
+  for (const r of stagesRes.data ?? []) {
+    if (!r.entered) continue
+    const label = STAGE_LABELS[r.stage] ?? r.stage
+    items.push({
+      id: `stage:${r.id}`,
+      kind: 'stage',
+      ts: r.entered,
+      title: `Entered ${label}`,
+      description: STAGE_DESCRIPTIONS[r.stage] ?? null,
+      metadata: { stage: r.stage },
+    })
+  }
+
+  for (const r of scheduleRes.data ?? []) {
+    if (!r.date) continue
+    const label = JOB_TYPE_LABELS[r.job_type] ?? r.job_type
+    items.push({
+      id: `schedule:${r.id}`,
+      kind: 'schedule',
+      // schedule.date is text YYYY-MM-DD with no time component. Anchor to
+      // LOCAL noon (no `Z`) so groupByDate's local-day grouping doesn't drift
+      // across the UTC dateline for users in PT/AKDT/HST.
+      ts: `${r.date}T12:00:00`,
+      title: r.status === 'cancelled' ? `${label} cancelled` : `${label} scheduled`,
+      description: r.arrival_window ?? null,
+      metadata: {
+        job_type: r.job_type,
+        status: r.status ?? null,
+        arrival_window: r.arrival_window ?? null,
+      },
+    })
+  }
+
+  for (const r of ticketsRes.data ?? []) {
+    if (r.created_at) {
+      items.push({
+        id: `ticket_opened:${r.id}`,
+        kind: 'ticket_opened',
+        ts: r.created_at,
+        title: `Ticket opened: ${r.title ?? r.ticket_number}`,
+        description: r.ticket_number ?? null,
+        metadata: {
+          ticket_number: r.ticket_number,
+          ticket_id: r.id,
+          category: r.category,
+          status: r.status,
+        },
+      })
+    }
+    if (r.resolved_at) {
+      items.push({
+        id: `ticket_resolved:${r.id}`,
+        kind: 'ticket_resolved',
+        ts: r.resolved_at,
+        title: `Ticket resolved: ${r.title ?? r.ticket_number}`,
+        description: r.ticket_number ?? null,
+        metadata: {
+          ticket_number: r.ticket_number,
+          ticket_id: r.id,
+          category: r.category,
+          status: r.status,
+        },
+      })
+    }
+  }
+
+  // Numeric sort over parsed Date — string-comparing ISO timestamps is unsafe
+  // because Postgres timestamptz serializes with a `+00:00` offset while the
+  // synthesized schedule timestamps have no offset ('+' < 'T' lexically).
+  // Drop unparseable timestamps so a bad row (e.g. schedule.date = 'TBD')
+  // doesn't poison sort ordering.
+  return items
+    .filter((i) => !Number.isNaN(Date.parse(i.ts)))
+    .sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))
+    .slice(0, ACTIVITY_LIMIT_TOTAL)
 }
 
 // ── Referrals ────────────────────────────────────────────────────────────────

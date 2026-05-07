@@ -120,13 +120,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="chat"
-        options={{
-          title: 'Atlas',
-          tabBarIcon: ({ color, size }) => <Feather name="cpu" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="account"
         options={{
           title: 'Account',
