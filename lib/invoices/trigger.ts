@@ -18,7 +18,7 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-import { buildInvoiceFromRule, type CalculatorError } from '@/lib/invoices/calculate'
+import { buildInvoiceFromRule, DEFAULT_INVOICE_CEILING_USD, type CalculatorError } from '@/lib/invoices/calculate'
 import type { InvoiceRule, OrgType, Project } from '@/types/database'
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -193,6 +193,16 @@ export async function fireMilestoneInvoices(input: TriggerInput): Promise<Trigge
 
     const invoiceNumber = await generateInvoiceNumber(admin)
 
+    // #533: scale the safety ceiling to the project's contract value so commercial
+    // milestones (e.g. 50% of a $1.1M contract → $550k) don't trip the residential-
+    // sized $500k default. Multiplier of 2 gives milestone-with-markup headroom
+    // while still rejecting an obvious data-corruption invoice (e.g. $100k contract
+    // generating a $1M draft).
+    const projectContract = (proj as { contract?: number | null }).contract ?? 0
+    const projectAwareMaxTotal = Math.max(
+      DEFAULT_INVOICE_CEILING_USD,
+      projectContract * 2,
+    )
     const calc = buildInvoiceFromRule({
       project: proj,
       rule,
@@ -200,6 +210,7 @@ export async function fireMilestoneInvoices(input: TriggerInput): Promise<Trigge
       toOrg,
       invoiceNumber,
       now: input.now ?? new Date(),
+      maxTotal: projectAwareMaxTotal,
     })
 
     if (!calc.ok) {
