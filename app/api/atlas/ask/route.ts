@@ -45,6 +45,31 @@ function summarizeCanonicalResult(
   // Report-specific summary builders. As the catalog grows, add a case here
   // for each report so the widget answer is human-readable. The default
   // builder works for any count-style report.
+  if (reportId === 'subhub_signed_with_vwc') {
+    const ec = typeof params.ec_name === 'string' ? params.ec_name : 'this EC'
+    const since = typeof params.since_date === 'string' && params.since_date !== '1900-01-01'
+      ? ` since ${params.since_date}`
+      : ''
+    let vwcYes = 0, vwcPending = 0, inMg = 0, missingFromMg = 0
+    let totalKw = 0
+    for (const r of rows) {
+      if (r.vwc_status === 'likely_yes') vwcYes++
+      else if (r.vwc_status === 'pending') vwcPending++
+      if (r.in_mg_projects === true) inMg++
+      else missingFromMg++
+      const kw = typeof r.system_size_kw === 'number' ? r.system_size_kw
+        : typeof r.system_size_kw === 'string' && r.system_size_kw.trim() !== '' ? Number(r.system_size_kw) || 0
+        : 0
+      totalKw += kw
+    }
+    return [
+      `**${fmtNumber(count)} SubHub signed deals** for ${ec}${since}. Total system size: **${fmtKw(totalKw)} kW**.`,
+      `**VWC status:** ${fmtNumber(vwcYes)} likely complete (past welcome stage) · ${fmtNumber(vwcPending)} pending (no signal yet — SubHub doesn't fire VWC events; status inferred from stage progression).`,
+      `**MG sync coverage:** ${fmtNumber(inMg)} in MG / **${fmtNumber(missingFromMg)} missing from MG** (SubHub→MG ingest started 2026-03-14, pre-March data was never synced).`,
+      `[See the full table on /reports →](/reports)`,
+    ].join('\n\n')
+  }
+
   if (reportId === 'ec_booked_sales_since') {
     const ec = typeof params.ec_name === 'string' ? params.ec_name : 'this EC'
     const since = typeof params.since_date === 'string' && params.since_date !== '1900-01-01'
