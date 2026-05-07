@@ -215,3 +215,31 @@ export interface CustomerMessage {
   read_at: string | null
   created_at: string
 }
+
+// ── Project Activity Feed ───────────────────────────────────────────────────
+// Unified chronological feed assembled from stage_history + schedule + tickets.
+// project_files is intentionally excluded until customer RLS lands (see action #607).
+// customer_messages is intentionally excluded to avoid duplicating the Messages tab.
+
+export type ActivityKind =
+  | 'stage'           // stage transition
+  | 'schedule'        // appointment scheduled / changed
+  | 'ticket_opened'
+  | 'ticket_resolved'
+
+export interface ActivityItem {
+  id: string             // unique key — `${kind}:${source_id}` so duplicates collapse
+  kind: ActivityKind
+  ts: string             // ISO timestamp, sortable
+  title: string          // customer-facing headline
+  description: string | null
+  metadata: {
+    stage?: string
+    job_type?: string
+    status?: string | null
+    arrival_window?: string | null
+    ticket_number?: string
+    ticket_id?: string
+    category?: string
+  }
+}

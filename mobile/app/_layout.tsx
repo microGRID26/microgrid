@@ -12,7 +12,7 @@ import { FeedbackButton } from '../components/FeedbackButton'
 import { NPSPrompt } from '../components/NPSPrompt'
 import { getDueNpsMilestone, type NpsMilestone } from '../lib/feedback'
 import { registerForPushNotifications, addNotificationResponseListener } from '../lib/notifications'
-import { loadPersistentCache } from '../lib/cache'
+import { loadPersistentCache, clearCache } from '../lib/cache'
 import type { Session } from '@supabase/supabase-js'
 
 SplashScreen.preventAutoHideAsync()
@@ -43,7 +43,12 @@ export default function RootLayout() {
       setInitializing(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      // Wipe persisted PII cache on every sign-out path — manual button,
+      // token expiration, server-forced revocation, account deletion. The
+      // hardcoded clearCache calls in account.tsx only cover the manual
+      // paths; this listener catches the rest.
+      if (event === 'SIGNED_OUT') clearCache()
       setSession(s)
     })
 
@@ -144,6 +149,7 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="messages" options={{ presentation: 'card', animation: 'slide_from_right' }} />
+            <Stack.Screen name="activity" options={{ presentation: 'card', animation: 'slide_from_right' }} />
             <Stack.Screen name="notifications-settings" options={{ presentation: 'modal' }} />
             <Stack.Screen name="warranty" options={{ presentation: 'modal' }} />
             <Stack.Screen name="schedule-service" options={{ presentation: 'modal' }} />

@@ -409,12 +409,23 @@ export default function DashboardScreen() {
         borderWidth: 1, borderColor: colors.borderLight,
         ...theme.shadow.card,
       }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <TouchableOpacity
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/activity') }}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="View full project activity"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}
+        >
           <Feather name="clock" size={16} color={colors.accent} />
           <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, fontFamily: 'Inter_600SemiBold' }}>
             Timeline
           </Text>
-        </View>
+          <View style={{ flex: 1 }} />
+          <Text style={{ fontSize: 12, color: colors.accent, fontFamily: 'Inter_500Medium' }}>
+            View activity
+          </Text>
+          <Feather name="chevron-right" size={14} color={colors.accent} />
+        </TouchableOpacity>
         {milestones.every(m => !m.date) ? (
           <Text style={{ fontSize: 13, color: colors.textMuted, fontFamily: 'Inter_400Regular', textAlign: 'center', paddingVertical: 12 }}>
             Your project timeline will update as each milestone is reached.
