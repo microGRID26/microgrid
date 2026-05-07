@@ -157,8 +157,20 @@ export const DURACELL_DEFAULTS = {
   serviceEntranceConduit: '2" EMT',
   dcRunLengthFt: 100,
   acRunLengthFt: 50,
-  batteryMaxCurrentA: 62.5, // Duracell Max Hybrid inverter battery port max continuous current
-  batteryWire: '#4/0 AWG CU THWN-2',
+  // PE-verified 2026-05-07 (#349) — Duracell Power Center Max Hybrid 15 kW
+  // Setup Guide states max continuous battery DC discharge = 200A (BREAKER 200A
+  // spec, "Max A Discharge: 200A", and 56 Vdc × 200A = 11.2 kW battery-only AC
+  // continuous, consistent with the 12 kW battery-only AC spec in the brochure).
+  // Source:
+  //   https://duracellpowercenter.com/wp-content/uploads/2024/03/Max-Hybrid-15-kW-Setup-Guide.pdf
+  // The previous value 62.5A was the AC-equivalent of full 15 kW output at 240V
+  // and undersized DC conductors — caught by R1 audit 2026-04-28 P0-1.
+  batteryMaxCurrentA: 200,
+  // NEC 706.30 + 690.8: 200A × 1.25 = 250A required ampacity. 4/0 AWG CU
+  // THWN-2 @ 75°C = 230A → INSUFFICIENT. 250 kcmil CU @ 75°C = 255A meets the
+  // 250A continuous requirement and matches Duracell's 2/0–4/0 wire gauge
+  // guide for the 200A-breaker configuration in their setup guide.
+  batteryWire: '250 kcmil CU THWN-2',
   batteryConduit: '2" EMT',
   // Tag 2 — DC homerun (JBOX → PV Load Center), consolidates all string conductors
   dcHomerunWire: '#10 AWG CU THWN-2',
@@ -635,13 +647,20 @@ export function buildPlansetData(project: Project, overrides: PlansetOverrides =
   // P0-1 — Duracell battery-DC fail-closed gate. The current `batteryMaxCurrentA`
   // default is the AC-equivalent (15kW / 240V = 62.5A); the actual DC bus
   // current at 51.2V supporting 15kW is ~293A continuous. Until PE confirms the
-  // actual battery-port DC max from the manufacturer spec sheet, fail-closed
-  // on any inverter whose model name matches Duracell. Designer can override
-  // per project via the per-project overrides flag (PlansetOverrides field).
+  // actual battery-port DC max from the manufacturer spec sheet.
+  //
+  // PE-verified 2026-05-07 (#349): Duracell Max Hybrid 15 kW battery-port max
+  // continuous DC discharge = 200A per the manufacturer Setup Guide
+  // (https://duracellpowercenter.com/wp-content/uploads/2024/03/Max-Hybrid-15-kW-Setup-Guide.pdf).
+  // batteryMaxCurrentA + batteryWire defaults updated to 200A / 250 kcmil CU
+  // THWN-2. The Max Hybrid 15 kW SKU now defaults to verified=true. Other
+  // Duracell SKUs (Max Hybrid 6/8/10 kW etc.) remain fail-closed until their
+  // datasheets are PE-verified individually.
   const inverterModel = overrides.inverterModel ?? d.inverterModel
   const isDuracellInverter = /duracell/i.test(inverterModel)
+  const isMaxHybrid15kW = /duracell.*max\s*hybrid.*15\s*kw/i.test(inverterModel)
   const batteryDcSizingVerified = overrides.batteryDcSizingVerified
-    ?? !isDuracellInverter  // non-Duracell inverters default to verified (no known issue)
+    ?? (!isDuracellInverter || isMaxHybrid15kW)
 
   // Distribute strings across inverters
   const strings = overrides.strings ?? []

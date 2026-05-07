@@ -160,10 +160,25 @@ describe('evaluateExportReadiness — cut-sheet availability', () => {
 })
 
 describe('evaluateExportReadiness — Duracell battery-DC unverified (P0-1)', () => {
-  it('blocks export by default on Duracell inverter', () => {
-    // Default DURACELL_DEFAULTS.inverterModel matches /duracell/i, so this
-    // is the actual production path until PE-verified.
+  it('Max Hybrid 15kW (PE-verified 2026-05-07 via Duracell Setup Guide) passes by default', () => {
+    // #349 resolved: Duracell Setup Guide states 200A continuous battery DC
+    // discharge. batteryMaxCurrentA + batteryWire updated; default sizing
+    // verified for the Max Hybrid 15 kW SKU.
     const data = buildPlansetData(makeProject(), { strings: [] })
+    expect(data.batteryDcSizingVerified).toBe(true)
+    expect(data.batteryMaxCurrentA).toBe(200)
+    expect(data.batteryWire).toBe('250 kcmil CU THWN-2')
+    const result = evaluateExportReadiness({ data, cutSheetStatus: allCutSheetsOk() })
+    expect(result.failures.find((f) => f.rule === 'BATTERY_DC_UNVERIFIED')).toBeUndefined()
+  })
+
+  it('blocks export by default on a non-15kW Duracell SKU (fail-closed for future SKUs)', () => {
+    // The fail-closed mechanism still gates any other Duracell inverter that
+    // hasn't gone through its own PE-verification (e.g. Max Hybrid 6/8/10 kW).
+    const data = buildPlansetData(makeProject(), {
+      inverterModel: 'Duracell Power Center Max Hybrid 8kW',
+      strings: [],
+    })
     expect(data.batteryDcSizingVerified).toBe(false)
     const result = evaluateExportReadiness({ data, cutSheetStatus: allCutSheetsOk() })
     expect(result.failures.find((f) => f.rule === 'BATTERY_DC_UNVERIFIED')).toBeTruthy()
@@ -184,8 +199,11 @@ describe('evaluateExportReadiness — Duracell battery-DC unverified (P0-1)', ()
     expect(data.batteryDcSizingVerified).toBe(true)
   })
 
-  it('battery-DC failure is overridable (designer can verify against spec sheet)', () => {
-    const data = buildPlansetData(makeProject(), { strings: [] })
+  it('battery-DC failure is overridable for an un-verified Duracell SKU', () => {
+    const data = buildPlansetData(makeProject(), {
+      inverterModel: 'Duracell Power Center Max Hybrid 8kW',
+      strings: [],
+    })
     const result = evaluateExportReadiness({ data, cutSheetStatus: allCutSheetsOk() })
     const f = result.failures.find((f) => f.rule === 'BATTERY_DC_UNVERIFIED')
     expect(f?.overridable).toBe(true)
