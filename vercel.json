@@ -32,6 +32,10 @@
     {
       "path": "/api/cron/pending-auth-deletions",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/subhub-ingest-health",
+      "schedule": "0 9 * * *"
     }
   ]
 }
