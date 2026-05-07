@@ -54,6 +54,9 @@ export interface CostLineItemTemplate {
   default_paid_to_org_type: string
   is_epc_internal: boolean
   is_itc_excluded: boolean
+  /** TX sales-tax classification: true = taxable TPP, false = non-TPP service.
+   *  Read by chain.ts when computing EPC→EDGE invoice tax. #526. */
+  is_taxable_tpp: boolean
   active: boolean
 }
 
@@ -83,6 +86,8 @@ export interface ProjectCostLineItem {
   paid_to_org_id: string | null
   is_epc_internal: boolean
   is_itc_excluded: boolean
+  /** Mirrored from template at materialization. Read by chain.ts tax filter. #526. */
+  is_taxable_tpp: boolean
 }
 
 /** Project sizing inputs used to scale per_kw / per_kwh templates. */
@@ -220,6 +225,7 @@ export function buildProjectLineItem(
     paid_to_org_id: null,
     is_epc_internal: template.is_epc_internal,
     is_itc_excluded: template.is_itc_excluded,
+    is_taxable_tpp: template.is_taxable_tpp,
   }
 }
 

@@ -15,6 +15,7 @@ import {
   TX_SALES_TAX_RATE,
   CHAIN_MILESTONE,
   shouldApplySalesTax,
+  computeChainTax,
   pickChainPriceField,
   buildChainLineItemsFromCatalog,
 } from '@/lib/invoices/chain'
@@ -62,6 +63,7 @@ function buildCatalogRow(
     paid_to_org_id: null,
     is_epc_internal: false,
     is_itc_excluded: false,
+    is_taxable_tpp: true,
     ...overrides,
   }
 }
@@ -256,5 +258,83 @@ describe('buildChainLineItemsFromCatalog', () => {
       'newco_distribution',
     )
     expect(items[0].category).toBe('Major Equipment')
+  })
+})
+
+// ── #526: TX-tax filter over taxable-TPP line items ─────────────────────────
+
+describe('computeChainTax — #526 taxable-TPP filter', () => {
+  type TaxLine = { quantity: number; unit_price: number; is_taxable_tpp: boolean }
+
+  it('returns 0 when shouldApply is false (non-EPC→EDGE links)', () => {
+    const items: TaxLine[] = [
+      { quantity: 1, unit_price: 1000, is_taxable_tpp: true },
+      { quantity: 1, unit_price: 5000, is_taxable_tpp: true },
+    ]
+    expect(computeChainTax(items, false)).toBe(0)
+  })
+
+  it('returns 0 for an empty line-items array', () => {
+    expect(computeChainTax([], true)).toBe(0)
+  })
+
+  it('all-taxable: tax = 8.25% of full subtotal', () => {
+    // Pre-#526 behavior on a fully-taxable invoice — output should match the
+    // old draft.subtotal × rate exactly.
+    const items: TaxLine[] = [
+      { quantity: 1, unit_price: 100_000, is_taxable_tpp: true },
+      { quantity: 1, unit_price: 25_000, is_taxable_tpp: true },
+    ]
+    // 125,000 × 0.0825 = 10,312.50
+    expect(computeChainTax(items, true)).toBe(10_312.5)
+  })
+
+  it('all-non-taxable: tax = 0', () => {
+    const items: TaxLine[] = [
+      { quantity: 1, unit_price: 26_000, is_taxable_tpp: false }, // EPC residual
+      { quantity: 1, unit_price: 10_000, is_taxable_tpp: false }, // engineering
+    ]
+    expect(computeChainTax(items, true)).toBe(0)
+  })
+
+  it('mixed: tax only over the taxable subset (the #526 fix)', () => {
+    // Mirrors action #526 numbers: $300k subtotal with $75k of non-TPP service.
+    // Pre-fix taxed all $300k = $24,750. Post-fix taxes $225k = $18,562.50.
+    // Delta = $6,187.50 = the over-collection #526 was filed against.
+    const items: TaxLine[] = [
+      // Taxable goods + delivery fee + BOS — total $225,000
+      { quantity: 1, unit_price: 100_000, is_taxable_tpp: true },
+      { quantity: 1, unit_price: 80_000, is_taxable_tpp: true },
+      { quantity: 1, unit_price: 45_000, is_taxable_tpp: true },
+      // Non-TPP services — total $75,000 (excluded from tax basis)
+      { quantity: 1, unit_price: 26_000, is_taxable_tpp: false }, // EPC residual
+      { quantity: 1, unit_price: 10_000, is_taxable_tpp: false }, // engineering
+      { quantity: 1, unit_price: 3_500, is_taxable_tpp: false }, // inspection
+      { quantity: 1, unit_price: 15_700, is_taxable_tpp: false }, // sales commission
+      { quantity: 1, unit_price: 19_800, is_taxable_tpp: false }, // warranty
+      // Total non-taxable = 75,000
+    ]
+    // 225,000 × 0.0825 = 18,562.50
+    expect(computeChainTax(items, true)).toBe(18_562.5)
+    // Sanity: pre-fix would have been (300,000 × 0.0825) = 24,750
+    // Delta = 6,187.50 — matches the action body's stated over-collection.
+  })
+
+  it('respects quantity > 1 in the taxable subset', () => {
+    const items: TaxLine[] = [
+      { quantity: 4, unit_price: 1_000, is_taxable_tpp: true }, // 4,000 taxable
+      { quantity: 2, unit_price: 500, is_taxable_tpp: false }, // 1,000 non-tax
+    ]
+    // 4,000 × 0.0825 = 330.00
+    expect(computeChainTax(items, true)).toBe(330)
+  })
+
+  it('rounds to cents (matches existing chain.ts rounding semantics)', () => {
+    // Fractional cents in input — confirm we round per-line and final.
+    const items: TaxLine[] = [
+      { quantity: 1, unit_price: 1234.567, is_taxable_tpp: true },
+    ]
+    // Per-line rounding: 1234.57. Tax: 1234.57 × 0.0825 = 101.85202… → 101.85
+    expect(computeChainTax(items, true)).toBe(101.85)
   })
 })
