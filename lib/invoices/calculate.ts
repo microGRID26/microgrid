@@ -38,6 +38,12 @@ export interface InvoiceDraftLineItem {
   raw_cost: number | null
   category: string | null
   sort_order: number
+  /** TX sales-tax classification: true (default) = taxable TPP, false = non-TPP service.
+   *  Carried from project_cost_line_items via buildChainLineItemsFromCatalog.
+   *  Hand-authored rule.line_items (Rush, MG Sales) without this field default
+   *  to true — those rules don't get taxed anyway (shouldApplySalesTax is
+   *  EPC→EDGE only), so the default is safe. #526. */
+  is_taxable_tpp: boolean
 }
 
 export interface InvoiceDraft {
@@ -165,6 +171,10 @@ export function buildInvoiceFromRule(ctx: CalculatorContext): CalculatorResult {
     // per line. Flat-rate rules (Rush, MG Sales) and percentage milestones
     // don't — read as null and recorder treats as 0.
     const ruleRawCost = typeof raw.raw_cost === 'number' ? raw.raw_cost : null
+    // #526: TX-tax classification. Default true (taxable) when missing —
+    // hand-authored Rush / MG Sales rules don't carry this and don't get
+    // taxed anyway (shouldApplySalesTax is EPC→EDGE only).
+    const ruleIsTaxableTpp = typeof raw.is_taxable_tpp === 'boolean' ? raw.is_taxable_tpp : true
 
     let quantity: number
     let unit_price: number
@@ -193,6 +203,7 @@ export function buildInvoiceFromRule(ctx: CalculatorContext): CalculatorResult {
       raw_cost: ruleRawCost,
       category,
       sort_order: i,
+      is_taxable_tpp: ruleIsTaxableTpp,
     })
   }
 

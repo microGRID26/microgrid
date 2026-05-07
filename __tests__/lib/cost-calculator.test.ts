@@ -45,6 +45,7 @@ function tpl(overrides: Partial<CostLineItemTemplate>): CostLineItemTemplate {
     default_paid_to_org_type: 'epc',
     is_epc_internal: false,
     is_itc_excluded: false,
+    is_taxable_tpp: true,
     active: true,
     ...overrides,
   }

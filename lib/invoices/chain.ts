@@ -197,6 +197,28 @@ export function shouldApplySalesTax(rule: InvoiceRule): boolean {
   return rule.from_org_type === 'epc' && rule.to_org_type === 'platform'
 }
 
+/**
+ * Compute the TX sales-tax amount over the taxable-TPP subset of line items.
+ * Returns 0 when shouldApply is false (non-EPC→EDGE links). Pure function;
+ * the chain orchestrator decides whether to apply via shouldApplySalesTax.
+ *
+ * #526. Previously the orchestrator taxed draft.subtotal, which over-collected
+ * ~$6,188/project on the typical EPC→EDGE invoice (~8.25% × ~$75k of non-TPP
+ * service rows: engineering, inspection, sales commission, warranty, EPC
+ * residual). Conservative default: rows without an explicit is_taxable_tpp
+ * flag are treated as taxable (handles legacy hand-authored rules).
+ */
+export function computeChainTax(
+  lineItems: ReadonlyArray<{ quantity: number; unit_price: number; is_taxable_tpp: boolean }>,
+  shouldApply: boolean,
+): number {
+  if (!shouldApply) return 0
+  const taxableSubtotal = lineItems
+    .filter((li) => li.is_taxable_tpp)
+    .reduce((sum, li) => Math.round((sum + li.quantity * li.unit_price) * 100) / 100, 0)
+  return Math.round(taxableSubtotal * TX_SALES_TAX_RATE * 100) / 100
+}
+
 // ── Project catalog → chain line items (Phase 1.5) ──────────────────────────
 
 /**
@@ -238,7 +260,14 @@ export function buildChainLineItemsFromCatalog(
   catalog: ProjectCostLineItem[],
   fromOrgType: string,
   toOrgType: string,
-): Array<{ description: string; quantity: number; unit_price: number; raw_cost: number; category: string | null }> {
+): Array<{
+  description: string
+  quantity: number
+  unit_price: number
+  raw_cost: number
+  category: string | null
+  is_taxable_tpp: boolean
+}> {
   const priceField = pickChainPriceField(fromOrgType, toOrgType)
   if (priceField === null) return []
   const includeEpcInternal = fromOrgType === 'epc' && toOrgType === 'platform'
@@ -257,6 +286,10 @@ export function buildChainLineItemsFromCatalog(
       // rule.line_items JSONB.
       raw_cost: Number(li.raw_cost),
       category: li.section ?? null,
+      // #526: TX-tax classification. Mirrored from template at materialization;
+      // the chain.ts EPC→EDGE tax filter reads this on the InvoiceDraftLineItem
+      // side after buildInvoiceFromRule passes it through.
+      is_taxable_tpp: li.is_taxable_tpp,
     }))
 }
 
@@ -409,6 +442,23 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
       }
     }
 
+    // #526 R1 M-1: detect the future-foot-gun where someone adds an EPC→platform
+    // rule with hand-authored line_items (use_project_catalog=false) that
+    // don't carry is_taxable_tpp. The default-true fallback would silently
+    // tax the entire amount — same shape of bug as #526 was filed against.
+    if (
+      shouldApplySalesTax(rule) &&
+      !rule.use_project_catalog &&
+      Array.isArray(effectiveRule.line_items) &&
+      effectiveRule.line_items.some(
+        (li) => typeof (li as Record<string, unknown>).is_taxable_tpp !== 'boolean',
+      )
+    ) {
+      console.warn(
+        `[invoice-chain] #526 risk: rule "${rule.name}" (${rule.id}) is EPC→platform with hand-authored line_items missing is_taxable_tpp — will default to taxable on every line. Either set use_project_catalog=true or add is_taxable_tpp to each line_items entry.`,
+      )
+    }
+
     // Reuse the existing flat-rate calculator. Chain rules carry concrete
     // unit_price values per line — either from the proforma JSONB (Rush, MG Sales)
     // or synthesized from the project catalog above (DSE→NewCo, NewCo→EPC,
@@ -435,13 +485,12 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
 
     const draft = calc.draft
 
-    // Apply 8.25% TX sales tax on the EPC → EDGE link only.
-    let tax = 0
-    let total = draft.total
-    if (shouldApplySalesTax(rule)) {
-      tax = Math.round(draft.subtotal * TX_SALES_TAX_RATE * 100) / 100
-      total = Math.round((draft.subtotal + tax) * 100) / 100
-    }
+    // #526: tax over taxable-TPP line items only (engineering / inspection /
+    // sales commission / warranty / EPC residual are non-TPP services and are
+    // excluded). Was previously taxing draft.subtotal which over-collected
+    // ~$6,188/project.
+    const tax = computeChainTax(draft.line_items, shouldApplySalesTax(rule))
+    const total = Math.round((draft.subtotal + tax) * 100) / 100
 
     // Dry-run: collect the would-be invoice and continue.
     if (result.dryRun) {
@@ -485,7 +534,7 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
           due_date: draft.due_date,
           rule_id: draft.rule_id,
           generated_by: 'rule',
-          notes: `Auto-generated chain rule "${rule.name}" — chain orchestrator${tax > 0 ? ` (incl. ${(TX_SALES_TAX_RATE * 100).toFixed(2)}% TX sales tax)` : ''}`,
+          notes: `Auto-generated chain rule "${rule.name}" — chain orchestrator${tax > 0 ? ' (incl. TX sales tax on TPP portion only)' : ''}`,
         })
         .select('id, invoice_number')
         .single()
@@ -533,6 +582,10 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
       raw_cost: li.raw_cost,
       category: li.category,
       sort_order: li.sort_order,
+      // #526: persist taxability so a TX auditor can reconstruct WHICH
+      // lines made up the tax basis on a given invoice. Without this the
+      // basis becomes unknowable post-fact if the catalog flag drifts.
+      is_taxable_tpp: li.is_taxable_tpp,
     }))
     const { error: itemsErr } = await admin.from('invoice_line_items').insert(items)
     if (itemsErr) {
