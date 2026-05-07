@@ -130,6 +130,32 @@ export async function processSubhubProject(
   const customerName = payload.name ?? `${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim()
   const customerAddress = payload.street
   if (!customerName || !customerAddress) {
+    // #605 diagnostic: log payload shape (keys only — no values, no PII) so
+    // we can identify which field SubHub renamed when their webhook started
+    // 400-ing. Remove once schema drift is resolved.
+    //
+    // R1 M1: cap keys to first 30, truncate each to 64 chars so attacker-
+    //        controlled key NAMES can't pump log volume or echo huge strings.
+    // R1 L2: guard for non-object payloads — `'x' in payload` throws on null /
+    //        number / string / array; without the guard the diagnostic itself
+    //        would 500 instead of 400.
+    const isObj = typeof payload === 'object' && payload !== null && !Array.isArray(payload)
+    const obj = isObj ? (payload as Record<string, unknown>) : {}
+    const has = (k: string) => Object.prototype.hasOwnProperty.call(obj, k)
+    const shape = {
+      payload_kind: isObj ? 'object' : Array.isArray(payload) ? 'array' : payload === null ? 'null' : typeof payload,
+      keys: Object.keys(obj).sort().slice(0, 30).map((k) => k.slice(0, 64)),
+      keys_total: Object.keys(obj).length,
+      has_name: has('name'),
+      name_truthy: Boolean(obj.name),
+      has_first: has('first_name'),
+      has_last: has('last_name'),
+      has_street: has('street'),
+      street_truthy: Boolean(obj.street),
+      has_subhub_id: has('subhub_id'),
+      has_subhub_uuid: has('subhub_uuid'),
+    }
+    console.error(`[subhub] payload-shape-on-validation-fail ${JSON.stringify(shape)}`)
     return { success: false, error: 'Missing required fields: name and address' }
   }
 
