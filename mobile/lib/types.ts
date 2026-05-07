@@ -113,11 +113,6 @@ export interface CustomerTaskState {
   started_date: string | null
 }
 
-export interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
-}
-
 export interface CustomerReferral {
   id: string
   referrer_id: string

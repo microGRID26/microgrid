@@ -1,4 +1,4 @@
-// Mobile API layer — talks directly to Supabase (except Atlas chat which uses Vercel API)
+// Mobile API layer — talks directly to Supabase (except account deletion which uses Vercel API)
 
 import { supabase } from './supabase'
 import Constants from 'expo-constants'
@@ -278,41 +278,6 @@ export async function updateNotificationPrefs(
   return true
 }
 
-// ── Atlas Chat ──────────────────────────────────────────────────────────────
-// Uses the Vercel API route (needs ANTHROPIC_API_KEY server-side)
-
-export async function sendAtlasMessage(
-  messages: { role: 'user' | 'assistant'; content: string }[]
-): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.access_token) throw new Error('Not authenticated')
-
-  const url = `${API_BASE}/api/portal/chat`
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 30000)
-  let res: Response
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ messages }),
-      signal: controller.signal,
-    })
-  } finally {
-    clearTimeout(timeout)
-  }
-
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => 'unknown')
-    console.error('[atlas] error:', res.status, errorText)
-    throw new Error(`Chat failed: ${res.status}`)
-  }
-  const data = await res.json()
-  return data.response
-}
 
 // ── Account Deletion ──────────────────────────────────────────────────────
 // Apple App Store guideline 5.1.1(v): users must be able to delete their account in-app.
