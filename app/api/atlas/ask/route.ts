@@ -45,6 +45,53 @@ function summarizeCanonicalResult(
   // Report-specific summary builders. As the catalog grows, add a case here
   // for each report so the widget answer is human-readable. The default
   // builder works for any count-style report.
+  if (reportId === 'pipeline_by_stage') {
+    let totalProjects = 0
+    let totalKw = 0
+    const stageLines: string[] = []
+    for (const r of rows) {
+      const c = typeof r.project_count === 'number' ? r.project_count
+        : typeof r.project_count === 'string' ? Number(r.project_count) || 0 : 0
+      const kw = typeof r.total_kw === 'number' ? r.total_kw
+        : typeof r.total_kw === 'string' && r.total_kw.trim() !== '' ? Number(r.total_kw) || 0 : 0
+      totalProjects += c
+      totalKw += kw
+      const stageName = String(r.stage ?? '<empty>')
+      stageLines.push(`- **${stageName}** — ${fmtNumber(c)} projects · ${fmtKw(kw)} kW`)
+    }
+    return [
+      `**${fmtNumber(totalProjects)} active projects** across ${fmtNumber(rows.length)} stages — total **${fmtKw(totalKw)} kW**.`,
+      stageLines.join('\n'),
+      `[See the full table on /reports →](/reports)`,
+    ].join('\n\n')
+  }
+
+  if (reportId === 'installs_scheduled') {
+    if (count === 0) {
+      const since = typeof params.since_date === 'string' ? params.since_date : 'today'
+      const until = typeof params.until_date === 'string' ? params.until_date : 'today + 30 days'
+      return `**No installs scheduled** between ${since} and ${until}. Note: install_scheduled_date is populated for only ~8% of active deals — the empty result may reflect data-quality gaps rather than actual schedule.`
+    }
+    let totalKw = 0
+    for (const r of rows) {
+      const kw = typeof r.systemkw === 'number' ? r.systemkw
+        : typeof r.systemkw === 'string' && r.systemkw.trim() !== '' ? Number(r.systemkw) || 0 : 0
+      totalKw += kw
+    }
+    const dates = rows
+      .map((r) => (typeof r.install_scheduled_date === 'string' ? r.install_scheduled_date : null))
+      .filter((d): d is string => d !== null)
+      // R1 audit M3 — explicit Date.parse compare so a future schema change
+      // that returns non-ISO date strings doesn't silently misorder.
+      .sort((a, b) => Date.parse(a) - Date.parse(b))
+    const earliest = dates[0]
+    const latest = dates[dates.length - 1]
+    return [
+      `**${fmtNumber(count)} installs scheduled** between ${earliest ?? '?'} and ${latest ?? '?'}. Total system size: **${fmtKw(totalKw)} kW**.`,
+      `[See the full schedule on /reports →](/reports)`,
+    ].join('\n\n')
+  }
+
   if (reportId === 'subhub_signed_with_vwc') {
     const ec = typeof params.ec_name === 'string' ? params.ec_name : 'this EC'
     const since = typeof params.since_date === 'string' && params.since_date !== '1900-01-01'
