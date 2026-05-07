@@ -38,6 +38,9 @@ export interface DeductionRow {
   id: string
   amount: number
   source_claim_id: string
+  /** When the deduction row was inserted. Used to apply oldest-first (FIFO) so
+   *  partial-coverage rounds carry the newest deductions forward. #538. */
+  created_at?: string
 }
 
 export interface FundingDeductionResult {
@@ -89,15 +92,52 @@ export function computeNetPayment(
   // Guard: if grossAmount is NaN or Infinity (e.g., malformed DB record),
   // treat it as 0 — conservative behavior that avoids writing garbage to paid_amount.
   const safeGross = Number.isFinite(grossAmount) ? grossAmount : 0
-  const totalDeducted = Math.round(
-    openDeductions.reduce((sum, d) => sum + Number(d.amount), 0) * 100,
-  ) / 100
-  const netAmount = Math.max(0, Math.round((safeGross - totalDeducted) * 100) / 100)
+  const safeGrossR = Math.round(safeGross * 100) / 100
+
+  // #538: previously we summed ALL open deductions and floored net at 0,
+  // marking every deduction applied even when total > gross — the excess was
+  // silently lost. Now we apply deductions FIFO, only marking each row as
+  // applied if its cumulative sum stays ≤ gross. Remaining rows stay 'open'
+  // and carry forward to the next invoice.
+  // Sort oldest-first (ascending). NULL/undefined `created_at` sorts LAST so a
+  // row missing its timestamp doesn't leap the queue (R1 audit M1, #538).
+  const ordered = openDeductions
+    .slice()
+    .sort((a, b) => {
+      const at = a.created_at
+      const bt = b.created_at
+      if (at && bt) {
+        if (at !== bt) return at < bt ? -1 : 1
+      } else if (at && !bt) {
+        return -1
+      } else if (!at && bt) {
+        return 1
+      }
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+    })
+
+  const appliedDeductionIds: string[] = []
+  let totalDeductedCents = 0
+  const grossCents = Math.round(safeGrossR * 100)
+  for (const d of ordered) {
+    const amtCents = Math.round(Number(d.amount) * 100)
+    if (totalDeductedCents + amtCents > grossCents) {
+      // Adding this row would over-deduct. Skip — leaves the row 'open' for
+      // a future invoice. We don't split partial deductions; the schema
+      // doesn't model "partially applied" today.
+      continue
+    }
+    totalDeductedCents += amtCents
+    appliedDeductionIds.push(d.id)
+  }
+  const totalDeducted = totalDeductedCents / 100
+  // Pure integer subtraction in cents — no fp re-introduction (R1 audit M2, #538).
+  const netAmount = Math.max(0, grossCents - totalDeductedCents) / 100
   return {
-    grossAmount: Math.round(safeGross * 100) / 100,
+    grossAmount: safeGrossR,
     totalDeducted,
     netAmount,
-    appliedDeductionIds: openDeductions.map((d) => d.id),
+    appliedDeductionIds,
   }
 }
 
@@ -143,10 +183,11 @@ export async function computeInvoiceDeductions(
   if (orgMap[inv.from_org] !== EPC_ORG_TYPE) return null
   if (orgMap[inv.to_org] !== PLATFORM_ORG_TYPE) return null
 
-  // Query open deductions for this EPC
+  // Query open deductions for this EPC. #538: include created_at so the
+  // pure calculator can apply FIFO when total deductions exceed gross.
   const { data: deductions } = await admin
     .from('funding_deductions')
-    .select('id, amount, source_claim_id')
+    .select('id, amount, source_claim_id, created_at')
     .eq('target_epc_id', inv.from_org)
     .eq('status', 'open')
   const rows = (deductions ?? []) as DeductionRow[]
