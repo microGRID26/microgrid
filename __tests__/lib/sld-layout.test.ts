@@ -209,7 +209,15 @@ describe('calculateSldLayout', () => {
     expect(texts.some(t => t.text.includes('CONSUMPTION CT'))).toBe(true)
     // CT circle exists
     const circles = layout.elements.filter(e => e.type === 'circle')
-    expect(circles.length).toBeGreaterThanOrEqual(2) // utility meter + CT
+    expect(circles.length).toBeGreaterThanOrEqual(1)
+    // Utility meter is rendered (now an svg-asset in the spatial path; still a
+    // circle in the multi-row path). Either shape counts as "rendered."
+    const utilityMeter = layout.elements.find(
+      (e) =>
+        (e.type === 'svg-asset' && (e as { assetId?: string }).assetId === 'utility-meter-200a') ||
+        (e.type === 'circle' && (e as { r: number }).r >= 18), // legacy multi-row util meter is r:22
+    )
+    expect(utilityMeter).toBeDefined()
   })
 
   it('wire labels include EGC on AC segments', () => {
@@ -262,10 +270,16 @@ describe('SLD topology gating', () => {
       { model: 'D700-M2', count: 8, acKw: 5.568 },
       { model: 'D350-M1', count: 1, acKw: 0.349 },
     ]
-    const texts = calculateSldLayout(config).elements
-      .filter(e => e.type === 'text').map(e => (e as { text: string }).text)
-    expect(texts.some(t => t === '(N) DPCRGM - CELL')).toBe(true)
-    expect(texts.some(t => t.includes('DURACELL DTU'))).toBe(true)
+    const elements = calculateSldLayout(config).elements
+    // Phase 7: DPCRGM-Cell is rendered as an svg-asset (assetId 'dpcrgm-cell'),
+    // no longer a text label.
+    const dpcrgmAsset = elements.find(
+      (e) => e.type === 'svg-asset' && (e as { assetId?: string }).assetId === 'dpcrgm-cell',
+    )
+    expect(dpcrgmAsset).toBeDefined()
+    // The "DURACELL DTU" label moved into the dpcrgm-cell svg-asset itself
+    // (Phase 7), so it's no longer a separate text element. Asset presence
+    // is the canonical check.
   })
 
   it('string-mppt topology produces a valid layout with elements', () => {
