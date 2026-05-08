@@ -470,7 +470,10 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
       toOrg,
       invoiceNumber,
       now: input.now ?? new Date(),
-      maxTotal: 5_000_000, // chain ceiling — large commercial projects can exceed $1M
+      // #533: scale the chain ceiling with project.contract so a $10M
+      // commercial project doesn't trip the historical 5M floor. Number()
+      // handles the text-vs-number drift on projects.contract.
+      maxTotal: Math.max(5_000_000, Number(proj.contract ?? 0)),
     })
 
     if (!calc.ok) {

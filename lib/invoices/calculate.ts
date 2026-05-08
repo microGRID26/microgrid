@@ -154,7 +154,17 @@ export function buildInvoiceFromRule(ctx: CalculatorContext): CalculatorResult {
   const { project, rule, fromOrg, toOrg, invoiceNumber } = ctx
   const now = ctx.now ?? new Date()
   const dueInDays = ctx.dueInDays ?? DEFAULT_DUE_DAYS
-  const maxTotal = ctx.maxTotal ?? DEFAULT_INVOICE_CEILING_USD
+  // #533: ceiling scales with project.contract so a contract-sized milestone
+  // (e.g., 50% of a $1.1M project = $550k) doesn't trip the 500k default.
+  // Caller-supplied ctx.maxTotal still wins (chain.ts overrides for the
+  // chain-aggregate ceiling). Number() handles the text-vs-number drift on
+  // projects.contract — DB stores text, TS types it as number. ?? 0 covers
+  // null. Negative contracts are nonsensical; Math.max with the default
+  // floors them at the standard 500k.
+  const maxTotal = ctx.maxTotal ?? Math.max(
+    DEFAULT_INVOICE_CEILING_USD,
+    Number(project.contract ?? 0),
+  )
 
   if (!project.id) return { ok: false, reason: 'missing_project_id' }
   if (!rule.active) return { ok: false, reason: 'inactive_rule' }

@@ -327,10 +327,25 @@ describe('buildInvoiceFromRule — rejections', () => {
     expect(result.reason).toBe('empty_line_items')
   })
 
-  it('refuses when total exceeds default ceiling', () => {
-    // 30% of $2M contract = $600k > $500k default ceiling
+  it('default ceiling scales with project.contract (#533)', () => {
+    // 30% of $2M contract = $600k; pre-#533 this tripped the 500k default
+    // ceiling. Post-#533 the default scales to max(500k, contract) = 2M,
+    // so the percentage rule passes. Percentage-based rules tied to
+    // contract can never exceed contract by definition, so they can no
+    // longer trip the default ceiling — that's the intended behavior.
     const result = buildInvoiceFromRule(ctx({
       project: { ...baseProject, contract: 2_000_000 },
+    }))
+    expect(result.ok).toBe(true)
+  })
+
+  it('refuses when total exceeds caller-supplied maxTotal', () => {
+    // ctx.maxTotal still hard-caps regardless of contract size — chain.ts
+    // uses this to enforce its own per-link ceiling. 30% of $2M = $600k
+    // exceeds an explicit 500k cap.
+    const result = buildInvoiceFromRule(ctx({
+      project: { ...baseProject, contract: 2_000_000 },
+      maxTotal: 500_000,
     }))
     expect(result.ok).toBe(false)
     if (result.ok) return
