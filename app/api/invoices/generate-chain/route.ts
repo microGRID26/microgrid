@@ -48,12 +48,16 @@ export async function POST(request: NextRequest) {
   if (!user.email) {
     return NextResponse.json({ error: 'Forbidden — no email on session' }, { status: 403 })
   }
+  // ilike + trim matches lib/auth/role-gate.ts checkRole — auth.users.email
+  // is lowercased on signup but historical public.users.email rows can be
+  // mixed-case, so an exact .eq match would 403 those users.
   const { data: userRow } = await supabaseAuth
     .from('users')
-    .select('role')
-    .eq('email', user.email)
-    .single()
-  const role = (userRow as { role: string } | null)?.role
+    .select('id, role')
+    .ilike('email', user.email.trim())
+    .maybeSingle()
+  const role = (userRow as { id: string; role: string } | null)?.role
+  const callerPublicId = (userRow as { id: string; role: string } | null)?.id
   if (!role || !ADMIN_ROLES.has(role)) {
     return NextResponse.json({ error: 'Admin only' }, { status: 403 })
   }
@@ -87,10 +91,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 })
   }
   const projOrgId = (project as { org_id: string }).org_id
+  // org_memberships.user_id is keyed on public.users.id, which diverges from
+  // auth.users.id for ~7 of 20 current memberships. Use the resolved
+  // callerPublicId from the role-check step above.
+  if (!callerPublicId) {
+    return NextResponse.json({ error: 'Forbidden — no public users row' }, { status: 403 })
+  }
   const { data: memberships } = await supabaseAuth
     .from('org_memberships')
     .select('org_id, organizations!inner(org_type)')
-    .eq('user_id', user.id)
+    .eq('user_id', callerPublicId)
   const memberRows = (memberships ?? []) as unknown as Array<{
     org_id: string
     organizations: Array<{ org_type: string }> | { org_type: string } | null
