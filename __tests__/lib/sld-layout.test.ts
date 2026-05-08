@@ -207,9 +207,14 @@ describe('calculateSldLayout', () => {
     const layout = calculateSldLayout(makeConfig())
     const texts = layout.elements.filter(e => e.type === 'text')
     expect(texts.some(t => t.text.includes('CONSUMPTION CT'))).toBe(true)
-    // CT circle exists
+    // CT is still rendered as a circle; utility meter became an svg-asset in
+    // Phase 6 ('utility-meter-200a'), so circles alone no longer cover both.
     const circles = layout.elements.filter(e => e.type === 'circle')
-    expect(circles.length).toBeGreaterThanOrEqual(2) // utility meter + CT
+    expect(circles.length).toBeGreaterThanOrEqual(1) // CT
+    const meterAsset = layout.elements.find(
+      e => e.type === 'svg-asset' && e.assetId === 'utility-meter-200a',
+    )
+    expect(meterAsset).toBeDefined()
   })
 
   it('wire labels include EGC on AC segments', () => {
@@ -256,16 +261,20 @@ describe('SLD topology gating', () => {
     // v5: DPCRGM (Duracell DTU PC-PRO-C) is part of the always-rendered comm
     // subgraph in the micro-inverter SLD — it's a real comms device, not the
     // gated Revenue Grade Meter. hasRgm flag no longer applies to this renderer.
+    // Phase 7: the DPCRGM-CELL block (and its "DURACELL DTU" label) live inside
+    // the 'dpcrgm-cell' svg-asset (components/planset/sld-assets/dpcrgm-cell.tsx),
+    // not as standalone text elements — assert the asset is emitted instead.
     const config = makeConfig()
     config.systemTopology = 'micro-inverter'
     config.inverterMix = [
       { model: 'D700-M2', count: 8, acKw: 5.568 },
       { model: 'D350-M1', count: 1, acKw: 0.349 },
     ]
-    const texts = calculateSldLayout(config).elements
-      .filter(e => e.type === 'text').map(e => (e as { text: string }).text)
-    expect(texts.some(t => t === '(N) DPCRGM - CELL')).toBe(true)
-    expect(texts.some(t => t.includes('DURACELL DTU'))).toBe(true)
+    const elements = calculateSldLayout(config).elements
+    const dpcrgmAsset = elements.find(
+      e => e.type === 'svg-asset' && e.assetId === 'dpcrgm-cell',
+    )
+    expect(dpcrgmAsset).toBeDefined()
   })
 
   it('string-mppt topology produces a valid layout with elements', () => {
