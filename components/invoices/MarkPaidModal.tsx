@@ -60,11 +60,17 @@ export function MarkPaidModal({
             <input
               type="number"
               min="0"
+              max={invoice.total}
               step="0.01"
               value={paidAmount}
               onChange={e => setPaidAmount(parseFloat(e.target.value) || 0)}
               className="w-full bg-gray-800 text-white border border-gray-700 rounded-lg px-3 py-2 text-sm"
             />
+            {paidAmount > invoice.total && (
+              <p className="text-xs text-amber-400 mt-1">
+                ⚠ Amount exceeds invoice total ({fmt$(invoice.total)}). Use the invoice total or refuse to overpay.
+              </p>
+            )}
           </div>
           <div>
             <label className="text-xs text-gray-400 block mb-1">Payment Method</label>

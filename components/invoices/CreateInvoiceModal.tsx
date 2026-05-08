@@ -300,9 +300,10 @@ export function CreateInvoiceModal({
                       <label className="text-[10px] text-gray-500">Qty</label>
                       <input
                         type="number"
-                        min="1"
+                        min="0.01"
+                        step="0.01"
                         value={item.quantity}
-                        onChange={e => updateLineItem(i, 'quantity', parseInt(e.target.value) || 1)}
+                        onChange={e => updateLineItem(i, 'quantity', parseFloat(e.target.value) || 1)}
                         className="w-full bg-gray-700 text-white border border-gray-600 rounded px-2 py-1.5 text-xs"
                       />
                     </div>

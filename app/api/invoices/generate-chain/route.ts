@@ -73,6 +73,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'project_id is required' }, { status: 400 })
   }
 
+  // ── Project-org membership gate ────────────────────────────────────────
+  // Admin role is global; without a per-project org check, a tenant admin
+  // could fire the chain against any other tenant's project (cross-tenant
+  // invoice fabrication + margin disclosure via dry_run). Verify caller
+  // belongs to the project's owning org, OR is a platform-org member.
+  const { data: project } = await supabaseAuth
+    .from('projects')
+    .select('org_id')
+    .eq('id', projectId)
+    .single()
+  if (!project) {
+    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+  }
+  const projOrgId = (project as { org_id: string }).org_id
+  const { data: memberships } = await supabaseAuth
+    .from('org_memberships')
+    .select('org_id, organizations!inner(org_type)')
+    .eq('user_id', user.id)
+  const memberRows = (memberships ?? []) as unknown as Array<{
+    org_id: string
+    organizations: Array<{ org_type: string }> | { org_type: string } | null
+  }>
+  const userOrgIds = new Set(memberRows.map((m) => m.org_id))
+  const isPlatform = memberRows.some((m) => {
+    const orgs = Array.isArray(m.organizations) ? m.organizations : m.organizations ? [m.organizations] : []
+    return orgs.some((o) => o.org_type === 'platform')
+  })
+  if (!isPlatform && !userOrgIds.has(projOrgId)) {
+    return NextResponse.json({ error: 'Forbidden — not a member of project org' }, { status: 403 })
+  }
+
   // ── Rate limit ─────────────────────────────────────────────────────────
   const { success } = await rateLimit(`invoice-chain:${projectId}`, {
     windowMs: 60_000,

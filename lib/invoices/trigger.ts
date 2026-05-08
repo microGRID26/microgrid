@@ -275,14 +275,22 @@ export async function fireMilestoneInvoices(input: TriggerInput): Promise<Trigge
     const invoiceRow = insertedInvoice
 
     // Bulk-insert line items
+    // #526/#527: persist raw_cost (so profit-transfer reads from per-invoice
+    // rows, not stale rule.line_items JSONB) and is_taxable_tpp (so TX
+    // auditor can reconstruct the tax basis post-fact). Mirrors chain.ts
+    // persistence at lines 576-591 — without these the milestone trigger
+    // silently re-introduces the #526 over-tax bug because the column
+    // default is is_taxable_tpp=true.
     const items = draft.line_items.map((li) => ({
       invoice_id: invoiceRow.id,
       description: li.description,
       quantity: li.quantity,
       unit_price: li.unit_price,
       total: li.quantity * li.unit_price,
+      raw_cost: li.raw_cost,
       category: li.category,
       sort_order: li.sort_order,
+      is_taxable_tpp: li.is_taxable_tpp,
     }))
     const { error: itemsErr } = await admin.from('invoice_line_items').insert(items)
     if (itemsErr) {

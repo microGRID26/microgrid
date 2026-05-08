@@ -249,43 +249,29 @@ export async function updateInvoiceStatus(
 
   const now = new Date().toISOString()
 
-  // #613: paid transitions go through apply_paid_invoice (migration 240),
-  // a single PG TX that atomically locks the invoice, claims funding_deductions
-  // FIFO via FOR UPDATE SKIP LOCKED, and writes paid_amount/paid_at/payment_*.
-  // If the TX fails (TOCTOU lost, invoice not found, etc.), Postgres rolls
-  // everything back — no orphaned 'applied' deductions can survive caller
-  // process death (the failure mode of the prior two-step design).
+  // #613: paid transitions go through the apply_paid_invoice RPC (migration
+  // 240). EXECUTE on that function is REVOKED from authenticated, so the
+  // browser anon-key client can't call it directly — we POST to the
+  // /api/invoices/[id]/mark-paid server route, which runs the RPC under
+  // service_role after enforcing org-membership + role gates that the
+  // function body itself does not enforce. Without this hop the modal
+  // 42501s silently (red-team C-1, audit 2026-05-08).
   if (status === 'paid') {
-    const { data: rpc, error: rpcErr } = await supabase
-      .rpc('apply_paid_invoice', {
-        p_invoice_id: invoiceId,
-        p_current_status: currentStatus,
-        p_paid_at: now,
-        p_payment_method: details?.payment_method ?? null,
-        p_payment_reference: details?.payment_reference ?? null,
-        p_explicit_paid_amount: details?.paid_amount ?? null,
-      })
-      .single()
-
-    if (rpcErr) {
-      // 40001 = serialization_failure → TOCTOU lost (invoice transitioned
-      // out from under us). P0002 = invoice_not_found. Anything else is a
-      // real error — surface it but don't write anything.
-      const code = (rpcErr as { code?: string }).code
-      if (code === '40001') {
-        console.warn(
-          `[updateInvoiceStatus] race lost: invoice ${invoiceId} status changed during paid transition`,
-        )
-      } else if (code === 'P0002') {
-        console.error(`[updateInvoiceStatus] invoice ${invoiceId} not found`)
-      } else {
-        console.error('[updateInvoiceStatus] apply_paid_invoice RPC failed:', rpcErr.message)
-      }
+    const res = await fetch(`/api/invoices/${invoiceId}/mark-paid`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        paid_amount: details?.paid_amount,
+        payment_method: details?.payment_method,
+        payment_reference: details?.payment_reference,
+      }),
+    })
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '')
+      console.error('[updateInvoiceStatus] mark-paid route failed:', res.status, txt)
       return null
     }
-    if (!rpc) return null
-
-    const r = rpc as {
+    const r = await res.json() as {
       invoice: Invoice
       applied_ids: string[] | null
       total_deducted: number | string
@@ -305,20 +291,6 @@ export async function updateInvoiceStatus(
         'deductions)',
       )
     }
-
-    // Phase 3.2 hook: profit transfer (fire-and-forget, idempotent).
-    void import('@/lib/invoices/profit-transfer').then(({ recordProfitTransferIfApplicable }) =>
-      recordProfitTransferIfApplicable(invoiceId).then((result) => {
-        if (result.inserted) {
-          console.log('[profit-transfer] recorded', result.transferId, 'profit:', result.calculation?.profit_amount)
-        } else if (result.reason && result.reason !== 'not_chain_invoice' && result.reason !== 'not_dse_origin') {
-          console.warn('[profit-transfer] skipped:', result.reason, result.detail)
-        }
-      }),
-    ).catch((err) => {
-      console.error('[profit-transfer] fire-and-forget failed:', err instanceof Error ? err.message : err)
-    })
-
     return r.invoice
   }
 

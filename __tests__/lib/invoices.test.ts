@@ -447,35 +447,41 @@ describe('updateInvoiceStatus', () => {
     expect(result).toBeTruthy()
   })
 
-  it('routes paid transitions through apply_paid_invoice RPC with paid_at', async () => {
-    // #613: paid path moved to apply_paid_invoice RPC (atomic invoice + funding-
-    // deduction TX). The non-paid `update()` shape is no longer hit on this path.
+  it('routes paid transitions through /api/invoices/[id]/mark-paid', async () => {
+    // #613 + audit 2026-05-08: paid path now goes through the server route.
+    // The browser anon-key client cannot call apply_paid_invoice directly
+    // because EXECUTE was REVOKEd from authenticated; the route runs the
+    // RPC under service_role after enforcing role + org-membership gates.
     const readChain = mockChain({ data: { status: 'sent' }, error: null })
     mockSupabase.from.mockReturnValueOnce(readChain)
-    const rpcSingle = vi.fn(() => Promise.resolve({
-      data: { invoice: INVOICE_PAID, applied_ids: [], total_deducted: 0, net_amount: 5000, gross_amount: 5000 },
-      error: null,
+    const fetchMock = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        invoice: INVOICE_PAID, applied_ids: [], total_deducted: 0, net_amount: 5000, gross_amount: 5000,
+      }),
     }))
-    mockSupabase.rpc.mockReturnValueOnce({ single: rpcSingle } as any)
+    vi.stubGlobal('fetch', fetchMock)
 
     const { updateInvoiceStatus } = await import('@/lib/api/invoices')
     await updateInvoiceStatus('inv-1', 'paid')
 
-    expect(mockSupabase.rpc).toHaveBeenCalledWith('apply_paid_invoice', expect.objectContaining({
-      p_invoice_id: 'inv-1',
-      p_current_status: 'sent',
-      p_paid_at: expect.any(String),
-    }))
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/invoices/inv-1/mark-paid',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    vi.unstubAllGlobals()
   })
 
-  it('passes payment details through the RPC when paid with details', async () => {
+  it('passes payment details through the route when paid with details', async () => {
     const readChain = mockChain({ data: { status: 'sent' }, error: null })
     mockSupabase.from.mockReturnValueOnce(readChain)
-    const rpcSingle = vi.fn(() => Promise.resolve({
-      data: { invoice: INVOICE_PAID, applied_ids: [], total_deducted: 0, net_amount: 5000, gross_amount: 5000 },
-      error: null,
+    const fetchMock = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        invoice: INVOICE_PAID, applied_ids: [], total_deducted: 0, net_amount: 5000, gross_amount: 5000,
+      }),
     }))
-    mockSupabase.rpc.mockReturnValueOnce({ single: rpcSingle } as any)
+    vi.stubGlobal('fetch', fetchMock)
 
     const { updateInvoiceStatus } = await import('@/lib/api/invoices')
     await updateInvoiceStatus('inv-1', 'paid', {
@@ -484,14 +490,18 @@ describe('updateInvoiceStatus', () => {
       payment_reference: 'REF-12345',
     })
 
-    expect(mockSupabase.rpc).toHaveBeenCalledWith('apply_paid_invoice', expect.objectContaining({
-      p_invoice_id: 'inv-1',
-      p_current_status: 'sent',
-      p_paid_at: expect.any(String),
-      p_payment_method: 'ACH',
-      p_payment_reference: 'REF-12345',
-      p_explicit_paid_amount: 5000,
-    }))
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/invoices/inv-1/mark-paid',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          paid_amount: 5000,
+          payment_method: 'ACH',
+          payment_reference: 'REF-12345',
+        }),
+      }),
+    )
+    vi.unstubAllGlobals()
   })
 
   it('does not set timestamps for non-special statuses', async () => {
