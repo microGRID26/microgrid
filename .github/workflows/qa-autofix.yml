@@ -38,6 +38,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      id-token: write
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       QA_RUN_ID:       ${{ github.event.inputs.qa_run_id }}
