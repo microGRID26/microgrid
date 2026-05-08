@@ -57,6 +57,12 @@ export interface CostLineItemTemplate {
   /** TX sales-tax classification: true = taxable TPP, false = non-TPP service.
    *  Read by chain.ts when computing EPC→EDGE invoice tax. #526. */
   is_taxable_tpp: boolean
+  /** Maps to a key in edge_model_scenarios.config (Paul's model PCS state).
+   *  When present, lib/cost/api.ts loadActiveTemplates() overlays the scenario
+   *  values onto default_raw_cost / default_markup_to_distro /
+   *  default_markup_distro_to_epc / default_battery_pct. NULL = no overlay,
+   *  use default_* columns directly. Mig 243 (2026-05-08). */
+  pcs_key: string | null
   active: boolean
 }
 

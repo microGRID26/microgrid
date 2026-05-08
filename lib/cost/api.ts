@@ -33,21 +33,100 @@ function getAdminClient(): SupabaseClient {
 
 // ── Catalog ─────────────────────────────────────────────────────────────────
 
-// Catalog templates rarely change (Greg/Paul edit them out-of-band) and the
-// /api/projects/[id]/cost-basis route hits this on every project page open.
-// 5-minute in-memory cache cuts DB load to one query per process per 5min.
+// Catalog templates + the active EDGE-MODEL PCS scenario (Paul's source-of-
+// truth) cache for 5 minutes. Scenario values overlay on top of templates at
+// read time — see overlayScenarioOnTemplates() below. Mig 243 (2026-05-08).
+
 let _templateCache: { rows: CostLineItemTemplate[]; loadedAt: number } | null = null
+let _scenarioCache: { config: PcsScenarioConfig | null; loadedAt: number } | null = null
 const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000
 
-/** Bust the template cache (used after admin edits to the catalog). */
+/** Bust both caches (used after admin edits to the catalog OR an active-
+ *  scenario flip via atlas_set_active_pcs_scenario). */
 export function clearTemplateCache(): void {
   _templateCache = null
+  _scenarioCache = null
+}
+
+/** Shape of the PCS slice of edge_model_scenarios.config that MG cares
+ *  about. Paul's model writes a much richer config; we only consume these
+ *  4 keys. Missing keys silently fall back to template defaults. */
+interface PcsScenarioConfig {
+  pcsUnitRates?: Record<string, number>
+  pcsSupplyMarkup?: Record<string, number>
+  pcsDistroMarkup?: number
+  pcsBatteryAlloc?: Record<string, number>
+}
+
+/** Load the currently-active PCS scenario from edge_model_scenarios.
+ *  Returns null if no scenario is active or on read error (graceful
+ *  degradation — MG falls back to template defaults). */
+async function loadActiveScenarioConfig(): Promise<PcsScenarioConfig | null> {
+  const now = Date.now()
+  if (_scenarioCache && now - _scenarioCache.loadedAt < TEMPLATE_CACHE_TTL_MS) {
+    return _scenarioCache.config
+  }
+
+  const admin = getAdminClient()
+  const { data, error } = await admin
+    .from('edge_model_scenarios')
+    .select('config')
+    .eq('is_active_for_pull', true)
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    // Don't throw — cost-basis should still render with defaults if the
+    // scenario read fails. Log loudly so Sentry/PostHog catches it.
+    console.error('[cost-api] failed to load active PCS scenario, falling back to template defaults:', error.message)
+    _scenarioCache = { config: null, loadedAt: now }
+    return null
+  }
+
+  const cfg = (data?.config as PcsScenarioConfig | undefined) ?? null
+  _scenarioCache = { config: cfg, loadedAt: now }
+  return cfg
+}
+
+/** Apply scenario overlay to a template list. Each template with a non-null
+ *  `pcs_key` gets its raw_cost / supply markup / distro markup / battery_pct
+ *  overridden by the scenario's matching value. Templates with null pcs_key
+ *  pass through unchanged.
+ *
+ *  Notes:
+ *  • pv_pct is NOT overlaid (Paul's model derives it; we keep template's
+ *    seeded value to avoid the recompute logic for is_itc_excluded items).
+ *  • pcsDistroMarkup is a single global number in Paul's model; applied to
+ *    every overlaid row.
+ *  • Missing keys in the scenario fall back to template defaults silently.
+ */
+function overlayScenarioOnTemplates(
+  templates: CostLineItemTemplate[],
+  scenario: PcsScenarioConfig | null,
+): CostLineItemTemplate[] {
+  if (!scenario) return templates
+  const rates = scenario.pcsUnitRates ?? {}
+  const supplyMk = scenario.pcsSupplyMarkup ?? {}
+  const distroMk = scenario.pcsDistroMarkup
+  const battAlloc = scenario.pcsBatteryAlloc ?? {}
+  return templates.map((t) => {
+    if (!t.pcs_key) return t
+    const overlaid: CostLineItemTemplate = { ...t }
+    if (typeof rates[t.pcs_key] === 'number') overlaid.default_raw_cost = rates[t.pcs_key]
+    if (typeof supplyMk[t.pcs_key] === 'number') overlaid.default_markup_to_distro = supplyMk[t.pcs_key]
+    if (typeof distroMk === 'number') overlaid.default_markup_distro_to_epc = distroMk
+    if (typeof battAlloc[t.pcs_key] === 'number') overlaid.default_battery_pct = battAlloc[t.pcs_key]
+    return overlaid
+  })
 }
 
 export async function loadActiveTemplates(): Promise<CostLineItemTemplate[]> {
   const now = Date.now()
   if (_templateCache && now - _templateCache.loadedAt < TEMPLATE_CACHE_TTL_MS) {
-    return _templateCache.rows
+    // Re-overlay every read because the scenario cache may have been busted
+    // independently. Cheap O(n) on 28 rows.
+    const scenario = await loadActiveScenarioConfig()
+    return overlayScenarioOnTemplates(_templateCache.rows, scenario)
   }
 
   const admin = getAdminClient()
@@ -62,7 +141,8 @@ export async function loadActiveTemplates(): Promise<CostLineItemTemplate[]> {
   }
   const rows = (data ?? []) as CostLineItemTemplate[]
   _templateCache = { rows, loadedAt: now }
-  return rows
+  const scenario = await loadActiveScenarioConfig()
+  return overlayScenarioOnTemplates(rows, scenario)
 }
 
 // ── Per-project line items ──────────────────────────────────────────────────

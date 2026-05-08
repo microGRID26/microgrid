@@ -46,6 +46,7 @@ function tpl(overrides: Partial<CostLineItemTemplate>): CostLineItemTemplate {
     is_epc_internal: false,
     is_itc_excluded: false,
     is_taxable_tpp: true,
+    pcs_key: null,
     active: true,
     ...overrides,
   }
