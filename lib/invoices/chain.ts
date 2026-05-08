@@ -621,24 +621,78 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
   if (!result.dryRun && result.created.length > 0) {
     const totalGross = result.created.reduce((sum, inv) => sum + inv.total, 0)
     const firedRuleIds = result.created.map((inv) => inv.ruleId)
-    const { error: clearingErr } = await admin
-      .from('clearing_runs')
-      .insert({
-        project_id: input.projectId,
-        run_at: (input.now ?? new Date()).toISOString(),
-        mode: 'gross_substantiation',
-        total_gross: Math.round(totalGross * 100) / 100,
-        invoices_created: result.created.length,
-        invoices_skipped: result.skippedExisting.length + result.skippedError.length,
-        status: 'recorded',
-        notes: `Chain orchestrator fired for ${input.projectId}; ${result.created.length} invoices created, ${result.skippedExisting.length} skipped (existing), ${result.skippedError.length} errored.`,
-        fired_rule_ids: firedRuleIds,
-      })
+    const payload = {
+      project_id: input.projectId,
+      run_at: (input.now ?? new Date()).toISOString(),
+      mode: 'gross_substantiation',
+      total_gross: Math.round(totalGross * 100) / 100,
+      invoices_created: result.created.length,
+      invoices_skipped: result.skippedExisting.length + result.skippedError.length,
+      status: 'recorded',
+      notes: `Chain orchestrator fired for ${input.projectId}; ${result.created.length} invoices created, ${result.skippedExisting.length} skipped (existing), ${result.skippedError.length} errored.`,
+      fired_rule_ids: firedRuleIds,
+    }
+
+    // #539: previously a single best-effort insert that silently swallowed
+    // failures into console.error — tax-equity substantiation could lose a
+    // run with no visible signal. Now: retry once on transient failure,
+    // then escalate the gap to greg_actions so the row can be backfilled
+    // from invoice history before it ages out.
+    let clearingErr = (await admin.from('clearing_runs').insert(payload)).error
     if (clearingErr) {
-      // Don't fail the whole orchestration over an audit-row write — log loudly
-      // and let the chain invoices stand. The clearing run can be backfilled
-      // from invoice history if needed.
-      console.error('[invoice-chain] clearing_runs insert failed:', clearingErr.message)
+      // 250ms backoff covers transient PG contention / network blip.
+      await new Promise((resolve) => setTimeout(resolve, 250))
+      clearingErr = (await admin.from('clearing_runs').insert(payload)).error
+    }
+    if (clearingErr) {
+      console.error('[invoice-chain] clearing_runs insert failed (twice):', clearingErr.message)
+      const firedRuleSummary = result.created
+        .map((inv) => `${inv.invoiceNumber} (${inv.ruleId}) total=$${inv.total.toFixed(2)}`)
+        .join('\n  - ')
+      const { error: actionErr } = await admin.from('greg_actions').insert({
+        priority: 'P0',
+        owner: 'greg',
+        title: `clearing_runs audit gap — chain fired for ${input.projectId} but row not recorded`,
+        body_md: [
+          '## What\'s broken',
+          '',
+          `Chain orchestrator created **${result.created.length} invoices** for project \`${input.projectId}\` totalling **$${(payload.total_gross).toLocaleString()}**, but writing the corresponding \`clearing_runs\` audit row failed twice (initial + retry).`,
+          '',
+          `**Last error:** \`${clearingErr.message}\``,
+          '',
+          '## Why this matters',
+          '',
+          'Tax-equity substantiation requires a clearing_runs row per chain run (Mark, 2026-04-13 meeting). Without backfill, the audit trail has a gap.',
+          '',
+          '## Fired rules / invoices',
+          '',
+          `  - ${firedRuleSummary}`,
+          '',
+          '## How to close',
+          '',
+          'Backfill the missing row manually:',
+          '',
+          '```sql',
+          `INSERT INTO public.clearing_runs (project_id, run_at, mode, total_gross, invoices_created, invoices_skipped, status, notes, fired_rule_ids) VALUES (`,
+          `  '${payload.project_id}',`,
+          `  '${payload.run_at}',`,
+          `  '${payload.mode}',`,
+          `  ${payload.total_gross},`,
+          `  ${payload.invoices_created},`,
+          `  ${payload.invoices_skipped},`,
+          `  '${payload.status}',`,
+          `  ${JSON.stringify(payload.notes)},`,
+          `  ${JSON.stringify(JSON.stringify(payload.fired_rule_ids))}::jsonb`,
+          `);`,
+          '```',
+        ].join('\n'),
+        source_session: 'invoice-chain-clearing-runs-gap',
+        effort_estimate: 'S',
+        status: 'open',
+      })
+      if (actionErr) {
+        console.error('[invoice-chain] greg_actions escalation also failed:', actionErr.message)
+      }
     }
   }
 
