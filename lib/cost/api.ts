@@ -39,7 +39,11 @@ function getAdminClient(): SupabaseClient {
 
 let _templateCache: { rows: CostLineItemTemplate[]; loadedAt: number } | null = null
 let _scenarioCache: { config: PcsScenarioConfig | null; loadedAt: number } | null = null
-const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000
+// 30s TTL: balance read latency vs. money-path correctness after a super_admin
+// edits a unit rate via /admin/cost-catalog or atlas_set_active_pcs_scenario
+// flips a scenario. Was 5 min; red-teamer R1 on mig 244 flagged the longer
+// window as too stale for invoice generation.
+const TEMPLATE_CACHE_TTL_MS = 30 * 1000
 
 /** Bust both caches (used after admin edits to the catalog OR an active-
  *  scenario flip via atlas_set_active_pcs_scenario). */

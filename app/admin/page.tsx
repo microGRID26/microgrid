@@ -21,6 +21,7 @@ import { CustomFieldsManager } from '@/components/admin/CustomFieldsManager'
 import { CommissionRatesManager } from '@/components/admin/CommissionRatesManager'
 import { EngineeringConfigManager } from '@/components/admin/EngineeringConfigManager'
 import { InvoiceRulesManager } from '@/components/admin/InvoiceRulesManager'
+import { CostCatalogManager } from '@/components/admin/CostCatalogManager'
 import { PayScaleManager } from '@/components/admin/PayScaleManager'
 import { PayDistributionManager } from '@/components/admin/PayDistributionManager'
 import { TicketConfigManager } from '@/components/admin/TicketConfigManager'
@@ -147,6 +148,7 @@ export default function AdminPage() {
             {activeModule === 'commissions' && <CommissionRatesManager isSuperAdmin={isSuperAdmin} />}
             {activeModule === 'engineering_config' && <EngineeringConfigManager />}
             {activeModule === 'invoice_rules' && <InvoiceRulesManager isSuperAdmin={isSuperAdmin} />}
+            {activeModule === 'cost_catalog' && <CostCatalogManager isSuperAdmin={isSuperAdmin} />}
             {activeModule === 'dealer_relationships' && <DealerRelationshipsManager isSuperAdmin={isSuperAdmin} />}
             {activeModule === 'pay_scales' && <PayScaleManager isSuperAdmin={isSuperAdmin} />}
             {activeModule === 'pay_distribution' && <PayDistributionManager isSuperAdmin={isSuperAdmin} />}
