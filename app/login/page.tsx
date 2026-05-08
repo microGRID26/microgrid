@@ -4,10 +4,14 @@ import { useState } from 'react'
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
-  const supabase = createClient()
 
   async function signInWithGoogle() {
     setLoading(true)
+    // createClient() reads NEXT_PUBLIC_SUPABASE_* at call time. Calling it
+    // at module scope ran during static prerender (next build) where CI
+    // doesn't carry those env vars and the build crashed. Defer to the
+    // click handler so prerender stays clean.
+    const supabase = createClient()
     // Preserve deep-link target: proxy.ts sets ?redirect=<pathname> when it bounces
     // an unauthed request to /login. Pass it through to the callback as ?next so
     // the user lands on the original page instead of /command.

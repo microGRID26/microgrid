@@ -18,3 +18,10 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          # next build prerenders /login and any other client pages that
+          # reach @supabase/ssr at module scope. Public keys only — anon
+          # is safe to expose. Without these, the build crashes with
+          # "Your project's URL and API key are required".
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
