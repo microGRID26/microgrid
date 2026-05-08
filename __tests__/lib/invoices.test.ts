@@ -94,6 +94,14 @@ const LINE_ITEM_2 = {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.resetModules()
+  // clearAllMocks doesn't drain mockReturnValueOnce / mockImplementationOnce
+  // queues — leftovers from a prior test that aborted before consuming all
+  // queued mocks will leak into the next test and corrupt its first from()
+  // call. Reset and reinstall the default chainable behavior.
+  mockSupabase.from.mockReset()
+  mockSupabase.from.mockImplementation(() => mockChain({ data: null, error: null }))
+  mockSupabase.rpc.mockReset()
+  mockSupabase.rpc.mockImplementation(() => Promise.resolve({ data: null, error: null }) as any)
 })
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -439,28 +447,35 @@ describe('updateInvoiceStatus', () => {
     expect(result).toBeTruthy()
   })
 
-  it('sets paid_at when status is paid', async () => {
+  it('routes paid transitions through apply_paid_invoice RPC with paid_at', async () => {
+    // #613: paid path moved to apply_paid_invoice RPC (atomic invoice + funding-
+    // deduction TX). The non-paid `update()` shape is no longer hit on this path.
     const readChain = mockChain({ data: { status: 'sent' }, error: null })
-    const updateChain = mockChain({ data: INVOICE_PAID, error: null })
-    mockSupabase.from
-      .mockReturnValueOnce(readChain)
-      .mockReturnValueOnce(updateChain)
+    mockSupabase.from.mockReturnValueOnce(readChain)
+    const rpcSingle = vi.fn(() => Promise.resolve({
+      data: { invoice: INVOICE_PAID, applied_ids: [], total_deducted: 0, net_amount: 5000, gross_amount: 5000 },
+      error: null,
+    }))
+    mockSupabase.rpc.mockReturnValueOnce({ single: rpcSingle } as any)
 
     const { updateInvoiceStatus } = await import('@/lib/api/invoices')
     await updateInvoiceStatus('inv-1', 'paid')
 
-    expect(updateChain.update).toHaveBeenCalledWith(expect.objectContaining({
-      status: 'paid',
-      paid_at: expect.any(String),
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('apply_paid_invoice', expect.objectContaining({
+      p_invoice_id: 'inv-1',
+      p_current_status: 'sent',
+      p_paid_at: expect.any(String),
     }))
   })
 
-  it('includes payment details when paid with details', async () => {
+  it('passes payment details through the RPC when paid with details', async () => {
     const readChain = mockChain({ data: { status: 'sent' }, error: null })
-    const updateChain = mockChain({ data: INVOICE_PAID, error: null })
-    mockSupabase.from
-      .mockReturnValueOnce(readChain)
-      .mockReturnValueOnce(updateChain)
+    mockSupabase.from.mockReturnValueOnce(readChain)
+    const rpcSingle = vi.fn(() => Promise.resolve({
+      data: { invoice: INVOICE_PAID, applied_ids: [], total_deducted: 0, net_amount: 5000, gross_amount: 5000 },
+      error: null,
+    }))
+    mockSupabase.rpc.mockReturnValueOnce({ single: rpcSingle } as any)
 
     const { updateInvoiceStatus } = await import('@/lib/api/invoices')
     await updateInvoiceStatus('inv-1', 'paid', {
@@ -469,12 +484,13 @@ describe('updateInvoiceStatus', () => {
       payment_reference: 'REF-12345',
     })
 
-    expect(updateChain.update).toHaveBeenCalledWith(expect.objectContaining({
-      status: 'paid',
-      paid_at: expect.any(String),
-      paid_amount: 5000,
-      payment_method: 'ACH',
-      payment_reference: 'REF-12345',
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('apply_paid_invoice', expect.objectContaining({
+      p_invoice_id: 'inv-1',
+      p_current_status: 'sent',
+      p_paid_at: expect.any(String),
+      p_payment_method: 'ACH',
+      p_payment_reference: 'REF-12345',
+      p_explicit_paid_amount: 5000,
     }))
   })
 
