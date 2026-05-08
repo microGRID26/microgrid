@@ -40,7 +40,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import type { ProjectCostLineItem } from '@/lib/cost/calculator'
-import { buildInvoiceFromRule, type CalculatorError } from '@/lib/invoices/calculate'
+import { buildInvoiceFromRule, sumLineItemsToSubtotal, type CalculatorError } from '@/lib/invoices/calculate'
 import type { InvoiceRule, OrgType, Project } from '@/types/database'
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -213,9 +213,8 @@ export function computeChainTax(
   shouldApply: boolean,
 ): number {
   if (!shouldApply) return 0
-  const taxableSubtotal = lineItems
-    .filter((li) => li.is_taxable_tpp)
-    .reduce((sum, li) => Math.round((sum + li.quantity * li.unit_price) * 100) / 100, 0)
+  // #583: canonical rounding policy lives in calculate.ts. Was inlined here.
+  const taxableSubtotal = sumLineItemsToSubtotal(lineItems, (li) => li.is_taxable_tpp)
   return Math.round(taxableSubtotal * TX_SALES_TAX_RATE * 100) / 100
 }
 

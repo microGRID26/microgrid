@@ -122,6 +122,27 @@ function roundMoney(n: number): number {
   return Math.round(n * 100) / 100
 }
 
+/**
+ * Canonical line-item subtotal. Sums qty*unit_price with running-sum
+ * round-to-cent at every accumulation step so floating-point error can't
+ * compound across many lines. Optional predicate narrows the sum to a
+ * subset (e.g., taxable-TPP lines for TX sales tax).
+ *
+ * Single source of truth for invoice rounding — both buildInvoiceFromRule
+ * (full subtotal) and chain.ts computeChainTax (taxable subtotal) call
+ * this so a future change to the policy can't drift between them. #583.
+ */
+export function sumLineItemsToSubtotal<T extends { quantity: number; unit_price: number }>(
+  lineItems: ReadonlyArray<T>,
+  predicate?: (li: T) => boolean,
+): number {
+  const rows = predicate ? lineItems.filter(predicate) : lineItems
+  return rows.reduce(
+    (sum, li) => Math.round((sum + li.quantity * li.unit_price) * 100) / 100,
+    0,
+  )
+}
+
 // ── Main calculator ─────────────────────────────────────────────────────────
 
 /**
@@ -159,7 +180,6 @@ export function buildInvoiceFromRule(ctx: CalculatorContext): CalculatorResult {
   }
 
   const lineItems: InvoiceDraftLineItem[] = []
-  let subtotal = 0
 
   for (let i = 0; i < rule.line_items.length; i++) {
     const raw = rule.line_items[i] as Record<string, unknown>
@@ -193,9 +213,6 @@ export function buildInvoiceFromRule(ctx: CalculatorContext): CalculatorResult {
       return { ok: false, reason: 'line_item_missing_price' }
     }
 
-    const total = roundMoney(quantity * unit_price)
-    subtotal = roundMoney(subtotal + total)
-
     lineItems.push({
       description,
       quantity,
@@ -207,6 +224,7 @@ export function buildInvoiceFromRule(ctx: CalculatorContext): CalculatorResult {
     })
   }
 
+  const subtotal = sumLineItemsToSubtotal(lineItems)
   const total = subtotal // tax = 0 in Tier 1
 
   if (total > maxTotal) {
