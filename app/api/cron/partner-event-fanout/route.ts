@@ -24,11 +24,19 @@ export async function GET(request: NextRequest) {
   const startedAt = new Date()
   try {
     const result = await runFanout()
-    const status = result.errors.length === 0
-      ? 'success'
-      : (result.deliveries_succeeded > 0 ? 'partial' : 'error')
+    // #573: any DLQ trip is an error — events were permanently abandoned. The
+    // whole point of moving to retry-with-cap was to NOT lose events silently.
+    const status = result.events_dlqed > 0
+      ? 'error'
+      : result.errors.length === 0
+        ? 'success'
+        : (result.deliveries_succeeded > 0 ? 'partial' : 'error')
     const outputSummary = `${result.events_processed} events, ${result.deliveries_succeeded}/${result.deliveries_attempted} delivered`
+      + (result.events_dlqed > 0 ? `, ${result.events_dlqed} DLQ` : '')
       + (result.errors.length > 0 ? `, ${result.errors.length} errors` : '')
+    const errorMessage = result.events_dlqed > 0
+      ? `DLQ: ${result.events_dlqed} event(s) hit 5-attempt cap; ${result.errors.slice(0, 5).join('; ') || 'no per-delivery errors'}`
+      : (result.errors.slice(0, 5).join('; ') || null)
 
     void reportFleetRun({
       slug: FLEET_SLUG,
@@ -37,7 +45,7 @@ export async function GET(request: NextRequest) {
       finishedAt: new Date(),
       itemsProcessed: result.events_processed,
       outputSummary,
-      errorMessage: result.errors.slice(0, 5).join('; ') || null,
+      errorMessage,
     })
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {

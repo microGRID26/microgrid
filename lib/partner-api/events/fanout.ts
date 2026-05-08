@@ -30,6 +30,7 @@ const PER_EVENT_CONCURRENCY = 10
 
 export interface FanoutResult {
   events_processed: number
+  events_dlqed: number
   deliveries_attempted: number
   deliveries_succeeded: number
   deliveries_failed: number
@@ -39,6 +40,7 @@ export interface FanoutResult {
 export async function runFanout(nowMs: number = Date.now()): Promise<FanoutResult> {
   const result: FanoutResult = {
     events_processed: 0,
+    events_dlqed: 0,
     deliveries_attempted: 0,
     deliveries_succeeded: 0,
     deliveries_failed: 0,
@@ -74,6 +76,7 @@ export async function runFanout(nowMs: number = Date.now()): Promise<FanoutResul
     event_id: string
     payload: Record<string, unknown>
     emitted_at: string
+    claimed_at: string
   }> | null) ?? []
 
   for (const evt of rows) {
@@ -98,15 +101,26 @@ export async function runFanout(nowMs: number = Date.now()): Promise<FanoutResul
     // fanned_out_at. Stamps when (a) all deliveries succeeded OR (b) attempts
     // hit the 5-pass cap (give up). On partial failure with attempts < 5,
     // fanned_out_at stays NULL — stale-reclaim (5 min) re-queues the row.
+    //
+    // #574: p_expected_claimed_at scopes the UPDATE to "I still own this
+    // claim." If a stale-reclaim handed the row to another worker mid-deliver,
+    // our record_attempt no-ops and the new owner records its own outcome.
+    //
+    // #573: RPC returns true iff this call hit the 5-attempt give-up cap.
+    // Aggregated into events_dlqed so the cron route can flip fleet status to
+    // 'error' — silent abandonment was the audit's failure mode.
     const allOk = targets.length === 0 || deliveries.every((d) => d.ok)
-    const recordErr = await client.rpc('partner_event_outbox_record_attempt', {
+    const recordResp = await client.rpc('partner_event_outbox_record_attempt', {
       p_id: evt.id,
       p_all_ok: allOk,
+      p_expected_claimed_at: evt.claimed_at,
       p_max_attempts: 5,
       p_now: new Date(nowMs).toISOString(),
     })
-    if (recordErr?.error) {
-      result.errors.push(`[fanout] record_attempt failed for ${evt.id}: ${recordErr.error.message}`)
+    if (recordResp?.error) {
+      result.errors.push(`[fanout] record_attempt failed for ${evt.id}: ${recordResp.error.message}`)
+    } else if (recordResp?.data === true) {
+      result.events_dlqed++
     }
   }
 
