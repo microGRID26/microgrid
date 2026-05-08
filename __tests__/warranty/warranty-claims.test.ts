@@ -109,13 +109,18 @@ describe('EPC → EDGE invoice netting', () => {
     expect(result.appliedDeductionIds).toHaveLength(3)
   })
 
-  it('invoice paid_amount floored at 0 when chargebacks exceed gross', () => {
+  it('oversized chargeback row is skipped (FIFO no-fit, post-#538)', () => {
     // Edge case: EPC owes more in chargebacks than their current invoice total.
+    // Post-#538 the algo is FIFO with row-level fit check — applying the $4,500
+    // row would over-deduct the $3,000 invoice, so it's SKIPPED (continue), the
+    // row stays status='open' and carries forward, and the invoice nets to
+    // gross. Pre-#538 sum-and-floor behavior (netAmount=0, totalDeducted=4_500)
+    // silently lost the excess; this test now guards the skip contract.
     const result = computeNetPayment(3_000, [
       { id: 'fd-1', amount: 4_500, source_claim_id: 'wc-1' },
     ])
-    expect(result.netAmount).toBe(0)
-    // The remaining $1,500 balance should be tracked separately (future enhancement)
-    expect(result.totalDeducted).toBe(4_500)
+    expect(result.netAmount).toBe(3_000)
+    expect(result.totalDeducted).toBe(0)
+    expect(result.appliedDeductionIds).toEqual([])
   })
 })
