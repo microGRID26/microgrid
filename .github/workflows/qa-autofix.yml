@@ -1,0 +1,205 @@
+name: QA Autofix
+
+# Drop this file into .github/workflows/qa-autofix.yml in:
+#   - microGRID26/MicroGRID
+#   - microGRID26/Spark
+#
+# Triggered via workflow_dispatch by ATLAS-HQ /api/cron/qa-autofix when a
+# tester logs a failed test_results row. The workflow checks out main,
+# runs Claude with read+edit access, lets it find + patch the code, runs
+# tsc + tests, and either opens a PR (success) or escalates back to HQ
+# (no-op or verification fail).
+#
+# Mirrors templates/github-workflows/feedback-fixer.yml, but the prompt is
+# tuned for "a QA test case explicitly failed" instead of "a user wrote in
+# freeform feedback". Same Claude invocation, same diff/verify/PR pattern.
+
+on:
+  workflow_dispatch:
+    inputs:
+      qa_run_id:       { description: 'qa_runs.id UUID',           required: true }
+      project:         { description: 'MicroGRID or SPARK',         required: true }
+      test_case_title: { description: 'Failing test case title',    required: false, default: '' }
+      tester_name:     { description: 'Who ran the test',           required: false, default: '' }
+      notes:           { description: 'Notes from the tester',      required: false, default: '' }
+      screenshot_url:  { description: 'Screenshot URL',             required: false, default: '' }
+      action_id:       { description: 'greg_actions id (if linked)', required: false, default: '' }
+      callback_url:    { description: 'HQ callback URL',            required: true }
+      callback_secret: { description: 'HQ callback shared secret',  required: true }
+
+concurrency:
+  group: qa-autofix-${{ github.event.inputs.qa_run_id }}
+  cancel-in-progress: false
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      QA_RUN_ID:       ${{ github.event.inputs.qa_run_id }}
+      PROJECT:         ${{ github.event.inputs.project }}
+      TEST_CASE_TITLE: ${{ github.event.inputs.test_case_title }}
+      TESTER_NAME:     ${{ github.event.inputs.tester_name }}
+      TEST_NOTES:      ${{ github.event.inputs.notes }}
+      SCREENSHOT_URL:  ${{ github.event.inputs.screenshot_url }}
+      ACTION_ID:       ${{ github.event.inputs.action_id }}
+      CALLBACK_URL:    ${{ github.event.inputs.callback_url }}
+      CALLBACK_SECRET: ${{ github.event.inputs.callback_secret }}
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create fix branch
+        run: |
+          SHORT_ID="${QA_RUN_ID:0:8}"
+          BRANCH="qa-autofix/${SHORT_ID}"
+          echo "BRANCH=${BRANCH}" >> "$GITHUB_ENV"
+          git config user.name  "Atlas QA Autofix"
+          git config user.email "atlas-autofix@gomicrogridenergy.com"
+          git checkout -b "${BRANCH}"
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        if: hashFiles('package-lock.json') != ''
+        run: npm ci
+
+      - name: Run Claude fix attempt
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        continue-on-error: true
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 25
+            --allowedTools "Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(grep:*),Bash(rg:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Edit,Write,Read,Grep,Glob,MultiEdit"
+          prompt: |
+            You are the Atlas QA Autofix agent running inside the ${{ github.repository }} repo.
+            A QA test case just failed. ATLAS HQ has dispatched this workflow to attempt
+            the smallest correct code fix.
+
+            ## QA failure context
+            - Project: ${{ env.PROJECT }}
+            - Test case: ${{ env.TEST_CASE_TITLE }}
+            - Tester: ${{ env.TESTER_NAME }}
+            - QA run id: ${{ env.QA_RUN_ID }}
+            - Screenshot URL: ${{ env.SCREENSHOT_URL }}
+
+            ## Notes from the tester (verbatim)
+            ${{ env.TEST_NOTES }}
+
+            ## Your job
+            1. Read the test case title + tester notes carefully. The tester told you
+               *what* broke. Use Grep / Glob / Read aggressively to find the code most
+               likely responsible. Read CLAUDE.md if it exists at the repo root.
+            2. Apply the smallest correct fix. Do NOT refactor surrounding code. Do NOT
+               add new dependencies. Do NOT touch files unrelated to this failure. Do
+               NOT bump versions. Keep the diff under ~200 lines.
+            3. Run typecheck + tests locally (`npx tsc --noEmit`, `npm test`) and
+               confirm they pass. If your change breaks tests, undo it.
+            4. If the failure is ambiguous, out of scope (design decision, infra change,
+               business logic call, requires human judgement), unreproducible from the
+               notes, or you can't find the relevant code with reasonable confidence —
+               exit WITHOUT making any changes. The workflow handles no-op gracefully.
+               It is better to escalate than to ship a wrong fix.
+            5. NEVER touch: .github/workflows/, package.json dependency lists, lockfiles,
+               supabase/migrations/, supabase/rls-migration.sql, lib/auth/**,
+               app/api/webhooks/**, lib/partner-api/**. Those need human review.
+               If the failure points there, exit no-op.
+            6. Do not commit, push, or open a PR yourself — the workflow does that
+               downstream based on whether you produced a diff. Just leave your
+               changes in the working tree.
+
+            ## Constraints
+            - One QA failure → at most one logical fix.
+            - No new test files unless the fix genuinely requires regression coverage.
+            - If you change behavior visible to users, prefer the smallest change that
+              addresses the test case, not the most complete fix.
+
+      - name: Detect if Claude produced a diff
+        id: diff
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true"  >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Typecheck + tests
+        id: verify
+        if: steps.diff.outputs.changed == 'true'
+        continue-on-error: true
+        run: |
+          if [ -f package.json ]; then
+            if npx --no -- tsc --version >/dev/null 2>&1; then npx tsc --noEmit; fi
+            if npm run | grep -q "^  test"; then npm test --silent; fi
+          fi
+
+      - name: Commit + push branch
+        if: steps.diff.outputs.changed == 'true' && steps.verify.outcome == 'success'
+        run: |
+          git add -A
+          MSG=$(printf 'qa-autofix: %s\n\nQA run: %s\nProject: %s\nTester: %s\n\nAuto-patched by Claude in response to a failed QA run.' \
+            "${TEST_CASE_TITLE}" "${QA_RUN_ID}" "${PROJECT}" "${TESTER_NAME}")
+          git commit -m "${MSG}"
+          git push -u origin "${BRANCH}"
+
+      - name: Open PR
+        id: pr
+        if: steps.diff.outputs.changed == 'true' && steps.verify.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL=$(gh pr create \
+            --base  main \
+            --head  "${BRANCH}" \
+            --title "qa-autofix: ${TEST_CASE_TITLE}" \
+            --body  "$(printf 'Auto-fix for failed QA run \`%s\`.\n\n**Project:** %s\n**Test case:** %s\n**Tester:** %s\n\n**Notes from tester:**\n\n> %s\n\n_Opened by ATLAS HQ qa-autofix workflow. Review, merge, and re-run QA when ready._' \
+              "${QA_RUN_ID}" "${PROJECT}" "${TEST_CASE_TITLE}" "${TESTER_NAME}" "${TEST_NOTES}")")
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Callback to ATLAS HQ
+        if: always()
+        run: |
+          if [ -z "$CALLBACK_URL" ]; then
+            echo "No CALLBACK_URL set; skipping ping."
+            exit 0
+          fi
+          STATUS="escalated"
+          PR_URL=""
+          SUMMARY_OUT="Claude reviewed the QA failure and chose not to make a code change."
+          if [ "${{ steps.claude.outcome }}" = "failure" ] && [ "${{ steps.diff.outputs.changed }}" != "true" ]; then
+            SUMMARY_OUT="Claude run errored before producing a diff."
+          fi
+          if [ "${{ steps.diff.outputs.changed }}" = "true" ] && [ "${{ steps.verify.outcome }}" = "success" ]; then
+            STATUS="pr_opened"
+            PR_URL="${{ steps.pr.outputs.pr_url }}"
+            SUMMARY_OUT="Autofix shipped a PR. tsc + tests green."
+          elif [ "${{ steps.diff.outputs.changed }}" = "true" ] && [ "${{ steps.verify.outcome }}" != "success" ]; then
+            STATUS="escalated"
+            SUMMARY_OUT="Claude produced a diff but verification failed. Branch not pushed."
+          fi
+          curl -sS -X POST "$CALLBACK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -cn \
+              --arg secret    "$CALLBACK_SECRET" \
+              --arg project   "$PROJECT" \
+              --arg qa_run_id "$QA_RUN_ID" \
+              --arg action_id "$ACTION_ID" \
+              --arg status    "$STATUS" \
+              --arg pr_url    "$PR_URL" \
+              --arg summary   "$SUMMARY_OUT" \
+              '{secret:$secret, project:$project, qa_run_id:$qa_run_id, action_id:($action_id|tonumber? // null), status:$status, pr_url:$pr_url, summary:$summary}')"
