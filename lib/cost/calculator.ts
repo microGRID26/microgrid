@@ -30,7 +30,18 @@
 // ── Types ───────────────────────────────────────────────────────────────────
 
 export type SystemBucket = 'Battery' | 'PV' | 'GPU' | 'Both'
-export type UnitBasis = 'flat' | 'per_kw' | 'per_kwh'
+// Mirrors the DB CHECK on project_cost_line_item_templates.default_unit_basis
+// (mig 128). Keep this enum 1:1 with the constraint — scaleRawCost has an
+// exhaustive switch and `default:` throws via a `never` narrow.
+export type UnitBasis =
+  | 'flat'
+  | 'per_kw'
+  | 'per_kwh'
+  | 'per_battery'
+  | 'per_inverter'
+  | 'per_panel'
+  | 'per_panel_pair'
+  | 'per_watt'
 export type ProofType = 'Bank Transaction' | 'EPC-Attestation'
 export type BasisEligibility = 'Yes' | 'Partial' | 'No' | 'TBD'
 
@@ -96,12 +107,21 @@ export interface ProjectCostLineItem {
   is_taxable_tpp: boolean
 }
 
-/** Project sizing inputs used to scale per_kw / per_kwh templates. */
+/** Project sizing inputs used to scale per-unit templates. All fields are
+ *  always populated by `resolveProjectSizing` — defaults are applied when the
+ *  project row is missing values. Match Paul's v43-20 model defaults
+ *  (24.2 kW / 16 batteries / 2 inverters / 55 panels). */
 export interface ProjectSizing {
-  /** PV system size in kW DC. From projects.systemkw. */
-  systemkw: number | null
-  /** Battery storage in kWh. Estimated from battery_qty if not stored explicitly. */
+  /** PV system size in kW DC. From projects.systemkw, or DEFAULT_PV_KW. */
+  systemkw: number
+  /** Battery storage in kWh. From explicit override OR battery_qty × kwh_per_unit OR DEFAULT_BATTERY_KWH. */
   battery_kwh: number
+  /** Battery module count. From projects.battery_qty, or DEFAULT_BATTERY_QTY. */
+  battery_qty: number
+  /** Inverter count. From projects.inverter_qty, or DEFAULT_INVERTER_QTY. */
+  inverter_qty: number
+  /** PV panel count. From projects.module_qty, or DEFAULT_PANEL_QTY. */
+  panel_qty: number
 }
 
 /** Result of the basis summary calculation — mirrors I34:M39 in the proforma. */
@@ -126,6 +146,12 @@ export const DEFAULT_BATTERY_KWH = 80
 /** Default PV kW used when the project has no systemkw set. */
 export const DEFAULT_PV_KW = 24.2
 
+/** Defaults from Paul's v43-20 model (16 batteries × 5 kWh = 80 kWh = DEFAULT_BATTERY_KWH;
+ *  2 inverters; 55 panels × 0.440 kW = 24.2 kW = DEFAULT_PV_KW). Mirror mig 128. */
+export const DEFAULT_BATTERY_QTY = 16
+export const DEFAULT_INVERTER_QTY = 2
+export const DEFAULT_PANEL_QTY = 55
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function roundMoney(n: number): number {
@@ -149,21 +175,40 @@ function roundPct(n: number): number {
 export function resolveProjectSizing(project: {
   systemkw?: number | null
   battery_qty?: number | null
+  inverter_qty?: number | null
+  module_qty?: number | null
 }, opts: { explicit_battery_kwh?: number; battery_kwh_per_unit?: number } = {}): ProjectSizing {
   const systemkw = project.systemkw && project.systemkw > 0 ? project.systemkw : DEFAULT_PV_KW
+  const battery_qty = project.battery_qty && project.battery_qty > 0 ? project.battery_qty : DEFAULT_BATTERY_QTY
+  const inverter_qty = project.inverter_qty && project.inverter_qty > 0 ? project.inverter_qty : DEFAULT_INVERTER_QTY
+  const panel_qty = project.module_qty && project.module_qty > 0 ? project.module_qty : DEFAULT_PANEL_QTY
   const battery_kwh =
     opts.explicit_battery_kwh && opts.explicit_battery_kwh > 0
       ? opts.explicit_battery_kwh
       : project.battery_qty && project.battery_qty > 0
         ? project.battery_qty * (opts.battery_kwh_per_unit ?? 16)
         : DEFAULT_BATTERY_KWH
-  return { systemkw, battery_kwh }
+  return { systemkw, battery_kwh, battery_qty, inverter_qty, panel_qty }
 }
 
 /**
  * Scale a template's raw_cost based on its unit basis and the project's
- * size. flat → return as-is; per_kw → multiply by systemkw; per_kwh →
- * multiply by battery_kwh. Pure function.
+ * size. Mirrors mig 128's `backfill_project_cost_line_items` SQL CASE
+ * one-for-one so the in-app calculator and the bulk SQL backfill produce
+ * identical numbers for any (template, project) pair.
+ *
+ *   flat            → raw_cost
+ *   per_kw          → raw_cost × systemkw
+ *   per_kwh         → raw_cost × battery_kwh
+ *   per_battery     → raw_cost × battery_qty
+ *   per_inverter    → raw_cost × inverter_qty
+ *   per_panel       → raw_cost × panel_qty
+ *   per_panel_pair  → raw_cost × ceil(panel_qty / 2)
+ *   per_watt        → raw_cost × systemkw × 1000
+ *
+ * Pure function. The `default:` arm is unreachable for valid DB rows (CHECK
+ * constraint enforces the 8 enum values) and uses a `never` narrow so any
+ * future enum addition fails at compile time before it can silently no-op.
  */
 export function scaleRawCost(
   template: Pick<CostLineItemTemplate, 'default_raw_cost' | 'default_unit_basis'>,
@@ -173,11 +218,23 @@ export function scaleRawCost(
     case 'flat':
       return roundMoney(template.default_raw_cost)
     case 'per_kw':
-      return roundMoney(template.default_raw_cost * (sizing.systemkw ?? DEFAULT_PV_KW))
+      return roundMoney(template.default_raw_cost * sizing.systemkw)
     case 'per_kwh':
       return roundMoney(template.default_raw_cost * sizing.battery_kwh)
-    default:
-      return roundMoney(template.default_raw_cost)
+    case 'per_battery':
+      return roundMoney(template.default_raw_cost * sizing.battery_qty)
+    case 'per_inverter':
+      return roundMoney(template.default_raw_cost * sizing.inverter_qty)
+    case 'per_panel':
+      return roundMoney(template.default_raw_cost * sizing.panel_qty)
+    case 'per_panel_pair':
+      return roundMoney(template.default_raw_cost * Math.ceil(sizing.panel_qty / 2))
+    case 'per_watt':
+      return roundMoney(template.default_raw_cost * sizing.systemkw * 1000)
+    default: {
+      const _exhaustive: never = template.default_unit_basis
+      throw new Error(`scaleRawCost: unhandled unit_basis "${String(_exhaustive)}"`)
+    }
   }
 }
 

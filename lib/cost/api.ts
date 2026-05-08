@@ -190,6 +190,8 @@ export async function loadProjectCostBasis(
   const sizing = resolveProjectSizing({
     systemkw: project.systemkw,
     battery_qty: project.battery_qty,
+    inverter_qty: project.inverter_qty,
+    module_qty: project.module_qty,
   })
   const ephemeral: ProjectCostLineItem[] = templates.map((tpl) => ({
     ...buildProjectLineItem(tpl, sizing, project.id),

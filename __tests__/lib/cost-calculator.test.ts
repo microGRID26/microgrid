@@ -17,6 +17,9 @@ import {
   resolveProjectSizing,
   scaleRawCost,
   DEFAULT_BATTERY_KWH,
+  DEFAULT_BATTERY_QTY,
+  DEFAULT_INVERTER_QTY,
+  DEFAULT_PANEL_QTY,
   DEFAULT_PV_KW,
   type CostLineItemTemplate,
   type ProjectCostLineItem,
@@ -53,7 +56,16 @@ function tpl(overrides: Partial<CostLineItemTemplate>): CostLineItemTemplate {
 }
 
 const SAMPLE_PROJECT_ID = 'PROJ-PROFORMA-SAMPLE'
-const SAMPLE_SIZING: ProjectSizing = { systemkw: 24.2, battery_kwh: 80 }
+// Mirrors Paul's v43-20 model defaults (24.2 kW PV / 80 kWh = 16 batteries × 5 kWh /
+// 2 inverters / 55 panels). The per-unit bases scale off the explicit qty fields,
+// not battery_kwh — battery_kwh is still consumed by the legacy per_kwh path.
+const SAMPLE_SIZING: ProjectSizing = {
+  systemkw: 24.2,
+  battery_kwh: 80,
+  battery_qty: 16,
+  inverter_qty: 2,
+  panel_qty: 55,
+}
 
 // The 28 catalog rows from migration 103, replicated here as a fixture so the
 // test is self-contained (the catalog table isn't loaded in unit tests). All
@@ -118,6 +130,39 @@ describe('resolveProjectSizing', () => {
     const sizing = resolveProjectSizing({ systemkw: 10, battery_qty: 4 }, { battery_kwh_per_unit: 20 })
     expect(sizing.battery_kwh).toBe(80)
   })
+
+  // ── Per-unit qty resolution (mig 128 / Phase A) ───────────────────────────
+  it('resolves battery_qty / inverter_qty / panel_qty from project fields', () => {
+    const sizing = resolveProjectSizing({
+      systemkw: 30,
+      battery_qty: 24,
+      inverter_qty: 3,
+      module_qty: 72,
+    })
+    expect(sizing.battery_qty).toBe(24)
+    expect(sizing.inverter_qty).toBe(3)
+    expect(sizing.panel_qty).toBe(72)
+  })
+
+  it('falls back to Paul-model defaults (16 / 2 / 55) when qty fields are null', () => {
+    const sizing = resolveProjectSizing({ systemkw: 24.2, battery_qty: null })
+    expect(sizing.battery_qty).toBe(DEFAULT_BATTERY_QTY)
+    expect(sizing.inverter_qty).toBe(DEFAULT_INVERTER_QTY)
+    expect(sizing.panel_qty).toBe(DEFAULT_PANEL_QTY)
+  })
+
+  it('treats 0 as missing and falls back to defaults (matches mig 128 NULLIF)', () => {
+    const sizing = resolveProjectSizing({
+      systemkw: 0,
+      battery_qty: 0,
+      inverter_qty: 0,
+      module_qty: 0,
+    })
+    expect(sizing.systemkw).toBe(DEFAULT_PV_KW)
+    expect(sizing.battery_qty).toBe(DEFAULT_BATTERY_QTY)
+    expect(sizing.inverter_qty).toBe(DEFAULT_INVERTER_QTY)
+    expect(sizing.panel_qty).toBe(DEFAULT_PANEL_QTY)
+  })
 })
 
 // ── scaleRawCost ───────────────────────────────────────────────────────────
@@ -136,6 +181,52 @@ describe('scaleRawCost', () => {
   it('multiplies by battery_kwh for per_kwh basis', () => {
     const cost = scaleRawCost({ default_raw_cost: 468.16, default_unit_basis: 'per_kwh' }, SAMPLE_SIZING)
     expect(cost).toBeCloseTo(37452.80, 1) // 468.16 × 80
+  })
+
+  // ── Per-unit bases (Phase A — mig 128 alignment) ─────────────────────────
+  it('multiplies by battery_qty for per_battery basis (Battery Modules anchor)', () => {
+    // Paul's v43-20: Battery Modules $2,340.80 × 16 batteries = $37,452.80
+    const cost = scaleRawCost({ default_raw_cost: 2340.80, default_unit_basis: 'per_battery' }, SAMPLE_SIZING)
+    expect(cost).toBeCloseTo(37452.80, 1)
+  })
+
+  it('multiplies by inverter_qty for per_inverter basis (Hybrid Inverters anchor)', () => {
+    // Paul's v43-20: Hybrid Inverters $6,748.50 × 2 inverters = $13,497.00
+    const cost = scaleRawCost({ default_raw_cost: 6748.50, default_unit_basis: 'per_inverter' }, SAMPLE_SIZING)
+    expect(cost).toBeCloseTo(13497.00, 1)
+  })
+
+  it('multiplies by panel_qty for per_panel basis (PV Installation Labor anchor)', () => {
+    // Paul's v43-20: PV Installation Labor $56.00 × 55 panels = $3,080.00
+    const cost = scaleRawCost({ default_raw_cost: 56.00, default_unit_basis: 'per_panel' }, SAMPLE_SIZING)
+    expect(cost).toBeCloseTo(3080.00, 1)
+  })
+
+  it('multiplies by ceil(panel_qty / 2) for per_panel_pair basis (RSD anchor)', () => {
+    // Paul's v43-20: Module-Level Electronics RSD $50.00 × ceil(55/2)=28 = $1,400.00
+    const cost = scaleRawCost({ default_raw_cost: 50.00, default_unit_basis: 'per_panel_pair' }, SAMPLE_SIZING)
+    expect(cost).toBeCloseTo(1400.00, 1)
+  })
+
+  it('multiplies by systemkw × 1000 for per_watt basis (Sales Commission anchor)', () => {
+    // Paul's v43-20: Customer Acquisition $1.00 × (24.2 kW × 1000) = $24,200.00
+    const cost = scaleRawCost({ default_raw_cost: 1.00, default_unit_basis: 'per_watt' }, SAMPLE_SIZING)
+    expect(cost).toBeCloseTo(24200.00, 1)
+  })
+
+  it('rounds per_panel_pair up for odd panel counts (mig 128 ceil semantics)', () => {
+    // 7 panels → ceil(7/2) = 4 pairs → $50 × 4 = $200
+    const sizing: ProjectSizing = { ...SAMPLE_SIZING, panel_qty: 7 }
+    const cost = scaleRawCost({ default_raw_cost: 50, default_unit_basis: 'per_panel_pair' }, sizing)
+    expect(cost).toBe(200)
+  })
+
+  it('throws on an unknown unit_basis (defensive against silent fallthrough)', () => {
+    // Bypass the type system to exercise the `default:` arm directly. This is
+    // the regression guard for the Phase A bug class — a silent return of
+    // `default_raw_cost` was masking ~$77K/project understatements pre-fix.
+    const bogus = { default_raw_cost: 100, default_unit_basis: 'per_unicorn' as unknown as ProjectSizing['systemkw'] extends number ? 'flat' : never }
+    expect(() => scaleRawCost(bogus as never, SAMPLE_SIZING)).toThrow(/unhandled unit_basis/)
   })
 })
 

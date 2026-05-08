@@ -109,6 +109,8 @@ async function backfillProject(
   const sizing = resolveProjectSizing({
     systemkw: project.systemkw,
     battery_qty: project.battery_qty,
+    inverter_qty: project.inverter_qty,
+    module_qty: project.module_qty,
   })
   const existingTemplateIds = await getExistingTemplateIds(project.id)
 
