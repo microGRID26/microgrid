@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { fmtDate, fmt$ } from '@/lib/utils'
 import type { Invoice, InvoiceLineItem, InvoiceStatus } from '@/lib/api/invoices'
-import { Send, CheckCircle, Ban, AlertTriangle, Zap, RefreshCw, FileText } from 'lucide-react'
+import { Send, CheckCircle, Ban, AlertTriangle, Zap, RefreshCw, FileText, Download } from 'lucide-react'
 
 // ── Invoice Detail (Expandable Row) ──────────────────────────────────────────
 
@@ -257,13 +257,20 @@ export function InvoiceDetail({
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-700">
-        {/* View PDF — read-only render, no state change. Available on every status. */}
+        {/* View PDF + Download — read-only render, no state change. Available on every status. */}
         <button
           onClick={() => window.open(`/api/invoices/${invoice.id}/preview-pdf`, '_blank', 'noopener')}
           className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded-lg flex items-center gap-1"
           title="Open the rendered PDF in a new tab — does NOT send the invoice"
         >
           <FileText className="w-3 h-3" /> View PDF
+        </button>
+        <button
+          onClick={() => window.open(`/api/invoices/${invoice.id}/preview-pdf?download=1`, '_self')}
+          className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded-lg flex items-center gap-1"
+          title="Download the rendered PDF — does NOT send the invoice"
+        >
+          <Download className="w-3 h-3" /> Download
         </button>
         {isSender && invoice.status === 'draft' && (
           <>

@@ -123,13 +123,19 @@ export async function GET(
     project,
   })
 
+  // ?download=1 → return as attachment so the browser's "Save File" dialog
+  // fires immediately. Default (no query param) is inline so the PDF
+  // renders in a tab with the browser's PDF viewer chrome.
+  const downloadFlag = request.nextUrl.searchParams.get('download') === '1'
+  const disposition = downloadFlag ? 'attachment' : 'inline'
+
   // Convert Buffer to a Blob-friendly Uint8Array so NextResponse can stream it.
   const body = new Uint8Array(pdfBuffer)
   return new NextResponse(body, {
     status: 200,
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="${inv.invoice_number}.pdf"`,
+      'Content-Disposition': `${disposition}; filename="${inv.invoice_number}.pdf"`,
       'Cache-Control': 'private, no-store',
     },
   })

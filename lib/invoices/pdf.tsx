@@ -434,9 +434,12 @@ export function InvoicePDF({ invoice, lineItems, fromOrg, toOrg, project }: Invo
           </View>
         </View>
 
-        {/* EPC Attestation block — EPC → EDGE invoices only */}
+        {/* EPC Attestation block — EPC → EDGE invoices only.
+            wrap={false} keeps the entire block (label + text + signatures)
+            on a single page. Without it, react-pdf was splitting the label
+            on page 1 and the body + signature lines on page 2. */}
         {showAttestation ? (
-          <View style={styles.attestationBlock}>
+          <View style={styles.attestationBlock} wrap={false}>
             <Text style={styles.attestationLabel}>EPC Certification</Text>
             <Text style={styles.attestationText}>{EPC_ATTESTATION_TEXT}</Text>
             <View style={styles.signatureRow}>
