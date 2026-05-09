@@ -127,6 +127,30 @@ export async function processSubhubProject(
   db: SupabaseClient,
   options: IngestOptions = {},
 ): Promise<IngestResult> {
+  // DIAG-2026-05-09 (action #667): real SubHub deliveries 400 with "Missing
+  // required fields: name and address" but docs/subhub-webhook-sample.json
+  // contains all required keys correctly named. Vercel MCP can't show request
+  // bodies, so log the payload key shape ONCE per request to identify the
+  // missing/renamed field. STRIP after first real fire is captured.
+  // Hardened per red-teamer R1: guards null/array payloads (would 500 on
+  // Object.keys(null)), caps key count (anti log-volume abuse), caps PII
+  // values to first 80 chars.
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    const keys = Object.keys(payload as Record<string, unknown>).slice(0, 80).sort()
+    const derived = (payload.name ?? `${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim()) || '<EMPTY>'
+    const street = payload.street ?? '<MISSING>'
+    console.log('[subhub] DIAG payload shape:', JSON.stringify({
+      topLevelKeys: keys,
+      keyCount: Object.keys(payload as Record<string, unknown>).length,
+      hasName: !!payload.name,
+      hasFirstLast: !!(payload.first_name || payload.last_name),
+      hasStreet: !!payload.street,
+      hasSubhubId: payload.subhub_id != null,
+      hasSubhubUuid: !!payload.subhub_uuid,
+      derivedName: derived.slice(0, 80),
+      streetValue: String(street).slice(0, 80),
+    }))
+  }
   const customerName = payload.name ?? `${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim()
   const customerAddress = payload.street
   if (!customerName || !customerAddress) {
