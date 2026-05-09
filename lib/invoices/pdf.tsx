@@ -71,6 +71,13 @@ export interface InvoicePDFProps {
   lineItems: InvoiceLineItem[]
   fromOrg: Pick<Organization, 'id' | 'name' | 'org_type' | 'settings' | 'billing_email' | 'billing_address' | 'logo_url'>
   toOrg: Pick<Organization, 'id' | 'name' | 'org_type' | 'settings' | 'billing_email' | 'billing_address'>
+  /**
+   * Optional project context. When present, the PDF renders a "Project"
+   * line in the meta header so a recipient flipping through 40 chain
+   * invoices can see which customer the leg belongs to without cross-
+   * referencing the invoice number to a project record.
+   */
+  project?: { id: string; name: string } | null
 }
 
 // ── Formatters ──────────────────────────────────────────────────────────────
@@ -118,16 +125,28 @@ function buildStyles(theme: BrandTheme) {
       fontSize: 22,
       fontFamily: `${theme.font}-Bold`,
       color: theme.primary_color,
+      // lineHeight 1 keeps the descenders of "g/y/p" inside the line box
+      // instead of crashing into the tagline below. Default page lineHeight
+      // is 1.4 which made "Rush Engineering" / "MicroGRID Energy" / "NewCo
+      // Distribution LLC" descenders sit on top of the brand tag.
+      lineHeight: 1,
+      marginBottom: 6,
     },
     brandLogo: {
-      height: 48,
-      maxWidth: 240,
-      marginBottom: 4,
+      // Wide logos (e.g. DSE's 'DSE | DIRECT SUPPLY EQUITY CORP') were
+      // getting clipped at maxWidth 240. Bumping to 320 + objectFit:'contain'
+      // so wide marks render whole. height stays generous so the bound is
+      // width-driven on those.
+      height: 44,
+      maxWidth: 320,
+      marginBottom: 6,
+      objectFit: 'contain' as const,
     },
     brandTag: {
       fontSize: 9,
       color: MUTED,
-      marginTop: 2,
+      marginTop: 4,
+      lineHeight: 1.2,
     },
     invoiceBlock: {
       alignItems: 'flex-end',
@@ -307,7 +326,7 @@ export function shouldRenderAttestation(
   return fromOrg.org_type === 'epc' && toOrg.org_type === 'platform'
 }
 
-export function InvoicePDF({ invoice, lineItems, fromOrg, toOrg }: InvoicePDFProps) {
+export function InvoicePDF({ invoice, lineItems, fromOrg, toOrg, project }: InvoicePDFProps) {
   const milestoneLabel = invoice.milestone ? (MILESTONE_LABELS[invoice.milestone] ?? invoice.milestone) : null
   const theme = resolveBrandTheme(fromOrg)
   const styles = buildStyles(theme)
@@ -363,6 +382,13 @@ export function InvoicePDF({ invoice, lineItems, fromOrg, toOrg }: InvoicePDFPro
             <Text style={styles.metaValue}>{fmtDate(invoice.created_at)}</Text>
             <Text style={[styles.metaLabel, { marginTop: 8 }]}>Due</Text>
             <Text style={styles.metaValue}>{fmtDate(invoice.due_date)}</Text>
+            {project ? (
+              <>
+                <Text style={[styles.metaLabel, { marginTop: 8 }]}>Project</Text>
+                <Text style={styles.metaValueBold}>{project.name}</Text>
+                <Text style={styles.metaValue}>{project.id}</Text>
+              </>
+            ) : null}
             {milestoneLabel ? (
               <>
                 <Text style={[styles.metaLabel, { marginTop: 8 }]}>Milestone</Text>

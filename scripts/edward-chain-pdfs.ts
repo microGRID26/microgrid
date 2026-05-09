@@ -36,7 +36,7 @@ async function main() {
   console.log(`Found ${invoices.length} invoices for ${PROJ}`)
 
   for (const inv of invoices as Invoice[]) {
-    const [{ data: lineItems }, { data: orgs }] = await Promise.all([
+    const [{ data: lineItems }, { data: orgs }, { data: projectRow }] = await Promise.all([
       sb.from('invoice_line_items')
         .select('*')
         .eq('invoice_id', inv.id)
@@ -44,6 +44,9 @@ async function main() {
       sb.from('organizations')
         .select('*')
         .in('id', [inv.from_org, inv.to_org]),
+      inv.project_id
+        ? sb.from('projects').select('id, name').eq('id', inv.project_id).maybeSingle()
+        : Promise.resolve({ data: null }),
     ])
 
     const fromOrg = (orgs as Organization[])?.find(o => o.id === inv.from_org)
@@ -52,12 +55,14 @@ async function main() {
       console.error(`Missing orgs for ${inv.invoice_number}`)
       continue
     }
+    const project = (projectRow as { id: string; name: string } | null) ?? null
 
     const buf = await renderInvoicePDF({
       invoice: inv,
       lineItems: (lineItems ?? []) as InvoiceLineItem[],
       fromOrg,
       toOrg,
+      project,
     })
 
     const outPath = path.join(OUT_DIR, `${inv.invoice_number}.pdf`)

@@ -130,7 +130,7 @@ export async function POST(
     )
   }
 
-  const [{ data: lineItems, error: itemsErr }, { data: orgs, error: orgsErr }] = await Promise.all([
+  const [{ data: lineItems, error: itemsErr }, { data: orgs, error: orgsErr }, { data: projectRow }] = await Promise.all([
     supabase
       .from('invoice_line_items')
       .select('id, invoice_id, description, quantity, unit_price, total, category, sort_order, created_at')
@@ -142,12 +142,16 @@ export async function POST(
       .select('id, name, slug, org_type, allowed_domains, logo_url, settings, active, billing_email, billing_address, created_at, updated_at')
       .in('id', [inv.from_org, inv.to_org])
       .limit(2),
+    inv.project_id
+      ? supabase.from('projects').select('id, name').eq('id', inv.project_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
   if (itemsErr || orgsErr) {
     console.error('[invoice send]', itemsErr?.message, orgsErr?.message)
     return NextResponse.json({ error: 'Failed to load invoice context' }, { status: 500 })
   }
+  const project = (projectRow as { id: string; name: string } | null) ?? null
 
   const orgRows = (orgs ?? []) as Organization[]
   const fromOrg = orgRows.find((o) => o.id === inv.from_org)
@@ -168,6 +172,7 @@ export async function POST(
     lineItems: (lineItems ?? []) as InvoiceLineItem[],
     fromOrg,
     toOrg,
+    project,
   })
 
   // ── Send via Resend with attachment + tracking pixel ───────────────────
