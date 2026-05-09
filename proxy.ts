@@ -130,6 +130,19 @@ export async function proxy(request: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
+    // TEMP DIAGNOSTIC (revert after we identify the cookie-loss root cause):
+    // log when a request looks like it SHOULD have a session but proxy sees none.
+    // Filter to only requests carrying any sb- cookie so we don't spam unauth probes.
+    const sbCookies = request.cookies.getAll().filter(c => c.name.startsWith('sb-'))
+    if (sbCookies.length > 0) {
+      console.error('[proxy] auth failed despite sb-cookies present', {
+        path: pathname,
+        sbCookieNames: sbCookies.map(c => c.name),
+        sbCookieSizes: sbCookies.map(c => c.value.length),
+        authErrorMessage: authError?.message ?? 'no user, no error',
+        userPresent: !!user,
+      })
+    }
     // Portal users get redirected to portal login, CRM users to CRM login
     const isPortalRoute = pathname.startsWith('/portal')
     const loginUrl = new URL(isPortalRoute ? '/portal/login' : '/login', request.url)
