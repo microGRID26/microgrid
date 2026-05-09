@@ -60,7 +60,7 @@ export async function loadInvoices(orgId?: string, status?: InvoiceStatus): Prom
   const supabase = db()
   let q = supabase
     .from('invoices')
-    .select('id, invoice_number, project_id, from_org, to_org, status, milestone, subtotal, tax, total, due_date, sent_at, viewed_at, paid_at, paid_amount, payment_method, payment_reference, notes, generated_by, rule_id, created_by, created_by_id, created_at, updated_at')
+    .select('id, invoice_number, project_id, from_org, to_org, status, milestone, subtotal, tax, total, due_date, sent_at, viewed_at, paid_at, paid_amount, payment_method, payment_reference, notes, generated_by, snapshot_id, rule_id, created_by, created_by_id, created_at, updated_at')
     .order('created_at', { ascending: false })
     .limit(500)
   if (orgId) q = q.or(`from_org.eq.${escapeFilterValue(orgId)},to_org.eq.${escapeFilterValue(orgId)}`)
@@ -76,7 +76,7 @@ export async function loadInvoices(orgId?: string, status?: InvoiceStatus): Prom
 export async function loadInvoice(invoiceId: string): Promise<{ invoice: Invoice; lineItems: InvoiceLineItem[] } | null> {
   const supabase = db()
   const [invResult, itemsResult] = await Promise.all([
-    supabase.from('invoices').select('id, invoice_number, project_id, from_org, to_org, status, milestone, subtotal, tax, total, due_date, sent_at, viewed_at, paid_at, paid_amount, payment_method, payment_reference, notes, generated_by, rule_id, created_by, created_by_id, created_at, updated_at').eq('id', invoiceId).single(),
+    supabase.from('invoices').select('id, invoice_number, project_id, from_org, to_org, status, milestone, subtotal, tax, total, due_date, sent_at, viewed_at, paid_at, paid_amount, payment_method, payment_reference, notes, generated_by, snapshot_id, rule_id, created_by, created_by_id, created_at, updated_at').eq('id', invoiceId).single(),
     supabase.from('invoice_line_items').select('id, invoice_id, description, quantity, unit_price, total, category, sort_order, created_at').eq('invoice_id', invoiceId).order('sort_order', { ascending: true }).limit(500),
   ])
   if (invResult.error) {
@@ -96,7 +96,7 @@ export async function loadProjectInvoices(projectId: string): Promise<Invoice[]>
   const supabase = db()
   const { data, error } = await supabase
     .from('invoices')
-    .select('id, invoice_number, project_id, from_org, to_org, status, milestone, subtotal, tax, total, due_date, sent_at, viewed_at, paid_at, paid_amount, payment_method, payment_reference, notes, generated_by, rule_id, created_by, created_by_id, created_at, updated_at')
+    .select('id, invoice_number, project_id, from_org, to_org, status, milestone, subtotal, tax, total, due_date, sent_at, viewed_at, paid_at, paid_amount, payment_method, payment_reference, notes, generated_by, snapshot_id, rule_id, created_by, created_by_id, created_at, updated_at')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
     .limit(50)
