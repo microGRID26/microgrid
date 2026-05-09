@@ -39,6 +39,7 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
+import { getActiveSnapshotId } from '@/lib/cost/api'
 import type { ProjectCostLineItem } from '@/lib/cost/calculator'
 import { buildInvoiceFromRule, sumLineItemsToSubtotal, type CalculatorError } from '@/lib/invoices/calculate'
 import type { InvoiceRule, OrgType, Project } from '@/types/database'
@@ -73,6 +74,7 @@ export interface ChainSkippedRule {
     | 'catalog_empty'
     | 'catalog_load_failed'
     | 'unmapped_catalog_link'
+    | 'no_active_snapshot'
   detail?: string
 }
 
@@ -341,14 +343,35 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
   //    at least one rule has use_project_catalog=true. A single empty or
   //    failed load marks the rules skipped rather than throwing — other
   //    flat-rate rules (Rush, MG Sales) can still proceed.
+  // Filter by the project's is_active=true cost_basis_snapshot. Without this
+  // filter, projects that accumulated multiple snapshots (e.g. via Phase F
+  // re-snapshot or a rolled-back batch) double-count totals.
+  // If no active snapshot exists AND the chain includes any catalog rule,
+  // abort the WHOLE chain — push every rule into skippedError with
+  // no_active_snapshot. Allowing flat-rate rules (Rush Eng → EPC, MG Sales
+  // → EPC) to fire alone leaves EPC paying upstream without ever billing
+  // EDGE, an asymmetric chain (finance-auditor R1, 2026-05-09).
   let catalogCache: ProjectCostLineItem[] | null = null
   let catalogLoadError: string | null = null
   const anyCatalogRule = chainRules.some((r) => r.use_project_catalog === true)
   if (anyCatalogRule) {
+    const activeSnapshotId = await getActiveSnapshotId(proj.id)
+    if (!activeSnapshotId) {
+      for (const r of chainRules) {
+        result.skippedError.push({
+          ruleId: r.id,
+          ruleName: r.name,
+          reason: 'no_active_snapshot',
+          detail: `project ${proj.id} has no is_active=true cost_basis_snapshot — entire chain aborted to avoid asymmetric flow`,
+        })
+      }
+      return result
+    }
     const { data: catalogRows, error: catalogErr } = await admin
       .from('project_cost_line_items')
       .select('*')
       .eq('project_id', proj.id)
+      .eq('snapshot_id', activeSnapshotId)
       .order('sort_order', { ascending: true })
     if (catalogErr) {
       catalogLoadError = catalogErr.message
