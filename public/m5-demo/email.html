@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>M5 demo email body — copy and paste</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif; max-width: 760px; margin: 24px auto; padding: 0 16px; font-size: 15px; line-height: 1.5; color: #222; }
+</style>
+</head>
+<body>
+<p>Paul + Mark,</p>
+
+<p>Two things shipped today. Screenshots of the live UI below &mdash; you can click into any of these yourself if you want to spot-check more.</p>
+
+<p><b>1. 40 chain invoices regenerated for the 10 Thrive Unfunded customers.</b> Cost basis pulled from Paul's v43 PCS rates. All status=draft, nothing sent. Edward Taylor anchor: EPC &rarr; EDGE = $335,432.50, exact match to your v43 line-item sum.</p>
+
+<p style="font-size:13px;color:#555;margin-top:18px">Edward Taylor's chain invoices in the list (3 visible to internal users; CHN-042 is the DSE &rarr; NewCo intercompany leg, not user-facing):</p>
+
+<img src="https://app.gomicrogridenergy.com/m5-demo/01-edward-invoices-list.jpg" style="max-width:100%;border:1px solid #ddd;border-radius:6px"/>
+
+<p style="font-size:13px;color:#555;margin-top:24px">CHN-20260509-044 expanded &mdash; full PCS line item table, subtotal $335,432.50, tax $27,673, total $363,105.68. Every line traces back to your v43 rates ($0.30/W PV Modules, $2,340.80/battery, $0.65/W Customer Acquisition, etc.):</p>
+
+<img src="https://app.gomicrogridenergy.com/m5-demo/02-chn044-line-items.jpg" style="max-width:100%;border:1px solid #ddd;border-radius:6px"/>
+
+<p style="margin-top:30px"><b>2. Invoice-open drift detection live (Mark's M5 from the call).</b> When Paul updates a rate in the model, every existing chain invoice that was generated against the old rates surfaces an amber banner on open. Two buttons: "Generate new chain invoices" or "Keep current". Old invoices are never overwritten.</p>
+
+<p style="font-size:13px;color:#555;margin-top:18px">The popup as it appears on Edward's invoice 044 after a model update (this was triggered live for the screenshot):</p>
+
+<img src="https://app.gomicrogridenergy.com/m5-demo/03-m5-drift-banner.jpg" style="max-width:100%;border:1px solid #ddd;border-radius:6px"/>
+
+<p style="font-size:13px;color:#555;margin-top:24px">After clicking "Generate new chain invoices" &mdash; Edward now has 8 chain invoices coexisting (the original 4 from earlier today plus 4 fresh ones). Old ones preserved exactly per Mark's spec:</p>
+
+<img src="https://app.gomicrogridenergy.com/m5-demo/04-old-and-new-coexist.jpg" style="max-width:100%;border:1px solid #ddd;border-radius:6px"/>
+
+<p style="margin-top:30px"><b>Sibling-paid guard added (no screenshot &mdash; backend safety).</b> If you accidentally try to mark two snapshot versions of the same invoice paid (e.g. CHN-044 and CHN-048 both for the same EPC &rarr; EDGE leg), the second one blocks with a clear error. Stops EDGE from being double-billed if you forget to cancel an old version first.</p>
+
+<p style="margin-top:24px">Direct links if you want to try it yourself:</p>
+<ul>
+  <li>Edward Taylor: <a href="https://app.gomicrogridenergy.com/projects/PROJ-28619">app.gomicrogridenergy.com/projects/PROJ-28619</a></li>
+  <li>Alma Cabrera: <a href="https://app.gomicrogridenergy.com/projects/PROJ-28744">app.gomicrogridenergy.com/projects/PROJ-28744</a> (cost basis $287K vs PDF $251K &mdash; small-PV gap worth your read, Paul)</li>
+  <li>All 40 invoices: <a href="https://app.gomicrogridenergy.com/invoices">app.gomicrogridenergy.com/invoices</a> (filter "CHN-20260509-")</li>
+</ul>
+
+<p>Tell me which line items disagree with your model (if any) &mdash; I'll trace them.</p>
+
+<p>Greg</p>
+</body>
+</html>
