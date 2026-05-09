@@ -929,6 +929,10 @@ export interface Invoice {
   notes: string | null
   generated_by: 'manual' | 'rule' | 'import'
   rule_id: string | null
+  /** Mig 251 — cost_basis_snapshots.id this invoice was generated from.
+   *  NULL for manual invoices; populated for chain (rule_id != null).
+   *  Used by M5 invoice-open drift banner. */
+  snapshot_id: string | null
   created_by: string | null
   created_by_id: string | null
   created_at: string

@@ -351,22 +351,29 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
   // no_active_snapshot. Allowing flat-rate rules (Rush Eng → EPC, MG Sales
   // → EPC) to fire alone leaves EPC paying upstream without ever billing
   // EDGE, an asymmetric chain (finance-auditor R1, 2026-05-09).
+  // Resolve the project's active snapshot once upfront. EVERY chain invoice
+  // — catalog-sourced or flat-rate — gets stamped with this snapshot_id (mig
+  // 251) so M5's invoice-open drift banner can detect "Paul updated the
+  // model since this invoice was made". Without an active snapshot the
+  // whole chain aborts atomically (avoids asymmetric flow per finance-
+  // auditor R1, also satisfies mig 251 CHECK constraint).
+  const activeSnapshotId = await getActiveSnapshotId(proj.id)
+  if (!activeSnapshotId) {
+    for (const r of chainRules) {
+      result.skippedError.push({
+        ruleId: r.id,
+        ruleName: r.name,
+        reason: 'no_active_snapshot',
+        detail: `project ${proj.id} has no is_active=true cost_basis_snapshot — entire chain aborted`,
+      })
+    }
+    return result
+  }
+
   let catalogCache: ProjectCostLineItem[] | null = null
   let catalogLoadError: string | null = null
   const anyCatalogRule = chainRules.some((r) => r.use_project_catalog === true)
   if (anyCatalogRule) {
-    const activeSnapshotId = await getActiveSnapshotId(proj.id)
-    if (!activeSnapshotId) {
-      for (const r of chainRules) {
-        result.skippedError.push({
-          ruleId: r.id,
-          ruleName: r.name,
-          reason: 'no_active_snapshot',
-          detail: `project ${proj.id} has no is_active=true cost_basis_snapshot — entire chain aborted to avoid asymmetric flow`,
-        })
-      }
-      return result
-    }
     const { data: catalogRows, error: catalogErr } = await admin
       .from('project_cost_line_items')
       .select('*')
@@ -558,6 +565,7 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
           total,
           due_date: draft.due_date,
           rule_id: draft.rule_id,
+          snapshot_id: activeSnapshotId,
           generated_by: 'rule',
           notes: `Auto-generated chain rule "${rule.name}" — chain orchestrator${tax > 0 ? ' (incl. TX sales tax on TPP portion only)' : ''}`,
         })
@@ -661,11 +669,34 @@ export async function generateProjectChain(input: ChainTriggerInput): Promise<Ch
     // run with no visible signal. Now: retry once on transient failure,
     // then escalate the gap to greg_actions so the row can be backfilled
     // from invoice history before it ages out.
-    let clearingErr = (await admin.from('clearing_runs').insert(payload)).error
+    // M5/finance-auditor H3 (2026-05-09): insert with .select('id') so we
+    // can mark prior runs superseded by this run id. Otherwise AR
+    // aggregators that SUM(total_gross) double-count across regens.
+    let { data: insertedRun, error: clearingErr } = await admin
+      .from('clearing_runs')
+      .insert(payload)
+      .select('id')
+      .single()
     if (clearingErr) {
       // 250ms backoff covers transient PG contention / network blip.
       await new Promise((resolve) => setTimeout(resolve, 250))
-      clearingErr = (await admin.from('clearing_runs').insert(payload)).error
+      const retry = await admin.from('clearing_runs').insert(payload).select('id').single()
+      insertedRun = retry.data
+      clearingErr = retry.error
+    }
+    if (!clearingErr && insertedRun) {
+      // Mark all prior unsuperseded runs for this project as superseded by
+      // this run. AR aggregators MUST filter WHERE superseded_at IS NULL.
+      const newRunId = (insertedRun as { id: string }).id
+      const { error: supErr } = await admin
+        .from('clearing_runs')
+        .update({ superseded_at: new Date().toISOString(), superseded_by_run_id: newRunId })
+        .eq('project_id', input.projectId)
+        .is('superseded_at', null)
+        .neq('id', newRunId)
+      if (supErr) {
+        console.error('[invoice-chain] clearing_runs supersede failed:', supErr.message)
+      }
     }
     if (clearingErr) {
       console.error('[invoice-chain] clearing_runs insert failed (twice):', clearingErr.message)

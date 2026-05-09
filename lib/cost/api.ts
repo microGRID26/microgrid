@@ -260,6 +260,10 @@ export async function loadProjectCostBasis(
   summary: CostBasisSummary
   isEphemeral: boolean
   drift: CostBasisDrift
+  /** Mig 246 active snapshot for this project (null if none — only happens
+   *  on ephemeral, never-persisted projects). M5 invoice-open drift banner
+   *  reads this to compare against invoice.snapshot_id. */
+  activeSnapshotId: string | null
 }> {
   const persisted = await loadProjectLineItems(project.id)
   const sizing = resolveProjectSizing({
@@ -268,6 +272,7 @@ export async function loadProjectCostBasis(
     inverter_qty: project.inverter_qty,
     module_qty: project.module_qty,
   })
+  const activeSnapshotId = await getActiveSnapshotId(project.id)
 
   if (persisted.length > 0) {
     // Drift: compare persisted snapshot against today's overlay'd templates.
@@ -278,6 +283,7 @@ export async function loadProjectCostBasis(
       summary: computeProjectCostBasis(persisted),
       isEphemeral: false,
       drift,
+      activeSnapshotId,
     }
   }
 
@@ -305,6 +311,7 @@ export async function loadProjectCostBasis(
       isEphemeral: false,
       // Just-persisted rows are by definition not drifted.
       drift: { is_stale: false, drifted_count: 0, max_dollar_delta: 0 },
+      activeSnapshotId: await getActiveSnapshotId(project.id),
     }
   }
 
@@ -314,5 +321,6 @@ export async function loadProjectCostBasis(
     isEphemeral: true,
     // Ephemeral = computed from live templates already, no drift possible.
     drift: { is_stale: false, drifted_count: 0, max_dollar_delta: 0 },
+    activeSnapshotId,
   }
 }

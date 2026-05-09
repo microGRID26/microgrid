@@ -1,8 +1,9 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { fmtDate, fmt$ } from '@/lib/utils'
 import type { Invoice, InvoiceLineItem, InvoiceStatus } from '@/lib/api/invoices'
-import { Send, CheckCircle, Ban, AlertTriangle, Zap } from 'lucide-react'
+import { Send, CheckCircle, Ban, AlertTriangle, Zap, RefreshCw } from 'lucide-react'
 
 // ── Invoice Detail (Expandable Row) ──────────────────────────────────────────
 
@@ -14,6 +15,7 @@ export function InvoiceDetail({
   onStatusChange,
   onMarkPaid,
   onOpenProject,
+  onChainRegenerated,
 }: {
   invoice: Invoice
   lineItems: InvoiceLineItem[]
@@ -22,9 +24,145 @@ export function InvoiceDetail({
   onStatusChange: (status: InvoiceStatus) => void
   onMarkPaid: () => void
   onOpenProject?: (projectId: string) => void
+  /** Optional: parent passes this so the invoice list can refetch after a
+   *  successful chain regen. M5 — Mark/Greg call 2026-05-08, action #670. */
+  onChainRegenerated?: (newSnapshotId: string, createdCount: number) => void
 }) {
+  // ── M5 drift detection ────────────────────────────────────────────────
+  // Chain invoices (rule_id != null) carry a snapshot_id from mig 251. If
+  // the project's currently-active snapshot != this invoice's snapshot,
+  // Paul's model changed since this was generated — surface the popup.
+  const isChainInvoice = invoice.rule_id != null && invoice.snapshot_id != null
+  const [activeSnapshotId, setActiveSnapshotId] = useState<string | null>(null)
+  const [driftDismissed, setDriftDismissed] = useState(false)
+  const [regenLoading, setRegenLoading] = useState(false)
+  const [regenError, setRegenError] = useState<string | null>(null)
+  // finance-auditor R1 M2 (2026-05-09): surface "couldn't check for updates"
+  // if the cost-basis fetch fails (commonly: expired JWT). Otherwise the
+  // banner silently never shows and the user sends a stale invoice without
+  // realizing it. feedback_silent_401_jwt_expiry.md anchor.
+  const [driftCheckFailed, setDriftCheckFailed] = useState(false)
+
+  useEffect(() => {
+    if (!isChainInvoice || !invoice.project_id) return
+    let cancelled = false
+    const fetchActive = async () => {
+      try {
+        const res = await fetch(
+          `/api/projects/${invoice.project_id}/cost-basis`,
+          { cache: 'no-store' },
+        )
+        if (!res.ok) {
+          if (!cancelled) setDriftCheckFailed(true)
+          return
+        }
+        const json = (await res.json()) as { activeSnapshotId?: string | null; lineItems?: Array<{ snapshot_id?: string }> }
+        const sid = json.activeSnapshotId
+          ?? (json.lineItems?.[0]?.snapshot_id ?? null)
+        if (!cancelled) {
+          setActiveSnapshotId(sid ?? null)
+          setDriftCheckFailed(false)
+        }
+      } catch {
+        if (!cancelled) setDriftCheckFailed(true)
+      }
+    }
+    void fetchActive()
+    return () => { cancelled = true }
+  }, [invoice.project_id, isChainInvoice])
+
+  const isStale = isChainInvoice
+    && activeSnapshotId != null
+    && invoice.snapshot_id != null
+    && activeSnapshotId !== invoice.snapshot_id
+
+  const regenChain = async () => {
+    if (!invoice.project_id) return
+    setRegenLoading(true)
+    setRegenError(null)
+    try {
+      const res = await fetch(`/api/projects/${invoice.project_id}/regen-chain`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: `M5 invoice-open regen from ${invoice.invoice_number}` }),
+      })
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(body.error ?? `HTTP ${res.status}`)
+      }
+      const json = (await res.json()) as { snapshot_id: string; created: Array<unknown> }
+      onChainRegenerated?.(json.snapshot_id, json.created.length)
+      // Hide the banner — it will not re-appear since the new active
+      // snapshot now matches the freshly-stamped new invoices. The OLD
+      // invoice (this one) will continue to surface drift on next open
+      // because its snapshot_id is now historical — which is correct UX.
+      setDriftDismissed(true)
+    } catch (e) {
+      setRegenError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setRegenLoading(false)
+    }
+  }
+
   return (
     <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 mt-2 space-y-3">
+      {/* finance-auditor M2: subtle indicator when drift check fails (e.g.
+          expired JWT). Without this the banner silently never shows. */}
+      {isChainInvoice && driftCheckFailed && (
+        <div className="text-[11px] text-gray-500 italic">
+          Couldn't check for model updates (auth or network issue). Refresh to retry.
+        </div>
+      )}
+
+      {/* M5 drift banner — fires when invoice's source snapshot != project's
+          active snapshot. Mark/Greg call 2026-05-08, action #670. Mark
+          explicit: opt-in only, never auto-regen, never overwrite history. */}
+      {isStale && !driftDismissed && (
+        <div className="flex items-start gap-2 text-xs text-amber-300 bg-amber-900/20 border border-amber-800 rounded px-3 py-2">
+          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <div className="font-medium">
+              Pricing in the model has changed since this invoice was generated
+            </div>
+            <div className="text-amber-200/70 mt-1">
+              Paul's project cost schedule has been updated. You can generate
+              a new chain invoice with today's rates — the existing one will
+              be preserved as history.
+            </div>
+            {regenError && (
+              <div className="text-red-300 text-[11px] mt-2">
+                Failed to regenerate: {regenError}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button
+                type="button"
+                onClick={regenChain}
+                disabled={regenLoading}
+                className="px-3 py-1 text-xs font-medium text-white bg-amber-700 hover:bg-amber-600 rounded transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {regenLoading ? (
+                  <>Generating…</>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3 h-3" />
+                    Generate new chain invoices
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDriftDismissed(true)}
+                disabled={regenLoading}
+                className="px-3 py-1 text-xs text-amber-300 border border-amber-800 hover:bg-amber-900/40 rounded transition-colors disabled:opacity-50"
+              >
+                Keep current
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {invoice.generated_by === 'rule' && (
         <div className="flex items-center gap-2 bg-amber-900/20 border border-amber-800 rounded px-3 py-2">
           <Zap className="w-3 h-3 text-amber-400" />

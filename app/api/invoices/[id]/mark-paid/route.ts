@@ -138,6 +138,11 @@ export async function POST(
     if (code === 'P0002') {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
+    // mig 252 sibling-paid guard. Surface RPC's exception message so the
+    // user sees which sibling invoice number is blocking + how to unblock.
+    if (code === 'P0003') {
+      return NextResponse.json({ error: rpcErr.message }, { status: 409 })
+    }
     console.error('[mark-paid] apply_paid_invoice failed:', rpcErr.message)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
