@@ -10,11 +10,26 @@ import {
   buildProjectLineItem,
   computeProjectCostBasis,
   resolveProjectSizing,
+  scaleRawCost,
   type CostBasisSummary,
   type CostLineItemTemplate,
   type ProjectCostLineItem,
+  type ProjectSizing,
 } from '@/lib/cost/calculator'
 import type { Project } from '@/types/database'
+
+/** Drift between a persisted snapshot and what the live model would produce.
+ *  Mark/Greg call 2026-05-08 — when is_stale=true, the Cost Basis tab shows
+ *  an amber "regenerate" banner that calls atlas_create_cost_basis_snapshot. */
+export interface CostBasisDrift {
+  is_stale: boolean
+  drifted_count: number
+  max_dollar_delta: number
+}
+
+/** Threshold for flagging a line as "drifted." Dollar units. Anything below
+ *  this is rounding noise from the SQL ROUND(_, 2) vs JS roundMoney(). */
+const DRIFT_THRESHOLD_USD = 0.5
 
 let _admin: SupabaseClient | null = null
 
@@ -151,18 +166,79 @@ export async function loadActiveTemplates(): Promise<CostLineItemTemplate[]> {
 
 // ── Per-project line items ──────────────────────────────────────────────────
 
-export async function loadProjectLineItems(projectId: string): Promise<ProjectCostLineItem[]> {
+/** Resolve the active snapshot_id for a project. Returns null if none.
+ *  Mig 246 added cost_basis_snapshots; partial unique idx ensures at most
+ *  one is_active=true row per project. */
+export async function getActiveSnapshotId(projectId: string): Promise<string | null> {
   const admin = getAdminClient()
   const { data, error } = await admin
+    .from('cost_basis_snapshots')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('is_active', true)
+    .maybeSingle()
+  if (error) {
+    console.error(`[cost-api] active snapshot lookup failed for ${projectId}:`, error.message)
+    return null
+  }
+  return (data as { id: string } | null)?.id ?? null
+}
+
+export async function loadProjectLineItems(
+  projectId: string,
+  opts: { snapshotId?: string } = {},
+): Promise<ProjectCostLineItem[]> {
+  const admin = getAdminClient()
+  // Mig 246: filter to a specific snapshot. Default = active. Without this
+  // filter, multi-snapshot projects double-count totals (migration-planner
+  // R1 follow-up — required before any user clicks "Generate new report").
+  const snapshotId = opts.snapshotId ?? (await getActiveSnapshotId(projectId))
+  let q = admin
     .from('project_cost_line_items')
     .select('*')
     .eq('project_id', projectId)
     .order('sort_order', { ascending: true })
     .limit(100)
+  if (snapshotId) {
+    q = q.eq('snapshot_id', snapshotId)
+  }
+  const { data, error } = await q
   if (error) {
     throw new Error(`[cost-api] failed to load line items for ${projectId}: ${error.message}`)
   }
   return (data ?? []) as ProjectCostLineItem[]
+}
+
+/** Compare each persisted line item's raw_cost against what the live overlay'd
+ *  template would produce TODAY at the project's current sizing. If any line
+ *  exceeds DRIFT_THRESHOLD_USD, the snapshot is stale.
+ *
+ *  This is TS-side (not RPC) because it needs the edge_model_scenarios
+ *  overlay logic from loadActiveTemplates. SQL-only drift would only catch
+ *  template changes, missing scenario flips — the more common case per
+ *  Mark's spec ("model has been updated"). */
+export function computeDrift(
+  persisted: ProjectCostLineItem[],
+  liveTemplates: CostLineItemTemplate[],
+  sizing: ProjectSizing,
+): CostBasisDrift {
+  const tplById = new Map(liveTemplates.map((t) => [t.id, t]))
+  let drifted = 0
+  let maxDelta = 0
+  for (const li of persisted) {
+    if (!li.template_id) continue
+    const tpl = tplById.get(li.template_id)
+    if (!tpl) continue
+    const expected = scaleRawCost(tpl, sizing)
+    const delta = Math.abs(Number(li.raw_cost) - expected)
+    if (delta > DRIFT_THRESHOLD_USD) drifted++
+    if (delta > maxDelta) maxDelta = delta
+  }
+  return {
+    is_stale: drifted > 0,
+    drifted_count: drifted,
+    max_dollar_delta: Math.round(maxDelta * 100) / 100,
+  }
 }
 
 /**
@@ -179,24 +255,34 @@ export async function loadProjectLineItems(projectId: string): Promise<ProjectCo
 export async function loadProjectCostBasis(
   project: Project,
   opts: { persist?: boolean } = {},
-): Promise<{ lineItems: ProjectCostLineItem[]; summary: CostBasisSummary; isEphemeral: boolean }> {
+): Promise<{
+  lineItems: ProjectCostLineItem[]
+  summary: CostBasisSummary
+  isEphemeral: boolean
+  drift: CostBasisDrift
+}> {
   const persisted = await loadProjectLineItems(project.id)
-  if (persisted.length > 0) {
-    return {
-      lineItems: persisted,
-      summary: computeProjectCostBasis(persisted),
-      isEphemeral: false,
-    }
-  }
-
-  // No persisted rows — compute from catalog defaults
-  const templates = await loadActiveTemplates()
   const sizing = resolveProjectSizing({
     systemkw: project.systemkw,
     battery_qty: project.battery_qty,
     inverter_qty: project.inverter_qty,
     module_qty: project.module_qty,
   })
+
+  if (persisted.length > 0) {
+    // Drift: compare persisted snapshot against today's overlay'd templates.
+    const liveTemplates = await loadActiveTemplates()
+    const drift = computeDrift(persisted, liveTemplates, sizing)
+    return {
+      lineItems: persisted,
+      summary: computeProjectCostBasis(persisted),
+      isEphemeral: false,
+      drift,
+    }
+  }
+
+  // No persisted rows — compute from catalog defaults
+  const templates = await loadActiveTemplates()
   const ephemeral: ProjectCostLineItem[] = templates.map((tpl) => ({
     ...buildProjectLineItem(tpl, sizing, project.id),
     id: undefined,
@@ -210,10 +296,6 @@ export async function loadProjectCostBasis(
       .insert(rows)
       .select('*')
     if (error) {
-      // Throw rather than silently degrading — the caller asked to persist,
-      // so a failure is signal not noise. The /api/projects/[id]/cost-basis
-      // route catches and returns 500. Fall back to ephemeral by NOT passing
-      // persist:true if you want the silent degradation.
       throw new Error(`[cost-api] failed to persist line items for ${project.id}: ${error.message}`)
     }
     const persistedRows = (inserted ?? []) as ProjectCostLineItem[]
@@ -221,6 +303,8 @@ export async function loadProjectCostBasis(
       lineItems: persistedRows,
       summary: computeProjectCostBasis(persistedRows),
       isEphemeral: false,
+      // Just-persisted rows are by definition not drifted.
+      drift: { is_stale: false, drifted_count: 0, max_dollar_delta: 0 },
     }
   }
 
@@ -228,5 +312,7 @@ export async function loadProjectCostBasis(
     lineItems: ephemeral,
     summary: computeProjectCostBasis(ephemeral),
     isEphemeral: true,
+    // Ephemeral = computed from live templates already, no drift possible.
+    drift: { is_stale: false, drifted_count: 0, max_dollar_delta: 0 },
   }
 }

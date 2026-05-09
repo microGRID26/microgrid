@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { Download, AlertCircle, FileText } from 'lucide-react'
+import { Download, AlertCircle, FileText, RefreshCw } from 'lucide-react'
 
 import type { Project } from '@/types/database'
 import type { CostBasisSummary, ProjectCostLineItem } from '@/lib/cost/calculator'
@@ -16,6 +16,11 @@ interface CostBasisResponse {
   lineItems: ProjectCostLineItem[]
   summary: CostBasisSummary
   isEphemeral: boolean
+  drift: {
+    is_stale: boolean
+    drifted_count: number
+    max_dollar_delta: number
+  }
 }
 
 // Postgres NUMERIC columns come back as strings via PostgREST. Coerce
@@ -44,6 +49,8 @@ export function ProjectCostBasisTab({ project }: ProjectCostBasisTabProps) {
   const [error, setError] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [regenLoading, setRegenLoading] = useState(false)
+  const [regenError, setRegenError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -76,6 +83,28 @@ export function ProjectCostBasisTab({ project }: ProjectCostBasisTabProps) {
       window.open(url, '_blank')
     } finally {
       setTimeout(() => setPdfLoading(false), 800)
+    }
+  }
+
+  const regenSnapshot = async () => {
+    setRegenLoading(true)
+    setRegenError(null)
+    try {
+      const res = await fetch(`/api/projects/${project.id}/cost-basis/regen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Generated via drift banner' }),
+      })
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(body.error ?? `HTTP ${res.status}`)
+      }
+      // Reload the cost basis with the new active snapshot.
+      await load()
+    } catch (e) {
+      setRegenError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setRegenLoading(false)
     }
   }
 
@@ -162,6 +191,38 @@ export function ProjectCostBasisTab({ project }: ProjectCostBasisTabProps) {
                 npx tsx scripts/backfill-project-cost-line-items.ts --project-id={project.id}
               </code>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Drift banner — Phase F. Mark/Greg call 2026-05-08. Shows when the
+          live overlay'd template values diverge from this snapshot's
+          persisted raw_cost (any line > $0.50 delta). User can regen to
+          create a new snapshot; the old one is preserved as history. */}
+      {!isEphemeral && data.drift.is_stale ? (
+        <div className="flex items-start gap-2 text-xs text-amber-300 bg-amber-900/20 border border-amber-800 rounded p-3">
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <div className="font-medium">
+              Pricing in the model has changed since this snapshot was generated
+            </div>
+            <div className="text-amber-200/70 mt-1">
+              {data.drift.drifted_count} line item{data.drift.drifted_count === 1 ? '' : 's'} differ
+              {data.drift.drifted_count === 1 ? 's' : ''} from today's catalog (max delta: ${data.drift.max_dollar_delta.toFixed(2)} per unit).
+              Generating a new report creates a fresh reconciliation snapshot — the existing one is preserved as history.
+            </div>
+            {regenError ? (
+              <div className="text-red-300 text-[11px] mt-2">Failed to regenerate: {regenError}</div>
+            ) : null}
+            <button
+              type="button"
+              onClick={regenSnapshot}
+              disabled={regenLoading}
+              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-white bg-amber-700 hover:bg-amber-600 rounded transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${regenLoading ? 'animate-spin' : ''}`} />
+              {regenLoading ? 'Generating…' : 'Generate new report'}
+            </button>
           </div>
         </div>
       ) : null}
