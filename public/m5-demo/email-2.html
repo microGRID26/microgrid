@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>M1 + M3 + M6 demo email body — copy and paste</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif; max-width: 760px; margin: 24px auto; padding: 0 16px; font-size: 15px; line-height: 1.5; color: #222; }
+</style>
+</head>
+<body>
+<p>Paul + Mark,</p>
+
+<p>Quick follow-up to the chain-invoice email I just sent &mdash; three more pieces from the call are also live and worth a one-look heads-up so you know what's already in your hands.</p>
+
+<p><b>1. Cost Catalog editor &mdash; live, editable by super_admin.</b> Every PCS unit rate is row-editable from the admin panel; saves are RPC-gated and audit-logged; new invoices generated within ~5 min of a save pick up the new rate. This was Mark's M1 + M3 ask from the call (configurable cost catalog + manual super_admin override). Direct link: <a href="https://app.gomicrogridenergy.com/admin">app.gomicrogridenergy.com/admin</a> &rarr; Cost Catalog (left nav). All 28 templates organized by section, each with its <code>pcs_key</code> labeled so you can see the link to your v43 model.</p>
+
+<img src="https://app.gomicrogridenergy.com/m5-demo/05-cost-catalog-editor.jpg" style="max-width:100%;border:1px solid #ddd;border-radius:6px"/>
+
+<p style="font-size:13px;color:#555;margin-top:8px"><b>One thing worth noting, Paul:</b> the catalog shows <i>template defaults</i> &mdash; the per-row "Effective rate" column is what runs by default. Where Paul's v43 PCS scenario overrides a template (e.g. <code>customerAcquisition: 0.65</code> in v43 vs the catalog default <code>$1.00/watt</code>), the runtime invoice math uses your v43 value (the M2 overlay). Visible in the catalog as the gap between the two columns when an overlay is active. If you want the catalog default to also read $0.65 so the columns match, that's a one-row save in this UI.</p>
+
+<p style="margin-top:30px"><b>2. PCS sync from Paul's v43 (M2).</b> Already running. Whenever you edit a unit rate in your v43 model and we re-import the scenario, the next chain invoice generation reads the new rate. The M4/M5 demo email proved this end-to-end &mdash; Edward Taylor's $335,432.50 EPC&rarr;EDGE total is the live overlay output, not a static cached number. No screenshot needed; you saw the result in the M4 email.</p>
+
+<p style="margin-top:30px"><b>3. Audit log per invoice version (M6).</b> Every cost-basis snapshot is stamped with who created it, when, and why &mdash; visible on a project's Cost Basis tab. Plus, after the M5 work today, every chain invoice now carries the snapshot it was generated from, so an invoice's history is fully traceable through <code>cost_basis_snapshots</code> &times; <code>invoices.snapshot_id</code>. If you click "Generate new chain invoices" from the M5 popup, the regen is logged to <code>audit_log</code> with old + new totals. No screenshot in this email; the audit trail is internal plumbing for tax-equity substantiation. Ask if you want to see it directly.</p>
+
+<p style="margin-top:24px"><b>What's still open from the call:</b></p>
+<ul>
+  <li><b>M9</b> &mdash; SPARK kWh allocation input (waiting on Diego's latest ESA template; Mark, you mentioned he sent it ~5/4)</li>
+  <li><b>M10</b> &mdash; SPARK VPP allocation math display (no blocker, picking up next session)</li>
+  <li><b>M11</b> &mdash; Heidi e-signer test outreach (Greg-side)</li>
+</ul>
+
+<p>SPARK M7 + M8 (AI auto-place at MAX + Skip Design path for non-design proposals) shipped today in a parallel work session &mdash; I'll send a separate dedicated email with screenshots once that's pushed and tested.</p>
+
+<p>Tell me if any of this looks off.</p>
+
+<p>Greg</p>
+</body>
+</html>
