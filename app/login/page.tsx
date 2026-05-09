@@ -17,7 +17,16 @@ export default function LoginPage() {
     // the user lands on the original page instead of /command.
     const redirect = new URLSearchParams(location.search).get('redirect')
     const callback = new URL(`${location.origin}/auth/callback`)
-    if (redirect) callback.searchParams.set('next', redirect)
+    if (redirect) {
+      callback.searchParams.set('next', redirect)
+      // Supabase's auth URL allowlist usually contains the bare /auth/callback path
+      // and silently strips ?next=... when the exact URL isn't whitelisted, dropping
+      // the deep-link target and dumping users on /command. Stash next in a short-lived
+      // cookie so /auth/callback can recover it even when the URL param is gone.
+      // __Host- prefix + Secure hardens against subdomain cookie injection
+      // (browser rejects without Secure, Path=/, and no Domain).
+      document.cookie = `__Host-mg_oauth_next=${encodeURIComponent(redirect)}; Path=/; Max-Age=300; SameSite=Lax; Secure`
+    }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

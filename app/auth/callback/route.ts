@@ -1,51 +1,79 @@
 import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { INTERNAL_DOMAINS } from '@/lib/utils'
+
+const OAUTH_NEXT_COOKIE = '__Host-mg_oauth_next'
+
+function clearOAuthCookie(response: NextResponse, hadCookie: boolean) {
+  if (hadCookie) {
+    response.cookies.set(OAUTH_NEXT_COOKIE, '', { path: '/', maxAge: 0, secure: true, sameSite: 'lax' })
+  }
+  return response
+}
+
+function parseSafeNext(raw: string | null, origin: string): string | null {
+  if (!raw) return null
+  try {
+    const u = new URL(raw, origin)
+    if (u.origin !== origin) return null
+    if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) return null
+    if (raw.includes('\r') || raw.includes('\n')) return null
+    return raw
+  } catch {
+    return null
+  }
+}
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
 
-  // #11 — Check for missing code first (was unreachable before)
+  // Read + always clear the one-shot OAuth-next cookie regardless of which
+  // return path we take below (early errors, success, anything). Stale value
+  // from a prior failed flow must not steer the next login attempt.
+  const cookieStore = await cookies()
+  const cookieRaw = cookieStore.get(OAUTH_NEXT_COOKIE)?.value
+  const hadCookie = cookieRaw !== undefined
+
   if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=no_code`)
+    return clearOAuthCookie(NextResponse.redirect(`${origin}/login?error=no_code`), hadCookie)
   }
 
   const supabase = await createClient()
   const { error } = await supabase.auth.exchangeCodeForSession(code)
   if (error) {
-    return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+    return clearOAuthCookie(NextResponse.redirect(`${origin}/login?error=auth_failed`), hadCookie)
   }
 
-  // #3 — Validate email domain before provisioning
   const { data: { user } } = await supabase.auth.getUser()
   const email = user?.email ?? ''
   if (!INTERNAL_DOMAINS.some(d => email.endsWith(`@${d}`))) {
-    return NextResponse.redirect(`${origin}/login?error=unauthorized_domain`)
+    return clearOAuthCookie(NextResponse.redirect(`${origin}/login?error=unauthorized_domain`), hadCookie)
   }
 
-  // Auto-provision user row on first login
   if (user?.email) {
-    // RPC function not in generated Database types — cast to call untyped .rpc()
     const { error: provisionError } = await (supabase as unknown as { rpc: (fn: string, params: Record<string, string>) => Promise<{ error: { message: string } | null }> }).rpc('provision_user', {
       p_email: user.email,
       p_name: user.user_metadata?.full_name ?? user.email.split('@')[0],
     })
     if (provisionError) {
       console.error('Failed to provision user:', provisionError)
-      return NextResponse.redirect(`${origin}/login?error=provision_failed`)
+      return clearOAuthCookie(NextResponse.redirect(`${origin}/login?error=provision_failed`), hadCookie)
     }
   }
 
-  // Honor ?next for deep-link return. Reject anything that could escape the
-  // origin (open-redirect protection): must start with "/", must not start
-  // with "//" or "/\", no backslashes, no scheme.
-  const next = searchParams.get('next')
-  const safe =
-    next &&
-    next.startsWith('/') &&
-    !next.startsWith('//') &&
-    !next.startsWith('/\\') &&
-    !next.includes('\\')
-  return NextResponse.redirect(`${origin}${safe ? next : '/command'}`)
+  // Pick deep-link target from URL ?next= first, fall back to cookie.
+  // Both go through parseSafeNext (open-redirect, CRLF, origin check).
+  let cookieDecoded: string | null = null
+  if (cookieRaw) {
+    try { cookieDecoded = decodeURIComponent(cookieRaw) } catch { cookieDecoded = null }
+  }
+  const next = parseSafeNext(searchParams.get('next'), origin)
+    ?? parseSafeNext(cookieDecoded, origin)
+
+  return clearOAuthCookie(
+    NextResponse.redirect(`${origin}${next ?? '/command'}`),
+    hadCookie,
+  )
 }
