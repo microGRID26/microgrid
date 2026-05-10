@@ -34,6 +34,14 @@ const TITLE_MAX = 500;
 const SUMMARY_MAX = 600;
 const AUTHOR_MAX = 200;
 const URL_MAX = 2000;
+// Sprint 2 hardening (mig 267 R1 MED #5): pre-parse caps against
+// pathological XML — even with MAX_BYTES enforced, a 4.9MB doc with one
+// element holding 50K attributes can wedge fast-xml-parser for tens of
+// seconds. These ceilings reject hostile shapes BEFORE handing the body
+// to the parser. Numbers chosen well above realistic Atom/RSS feeds
+// (the largest mainstream feed I checked has < 200 attribute pairs).
+const MAX_TAG_DEPTH = 32;
+const MAX_ATTRIBUTE_PAIRS = 5000;
 
 type FeedEntry = {
   url: string;
@@ -154,7 +162,45 @@ async function fetchFeed(
   }
 }
 
+// Cheap structural bound. Walks the raw bytes once tracking the live tag
+// depth (open `<` minus close `</`) and total attribute = signs. Both are
+// O(N) on the input length we already capped at MAX_BYTES.
+function preParseGuard(xml: string): { ok: true } | { ok: false; reason: string } {
+  let depth = 0;
+  let maxDepth = 0;
+  let attrCount = 0;
+  for (let i = 0; i < xml.length; i++) {
+    const c = xml.charCodeAt(i);
+    if (c === 60 /* '<' */) {
+      // Skip XML decl, comment, CDATA, processing instruction
+      const next = xml.charCodeAt(i + 1);
+      if (next === 33 /* '!' */ || next === 63 /* '?' */) continue;
+      if (next === 47 /* '/' */) {
+        depth--;
+      } else {
+        depth++;
+        if (depth > maxDepth) maxDepth = depth;
+        if (maxDepth > MAX_TAG_DEPTH) {
+          return { ok: false, reason: `tag depth > ${MAX_TAG_DEPTH}` };
+        }
+      }
+    } else if (c === 61 /* '=' */) {
+      // Approximate attribute count via `=` between `<` and `>`. Overcounts
+      // text-node `=` but underbounds: real attr count <= this approximation.
+      attrCount++;
+      if (attrCount > MAX_ATTRIBUTE_PAIRS) {
+        return { ok: false, reason: `attribute pairs > ${MAX_ATTRIBUTE_PAIRS}` };
+      }
+    }
+  }
+  return { ok: true };
+}
+
 function parseFeed(xml: string): FeedEntry[] {
+  const guard = preParseGuard(xml);
+  if (!guard.ok) {
+    throw new Error(`pre-parse guard tripped: ${guard.reason}`);
+  }
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
