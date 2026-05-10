@@ -35,13 +35,15 @@ const SUMMARY_MAX = 600;
 const AUTHOR_MAX = 200;
 const URL_MAX = 2000;
 // Sprint 2 hardening (mig 267 R1 MED #5): pre-parse caps against
-// pathological XML — even with MAX_BYTES enforced, a 4.9MB doc with one
-// element holding 50K attributes can wedge fast-xml-parser for tens of
-// seconds. These ceilings reject hostile shapes BEFORE handing the body
-// to the parser. Numbers chosen well above realistic Atom/RSS feeds
-// (the largest mainstream feed I checked has < 200 attribute pairs).
-const MAX_TAG_DEPTH = 32;
-const MAX_ATTRIBUTE_PAIRS = 5000;
+// pathological XML. Substack/Atom feeds routinely embed full article HTML
+// inside <content type="html">, which legitimately produces tag depths
+// of 60-100 and tens of thousands of attribute pairs (every <a href> +
+// <img src>). The guard targets *pathological* shapes (50K+ depth,
+// 500K+ attrs in <5MB) — not "structurally rich legitimate content."
+// MAX_BYTES (5MB) already bounds total cost; this is defense against
+// attribute-bombs in undersized inputs.
+const MAX_TAG_DEPTH = 1024;
+const MAX_ATTRIBUTE_PAIRS = 200_000;
 
 type FeedEntry = {
   url: string;
@@ -303,9 +305,14 @@ function parseFeed(xml: string): FeedEntry[] {
   if (rssItems) {
     const items = Array.isArray(rssItems) ? rssItems : [rssItems];
     for (const e of items as Record<string, unknown>[]) {
-      const link = typeof e.link === "string" ? e.link : null;
+      // RSS <link> is plain text. The parser's `isArray: link → true` flag
+      // (needed for Atom multi-link entries) wraps it in a 1-element array
+      // — unwrap before the string check.
+      let link: unknown = e.link;
+      if (Array.isArray(link)) link = link[0];
+      const linkStr = typeof link === "string" ? link : null;
       pushEntry(
-        link,
+        linkStr,
         e.title,
         e.description,
         e.author ?? e["dc:creator"],
