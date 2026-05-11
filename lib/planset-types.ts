@@ -422,6 +422,14 @@ export interface PlansetData {
   sheetSize?: string
   equipmentCallouts?: PlansetEquipmentCallout[]
   inverterMix?: PlansetInverterMixEntry[]
+
+  // ── Phase 2 (Claude Design 2026-05-11) — site/cover imagery + property survey ──
+  // All optional, consumed by SheetPV3 (site plan) and SheetPV1 (cover page).
+  // Sheets render placeholder boxes when these are null/undefined.
+  propertyLines?: Array<{ side: 'N' | 'E' | 'S' | 'W'; dim: string }>
+  aerialImageUrl?: string | null
+  housePhotoUrl?: string | null
+  vicinityImageUrl?: string | null
 }
 
 // ── Build function ─────────────────────────────────────────────────────────

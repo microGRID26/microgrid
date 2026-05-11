@@ -1,335 +1,159 @@
+import { memo } from 'react'
 import type { PlansetData } from '@/lib/planset-types'
 import { TitleBlockHtml } from './TitleBlockHtml'
-import { CUT_SHEETS } from './SheetCutSheets'
 
 interface SheetPV1Props {
   data: PlansetData
+  enhanced?: boolean
   aerialPhotoUrl?: string | null
   housePhotoUrl?: string | null
-  enhanced?: boolean
 }
 
-export function SheetPV1({ data, aerialPhotoUrl, housePhotoUrl, enhanced = false }: SheetPV1Props) {
+function SheetPV1Inner({ data, aerialPhotoUrl, housePhotoUrl }: SheetPV1Props) {
+  // Prefer caller-passed URLs (legacy enhanced-mode flow), fall back to data fields
+  const aerialUrl = aerialPhotoUrl ?? data.aerialImageUrl
+  const houseUrl = housePhotoUrl ?? data.housePhotoUrl
+  const HQ_ADDRESS = '600 Northpark Central Dr Suite 140, Houston TX 77073'
+
+  const projectData: Array<[string, string | number]> = [
+    ['CUSTOMER',         data.owner],
+    ['SITE ADDRESS',     [data.address, data.city, `${data.state} ${data.zip || ''}`].filter(Boolean).join(', ')],
+    ['PROJECT ID',       data.projectId],
+    ['UTILITY',          'CENTERPOINT ENERGY'],
+    ['METER NUMBER',     data.meter || 'PENDING'],
+    ['ESID',             data.esid || 'PENDING'],
+    ['SYSTEM TYPE',      'PV + ESS · GRID-INTERACTIVE'],
+    ['DC SYSTEM SIZE',   `${data.systemDcKw.toFixed(3)} kW DC`],
+    ['AC SYSTEM SIZE',   `${data.systemAcKw} kW AC`],
+    ['ESS CAPACITY',     `${data.totalStorageKwh || 80} kWh USABLE`],
+    ['MODULE',           `(${data.panelCount}) ${data.panelModel}`],
+    ['INVERTER',         `(${data.inverterCount}) ${data.inverterModel}`],
+    ['BATTERY',          `(${data.batteryCount}) ${data.batteryModel}`],
+    ['RACKING',          data.rackingModel],
+    ['MOUNT TYPE',       'ROOF-MOUNTED · COMP SHINGLE'],
+    ['BUILDING TYPE',    `${data.stories === 1 ? 'ONE' : 'TWO'}-STORY RESIDENCE`],
+    ['CODE BASIS',       'NEC 2020 · IFC 2018 · IRC 2018 · NFPA 855'],
+    ['EXISTING SYSTEM',  '(E) MICRO-INVERTER ARRAY TO BE REMOVED'],
+  ]
+
   const generalNotes = [
-    'ALL WORK SHALL COMPLY WITH THE LATEST EDITION OF THE NEC (NFPA 70) AND ALL APPLICABLE LOCAL CODES.',
-    'ALL WIRING METHODS AND MATERIALS SHALL COMPLY WITH NEC ARTICLES 690, 705, AND 706.',
-    'ALL PV MODULES SHALL BE LISTED TO UL 1703 OR UL 61730.',
-    'INVERTER(S) SHALL BE LISTED TO UL 1741 AND/OR UL 1741SA FOR UTILITY INTERACTIVE OPERATION.',
-    'ALL EQUIPMENT SHALL BE INSTALLED PER MANUFACTURER INSTRUCTIONS AND SPECIFICATIONS.',
-    'RAPID SHUTDOWN SHALL COMPLY WITH NEC 690.12. MODULE-LEVEL POWER ELECTRONICS PROVIDE COMPLIANCE.',
-    'ARC-FAULT CIRCUIT PROTECTION SHALL COMPLY WITH NEC 690.11.',
-    'ALL ROOF PENETRATIONS SHALL BE PROPERLY FLASHED AND SEALED TO MAINTAIN ROOF WARRANTY.',
-    'EQUIPMENT GROUNDING SHALL COMPLY WITH NEC 250.134 AND 690.43.',
-    'GROUNDING ELECTRODE SYSTEM SHALL COMPLY WITH NEC 250.50 AND 250.52.',
-    'PV SYSTEM DC CIRCUITS SHALL BE INSTALLED PER NEC 690.31.',
-    'MAXIMUM SYSTEM VOLTAGE SHALL NOT EXCEED 600V DC PER NEC 690.7.',
-    'OVERCURRENT PROTECTION SHALL COMPLY WITH NEC 690.9.',
-    'ALL CONDUCTORS SHALL BE COPPER AND RATED FOR WET LOCATIONS.',
-    'GROUND-MOUNTED OR ROOF-MOUNTED CONDUIT SHALL BE RATED FOR OUTDOOR USE.',
-    'SYSTEM SHALL BE INSPECTED AND APPROVED PRIOR TO INTERCONNECTION.',
+    'ALL WORK SHALL CONFORM TO NEC 2020, IFC 2018, IRC 2018, NFPA 855, IEEE 1547, AND ALL LOCAL CODES.',
+    'ALL CONDUCTORS COPPER 75°C THWN-2 UNLESS NOTED OTHERWISE.',
+    'ALL CONDUITS EMT NEMA 3R EXPOSED · PVC SCHEDULE 40 BELOW GRADE.',
+    'ALL EQUIPMENT NEMA 3R RATED OR BETTER FOR OUTDOOR INSTALLATION.',
+    'WORKING SPACE PER NEC 110.26(A)(1): 36" DEPTH · 30" WIDTH · 78" HEIGHT MIN.',
+    'ALL DISCONNECTS LOCKABLE IN OPEN POSITION PER NEC 110.25.',
+    'ALL LABELS PER NEC 690.13(B), 690.31(D), 690.56, 705.10 — SEE PV-5.1.',
+    'GEC PER NEC 250.52 · BONDED TO EXISTING GROUNDING ELECTRODE SYSTEM.',
+    'PV ARRAY RAPID SHUTDOWN PER NEC 690.12 — MODULE-LEVEL.',
+    'ESS PER NFPA 855 §1207 · MAX 80 kWh AGGREGATE · GARAGE INSTALLATION.',
+    'ROOF FIRE SETBACKS PER IFC 2018 §1204: RIDGE 36" · EAVE 18" · RAKE 18".',
+    'ATTACHMENT INTO 2×6 RAFTERS @ 24" O.C. · IRONRIDGE XR100 PER PV-4.1.',
+    'STRUCTURAL CERTIFICATION LETTER ON FILE · PE-STAMPED · SEE APPENDIX.',
+    'EXISTING (E) MICRO-INVERTER ARRAY TO BE FULLY DECOMMISSIONED PRIOR TO NEW INSTALLATION.',
+    'CONTRACTOR TO VERIFY ALL EXISTING CONDITIONS PRIOR TO CONSTRUCTION.',
   ]
 
-  const pvNotes = [
-    'PV ARRAY OUTPUT CIRCUIT CONDUCTORS SHALL BE SIZED AT 125% OF Isc PER NEC 690.8(A).',
-    'MAXIMUM SYSTEM VOLTAGE (Voc CORRECTED) SHALL NOT EXCEED INVERTER MAXIMUM INPUT VOLTAGE.',
-    'STRING VOLTAGE RANGE (Vmp) SHALL FALL WITHIN INVERTER MPPT OPERATING RANGE.',
-    'PV SOURCE CIRCUITS SHALL BE PROVIDED WITH OCPD PER NEC 690.9.',
-    'ALL DC WIRING SHALL USE PV WIRE OR USE RATED PER NEC 690.31(C).',
-    'MODULE-LEVEL RAPID SHUTDOWN DEVICES SHALL COMPLY WITH NEC 690.12(B)(2).',
-    'BATTERY ENERGY STORAGE SYSTEM SHALL COMPLY WITH NEC ARTICLE 706.',
-    'ESS SHALL BE INSTALLED IN ACCORDANCE WITH MANUFACTURER INSTALLATION MANUAL.',
-  ]
-
-  const codeRefs = [
-    'NEC 2020 (NFPA 70)', 'IBC 2018', 'IRC 2018', 'IMC 2018', 'IPC 2018',
-    'IFC 2018', 'IECC 2018', 'ASCE 7-16',
-    'UL 1703 / UL 61730', 'UL 1741 / UL 1741SA', 'UL 9540 (ESS)', 'IEEE 1547',
-  ]
-
-  const unitIndex: [string, string][] = [
-    ['MSP', 'MAIN SERVICE PANEL'], ['SP', 'SUB PANEL'], ['MDP', 'MAIN DISTRIBUTION PANEL'],
-    ['GP', 'GROUND POINT'], ['PV', 'PHOTOVOLTAIC'], ['ESS', 'ENERGY STORAGE SYSTEM'],
-    ['OCPD', 'OVERCURRENT PROTECTION DEVICE'], ['GEC', 'GROUNDING ELECTRODE CONDUCTOR'],
-    ['EGC', 'EQUIPMENT GROUNDING CONDUCTOR'], ['RSD', 'RAPID SHUTDOWN DEVICE'],
-    ['MPPT', 'MAX POWER POINT TRACKER'], ['Voc', 'OPEN CIRCUIT VOLTAGE'],
-    ['Vmp', 'MAXIMUM POWER VOLTAGE'], ['Isc', 'SHORT CIRCUIT CURRENT'],
-    ['Imp', 'MAXIMUM POWER CURRENT'],
-  ]
-
-  // Dynamic sheet index based on enhanced mode
-  // Order must match the actual sheetList rendered in app/planset/page.tsx
-  const sheetIndex: [string, string][] = [
-    ...(enhanced ? [['UTIL', 'UTILITY BATTERY LETTER'] as [string, string]] : []),
-    ['PV-1', 'COVER PAGE & GENERAL NOTES'],
-    ['PV-2', 'PROJECT DATA'],
-    ['PV-2A', 'UNIT INDEX / LEGEND'],
-    ['PV-3', 'SITE PLAN'],
-    // Natural numerical order: PV-3 → PV-3.1 → PV-4 → PV-4.1
-    ...(enhanced ? [['PV-3.1', 'EQUIPMENT ELEVATION'] as [string, string]] : []),
-    ['PV-4', 'EQUIPMENT DETAIL'],
-    ...(enhanced ? [['PV-4.1', 'ATTACHMENT DETAIL'] as [string, string]] : []),
-    ['PV-5', 'SINGLE LINE DIAGRAM'],
-    ['PV-6', 'WIRING CALCULATIONS'],
-    ['PV-7', 'WARNING LABELS'],
+  const sheetIndex = [
+    ['PV-1',   'COVER PAGE & GENERAL NOTES'],
+    ['PV-2',   'PROJECT DATA + EQUIPMENT SPECS'],
+    ['PV-2A',  'UNIT INDEX / LEGEND'],
+    ['PV-3',   'SITE PLAN + ROOF PLAN'],
+    ['PV-3.1', 'EQUIPMENT ELEVATION'],
+    ['PV-3.2', 'GARAGE FLOOR PLAN · BATTERY DETAIL B'],
+    ['PV-4',   'ROOF PLAN WITH MODULES'],
+    ['PV-4.1', 'ATTACHMENT DETAIL'],
+    ['PV-5',   'ELECTRICAL SINGLE LINE DIAGRAM'],
+    ['PV-5.1', 'PCS LABELS'],
+    ['PV-6',   'TAG WIRE CHART + CALCULATIONS'],
+    ['PV-7',   'WARNING LABELS'],
     ['PV-7.1', 'EQUIPMENT PLACARDS'],
-    ['PV-8', 'CONDUCTOR SCHEDULE & BOM'],
-    ...CUT_SHEETS.map(cs => [cs.sheetId, cs.title.toUpperCase()] as [string, string]),
+    ['PV-8',   'CONDUCTOR SCHEDULE + BOM'],
   ]
-
-  // Scope of work — matching RUSH format
-  const scopeOfWork: [string, string][] = [
-    [String(data.panelCount), `${data.panelModel}`],
-    [String(data.inverterCount), `${data.inverterModel}`],
-    [String(data.batteryCount), `${data.batteryModel}`],
-    [String(data.racking.attachmentCount), `${data.racking.attachmentModel}`],
-    [String(data.racking.railCount), `${data.racking.railModel}`],
-    [String(data.racking.midClampCount ?? 0), 'Mid Clamp Assembly'],
-    [String(data.racking.endClampCount ?? 0), 'End Clamp Assembly'],
-  ]
-
-  const storiesLabel = data.stories === 1 ? 'ONE' : data.stories === 2 ? 'TWO' : String(data.stories)
-
-  // Shared cell styles
-  const hdr: React.CSSProperties = { background: '#111', color: 'white', padding: '3px 6px', fontSize: '7pt', fontWeight: 'bold', textAlign: 'center' }
-  const cell: React.CSSProperties = { fontWeight: 'bold', padding: '1.5px 4px', color: '#111', fontSize: '6pt', whiteSpace: 'nowrap' }
-  const val: React.CSSProperties = { padding: '1.5px 4px', color: '#333', fontSize: '6pt' }
 
   return (
-    <div className="sheet" style={{ display: 'grid', gridTemplateColumns: '1fr 2.5in', border: '2px solid #000', fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '8pt', width: '16.5in', height: '10.5in', overflow: 'hidden', position: 'relative' }}>
-      <div className="sheet-content" style={{ padding: '0.12in 0.15in', overflow: 'hidden' }}>
-        {/* 120% rule failure banner — top-of-cover so an AHJ reviewer sees
-            the interconnection issue before reading any other sheet. Solid
-            red on color devices; the 3px black border + heavy bold text
-            keep the warning legible in grayscale print. */}
-        {!data.loadSideBackfeedCompliant && (
-          <div
-            data-banner-120pct-fail
-            style={{
-              background: '#cc0000',
-              color: '#fff',
-              border: '3px solid #000',
-              padding: '5px 10px',
-              marginBottom: '6px',
-              fontSize: '7.5pt',
-              fontWeight: 'bold',
-              lineHeight: 1.3,
-            }}
-          >
-            ⚠ NEC 705.12 — 120% RULE FAIL: {data.totalBackfeedA}A backfeed exceeds {data.maxAllowableBackfeedA}A max allowable
-            ({data.mspBusRating}A bus × 1.2 − {data.mainBreaker} main). Use line-side tap, sub-panel feeder,
-            PCS-limited output (705.13), or upsize bus before AHJ submittal.
+    <div className="sheet" style={{ display: 'grid', gridTemplateColumns: '1fr 2.5in', border: '2px solid #000', fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '7pt', width: '16.5in', height: '10.5in', overflow: 'hidden' }}>
+      <div className="sheet-content" style={{ padding: '0.12in 0.18in', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ borderBottom: '2px solid #000', paddingBottom: 4 }}>
+          <div style={{ fontSize: '16pt', fontWeight: 800, letterSpacing: '0.04em' }}>PHOTOVOLTAIC ROOF MOUNT SYSTEM + ENERGY STORAGE</div>
+          <div style={{ fontSize: '9pt', color: '#333', marginTop: 2 }}>
+            {data.panelCount} MODULES · {data.systemDcKw.toFixed(3)} kW DC · {data.systemAcKw} kW AC · {data.totalStorageKwh || 80} kWh ESS
           </div>
-        )}
-
-        {/* Title */}
-        <div style={{ fontSize: '13pt', fontWeight: 'bold', color: '#111', marginBottom: '1px' }}>
-          ROOF INSTALLATION OF {data.systemDcKw.toFixed(2)} KW DC PHOTOVOLTAIC SYSTEM
-        </div>
-        <div style={{ fontSize: '7.5pt', color: '#555', marginBottom: '6px' }}>
-          WITH {data.totalStorageKwh} KWH BATTERY ENERGY STORAGE SYSTEM
+          <div style={{ fontSize: '8pt', color: '#000', marginTop: 2, fontWeight: 700 }}>
+            {data.owner} · {[data.address, data.city, `${data.state} ${data.zip || ''}`].filter(Boolean).join(', ')}
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1.15fr 0.7fr', gap: '6px', height: `calc(100% - ${data.loadSideBackfeedCompliant ? 28 : 64}px)` }}>
-          {/* ── LEFT COLUMN: Project Data, Scope, Electrical, Building, Design, Codes ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
-            {/* PROJECT DATA */}
-            <div style={{ border: '1px solid #111' }}>
-              <div style={hdr}>PROJECT DATA</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <tbody>
-                  <tr><td style={cell}>PROJECT:</td><td style={val}>{data.projectId} {data.owner}</td></tr>
-                  <tr><td style={cell}>ADDRESS:</td><td style={val}>{data.address}</td></tr>
-                  <tr><td style={cell}>SYSTEM SIZE:</td><td style={val}>{data.systemDcKw.toFixed(2)} kWDC / {data.systemAcKw} kWAC</td></tr>
-                  <tr><td style={cell}>PV MODULES:</td><td style={val}>({data.panelCount}) {data.panelModel}</td></tr>
-                  <tr><td style={cell}>INVERTERS:</td><td style={val}>({data.inverterCount}) {data.inverterModel}</td></tr>
-                  <tr><td style={cell}>BATTERIES:</td><td style={val}>({data.batteryCount}) {data.batteryModel} = {data.totalStorageKwh} kWh</td></tr>
-                  <tr><td style={cell}>RACKING:</td><td style={val}>{data.rackingModel}</td></tr>
-                  <tr><td style={cell}>ATTACHMENTS:</td><td style={val}>({data.racking.attachmentCount}) {data.racking.attachmentModel}</td></tr>
-                  <tr><td style={cell}>RAIL:</td><td style={val}>({data.racking.railCount}) {data.racking.railModel}</td></tr>
-                  <tr><td style={cell}>UTILITY:</td><td style={val}>{data.utility}</td></tr>
-                  {data.meter && <tr><td style={cell}>METER #:</td><td style={val}>{data.meter}</td></tr>}
-                  {data.esid && <tr><td style={cell}>ESID:</td><td style={val}>{data.esid}</td></tr>}
-                  <tr><td style={cell}>BUILDING:</td><td style={val}>{storiesLabel} STORY, {data.buildingType}</td></tr>
-                  <tr><td style={cell}>ROOF:</td><td style={val}>{data.roofType}, {data.rafterSize}</td></tr>
-                  <tr><td style={cell}>WIND SPEED:</td><td style={val}>{data.windSpeed} MPH, Cat {data.riskCategory}, Exp {data.exposure}</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* EXISTING SYSTEM */}
-            {data.existingPanelModel && (
-              <div style={{ border: '1px solid #111' }}>
-                <div style={{ ...hdr, background: '#555' }}>EXISTING SYSTEM (TO REMAIN)</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <tbody>
-                    <tr><td style={cell}>PV MODULES:</td><td style={val}>({data.existingPanelCount ?? 0}) {data.existingPanelModel}{data.existingPanelWattage ? ` (${data.existingPanelWattage}W)` : ''}</td></tr>
-                    <tr><td style={cell}>INVERTERS:</td><td style={val}>({data.existingInverterCount ?? 0}) {data.existingInverterModel}</td></tr>
-                    {data.existingPanelWattage ? (
-                      <tr><td style={cell}>EXISTING DC:</td><td style={val}>{((data.existingPanelCount ?? 0) * data.existingPanelWattage / 1000).toFixed(2)} kW</td></tr>
-                    ) : null}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* SCOPE OF WORK — matches RUSH quantity table */}
-            <div style={{ border: '1px solid #111' }}>
-              <div style={hdr}>SCOPE OF WORK</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...cell, borderBottom: '1px solid #ccc', width: '50px', textAlign: 'center' }}>QUANTITY</th>
-                    <th style={{ ...cell, borderBottom: '1px solid #ccc' }}>DESCRIPTION</th>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: 8, minHeight: 0 }}>
+          <div style={{ border: '1px solid #000', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ background: '#000', color: '#fff', padding: '3px 6px', fontWeight: 700, fontSize: '8pt' }}>PROJECT DATA</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '6.5pt' }}>
+              <tbody>
+                {projectData.map(([k, v], i) => (
+                  <tr key={i} style={{ background: i % 2 ? '#f5f5f5' : '#fff' }}>
+                    <td style={{ padding: '2px 5px', fontWeight: 700, borderRight: '1px solid #ccc', verticalAlign: 'top', width: '36%' }}>{k}</td>
+                    <td style={{ padding: '2px 5px' }}>{v}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {scopeOfWork.map(([qty, desc], i) => (
-                    <tr key={i}>
-                      <td style={{ ...val, textAlign: 'center', fontWeight: 'bold' }}>{qty}</td>
-                      <td style={val}>{desc}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-            {/* ELECTRICAL INFORMATION — matches RUSH */}
-            <div style={{ border: '1px solid #111' }}>
-              <div style={hdr}>ELECTRICAL INFORMATION</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <tbody>
-                  <tr><td style={cell}>VOLTAGE:</td><td style={val}>{data.voltage ?? '120/240V'}</td></tr>
-                  <tr><td style={cell}>MSP BUS RATING:</td><td style={val}>{data.mspBusRating}A</td></tr>
-                  <tr><td style={cell}>MAIN BREAKER:</td><td style={val}>{data.mainBreaker}</td></tr>
-                  <tr><td style={cell}>SERVICE DISCONNECT RATING:</td><td style={val}>200A</td></tr>
-                  <tr><td style={cell}>SERVICE DISCONNECT FUSE RATING:</td><td style={val}>200A</td></tr>
-                  <tr><td style={cell}>INTERCONNECTION TYPE:</td><td style={val}>LOAD-SIDE BACKFEED, NEC 705.12(B)(2)</td></tr>
-                </tbody>
-              </table>
-            </div>
+          <div style={{ border: '1px solid #000', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ background: '#000', color: '#fff', padding: '3px 6px', fontWeight: 700, fontSize: '8pt' }}>GENERAL NOTES</div>
+            <ol style={{ margin: 0, padding: '4px 6px 4px 22px', fontSize: '6.2pt', lineHeight: 1.45 }}>
+              {generalNotes.map((n, i) => <li key={i} style={{ marginBottom: 2 }}>{n}</li>)}
+            </ol>
+          </div>
 
-            {/* BUILDING INFORMATION — matches RUSH */}
-            <div style={{ border: '1px solid #111' }}>
-              <div style={hdr}>BUILDING INFORMATION</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <tbody>
-                  <tr><td style={cell}>BUILDING TYPE:</td><td style={val}>{storiesLabel} STORY BUILDING</td></tr>
-                  <tr><td style={cell}>CONSTRUCTION TYPE:</td><td style={val}>{data.buildingType}</td></tr>
-                  <tr><td style={cell}>OCCUPANCY:</td><td style={val}>R</td></tr>
-                  <tr><td style={cell}>ROOF TYPE:</td><td style={val}>{data.roofType?.toUpperCase()}</td></tr>
-                  <tr><td style={cell}>RAFTERS:</td><td style={val}>{data.rafterSize}</td></tr>
-                </tbody>
-              </table>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ flex: 1, border: '1px solid #000', position: 'relative', background: 'repeating-linear-gradient(45deg, #f8f8f8, #f8f8f8 6px, #efefef 6px, #efefef 12px)' }}>
+              {aerialUrl
+                ? <img src={aerialUrl} alt="Aerial" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: '7pt', color: '#666' }}>AERIAL PHOTO</div>}
+              <div style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '6pt', fontWeight: 700, background: '#fff', padding: '0 3px' }}>AERIAL</div>
             </div>
-
-            {/* DESIGN CRITERIA — matches RUSH */}
-            <div style={{ border: '1px solid #111' }}>
-              <div style={hdr}>DESIGN CRITERIA</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <tbody>
-                  <tr><td style={cell}>EXPOSURE CATEGORY:</td><td style={val}>{data.exposure}</td></tr>
-                  <tr><td style={cell}>WIND SPEED:</td><td style={val}>{data.windSpeed} MPH</td></tr>
-                  <tr><td style={cell}>RISK CATEGORY:</td><td style={val}>{data.riskCategory}</td></tr>
-                </tbody>
-              </table>
+            <div style={{ flex: 1, border: '1px solid #000', position: 'relative', background: 'repeating-linear-gradient(45deg, #f8f8f8, #f8f8f8 6px, #efefef 6px, #efefef 12px)' }}>
+              {houseUrl
+                ? <img src={houseUrl} alt="House" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: '7pt', color: '#666' }}>HOUSE PHOTO</div>}
+              <div style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '6pt', fontWeight: 700, background: '#fff', padding: '0 3px' }}>HOUSE</div>
             </div>
-
-            {/* CODE REFERENCES */}
-            <div style={{ border: '1px solid #111' }}>
-              <div style={hdr}>CODE REFERENCES</div>
-              <div style={{ padding: '3px 6px', fontSize: '5.5pt', lineHeight: 1.6 }}>
-                {codeRefs.map((ref, i) => <div key={i}>{ref}</div>)}
+            <div style={{ height: 80, border: '1px solid #000', position: 'relative', background: 'repeating-linear-gradient(45deg, #f8f8f8, #f8f8f8 6px, #efefef 6px, #efefef 12px)' }}>
+              {data.vicinityImageUrl
+                ? <img src={data.vicinityImageUrl} alt="Vicinity" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: '7pt', color: '#666' }}>VICINITY MAP</div>}
+              <div style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '6pt', fontWeight: 700, background: '#fff', padding: '0 3px' }}>VICINITY</div>
+            </div>
+            <div style={{ height: 130, border: '2px solid #000', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <div style={{ position: 'absolute', top: 4, left: 6, fontSize: '6pt', fontWeight: 700 }}>ENGINEER&apos;S STAMP</div>
+              <div style={{ fontSize: '6.5pt', color: '#999', textAlign: 'center', padding: '0 8px' }}>
+                RESERVED FOR<br />RUSH ENGINEERING<br />PE STAMP
               </div>
             </div>
           </div>
+        </div>
 
-          {/* ── CENTER COLUMN: General Notes, PV Notes, Unit Index ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
-            {/* GENERAL NOTES */}
-            <div style={{ border: '1px solid #111', flex: 1 }}>
-              <div style={hdr}>GENERAL NOTES</div>
-              <ol style={{ padding: '3px 6px 3px 16px', fontSize: '5pt', lineHeight: 1.7, color: '#333', margin: 0 }}>
-                {generalNotes.map((note, i) => <li key={i}>{note}</li>)}
-              </ol>
-            </div>
-
-            {/* PHOTOVOLTAIC NOTES */}
-            <div style={{ border: '1px solid #111' }}>
-              <div style={hdr}>PHOTOVOLTAIC NOTES</div>
-              <ol style={{ padding: '3px 6px 3px 16px', fontSize: '5pt', lineHeight: 1.7, color: '#333', margin: 0 }}>
-                {pvNotes.map((note, i) => <li key={i}>{note}</li>)}
-              </ol>
-            </div>
-
-            {/* UNIT INDEX */}
-            <div style={{ border: '1px solid #111' }}>
-              <div style={hdr}>UNIT INDEX</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <tbody>
-                  {unitIndex.map(([abbr, def], i) => (
-                    <tr key={i}>
-                      <td style={{ ...cell, width: '36px', fontSize: '5.5pt' }}>{abbr}</td>
-                      <td style={{ ...val, fontSize: '5.5pt' }}>{def}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 8 }}>
+          <div style={{ border: '1px solid #000' }}>
+            <div style={{ background: '#22d3ee', color: '#0a0a0a', padding: '2px 6px', fontWeight: 700, fontSize: '7.5pt' }}>SHEET INDEX</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '6pt' }}>
+              <tbody>
+                {sheetIndex.map(([num, name], i) => (
+                  <tr key={i} style={{ background: i % 2 ? '#f9f9f9' : '#fff' }}>
+                    <td style={{ padding: '1.5px 6px', fontWeight: 700, color: '#0e7490', borderRight: '1px solid #eee', width: '14%' }}>{num}</td>
+                    <td style={{ padding: '1.5px 6px' }}>{name}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-
-          {/* ── RIGHT COLUMN: Images + Contractor + Sheet Index ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
-            {/* CONTRACTOR */}
-            <div style={{ border: '1px solid #111' }}>
-              <div style={hdr}>CONTRACTOR</div>
-              <div style={{ padding: '4px 6px', fontSize: '6pt', lineHeight: 1.6 }}>
-                <div style={{ fontWeight: 'bold' }}>{data.contractor.name}</div>
-                <div>{data.contractor.address}</div>
-                <div>{data.contractor.city}</div>
-                <div>Phone: {data.contractor.phone}</div>
-                <div>License# {data.contractor.license}</div>
-                <div>{data.contractor.email}</div>
-              </div>
-            </div>
-
-            {/* AERIAL VIEW */}
-            <div style={{ border: '1px solid #111', flex: 1, minHeight: '1.2in' }}>
-              <div style={hdr}>AERIAL VIEW</div>
-              <div style={{ height: 'calc(100% - 20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                {aerialPhotoUrl ? (
-                  <img src={aerialPhotoUrl} alt="Aerial view" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: '6pt', color: '#999' }}>Upload aerial photo</span>
-                )}
-              </div>
-            </div>
-
-            {/* HOUSE PHOTO */}
-            <div style={{ border: '1px solid #111', flex: 1, minHeight: '1.2in' }}>
-              <div style={hdr}>HOUSE PHOTO</div>
-              <div style={{ height: 'calc(100% - 20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                {housePhotoUrl ? (
-                  <img src={housePhotoUrl} alt="House photo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: '6pt', color: '#999' }}>Upload house photo</span>
-                )}
-              </div>
-            </div>
-
-            {/* SHEET INDEX */}
-            <div style={{ border: '1px solid #111' }}>
-              <div style={hdr}>SHEET INDEX</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <tbody>
-                  {sheetIndex.map(([num, title], i) => (
-                    <tr key={i}>
-                      <td style={{ ...cell, width: '38px', fontSize: '5.5pt' }}>{num}</td>
-                      <td style={{ ...val, fontSize: '5.5pt' }}>{title}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div style={{ border: '1px solid #000', padding: '4px 6px', fontSize: '7pt', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ fontWeight: 700, fontSize: '8pt' }}>CONTRACTOR</div>
+            <div style={{ fontWeight: 700 }}>MICROGRID ENERGY</div>
+            <div>{HQ_ADDRESS}</div>
+            <div>(832) 280-7764</div>
+            <div style={{ marginTop: 4, fontSize: '6pt', color: '#444' }}>TECL #34286 · NABCEP CERTIFIED</div>
           </div>
         </div>
       </div>
@@ -337,3 +161,5 @@ export function SheetPV1({ data, aerialPhotoUrl, housePhotoUrl, enhanced = false
     </div>
   )
 }
+
+export const SheetPV1 = memo(SheetPV1Inner)
