@@ -1,27 +1,28 @@
-// Supabase Edge Function: tts-generate
+// Supabase Edge Function: tts-generate (parallel chunked, v7 deployed)
 //
 // Phase 4 Sprint 0.4 — Atlas-reads-the-concept TTS.
 //
-// Auth: requires a valid Supabase JWT (authenticated user). Anonymous calls
-//   are rejected. Service-role calls allowed for admin retry tooling.
+// Path Greg's first listen took to get here:
+//   v1: initial, hit OpenAI scope error (key was project-scoped, no audio).
+//   v2-4: same key swap loop while Greg got billing + scope sorted.
+//   v5: debug — surfaced openai_body in response so we could see the real error.
+//   v6: chunking (sequential) — OpenAI TTS caps input at 4096 chars; full-page
+//       concept reads are 5-8K chars and have to split.
+//   v7 (this): parallel chunks via Promise.all so total wall time = slowest
+//       chunk (~30s) instead of sum (~60s+). Critical for staying under
+//       supabase.functions.invoke client timeouts.
+//
+// Auth: requires a valid Supabase JWT (authenticated user).
 //
 // Input (JSON body): { kind: 'concept' | 'flashcard', slug?: string, text?: string, voice?: string }
-//   - concept: looks up the concept by `slug` and assembles the full-page
-//     read (intro + cfo_explanation + sections + skeptic_qa + where_in_atlas).
-//   - flashcard: caller passes the `text` directly (term + simple + example
-//     joined client-side). Slug is the flashcard id for cache keying.
+//   - concept: looks up the concept by `slug` and assembles the full-page read
+//     (intro + cfo_explanation + sections + skeptic_qa + where_in_atlas).
+//   - flashcard: caller passes `text` directly (term + simple + example).
 //   - voice defaults to 'nova' (warm female narrator, OpenAI TTS-HD).
 //
-// Flow:
-//   1. Verify JWT (Supabase auth).
-//   2. Compute deterministic cache key: sha256(text + ':' + voice).
-//   3. If cache hit in Storage bucket tts-cache → return public URL.
-//   4. Else call OpenAI TTS-HD with `nova` voice, MP3 output.
-//   5. Upload to Storage at cache key, return public URL.
-//
-// Cost discipline: cache is content-addressed so identical text reuses the
-// audio across users and re-reads. ~$8.50 first-pass for all 36 concepts;
-// ~$0/month for replays. Storage charge is ~$0.006/month for all audio.
+// Flow: JWT verify → sha256 cache key on (text + voice + model) → cache hit?
+// return URL : split into chunks ≤4000 chars → Promise.all(synth each) →
+// concat MP3 bytes → upload to Storage → return public URL.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
@@ -31,20 +32,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '
 const BUCKET = 'tts-cache'
 const DEFAULT_VOICE = 'nova'
 const MODEL = 'tts-1-hd'
-
-type TtsRequest = {
-  kind: 'concept' | 'flashcard'
-  slug?: string
-  text?: string
-  voice?: string
-}
-
-type TtsResponse = {
-  audio_url: string
-  cache_hit: boolean
-  duration_estimate_s: number
-  text_length: number
-}
+const CHUNK_MAX = 4000
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -62,26 +50,48 @@ function jsonResponse(body: unknown, status = 200): Response {
 async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input)
   const hashBuf = await crypto.subtle.digest('SHA-256', data)
-  return Array.from(new Uint8Array(hashBuf))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('')
+  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-function assembleConceptText(c: {
-  title: string
-  subtitle: string
-  intro: string
-  cfo_explanation: string
-  sections: Array<{ heading: string; body: string }>
-  skeptic_qa: Array<{ q?: string; question?: string; a?: string; answer?: string }>
-  where_in_atlas: Array<{ title: string; detail: string }>
-}): string {
-  // Read order: title → subtitle → intro → CFO → each section → Q&As → atlas
-  // tiebacks. Light prosaic glue between blocks so the read flows.
+function splitIntoChunks(text: string, maxLen: number): string[] {
+  if (text.length <= maxLen) return [text]
+  const chunks: string[] = []
+  const paragraphs = text.split(/\n{2,}/)
+  let current = ''
+  for (const p of paragraphs) {
+    if (p.length === 0) continue
+    if ((current + (current ? '\n\n' : '') + p).length <= maxLen) {
+      current = current ? current + '\n\n' + p : p
+      continue
+    }
+    if (current) { chunks.push(current); current = '' }
+    if (p.length <= maxLen) { current = p }
+    else {
+      const sentences = p.split(/(?<=[.!?])\s+/)
+      let sub = ''
+      for (const s of sentences) {
+        if ((sub + (sub ? ' ' : '') + s).length <= maxLen) {
+          sub = sub ? sub + ' ' + s : s
+        } else {
+          if (sub) chunks.push(sub)
+          if (s.length > maxLen) {
+            for (let i = 0; i < s.length; i += maxLen) chunks.push(s.slice(i, i + maxLen))
+            sub = ''
+          } else { sub = s }
+        }
+      }
+      if (sub) current = sub
+    }
+  }
+  if (current) chunks.push(current)
+  return chunks
+}
+
+function assembleConceptText(c: any): string {
   const parts: string[] = []
   parts.push(c.title + '.')
   if (c.subtitle) parts.push(c.subtitle + '.')
-  parts.push('')  // pause
+  parts.push('')
   parts.push(c.intro)
   parts.push('')
   parts.push('In plain English, for a non-engineer audience.')
@@ -113,17 +123,35 @@ function assembleConceptText(c: {
   return parts.join('\n').trim()
 }
 
+async function synthChunkImpl(text: string, voice: string, index: number): Promise<{ ok: true; bytes: Uint8Array; index: number } | { ok: false; status: number; body: string; index: number }> {
+  const r = await fetch('https://api.openai.com/v1/audio/speech', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + OPENAI_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, voice, input: text, response_format: 'mp3' }),
+  })
+  if (!r.ok) {
+    const body = await r.text()
+    return { ok: false, status: r.status, body: body.slice(0, 800), index }
+  }
+  const bytes = new Uint8Array(await r.arrayBuffer())
+  return { ok: true, bytes, index }
+}
+
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+  const total = parts.reduce((n, p) => n + p.length, 0)
+  const out = new Uint8Array(total)
+  let off = 0
+  for (const p of parts) { out.set(p, off); off += p.length }
+  return out
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
   if (req.method !== 'POST') return jsonResponse({ error: 'method_not_allowed' }, 405)
-
   if (!OPENAI_API_KEY) return jsonResponse({ error: 'openai_key_missing' }, 500)
 
-  // Auth check via Supabase JWT.
   const auth = req.headers.get('authorization')
-  if (!auth || !auth.startsWith('Bearer ')) {
-    return jsonResponse({ error: 'unauthorized' }, 401)
-  }
+  if (!auth || !auth.startsWith('Bearer ')) return jsonResponse({ error: 'unauthorized' }, 401)
   const userClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     global: { headers: { Authorization: auth } },
     auth: { persistSession: false },
@@ -131,29 +159,26 @@ Deno.serve(async (req: Request) => {
   const { data: { user }, error: userErr } = await userClient.auth.getUser()
   if (userErr || !user) return jsonResponse({ error: 'unauthorized' }, 401)
 
-  // Parse body.
-  let body: TtsRequest
+  let body: any
   try { body = await req.json() } catch { return jsonResponse({ error: 'invalid_json' }, 400) }
 
   const kind = body.kind
   const voice = body.voice ?? DEFAULT_VOICE
-  if (kind !== 'concept' && kind !== 'flashcard') {
-    return jsonResponse({ error: 'invalid_kind' }, 400)
-  }
+  if (kind !== 'concept' && kind !== 'flashcard') return jsonResponse({ error: 'invalid_kind' }, 400)
 
-  // Resolve text.
   let text = ''
   let cacheNamespace = ''
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
+
   if (kind === 'concept') {
     if (!body.slug) return jsonResponse({ error: 'slug_required' }, 400)
-    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
     const { data: concept, error: cErr } = await admin
       .from('learn_concepts')
       .select('title, subtitle, intro, cfo_explanation, sections, skeptic_qa, where_in_atlas')
       .eq('slug', body.slug)
       .maybeSingle()
     if (cErr || !concept) return jsonResponse({ error: 'concept_not_found' }, 404)
-    text = assembleConceptText(concept as Parameters<typeof assembleConceptText>[0])
+    text = assembleConceptText(concept)
     cacheNamespace = 'concept/' + body.slug
   } else {
     if (!body.text) return jsonResponse({ error: 'text_required' }, 400)
@@ -162,60 +187,51 @@ Deno.serve(async (req: Request) => {
   }
 
   if (text.length === 0) return jsonResponse({ error: 'empty_text' }, 400)
-  if (text.length > 50000) return jsonResponse({ error: 'text_too_long' }, 400)
+  if (text.length > 50000) return jsonResponse({ error: 'text_too_long', text_length: text.length }, 400)
 
-  // Content-addressed cache key.
   const hash = await sha256Hex(text + ':' + voice + ':' + MODEL)
   const objectPath = cacheNamespace + '/' + hash + '.mp3'
 
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
-
-  // Cache check.
-  const { data: existing } = await admin.storage.from(BUCKET).list(cacheNamespace, {
-    search: hash,
-    limit: 1,
-  })
+  const { data: existing } = await admin.storage.from(BUCKET).list(cacheNamespace, { search: hash, limit: 1 })
   if (existing && existing.length > 0) {
     const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(objectPath)
     return jsonResponse({
       audio_url: pub.publicUrl,
       cache_hit: true,
-      duration_estimate_s: Math.round((text.length / 1000) * 11),  // ~11 sec per 1000 chars at nova HD
+      duration_estimate_s: Math.round((text.length / 1000) * 11),
       text_length: text.length,
-    } as TtsResponse)
+    })
   }
 
-  // Cache miss — call OpenAI TTS.
-  const oaiRes = await fetch('https://api.openai.com/v1/audio/speech', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + OPENAI_API_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      voice,
-      input: text,
-      response_format: 'mp3',
-    }),
-  })
+  const chunks = splitIntoChunks(text, CHUNK_MAX)
 
-  if (!oaiRes.ok) {
-    const errText = await oaiRes.text()
-    console.error('[tts-generate] OpenAI error', oaiRes.status, errText.slice(0, 200))
-    return jsonResponse({ error: 'openai_failed', status: oaiRes.status }, 502)
+  // PARALLEL synthesis — Promise.all so total wall time is the slowest chunk,
+  // not the sum. Critical for staying under client timeouts.
+  const results = await Promise.all(chunks.map((c, i) => synthChunkImpl(c, voice, i)))
+
+  const failed = results.find(r => !r.ok) as { ok: false; status: number; body: string; index: number } | undefined
+  if (failed) {
+    console.error('[tts-generate] OpenAI chunk error', failed.index, failed.status, failed.body.slice(0, 200))
+    return jsonResponse({
+      error: 'openai_failed',
+      status: failed.status,
+      openai_body: failed.body,
+      failed_chunk_index: failed.index,
+      chunk_count: chunks.length,
+      text_length: text.length,
+    }, 502)
   }
 
-  const audioBytes = new Uint8Array(await oaiRes.arrayBuffer())
+  const audioParts = results.map(r => (r as { ok: true; bytes: Uint8Array }).bytes)
+  const merged = concatBytes(audioParts)
 
-  // Upload to Storage.
-  const { error: upErr } = await admin.storage.from(BUCKET).upload(objectPath, audioBytes, {
+  const { error: upErr } = await admin.storage.from(BUCKET).upload(objectPath, merged, {
     contentType: 'audio/mpeg',
     upsert: true,
   })
   if (upErr) {
     console.error('[tts-generate] storage upload failed', upErr.message)
-    return jsonResponse({ error: 'storage_upload_failed' }, 500)
+    return jsonResponse({ error: 'storage_upload_failed', detail: upErr.message }, 500)
   }
 
   const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(objectPath)
@@ -224,5 +240,6 @@ Deno.serve(async (req: Request) => {
     cache_hit: false,
     duration_estimate_s: Math.round((text.length / 1000) * 11),
     text_length: text.length,
-  } as TtsResponse)
+    chunk_count: chunks.length,
+  })
 })
