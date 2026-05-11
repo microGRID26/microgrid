@@ -937,6 +937,12 @@ export interface Invoice {
   created_by_id: string | null
   created_at: string
   updated_at: string
+  /** Optional embedded invoice_rule name from a nested Supabase select
+   *  (`rule:invoice_rules(name)`). Populated when the query JOINs the rule;
+   *  used by the UI to render "System: <rule.name>" for rule-fired drafts
+   *  that have created_by=NULL (the rule trigger runs under service-role).
+   *  Action #659 anchor. */
+  rule?: { name: string } | null
 }
 
 export interface InvoiceLineItem {

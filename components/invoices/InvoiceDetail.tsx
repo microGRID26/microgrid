@@ -187,7 +187,11 @@ export function InvoiceDetail({
         </div>
         <div>
           <div className="text-xs text-gray-500">Created By</div>
-          <div className="text-sm text-white">{invoice.created_by ?? '—'}</div>
+          <div className="text-sm text-white">
+            {invoice.generated_by === 'rule'
+              ? `System: ${invoice.rule?.name ?? 'invoice rule'}`
+              : (invoice.created_by ?? '—')}
+          </div>
         </div>
       </div>
 
