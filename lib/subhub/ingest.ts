@@ -96,6 +96,13 @@ export interface IngestResult {
   matched_by?: 'subhub_id' | 'name_address'
   error?: string
   documents_inserted?: number
+  /** When TRUE, the new project was created but flagged for human review at
+   *  /admin (Dup Review module) because an existing project shares either
+   *  the same case-insensitive name+address with a different subhub_id, or
+   *  the same email with a different name+address. The PROJ id of the
+   *  matched candidate is NOT exposed here — that would let webhook callers
+   *  probe MG's customer list. See action #807. */
+  flagged_for_review?: boolean
 }
 
 // Generate next PROJ-ID. See webhook route for the rationale on why this is
@@ -168,6 +175,11 @@ export async function processSubhubProject(
   let projectId: string | undefined
   let duplicate = false
   let matchedBy: IngestResult['matched_by'] | undefined
+  // When set, INSERT proceeds but with dup_review_pending=true. Two ways
+  // to land here: (a) Tier-2 name+address match where existing has a
+  // different subhub_id; (b) Tier-3 email match where name+address differ.
+  // See action #807 for the audit that prompted this.
+  let dupReviewCanonicalId: string | null = null
 
   if (payload.subhub_id != null) {
     const { data: existing } = await db.from('projects').select('id').eq('subhub_id', payload.subhub_id).limit(1)
@@ -178,35 +190,57 @@ export async function processSubhubProject(
     }
   }
   if (!projectId && customerName && customerAddress) {
-    // R2 audit M1 (2026-04-28): trim before .eq() so a payload with stray
-    // whitespace doesn't bypass conflict detection. Case sensitivity remains
-    // a gap; would need schema-level normalized columns to fully close.
+    // Tier 2 — case-insensitive name+address. Prior version used .eq()
+    // which silently let "Kelley Wilson"/"KELLEY WILSON" and
+    // "5221 BAILEY LN"/"5221 Bailey Lane" through as separate rows.
+    // ilike() with no wildcards = case-insensitive exact match in PG.
     const nameQ = customerName.trim()
     const addrQ = customerAddress.trim()
-    const { data: existing } = await db.from('projects').select('id, subhub_id').eq('name', nameQ).eq('address', addrQ).limit(1)
+    // R1 audit fix (#807): org-scope the lookup so an MG project can't be
+    // matched as the canonical for a different-org project. Webhook insert
+    // path uses DEFAULT_ORG_ID, so the candidate must also be in that org.
+    const { data: existing } = await db.from('projects').select('id, subhub_id').eq('org_id', DEFAULT_ORG_ID).ilike('name', nameQ).ilike('address', addrQ).limit(1)
     if (existing && existing.length > 0) {
       const existingSubhubId = (existing[0] as { subhub_id?: string | number | null }).subhub_id
-      // R1 audit Critical 2 (2026-04-28): hard-error when (name, address) matches
-      // an MG row that already has a DIFFERENT subhub_id. This means two different
-      // SubHub projects happen to share a name+address — same homeowner doing two
-      // installs, ADU + main, two-phase project — and silently merging them
-      // corrupts both records.
+      // R1 audit Critical 2 (2026-04-28) used to hard-error here. Action
+      // #807 (2026-05-11) reframed: a hard-error caused SubHub retry-
+      // storms and lost data. Instead, INSERT the new row and flag it
+      // for human review at /admin (Dup Review). Operator decides if
+      // it's a legitimate two-deal case (ADU + main, contract revision)
+      // or a true duplicate to merge.
       if (
         payload.subhub_id != null &&
         existingSubhubId != null &&
         String(existingSubhubId) !== String(payload.subhub_id)
       ) {
-        return {
-          success: false,
-          error: `subhub_id_conflict: existing MG ${existing[0].id} (subhub_id=${existingSubhubId}) shares (name,address) with payload subhub_id=${payload.subhub_id}`,
+        dupReviewCanonicalId = existing[0].id as string
+        // Fall through to INSERT path with flag set.
+      } else {
+        projectId = existing[0].id as string
+        duplicate = true
+        matchedBy = 'name_address'
+        // Backfill subhub_id on the existing row so subsequent calls hit the fast path.
+        if (payload.subhub_id != null && existingSubhubId == null) {
+          await db.from('projects').update({ subhub_id: payload.subhub_id }).eq('id', projectId)
         }
       }
-      projectId = existing[0].id as string
-      duplicate = true
-      matchedBy = 'name_address'
-      // Backfill subhub_id on the existing row so subsequent calls hit the fast path.
-      if (payload.subhub_id != null && existingSubhubId == null) {
-        await db.from('projects').update({ subhub_id: payload.subhub_id }).eq('id', projectId)
+    }
+  }
+  // Tier 3 — email fallback. Only fires when Tier 1+2 both missed AND
+  // we're about to INSERT. Catches the "same customer, different address
+  // spelling" case (e.g. "176 Van Zandt County Road 1529" vs "176 County
+  // Road 1529"). Flags new row for human review; does NOT skip INSERT.
+  if (!projectId && !dupReviewCanonicalId && payload.email) {
+    const emailQ = payload.email.trim().toLowerCase()
+    if (emailQ.length > 0) {
+      const { data: emailMatch } = await db
+        .from('projects')
+        .select('id')
+        .eq('org_id', DEFAULT_ORG_ID)
+        .ilike('email', emailQ)
+        .limit(1)
+      if (emailMatch && emailMatch.length > 0) {
+        dupReviewCanonicalId = emailMatch[0].id as string
       }
     }
   }
@@ -247,6 +281,11 @@ export async function processSubhubProject(
       down_payment: payload.downpayment ?? null,
       tpo_escalator: payload.finance_escalator_rate ?? null,
       dealer: payload.organization_name ?? null,
+      dup_review_pending: dupReviewCanonicalId !== null,
+      dup_canonical_id: dupReviewCanonicalId,
+    }
+    if (dupReviewCanonicalId) {
+      console.log(`[subhub] DUP-REVIEW flagged: new ${projectId} vs canonical ${dupReviewCanonicalId} (subhub_id=${payload.subhub_id ?? '<none>'}, email=${payload.email ?? '<none>'}). Awaiting eyeball at /admin Dup Review.`)
     }
 
     const { error: projErr } = await db.from('projects').insert(project)
@@ -384,5 +423,16 @@ export async function processSubhubProject(
     }
   }
 
-  return { success: true, project_id: projectId, duplicate, matched_by: matchedBy, documents_inserted }
+  return {
+    success: true,
+    project_id: projectId,
+    duplicate,
+    matched_by: matchedBy,
+    documents_inserted,
+    // R1 audit fix (#807): expose only the boolean externally; the canonical
+    // PROJ id stays internal-only on the row (dup_canonical_id column). A
+    // returned PROJ id would let any webhook caller probe MG's customer list
+    // by email/name.
+    flagged_for_review: dupReviewCanonicalId !== null,
+  }
 }

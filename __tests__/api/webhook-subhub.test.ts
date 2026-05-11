@@ -285,7 +285,8 @@ describe('POST /api/webhooks/subhub — project creation', () => {
       callCount++
       if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
       if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
-      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30100' }], error: null }) // getNextProjectId
+      if (callCount === 3) return mockChain({ data: [], error: null }) // (email) Tier-3 lookup — action #807
+      if (callCount === 4) return mockChain({ data: [{ id: 'PROJ-30100' }], error: null }) // getNextProjectId
       return mockChain({ data: null, error: null })
     })
 
@@ -328,6 +329,7 @@ describe('POST /api/webhooks/subhub — project creation', () => {
       callCount++
       if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
       if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
+      // No (email) Tier-3 SELECT — payload has no email field.
       if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30000' }], error: null }) // getNextProjectId
       if (callCount === 4) return mockChain({ data: null, error: { message: 'Unique constraint violation' } })
       return mockChain({ data: null, error: null })

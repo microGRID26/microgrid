@@ -27,6 +27,7 @@ import { PayDistributionManager } from '@/components/admin/PayDistributionManage
 import { TicketConfigManager } from '@/components/admin/TicketConfigManager'
 import { DealerRelationshipsManager } from '@/components/admin/DealerRelationshipsManager'
 import { PartnerApiManager } from '@/components/admin/PartnerApiManager'
+import { DupReviewManager } from '@/components/admin/DupReviewManager'
 import { FeedbackButton } from '@/components/FeedbackButton'
 
 export default function AdminPage() {
@@ -154,6 +155,7 @@ export default function AdminPage() {
             {activeModule === 'pay_distribution' && <PayDistributionManager isSuperAdmin={isSuperAdmin} />}
             {activeModule === 'ticket_config' && <TicketConfigManager />}
             {activeModule === 'partner_api' && <PartnerApiManager />}
+            {activeModule === 'dup_review' && <DupReviewManager />}
           </div>
         </main>
       </div>
