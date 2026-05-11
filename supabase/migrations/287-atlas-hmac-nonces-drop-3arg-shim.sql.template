@@ -1,0 +1,61 @@
+-- 287-atlas-hmac-nonces-drop-3arg-shim.sql — PLACEHOLDER, DO NOT APPLY YET
+--
+-- This file is the planned cleanup migration for the v1.12 transitional
+-- 3-arg shim of `public.atlas_hmac_check_and_record_nonce`. The shim was
+-- introduced in mig 285 to decouple the MG migration from the atlas-hq
+-- deploy that updates the 4-arg helper + 3 caller routes. Closes
+-- greg_actions #797.
+--
+-- ────────────────────────────────────────────────────────────────────
+-- CUTOVER CRITERIA — ALL FOUR must hold before applying:
+-- ────────────────────────────────────────────────────────────────────
+--
+-- 1. atlas-hq prod is on commit >= the v1.12 deploy SHA (the commit
+--    that lands lib/maturity/nonces.ts with the 4-arg signature +
+--    NONCE_SENTINEL + the three updated routes). Verify with:
+--      vercel ls atlas-hq --limit 5
+--    and confirm the production deployment's commit is at or past
+--    the v1.12 reference.
+--
+-- 2. atlas_hmac_nonces shows zero inserts with db='__legacy__' for
+--    7 consecutive days. Verify with:
+--      select count(*) from public.atlas_hmac_nonces
+--      where db = '__legacy__' and recorded_at > now() - interval '7 days';
+--    (Should return 0. Rows in that bucket from before atlas-hq deploy
+--    will have aged out via the 10-min prune cron.)
+--
+-- 3. Supabase logs show zero `maturity_legacy_shim_called` NOTICE
+--    entries for the same 7-day window. The shim raises this NOTICE
+--    on every call (mig 285 R2 M1 telemetry).
+--
+-- 4. No atlas-hq preview deploys are still receiving production
+--    traffic. Check Vercel "All Deployments" for any "Promoted to
+--    Production" entries since the v1.12 cutover.
+--
+-- ────────────────────────────────────────────────────────────────────
+-- THE ACTUAL MIGRATION (uncomment + rename file when criteria met)
+-- ────────────────────────────────────────────────────────────────────
+--
+-- drop function if exists public.atlas_hmac_check_and_record_nonce(text, text, bigint);
+--
+-- ────────────────────────────────────────────────────────────────────
+-- POST-APPLY VERIFY
+-- ────────────────────────────────────────────────────────────────────
+--
+-- 1. Confirm only the 4-arg overload remains:
+--      select proname, pg_get_function_identity_arguments(oid)
+--      from pg_proc where proname = 'atlas_hmac_check_and_record_nonce';
+--    Expected: 1 row with `p_route text, p_db text, p_sig text, p_ts bigint`.
+--
+-- 2. Smoke test /api/maturity/{ingest,lint,refresh-from-gh} — all
+--    should continue returning 200 (4-arg path unchanged).
+--
+-- 3. If anything 503s with "function not found", the cutover criteria
+--    were not actually met — rollback by re-applying mig 285's shim
+--    body via a hotfix migration.
+--
+-- ────────────────────────────────────────────────────────────────────
+-- This is a .template file so the migration log doesn't pick it up
+-- prematurely. Rename to `287-atlas-hmac-nonces-drop-3arg-shim.sql`
+-- after the cutover criteria above are satisfied. greg_actions #797
+-- is the work item.
