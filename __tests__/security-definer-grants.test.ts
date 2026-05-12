@@ -46,7 +46,7 @@ const KNOWN_OFFENDERS = new Set<string>([
   // authenticated EXECUTE; locking down to service_role would break the
   // Seer mobile read path AND the auth-helper RLS chain. The name-bound
   // REVOKE that this test wants would be incorrect for this fn class.
-  '245-fix-atlas-set-active-pcs-scenario-audit-project-id.sql', // atlas_set_active_pcs_scenario: super_admin-gated via auth_is_super_admin()
+  '245-fix-atlas-set-active-pcs-scenario-audit-project-id.sql', // atlas_set_active_pcs_scenario: super_admin-gated via auth_is_super_admin(); prod ACL also REVOKE'd via mig 307 (action #666 closed 2026-05-12)
   '255-seer-learn-upsert-allow-service-role.sql',               // seer_learn_upsert_*: service_role OR atlas_hq_is_owner gate, defense-in-depth
   '276-phase-4-seer-close-rings-axis-mappings.sql',             // seer_close_read_ring/quiz_ring: atlas_hq_is_owner gate, called from Seer mobile as authenticated
   '295-seer-today-redesign.sql',                                // seer_today_quote/summary/rank_ladder/rank_concepts: atlas_hq_is_owner-gated reads, mobile RPC targets
