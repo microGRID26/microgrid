@@ -74,9 +74,18 @@
       "type": "rect",
       "x": 40,
       "y": 40,
-      "w": 305,
+      "w": 1490,
       "h": 50,
       "stroke": "#111"
+    },
+    {
+      "type": "rect",
+      "x": 48,
+      "y": 45,
+      "w": 140,
+      "h": 11,
+      "fill": "#ffffff",
+      "stroke": "none"
     },
     {
       "type": "text",
@@ -118,6 +127,15 @@
       "stroke": "#111"
     },
     {
+      "type": "rect",
+      "x": 358,
+      "y": 45,
+      "w": 110,
+      "h": 11,
+      "fill": "#ffffff",
+      "stroke": "none"
+    },
+    {
       "type": "text",
       "x": 360,
       "y": 54,
@@ -156,6 +174,15 @@
       "stroke": "#111"
     },
     {
+      "type": "rect",
+      "x": 668,
+      "y": 45,
+      "w": 110,
+      "h": 11,
+      "fill": "#ffffff",
+      "stroke": "none"
+    },
+    {
       "type": "text",
       "x": 670,
       "y": 54,
@@ -192,6 +219,15 @@
       "w": 320,
       "h": 50,
       "stroke": "#111"
+    },
+    {
+      "type": "rect",
+      "x": 978,
+      "y": 45,
+      "w": 110,
+      "h": 11,
+      "fill": "#ffffff",
+      "stroke": "none"
     },
     {
       "type": "text",
@@ -517,15 +553,7 @@
       "y": 280,
       "fontSize": 8,
       "color": "#666",
-      "text": "Eaton DG223URB · 100A · 2P · 240V"
-    },
-    {
-      "type": "text",
-      "x": 380,
-      "y": 290,
-      "fontSize": 8,
-      "color": "#666",
-      "text": "NON-FUSIBLE · NEMA 3R"
+      "text": "Eaton DG223URB · 100A non-fusible · 2P"
     },
     {
       "type": "text",
@@ -534,12 +562,12 @@
       "fontSize": 7.5,
       "color": "#444",
       "italic": true,
-      "text": "VISIBLE, LOCKABLE, LABELED 'AC DISCONNECT'"
+      "text": "VISIBLE, LOCKABLE, LABELED — AC DISC"
     },
     {
       "type": "text",
       "x": 380,
-      "y": 312,
+      "y": 316,
       "fontSize": 7.5,
       "color": "#444",
       "italic": true,
@@ -567,20 +595,12 @@
       "y": 280,
       "fontSize": 8,
       "color": "#666",
-      "text": "Eaton DG222NRB · 60A FRAME / 45A CL FUSE · 2P · 240V"
+      "text": "Eaton DG222NRB · 45A fusible · 2P"
     },
     {
       "type": "text",
       "x": 510,
-      "y": 290,
-      "fontSize": 8,
-      "color": "#666",
-      "text": "FUSIBLE · 45A CL FUSE · NEMA 3R"
-    },
-    {
-      "type": "text",
-      "x": 510,
-      "y": 302,
+      "y": 304,
       "fontSize": 7.5,
       "color": "#444",
       "italic": true,
@@ -614,9 +634,9 @@
     },
     {
       "type": "text",
-      "x": 705,
+      "x": 701,
       "y": 168,
-      "fontSize": 6.5,
+      "fontSize": 5.5,
       "bold": true,
       "anchor": "middle",
       "text": "(N) MAIN BREAKER 240V · 125A/2P · TOP FED"
@@ -632,9 +652,9 @@
     },
     {
       "type": "text",
-      "x": 705,
+      "x": 701,
       "y": 188,
-      "fontSize": 6.5,
+      "fontSize": 5.5,
       "bold": true,
       "anchor": "middle",
       "text": "(N) HYBRID #1 BACKFEED · 100A/2P · OPP. END OF BUS"
@@ -650,9 +670,9 @@
     },
     {
       "type": "text",
-      "x": 705,
+      "x": 701,
       "y": 208,
-      "fontSize": 6.5,
+      "fontSize": 5.5,
       "bold": true,
       "anchor": "middle",
       "text": "(E) HOUSE LOAD BREAKERS"
@@ -668,9 +688,9 @@
     },
     {
       "type": "text",
-      "x": 705,
+      "x": 701,
       "y": 228,
-      "fontSize": 6.5,
+      "fontSize": 5.5,
       "bold": true,
       "anchor": "middle",
       "text": "(N) HYBRID #2 BACKFEED · 100A/2P"
@@ -678,7 +698,7 @@
     {
       "type": "text",
       "x": 640,
-      "y": 282,
+      "y": 320,
       "fontSize": 8.5,
       "bold": true,
       "text": "(N) MAIN SERVICE PANEL"
@@ -686,7 +706,7 @@
     {
       "type": "text",
       "x": 640,
-      "y": 294,
+      "y": 330,
       "fontSize": 8,
       "color": "#666",
       "text": "225A · 240V 1Φ 3W · EXTERIOR · NEMA 3R"
@@ -694,7 +714,7 @@
     {
       "type": "text",
       "x": 640,
-      "y": 304,
+      "y": 340,
       "fontSize": 7.5,
       "color": "#666",
       "text": "BUSBAR 225A · 120% RULE PER 705.12(B)"
@@ -709,9 +729,20 @@
       "dash": true
     },
     {
+      "type": "rect",
+      "x": 376,
+      "y": 344,
+      "w": 340,
+      "h": 24,
+      "fill": "none",
+      "stroke": "#c0392b",
+      "strokeDasharray": "3,2",
+      "strokeWidth": 0.5
+    },
+    {
       "type": "text",
-      "x": 644,
-      "y": 282,
+      "x": 380,
+      "y": 348,
       "fontSize": 7,
       "bold": true,
       "color": "#a00",
@@ -719,16 +750,16 @@
     },
     {
       "type": "text",
-      "x": 644,
-      "y": 293,
+      "x": 380,
+      "y": 356,
       "fontSize": 7,
       "color": "#a00",
       "text": "AGGREGATE EXPORT CAP: 145A CONT. (72.5A/HYBRID)"
     },
     {
       "type": "text",
-      "x": 644,
-      "y": 303,
+      "x": 380,
+      "y": 364,
       "fontSize": 7,
       "color": "#a00",
       "text": "BUSBAR CALC: 225×1.20=270 ≥ 125 MAIN + 145 PCS"
@@ -755,7 +786,7 @@
       "y": 228,
       "fontSize": 8,
       "color": "#666",
-      "text": "200A · 2P · NEMA 3R"
+      "text": "200A · 2P · NEMA 3R · BI-DIRECTIONAL"
     },
     {
       "type": "text",
@@ -764,16 +795,7 @@
       "fontSize": 7.5,
       "color": "#444",
       "italic": true,
-      "text": "VISIBLE, LOCKABLE,"
-    },
-    {
-      "type": "text",
-      "x": 810,
-      "y": 250,
-      "fontSize": 7.5,
-      "color": "#444",
-      "italic": true,
-      "text": "LABELED"
+      "text": "VISIBLE, LOCKABLE, LABELED"
     },
     {
       "type": "line",
@@ -843,14 +865,6 @@
       "fontSize": 8.5,
       "bold": true,
       "text": "(E) UTILITY METER"
-    },
-    {
-      "type": "text",
-      "x": 920,
-      "y": 228,
-      "fontSize": 8,
-      "color": "#666",
-      "text": "BI-DIRECTIONAL"
     },
     {
       "type": "text",
@@ -1156,24 +1170,24 @@
     },
     {
       "type": "text",
-      "x": 514,
-      "y": 568,
+      "x": 540,
+      "y": 510,
       "fontSize": 7.5,
       "bold": true,
       "text": "PRODUCTION CT"
     },
     {
       "type": "text",
-      "x": 514,
-      "y": 578,
+      "x": 540,
+      "y": 522,
       "fontSize": 7.5,
       "color": "#666",
       "text": "Hybrid AC OUT · 100A"
     },
     {
       "type": "text",
-      "x": 514,
-      "y": 588,
+      "x": 540,
+      "y": 534,
       "fontSize": 7,
       "color": "#666",
       "italic": true,
@@ -1865,11 +1879,11 @@
         ],
         [
           190,
-          370
+          460
         ],
         [
           820,
-          370
+          460
         ],
         [
           820,
@@ -1959,7 +1973,7 @@
     {
       "type": "callout",
       "cx": 130,
-      "cy": 580,
+      "cy": 560,
       "number": 10
     },
     {
@@ -2004,6 +2018,15 @@
       "stroke": "#a00",
       "strokeWidth": 1.4,
       "fill": "#fff"
+    },
+    {
+      "type": "rect",
+      "x": 48,
+      "y": 827,
+      "w": 130,
+      "h": 11,
+      "fill": "#ffffff",
+      "stroke": "none"
     },
     {
       "type": "text",
@@ -2125,6 +2148,15 @@
       "text": "①"
     },
     {
+      "type": "rect",
+      "x": 788,
+      "y": 827,
+      "w": 250,
+      "h": 11,
+      "fill": "#ffffff",
+      "stroke": "none"
+    },
+    {
       "type": "text",
       "x": 790,
       "y": 836,
@@ -2220,7 +2252,7 @@
       "fontSize": 7.5,
       "color": "#888",
       "italic": true,
-      "text": "Topology: rush-spatial · v13 · Duracell hybrid + Seraphim · 2026-05-12"
+      "text": "Topology: rush-spatial · v14 · Duracell hybrid + Seraphim · 2026-05-12"
     },
     {
       "type": "rect",
@@ -2412,7 +2444,7 @@
       "x": 1310,
       "y": 480,
       "fontSize": 7,
-      "text": "REV    v13 · 2026-05-12"
+      "text": "REV    v14 · 2026-05-12"
     },
     {
       "type": "text",
@@ -2489,7 +2521,52 @@
       "y": 798,
       "fontSize": 6,
       "color": "#666",
-      "text": "rush-spatial v13 · 2026-05-12"
+      "text": "rush-spatial v14 · 2026-05-12"
+    },
+    {
+      "type": "circle",
+      "cx": 425,
+      "cy": 380,
+      "r": 1.8,
+      "fill": "#000000",
+      "stroke": "none"
+    },
+    {
+      "type": "line",
+      "x1": 555,
+      "y1": 540,
+      "x2": 555,
+      "y2": 575,
+      "stroke": "#666666",
+      "strokeWidth": 0.5,
+      "strokeDasharray": "2,2"
+    },
+    {
+      "type": "rect",
+      "x": 1178,
+      "y": 469,
+      "w": 150,
+      "h": 12,
+      "fill": "#ffffff",
+      "stroke": "none"
+    },
+    {
+      "type": "rect",
+      "x": 62,
+      "y": 469,
+      "w": 165,
+      "h": 12,
+      "fill": "#ffffff",
+      "stroke": "none"
+    },
+    {
+      "type": "rect",
+      "x": 380,
+      "y": 99,
+      "w": 165,
+      "h": 12,
+      "fill": "#ffffff",
+      "stroke": "none"
     }
   ],
   "titleBlock": {

@@ -1,11 +1,12 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-12 ~14:45 UTC
+**Last updated:** 2026-05-12 ~15:30 UTC (PV-5 stamp-ready, r6–r8 complete, LOCAL commit pending push auth)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` (pushed to origin, NOT on main)
-**Latest commit:** `fd5d17b` feat(planset): PV-5 SLD v13 — Duracell hybrid topology ready for RUSH review
+**Branch:** `feat/planset-v8-layouts` (pushed to origin through `a6a2e88`; new local commit pending)
+**Latest pushed commit:** `a6a2e88` chore(planset): chain handoff + atomic patcher helper for cross-session pickup
+**Latest local commit:** (filed this session — see "Where we are right now" below)
 
 ## The chain in one paragraph
 
@@ -105,21 +106,30 @@ Greg drags the staged PNG from `~/Desktop/` into the Claude Design canvas chat. 
 
 ## Where we are right now (chain pickup state)
 
-**Status:** PV-5 SLD r5 declared done by Account A. Greg eyeballed and pushed back — text collisions in the AC SERVICE row (MSP labels overlap PCS callout + Service Disc labels; disconnect labels overflow; section header labels show through). Topology + data + equipment are correct. Layout density is wrong.
+**Status:** PV-5 SLD **stamp-ready per Account B canvas** (subject to Greg final eyeball on r8 render). Rounds r6/r7/r8 ran cleanly with Atlas as render-eyes; Account B at ~25% budget used (closed canvas anyway — work is done). v14 spec, 273 elements (was 265 at start of r6). All 10 of Greg's r5 critique points + all 5 Account A polish items resolved.
 
-**Active task:** Account B canvas in `gregkelsch@gmail.com` is being briefed for round 6 polish. r6 brief drafted; Greg about to paste into the new gmail-canvas chat.
+**Active task:** Greg eyeballs `~/Desktop/duracell-pv5-r8.png` against `~/Desktop/PROJ-26922 Corey Tyson Rev1.pdf` for drafting parity. Approve → push `feat/planset-v8-layouts` to origin (already pushed through `a6a2e88`; this session's commit needs explicit auth) → optional merge to main for Vercel deploy. Reject → file specific critique as JSON-patch-shaped feedback; reopen with a fresh canvas (don't rehydrate Account B's thread).
 
-**Open r6 patch targets (from Greg's critique + Canvas A's handoff):**
-1. Move PCS callout block out of MSP overlap zone
-2. Re-row MSP body labels below the asset
-3. Stagger PV Disc / Customer Gen Disc label clusters in y
-4. Shrink MSP internal label fontSize 6.5 → 5.5
-5. Fix section-header label ghosting (renderer position or content-side bumps)
-6. Title-block outer-frame integration (extend sheet header strip or add outer rect)
-7. Callout #10 vs Hybrid #1 label overlap
-8. T-junction dot at (425, 380) where Hybrid AC OUTs merge
-9. Production CT label clipping check at print scale
-10. Hybrid #1 BACKUP wire gutter at y=370 (or y=362)
+**r6–r8 work shipped (full inventory):**
+1. ✅ PCS callout block relocated AC-SERVICE-interior → AC-SERVICE-bottom strip with dashed red rect (376, 344) w=340 h=24
+2. ✅ MSP rated-plate labels pushed below asset (y=320/330/340)
+3. ✅ Customer Gen Disc + PV Disc clusters staggered/trimmed; redundant rows deleted
+4. ✅ MSP breaker-face labels shrunk 6.5pt → 5.5pt, x −4
+5. ⚠️ Section-header label ghosting — element-level occluders no-op (labels render from `spec.sections[]` config upstream of element array). Filed P2 `#965` for renderer-side fix (planset-v9 sprint).
+6. ✅ Header strip extended x=1250 → x=1490 (flush with title-block right column)
+7. ✅ Callout #10 lifted (130, 580) → (130, 560), clears HYBRID #1 PC MAX header
+8. ✅ T-junction dot added at (425, 380) r=1.8
+9. ✅ Production CT relocated (540, 510/522/534) — out of Stack #2 AND PLP/BLP zones, short vertical leader stub (555, 540)→(555, 575)
+10. ✅ Hybrid #1 BACKUP AC wire rerouted: y=370 corridor → y=460 corridor, clears AC SERVICE column
+
+**Bonus housekeeping:**
+- Version stamps synced v13 → v14 in 3 locations (idx=237 topology line, idx=258 REV row, idx=267 footer)
+- Service Disc collapsed 4 rows → 2
+- PV Disc trailing label trimmed "VISIBLE, LOCKABLE, LABELED 'AC DISCONNECT'" → "VISIBLE, LOCKABLE, LABELED — AC DISC"
+
+**Open follow-ups filed (planset-v9 sprint):**
+- `#965` P2 — Renderer: hug section labels to top frame edge (kill ghost-text). One-line `section.y + 14` → `section.y + 8` change. Addresses all 9 sections across every layout JSON.
+- `#966` P2 — Harden `spec-patcher.py`: accept `expected_old` param, surface WARN when actual pre-state diverges. Anchor: r8 apply log showed `(540,510) -> (540,510)` for all 4 patches; render confirmed correct end state, but a real drift bug could land silently the same way.
 
 ## Files modified by this chain
 
@@ -165,11 +175,12 @@ scripts/render-duracell-sld.tsx                         # NEW render harness
 /chain planset
 ```
 
-That picks up this doc. Then:
+That picks up this doc. Decision tree:
 
-1. **If Account B canvas has emitted patches** — apply them via Python script against `lib/sld-layouts/rush-spatial.json`, re-render via `npx tsx scripts/render-duracell-sld.tsx > ~/.claude/tmp/duracell-pv5-r<N>.html`, screenshot via chrome-devtools MCP, stage on `~/Desktop/duracell-pv5-r<N>.png`, send back to Greg to paste into canvas.
-2. **If Account B declared done** — pull its handoff block, save to `~/.claude/plans/planset-canvas-handoff.md` (overwrite), bundle a commit on `feat/planset-v8-layouts`, ask Greg to eyeball.
-3. **If Account B never sent anything** — assume in-flight; tell Greg to send the latest canvas output.
+1. **If Greg approved r8 PV-5 and authorized push** — push `feat/planset-v8-layouts`, optionally merge to main, then start a fresh canvas chat for the next sheet (PV-1/PV-2/PV-3/PV-4/PV-6+ per brief queue). PV-5 is DONE.
+2. **If Greg approved r8 but is holding the push** — work on the next sheet's brief instead. PV-5 commit waits.
+3. **If Greg's eyeball turned up new PV-5 issues** — open a FRESH canvas chat (don't rehydrate Account B's thread per their handoff note), paste the r8 spec + just the new critique, iterate r9+.
+4. **If next session is picking up a different sheet entirely (PV-1/PV-3 redrafts unaudited from prior chain)** — see "Known unknowns" above; PV-1/PV-3/PV-3.1/PV-3.2 are first-pass DONE but UNAUDITED.
 
 **Render the latest state any time:**
 ```bash
