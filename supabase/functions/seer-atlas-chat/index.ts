@@ -16,6 +16,7 @@ import { ATLAS_TOOL_DEFS, executeTool, type ToolName } from './tools.ts';
 const ANTHROPIC_API_KEY = Deno.env.get('SEER_ATLAS_ANTHROPIC_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 
 // Daily cap values live in migration 316 (seer_atlas_increment_usage) — the
 // RPC enforces them atomically. Keep these here as documentation only; do NOT
@@ -44,7 +45,11 @@ Deno.serve(async (req) => {
     return jsonError(401, 'missing auth');
   }
 
-  const userClient = createClient(SUPABASE_URL, authHeader.slice(7), {
+  // IMPORTANT: 2nd arg must be the publishable anon key, NOT the user's JWT.
+  // Supabase Auth requires the `apikey` header to be the project's anon key;
+  // the user identity comes from the Authorization header override below.
+  // Passing the JWT here gets rejected as "invalid token" at auth.getUser().
+  const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: userData, error: userErr } = await userClient.auth.getUser();
