@@ -1,18 +1,23 @@
-// Supabase Edge Function: tts-generate (parallel chunked, v7 deployed)
+// Supabase Edge Function: tts-generate (v14 deployed)
 //
 // Phase 4 Sprint 0.4 — Atlas-reads-the-concept TTS.
 //
-// Path Greg's first listen took to get here:
+// Version history:
 //   v1: initial, hit OpenAI scope error (key was project-scoped, no audio).
 //   v2-4: same key swap loop while Greg got billing + scope sorted.
 //   v5: debug — surfaced openai_body in response so we could see the real error.
 //   v6: chunking (sequential) — OpenAI TTS caps input at 4096 chars; full-page
 //       concept reads are 5-8K chars and have to split.
-//   v7 (this): parallel chunks via Promise.all so total wall time = slowest
+//   v7: parallel chunks via Promise.all so total wall time = slowest
 //       chunk (~30s) instead of sum (~60s+). Critical for staying under
 //       supabase.functions.invoke client timeouts.
+//   v14: x-backfill-secret header bypass for the warmup/precache script.
+//        New-format sb_secret_* keys don't byte-equal Deno.env.get(
+//        'SUPABASE_SERVICE_ROLE_KEY'), so a dedicated TTS_BACKFILL_SECRET
+//        env var is the matching pair.
 //
-// Auth: requires a valid Supabase JWT (authenticated user).
+// Auth: requires a valid Supabase JWT (authenticated user) OR the
+// x-backfill-secret header set to TTS_BACKFILL_SECRET (warmup/cron use).
 //
 // Input (JSON body): { kind: 'concept' | 'flashcard', slug?: string, text?: string, voice?: string }
 //   - concept: looks up the concept by `slug` and assembles the full-page read
@@ -20,15 +25,17 @@
 //   - flashcard: caller passes `text` directly (term + simple + example).
 //   - voice defaults to 'nova' (warm female narrator, OpenAI TTS-HD).
 //
-// Flow: JWT verify → sha256 cache key on (text + voice + model) → cache hit?
-// return URL : split into chunks ≤4000 chars → Promise.all(synth each) →
-// concat MP3 bytes → upload to Storage → return public URL.
+// Flow: JWT verify (unless backfill bypass) → sha256 cache key on
+// (text + voice + model) → cache hit? return URL : split into chunks
+// ≤4000 chars → Promise.all(synth each) → concat MP3 bytes → upload to
+// Storage → return public URL.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+const TTS_BACKFILL_SECRET = Deno.env.get('TTS_BACKFILL_SECRET') ?? ''
 const BUCKET = 'tts-cache'
 const DEFAULT_VOICE = 'nova'
 const MODEL = 'tts-1-hd'
@@ -36,7 +43,7 @@ const CHUNK_MAX = 4000
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-backfill-secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
@@ -150,14 +157,22 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return jsonResponse({ error: 'method_not_allowed' }, 405)
   if (!OPENAI_API_KEY) return jsonResponse({ error: 'openai_key_missing' }, 500)
 
-  const auth = req.headers.get('authorization')
-  if (!auth || !auth.startsWith('Bearer ')) return jsonResponse({ error: 'unauthorized' }, 401)
-  const userClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    global: { headers: { Authorization: auth } },
-    auth: { persistSession: false },
-  })
-  const { data: { user }, error: userErr } = await userClient.auth.getUser()
-  if (userErr || !user) return jsonResponse({ error: 'unauthorized' }, 401)
+  // Backfill bypass: dedicated x-backfill-secret header. Only used by
+  // the warmup/precache script. anon/authenticated callers still use the
+  // standard JWT path below.
+  const backfillHeader = req.headers.get('x-backfill-secret')
+  const isBackfill = TTS_BACKFILL_SECRET && backfillHeader === TTS_BACKFILL_SECRET
+
+  if (!isBackfill) {
+    const auth = req.headers.get('authorization')
+    if (!auth || !auth.startsWith('Bearer ')) return jsonResponse({ error: 'unauthorized' }, 401)
+    const userClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      global: { headers: { Authorization: auth } },
+      auth: { persistSession: false },
+    })
+    const { data: { user }, error: userErr } = await userClient.auth.getUser()
+    if (userErr || !user) return jsonResponse({ error: 'unauthorized' }, 401)
+  }
 
   let body: any
   try { body = await req.json() } catch { return jsonResponse({ error: 'invalid_json' }, 400) }
