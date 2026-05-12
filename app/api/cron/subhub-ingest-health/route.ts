@@ -1,7 +1,13 @@
 /**
  * GET /api/cron/subhub-ingest-health
  *
- * Daily. Self-monitors the SubHub→MG webhook ingest pipeline.
+ * Daily. Self-monitors the SubHub Welcome Call (VWC) webhook sub-pipeline,
+ * which writes to welcome_call_logs via /api/webhooks/subhub-vwc.
+ *
+ * Scope clarification: this cron covers ONLY the VWC sub-pipeline. Main
+ * SubHub project_export ingest (which writes to projects.subhub_id /
+ * subhub_raw_payload via /api/webhooks/subhub) is NOT monitored here — it
+ * has its own health signal in the projects table.
  *
  * Greg's directive 2026-05-06: "your scripts tend to stop often. You need
  * to build some audit in place where you are constantly checking them to
@@ -85,21 +91,24 @@ export async function GET(request: NextRequest) {
         .limit(1)
       const alreadyFiled = (existingOpen ?? []).length > 0
 
-      const title = `SubHub ingest stalled — last event ${hoursSinceLast.toFixed(1)}h ago, 0 in last 24h`
+      const title = `SubHub Welcome Call (VWC) ingest stalled — last event ${hoursSinceLast.toFixed(1)}h ago, 0 in last 24h`
       const body = [
-        '## SubHub ingest health check failed',
+        '## SubHub Welcome Call (VWC) ingest health check failed',
         '',
-        `**Last event received:** ${lastReceivedAt ? lastReceivedAt.toISOString() : 'never'}`,
+        'Scope: this signal covers the VWC sub-pipeline only (welcome_call_logs ← /api/webhooks/subhub-vwc).',
+        'Main SubHub project_export ingest is NOT monitored by this cron — verify separately via projects.subhub_id if you suspect that pipeline too.',
+        '',
+        `**Last VWC event received:** ${lastReceivedAt ? lastReceivedAt.toISOString() : 'never'}`,
         `**Hours since last event:** ${hoursSinceLast.toFixed(1)}`,
-        `**Events in last 24h:** ${count24h ?? 0}`,
+        `**VWC events in last 24h:** ${count24h ?? 0}`,
         `**Stall threshold:** ${STALL_HOURS}h`,
         '',
         '## What to check',
         '',
-        '1. SubHub side — is their webhook firing? Check their dashboard / contact support.',
-        '2. MG side — is `/api/webhooks/subhub` reachable? `curl -X POST` should return 401 (auth required), not 5xx.',
-        '3. Vercel logs for `/api/webhooks/subhub` — look for recent failures.',
-        '4. `partner_webhook_subscriptions` — is the SubHub subscription still active?',
+        '1. SubHub side — is their VWC (Welcome Call survey) webhook firing? Check their dashboard / contact support.',
+        '2. MG side — is `/api/webhooks/subhub-vwc` reachable? `curl https://app.gomicrogridenergy.com/api/webhooks/subhub-vwc` (GET) should return 200; POST without auth should return 401.',
+        '3. Vercel logs for `/api/webhooks/subhub-vwc` — look for recent 401s (auth drift) or 400s (timestamp window).',
+        '4. SubHub-side outbound URL — confirm it still points to `https://app.gomicrogridenergy.com/api/webhooks/subhub-vwc`. SubHub may have changed it during a config push.',
         '',
         '## How to close',
         '',
