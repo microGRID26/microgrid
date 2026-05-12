@@ -41,9 +41,108 @@ export function safeContractDate(raw: unknown): string | null {
   return dateStr
 }
 
+/**
+ * Normalize an address string so the (name, address) dedup query tolerates
+ * suffix and case variants ("123 Main Drive" vs "123 main dr").
+ *
+ * Mirrors `pg_temp.mig298_norm_addr` from migration 298 — keep the two in
+ * sync. Anchor: 2026-05-12 SubHub-eval-pile diagnosis found 83 intra-batch
+ * duplicates in the 5/6 backfill because the prior `.eq()` dedup matched
+ * only on byte-identical addresses. Action #901.
+ */
+export function normAddr(s: string | null | undefined): string {
+  if (!s) return ''
+  return s
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/ drive($|[, ])/g, ' dr$1')
+    .replace(/ avenue($|[, ])/g, ' ave$1')
+    .replace(/ street($|[, ])/g, ' st$1')
+    .replace(/ road($|[, ])/g, ' rd$1')
+    .replace(/ lane($|[, ])/g, ' ln$1')
+    .replace(/ boulevard($|[, ])/g, ' blvd$1')
+    .replace(/ court($|[, ])/g, ' ct$1')
+    .replace(/ trail($|[, ])/g, ' trl$1')
+    .replace(/ parkway($|[, ])/g, ' pkwy$1')
+    .replace(/ highway($|[, ])/g, ' hwy$1')
+    .replace(/ place($|[, ])/g, ' pl$1')
+    .replace(/ circle($|[, ])/g, ' cir$1')
+    .replace(/ terrace($|[, ])/g, ' ter$1')
+    .replace(/ square($|[, ])/g, ' sq$1')
+    .replace(/ way($|[, ])/g, ' way$1')
+    // Keep token boundaries when stripping non-alphanumerics so "12 3rd St"
+    // doesn't collapse to "123rdst" and collide with "123 Rd St". R1 M-1.
+    .replace(/[^a-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/ /g, '|')
+}
+
+/**
+ * Map a SubHub-side stage string to MG's stage enum. Webhook payload is
+ * attacker-controllable; this uses strict equality on a whitelist (not
+ * substring matching) so a `stage='install_complete_review'`-style payload
+ * can't slip into MG `stage='complete'` and auto-mark all tasks done.
+ * R1 H-2 fix (2026-05-12 red-teamer).
+ *
+ * Returns `{stage, disposition}`. Terminal SubHub stages (Cancelled,
+ * Withdrawn, Lost, Refunded, Returned, Chargeback) flip disposition off
+ * 'Sale' so revenue rollups don't double-count.
+ *
+ * Anchor: 2026-05-12 backfill ingested 1,754 historical deals as
+ * stage='evaluation' because this mapper didn't exist. Action #902.
+ */
+const SUBHUB_STAGE_MAP: Record<string, { stage: string; disposition?: string }> = {
+  // Terminal — keep at evaluation per MG convention but flip disposition.
+  cancelled: { stage: 'evaluation', disposition: 'Cancelled' },
+  canceled:  { stage: 'evaluation', disposition: 'Cancelled' },
+  withdrawn: { stage: 'evaluation', disposition: 'Cancelled' },
+  lost:      { stage: 'evaluation', disposition: 'Cancelled' },
+  refunded:  { stage: 'evaluation', disposition: 'Cancelled' },
+  returned:  { stage: 'evaluation', disposition: 'Cancelled' },
+  chargeback:{ stage: 'evaluation', disposition: 'Cancelled' },
+  // Workflow stages (strict — no substring matching).
+  completed:  { stage: 'complete' },
+  complete:   { stage: 'complete' },
+  closed:     { stage: 'complete' },
+  inspection: { stage: 'inspection' },
+  pto:        { stage: 'inspection' },
+  install:    { stage: 'install' },
+  installing: { stage: 'install' },
+  permit:     { stage: 'permit' },
+  permitting: { stage: 'permit' },
+  design:     { stage: 'design' },
+  cad:        { stage: 'design' },
+  engineering:{ stage: 'design' },
+  survey:     { stage: 'survey' },
+  'site visit': { stage: 'survey' },
+  'site':       { stage: 'survey' },
+  // Lead / proposal → evaluation. Explicit so we know they aren't ignored.
+  lead:       { stage: 'evaluation' },
+  proposal:   { stage: 'evaluation' },
+  evaluation: { stage: 'evaluation' },
+}
+export function mapSubhubStage(s: unknown): { stage: string; disposition?: string } {
+  if (typeof s !== 'string') return { stage: 'evaluation' }
+  const t = s.trim().toLowerCase()
+  if (!t) return { stage: 'evaluation' }
+  return SUBHUB_STAGE_MAP[t] ?? { stage: 'evaluation' }
+}
+
+/**
+ * Escape Postgres LIKE/ILIKE wildcards in a user-controlled string. Supabase
+ * JS's `.ilike()` does not escape the pattern; an attacker passing `%` as
+ * a `name` payload would otherwise match arbitrary rows. R1 H-1 fix
+ * (2026-05-12 red-teamer).
+ */
+export function escapeLikePattern(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
+}
+
 export interface SubHubPayload {
   subhub_id?: string | number
   subhub_uuid?: string
+  stage?: string
   name?: string
   first_name?: string
   last_name?: string
@@ -169,8 +268,15 @@ export async function processSubhubProject(
   let duplicate = false
   let matchedBy: IngestResult['matched_by'] | undefined
 
+  // R1 C-1 fix (2026-05-12 red-teamer): every dedup query is org-scoped.
+  // `db` is a service-role client (RLS bypassed) so org_id filtering MUST
+  // be explicit in the query — otherwise a cross-tenant webhook payload
+  // could merge into another org's project. Today MG runs single-org, but
+  // mig 294 prepares for multi-tenant; closing this before that lands.
   if (payload.subhub_id != null) {
-    const { data: existing } = await db.from('projects').select('id').eq('subhub_id', payload.subhub_id).limit(1)
+    const { data: existing } = await db.from('projects').select('id')
+      .eq('org_id', DEFAULT_ORG_ID)
+      .eq('subhub_id', payload.subhub_id).limit(1)
     if (existing && existing.length > 0) {
       projectId = existing[0].id as string
       duplicate = true
@@ -178,19 +284,57 @@ export async function processSubhubProject(
     }
   }
   if (!projectId && customerName && customerAddress) {
-    // R2 audit M1 (2026-04-28): trim before .eq() so a payload with stray
-    // whitespace doesn't bypass conflict detection. Case sensitivity remains
-    // a gap; would need schema-level normalized columns to fully close.
+    // R2 audit M1 (2026-04-28): trim before .eq() so stray whitespace doesn't
+    // bypass conflict detection.
+    // 2026-05-12 (#901): exact-match leaked 83 intra-batch duplicates in the
+    // 5/6 backfill ("HECTOR GARCIA"/"Hector Garcia" same address; "Drive"
+    // vs "Dr" suffix variants). Two-step dedup:
+    //   1. Fast-path .eq() for byte-identical hits.
+    //   2. Fallback: case-insensitive name match (with LIKE wildcards in
+    //      input escaped — R1 H-1), then filter rows by normalized address.
     const nameQ = customerName.trim()
     const addrQ = customerAddress.trim()
-    const { data: existing } = await db.from('projects').select('id, subhub_id').eq('name', nameQ).eq('address', addrQ).limit(1)
+    const naddrQ = normAddr(addrQ)
+
+    type ExistRow = { id: string; subhub_id: string | number | null; name?: string; address?: string }
+    let existing: ExistRow[] | null = null
+
+    const { data: exact } = await db
+      .from('projects')
+      .select('id, subhub_id, name, address')
+      .eq('org_id', DEFAULT_ORG_ID)
+      .eq('name', nameQ).eq('address', addrQ).limit(1)
+    if (exact && exact.length > 0) {
+      existing = exact as ExistRow[]
+    } else if (naddrQ) {
+      // Escape LIKE wildcards (% and _) so an attacker passing name='%' can't
+      // pull arbitrary rows. R1 H-1.
+      const escapedName = escapeLikePattern(nameQ)
+      const { data: nameHits } = await db
+        .from('projects')
+        .select('id, subhub_id, name, address')
+        .eq('org_id', DEFAULT_ORG_ID)
+        .ilike('name', escapedName).limit(20)
+      const matched = (nameHits ?? []).filter(
+        (r) => normAddr((r as ExistRow).address ?? '') === naddrQ,
+      )
+      // R1 L-2: ambiguous match — when >1 row normalized-matches, refuse to
+      // merge silently. Caller (webhook) returns 409 so SubHub retry path
+      // doesn't quietly corrupt a record.
+      if (matched.length > 1) {
+        return {
+          success: false,
+          error: `ambiguous_match: ${matched.length} MG rows share normalized (name,address) for "${nameQ}"; cannot safely merge`,
+        }
+      }
+      if (matched.length === 1) existing = matched as ExistRow[]
+    }
+
     if (existing && existing.length > 0) {
-      const existingSubhubId = (existing[0] as { subhub_id?: string | number | null }).subhub_id
+      const existingSubhubId = existing[0].subhub_id
       // R1 audit Critical 2 (2026-04-28): hard-error when (name, address) matches
-      // an MG row that already has a DIFFERENT subhub_id. This means two different
-      // SubHub projects happen to share a name+address — same homeowner doing two
-      // installs, ADU + main, two-phase project — and silently merging them
-      // corrupts both records.
+      // an MG row that already has a DIFFERENT subhub_id (ADU + main; same
+      // homeowner, two phases — silent merge corrupts both records).
       if (
         payload.subhub_id != null &&
         existingSubhubId != null &&
@@ -201,18 +345,26 @@ export async function processSubhubProject(
           error: `subhub_id_conflict: existing MG ${existing[0].id} (subhub_id=${existingSubhubId}) shares (name,address) with payload subhub_id=${payload.subhub_id}`,
         }
       }
-      projectId = existing[0].id as string
+      projectId = existing[0].id
       duplicate = true
       matchedBy = 'name_address'
-      // Backfill subhub_id on the existing row so subsequent calls hit the fast path.
+      // Backfill subhub_id on the existing row so subsequent calls hit the
+      // fast path. org-scoped to avoid cross-tenant write.
       if (payload.subhub_id != null && existingSubhubId == null) {
-        await db.from('projects').update({ subhub_id: payload.subhub_id }).eq('id', projectId)
+        await db.from('projects').update({ subhub_id: payload.subhub_id })
+          .eq('org_id', DEFAULT_ORG_ID).eq('id', projectId)
       }
     }
   }
 
   if (!projectId) {
     projectId = await getNextProjectId(db)
+    // 2026-05-12 (#902): respect SubHub's stage when present. Prior to this,
+    // every new SubHub project landed at stage='evaluation' regardless of
+    // SubHub-side state — caused the 1,754-row eval pile (migration 298
+    // reclassified 547 of them after the fact). Cancellation on SubHub side
+    // also flips disposition off 'Sale'.
+    const mapped = mapSubhubStage(payload.stage)
     const project: Record<string, unknown> = {
       id: projectId,
       org_id: DEFAULT_ORG_ID,
@@ -224,7 +376,7 @@ export async function processSubhubProject(
       city: payload.city ?? null,
       state: payload.state ?? 'TX',
       zip: payload.postal_code ?? null,
-      stage: 'evaluation',
+      stage: mapped.stage,
       stage_date: new Date().toISOString().slice(0, 10),
       sale_date: safeContractDate(payload.contract_signed_date) ?? new Date().toISOString().slice(0, 10),
       contract: payload.contract_amount ?? null,
@@ -243,7 +395,7 @@ export async function processSubhubProject(
       advisor: payload.sales_representative_name ?? payload.sales_rep_first_name ?? null,
       consultant: payload.sales_representative_name ?? (`${payload.sales_rep_first_name ?? ''} ${payload.sales_rep_last_name ?? ''}`.trim() || null),
       consultant_email: payload.sales_representative_email ?? payload.owner_email ?? null,
-      disposition: 'Sale',
+      disposition: mapped.disposition ?? 'Sale',
       down_payment: payload.downpayment ?? null,
       tpo_escalator: payload.finance_escalator_rate ?? null,
       dealer: payload.organization_name ?? null,
@@ -276,22 +428,31 @@ export async function processSubhubProject(
       return { success: false, error: `project insert failed: ${projErr.message}` }
     }
 
-    // Initial task states
+    // Initial task states. When SubHub stage is past evaluation (mapped to e.g.
+    // 'complete', 'install'), mark tasks in earlier stages as Complete so the
+    // auto-advance hook (useProjectTasks.ts) doesn't mis-render the pipeline.
+    const STAGE_ORDER = ['evaluation','survey','design','permit','install','inspection','complete'] as const
+    const newStageIdx = STAGE_ORDER.indexOf(mapped.stage as (typeof STAGE_ORDER)[number])
     const taskRecords: { project_id: string; task_id: string; status: string }[] = []
     for (const [stage, tasks] of Object.entries(TASKS)) {
+      const stageIdx = STAGE_ORDER.indexOf(stage as (typeof STAGE_ORDER)[number])
       for (const task of tasks) {
-        taskRecords.push({
-          project_id: projectId,
-          task_id: task.id,
-          status: stage === 'evaluation' && task.pre.length === 0 ? 'Ready To Start' : 'Not Ready',
-        })
+        let status: string
+        if (stageIdx >= 0 && newStageIdx >= 0 && stageIdx < newStageIdx) {
+          status = 'Complete'
+        } else if (stageIdx === newStageIdx && task.pre.length === 0) {
+          status = 'Ready To Start'
+        } else {
+          status = 'Not Ready'
+        }
+        taskRecords.push({ project_id: projectId, task_id: task.id, status })
       }
     }
     await db.from('task_state').insert(taskRecords)
 
     await db.from('stage_history').insert({
       project_id: projectId,
-      stage: 'evaluation',
+      stage: mapped.stage,
       entered: new Date().toISOString(),
     })
 
