@@ -1,92 +1,19 @@
 name: maturity-emit
 
-# v1.11 — real-time codebase-maturity grade emission.
-# On every push to main, signs an HMAC body and POSTs to atlas-hq, which
-# enqueues a refresh. Greg's launchd-managed maturity_refresh_watcher.py
-# claims the row + runs the local collector when the Mac is awake, so a
-# merge re-grades the constellation typically within minutes (not when
-# the laptop is closed).
-#
-# Secret: repo's GH Actions secret MATURITY_REFRESH_FROM_GH_SECRET (NOT
-# the same as MATURITY_INGEST_SECRET — R1 v1.11 H1: dedicated secret so
-# a leak from any of 5 repo secret stores grants ONLY enqueue-spam, not
-# data-write via /ingest).
-#
-# Auth model: HMAC-SHA256 with 5-min freshness + replay-nonce server-side
-# (atlas_hmac_nonces table, route='refresh-from-gh' discriminator).
-#
-# R1 v1.11 H2: secret is NEVER passed on argv. openssl -hmac would have
-# made it readable from /proc/<pid>/cmdline; signing via python3 reading
-# both secret and message from env keeps the value out of the runner's
-# process table.
+# v1.30 — caller shim. Real-time codebase-maturity emission body lives in
+# atlas-hq's reusable workflow at .github/workflows/maturity-emit-reusable.yml.
 
 on:
   push:
     branches: [main]
-  # workflow_dispatch removed (R1 v1.11 M3) — push-to-main is the only
-  # documented intent; an unrestricted manual trigger let any collaborator
-  # with actions:write flood the queue.
 
 permissions:
   contents: read
 
-concurrency:
-  group: maturity-emit-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   emit:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Sign and POST to atlas-hq
-        env:
-          MATURITY_REFRESH_FROM_GH_SECRET: ${{ secrets.MATURITY_REFRESH_FROM_GH_SECRET }}
-          # SLUG identifies this repo on the maturity dashboard. Must match
-          # a key in lib/maturity/db-registry.json on atlas-hq.
-          SLUG: microgrid
-          COMMIT_SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
-        run: |
-          set -euo pipefail
-
-          if [[ -z "${MATURITY_REFRESH_FROM_GH_SECRET:-}" ]]; then
-            echo "::error::MATURITY_REFRESH_FROM_GH_SECRET not set on this repo"
-            exit 1
-          fi
-
-          # Canonical compact JSON — sorted keys to match the verifier's
-          # signing input. The TS lib/maturity/hmac.ts and Python collector
-          # both use this same wire contract.
-          BODY=$(jq -cnS \
-            --arg slug "$SLUG" \
-            --arg sha "$COMMIT_SHA" \
-            --arg actor "$ACTOR" \
-            '{slug: $slug, commit_sha: $sha, actor: $actor}')
-
-          TS=$(($(date +%s%N) / 1000000))  # epoch ms
-
-          # Sign via python3 — secret read from env, body from stdin.
-          # Avoids putting the secret on argv (R1 v1.11 H2). The body hash
-          # uses sha256; the HMAC signs `${ts}.${body_hash}`.
-          export TS BODY
-          SIG=$(python3 - <<'PY'
-          import os, hmac, hashlib
-          secret = os.environ["MATURITY_REFRESH_FROM_GH_SECRET"].encode()
-          ts = os.environ["TS"]
-          body = os.environ["BODY"]
-          body_hash = hashlib.sha256(body.encode()).hexdigest()
-          msg = f"{ts}.{body_hash}".encode()
-          print(hmac.new(secret, msg, hashlib.sha256).hexdigest())
-          PY
-          )
-
-          # -f fails on >=400 so the job goes red on auth/validation failure.
-          # -sS keeps output quiet on success but prints body on failure.
-          curl -fsS \
-            -X POST https://hq.gomicrogridenergy.com/api/maturity/refresh-from-gh \
-            -H "content-type: application/json" \
-            -H "x-maturity-timestamp: $TS" \
-            -H "x-maturity-signature: $SIG" \
-            -d "$BODY"
-          echo
-          echo "emit ok: slug=$SLUG sha=$COMMIT_SHA"
+    uses: microGRID26/Atlas-HQ/.github/workflows/maturity-emit-reusable.yml@main
+    with:
+      slug: microgrid
+    secrets:
+      MATURITY_REFRESH_FROM_GH_SECRET: ${{ secrets.MATURITY_REFRESH_FROM_GH_SECRET }}
