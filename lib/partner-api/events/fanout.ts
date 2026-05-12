@@ -12,11 +12,17 @@
 //   - Trades: per-event retries (not per-(event, partner)). If partner A
 //     succeeded but partner B failed, the next attempt re-delivers to BOTH.
 //     Partners are required to be idempotent on event_id (signed payload).
+//     See docs/partners/webhooks.md for the contract.
 //
 // Phase 4 follow-up: per-(event, partner) tracking via partner_webhook_deliveries
-// (table from migration 109, currently unused — registry is env-driven).
+// (table from migration 109, currently unused — registry is env-driven). Wire
+// this up the first time a real partner cannot meet the idempotency contract.
 
-import { partnerApiAdmin } from '../supabase-admin'
+import {
+  claimOutboxBatch,
+  partnerApiAdmin,
+  recordOutboxAttempt,
+} from '../supabase-admin'
 import { loadPartnerRegistry, subscriptionsForEvent, type PartnerSubscription } from './partner-registry'
 import { signOutbound } from './signer'
 import { validateOutboundUrl, validateOutboundUrlWithDns } from './ssrf'
@@ -49,8 +55,6 @@ export async function runFanout(nowMs: number = Date.now()): Promise<FanoutResul
 
   const subs = loadPartnerRegistry()
   const sb = partnerApiAdmin()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const client = sb as any
 
   // ATOMIC CLAIM (audit 2026-05 cron-fanout C1, migration 226). Calls the
   // partner_event_outbox_claim_batch RPC which uses FOR UPDATE SKIP LOCKED
@@ -59,34 +63,32 @@ export async function runFanout(nowMs: number = Date.now()): Promise<FanoutResul
   // claimed > 5 min ago without fanned_out_at are re-claimable, so a worker
   // crash doesn't permanently lose events. A proper persistent retry queue
   // + DLQ is the High 1 follow-up.
-  const { data: events, error } = await client
-    .rpc('partner_event_outbox_claim_batch', {
-      p_limit: OUTBOX_BATCH_SIZE,
-      p_now: new Date(nowMs).toISOString(),
-    })
+  const { data: events, error } = await claimOutboxBatch(sb, {
+    limit: OUTBOX_BATCH_SIZE,
+    nowMs,
+  })
 
   if (error) {
     result.errors.push(`[fanout] outbox claim failed: ${error.message}`)
     return result
   }
 
-  const rows = (events as Array<{
-    id: string
-    event_type: string
-    event_id: string
-    payload: Record<string, unknown>
-    emitted_at: string
-    claimed_at: string
-  }> | null) ?? []
+  const rows = events ?? []
 
   for (const evt of rows) {
     result.events_processed++
+    // #575 L5: per-event start timestamp for signing the outbound POST.
+    // Each event signs with its own timestamp so the partner's replay-window
+    // check (5 min from signing) is anchored to when we actually sent, not
+    // when the batch started. The fanned_out_at stamp is captured fresh
+    // post-delivery below — that's the one diagnostics watches.
+    const evtStartMs = Date.now()
     const targets = subscriptionsForEvent(subs, evt.event_type)
 
     // Even if no targets match, mark fanned_out so we don't re-scan forever.
     const deliveries = targets.length === 0
       ? []
-      : await deliverWithBoundedConcurrency(targets, evt, nowMs, PER_EVENT_CONCURRENCY)
+      : await deliverWithBoundedConcurrency(targets, evt, evtStartMs, PER_EVENT_CONCURRENCY)
 
     for (const d of deliveries) {
       result.deliveries_attempted++
@@ -110,16 +112,22 @@ export async function runFanout(nowMs: number = Date.now()): Promise<FanoutResul
     // Aggregated into events_dlqed so the cron route can flip fleet status to
     // 'error' — silent abandonment was the audit's failure mode.
     const allOk = targets.length === 0 || deliveries.every((d) => d.ok)
-    const recordResp = await client.rpc('partner_event_outbox_record_attempt', {
-      p_id: evt.id,
-      p_all_ok: allOk,
-      p_expected_claimed_at: evt.claimed_at,
-      p_max_attempts: 5,
-      p_now: new Date(nowMs).toISOString(),
+    // #575 M4: destructure {data, error} properly. Old shape stored the whole
+    // PostgrestSingleResponse in a variable named `recordResp` and reached
+    // into .error / .data via optional chaining — worked but masked the type.
+    //
+    // #575 L5: capture record_attempt's nowMs FRESH here so fanned_out_at
+    // reflects when finalization happened, not when delivery started.
+    const { data: dlqed, error: recordErr } = await recordOutboxAttempt(sb, {
+      id: evt.id,
+      allOk,
+      expectedClaimedAt: evt.claimed_at,
+      maxAttempts: 5,
+      nowMs: Date.now(),
     })
-    if (recordResp?.error) {
-      result.errors.push(`[fanout] record_attempt failed for ${evt.id}: ${recordResp.error.message}`)
-    } else if (recordResp?.data === true) {
+    if (recordErr) {
+      result.errors.push(`[fanout] record_attempt failed for ${evt.id}: ${recordErr.message}`)
+    } else if (dlqed === true) {
       result.events_dlqed++
     }
   }
@@ -162,6 +170,44 @@ interface DeliveryOutcome {
   error?: string
 }
 
+/** Event shape that crosses the dedup contract. The fields here are the
+ *  versioned v1 surface of docs/partners/webhooks.md — renaming any of them
+ *  is a partner-facing breaking change. */
+export interface FanoutEvent {
+  event_type: string
+  event_id: string
+  emitted_at: string
+  payload: Record<string, unknown>
+}
+
+/** JSON body of an outbound webhook POST. Exposed for snapshot testing in
+ *  __tests__/lib/partner-api-fanout-idempotency.test.ts — the test fails
+ *  if the four contract keys (event_type / event_id / emitted_at / payload)
+ *  ever drift, which would silently break partner dedup. */
+export function buildFanoutBody(evt: FanoutEvent): string {
+  return JSON.stringify({
+    event_type: evt.event_type,
+    event_id: evt.event_id,
+    emitted_at: evt.emitted_at,
+    payload: evt.payload,
+  })
+}
+
+/** HTTP headers for an outbound webhook POST. Same snapshot-guard purpose
+ *  as buildFanoutBody — X-MG-Event-Id is the dedup-key header surface. */
+export function buildFanoutHeaders(
+  evt: FanoutEvent,
+  signedHeaders: { 'X-MG-Timestamp': string; 'X-MG-Signature-256': string },
+): Record<string, string> {
+  return {
+    'content-type': 'application/json',
+    'user-agent': 'MicroGRID-Webhooks/1.0',
+    'X-MG-Event-Type': evt.event_type,
+    'X-MG-Event-Id': evt.event_id,
+    ...signedHeaders,
+  }
+}
+
 async function deliverToSubscription(
   sub: PartnerSubscription,
   evt: { event_type: string; event_id: string; payload: Record<string, unknown>; emitted_at: string },
@@ -178,26 +224,16 @@ async function deliverToSubscription(
   // when Phase 4 subscription CRUD adds connection pinning via custom Agent.
   await validateOutboundUrlWithDns(sub.url)
 
-  const body = JSON.stringify({
-    event_type: evt.event_type,
-    event_id: evt.event_id,
-    emitted_at: evt.emitted_at,
-    payload: evt.payload,
-  })
-  const headers = await signOutbound(body, sub.secret, nowMs)
+  const body = buildFanoutBody(evt)
+  const signedHeaders = await signOutbound(body, sub.secret, nowMs)
+  const headers = buildFanoutHeaders(evt, signedHeaders)
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS)
   try {
     const res = await fetch(sub.url, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'user-agent': 'MicroGRID-Webhooks/1.0',
-        'X-MG-Event-Type': evt.event_type,
-        'X-MG-Event-Id': evt.event_id,
-        ...headers,
-      },
+      headers,
       body,
       signal: controller.signal,
     })
