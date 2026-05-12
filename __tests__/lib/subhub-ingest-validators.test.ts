@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isSafeHttpUrl, safeContractDate, normAddr, mapSubhubStage, escapeLikePattern } from '@/lib/subhub/ingest'
+import { isSafeHttpUrl, safeContractDate, normAddr, mapSubhubStage, escapeLikePattern, unwrapSubhubPayload } from '@/lib/subhub/ingest'
 
 // R1 audit fix tests — Critical 1 (XSS via doc URLs) + High 4 (date validation).
 
@@ -245,5 +245,55 @@ describe('mapSubhubStage — payload stage → MG stage', () => {
     expect(mapSubhubStage('Refunded').disposition).toBe('Cancelled')
     expect(mapSubhubStage('Returned').disposition).toBe('Cancelled')
     expect(mapSubhubStage('Chargeback').disposition).toBe('Cancelled')
+  })
+})
+
+// Action #677 task 2 — SubHub real fires wrap the project under
+// { event_type, data }; sample/curl fires use the flat shape. The unwrap
+// must accept both and never crash on hostile shapes.
+describe('unwrapSubhubPayload — { event_type, data } envelope unwrap', () => {
+  const sampleProject = { subhub_id: 1, name: 'Jane Doe', street: '1 Main St' }
+
+  it('unwraps real-shape envelope', () => {
+    const wrapped = { event_type: 'project_created_v2', data: sampleProject }
+    expect(unwrapSubhubPayload(wrapped)).toEqual(sampleProject)
+  })
+
+  it('passes flat-shape (curl/sample) through unchanged', () => {
+    expect(unwrapSubhubPayload(sampleProject)).toEqual(sampleProject)
+  })
+
+  it('passes flat-shape with no event_type through (data-only shape is NOT envelope)', () => {
+    const flat = { data: 'something', name: 'Jane', street: '1 Main' }
+    expect(unwrapSubhubPayload(flat as never)).toEqual(flat)
+  })
+
+  it('returns empty object for null', () => {
+    expect(unwrapSubhubPayload(null)).toEqual({})
+  })
+
+  it('returns empty object for undefined', () => {
+    expect(unwrapSubhubPayload(undefined)).toEqual({})
+  })
+
+  it('does not crash on array payload', () => {
+    expect(unwrapSubhubPayload([sampleProject] as never)).toEqual([sampleProject])
+  })
+
+  it('does not unwrap when data field is null', () => {
+    const halfWrapped = { event_type: 'x', data: null }
+    expect(unwrapSubhubPayload(halfWrapped as never)).toEqual(halfWrapped)
+  })
+
+  it('does not unwrap when data field is an array', () => {
+    const arrayData = { event_type: 'x', data: [sampleProject] }
+    expect(unwrapSubhubPayload(arrayData as never)).toEqual(arrayData)
+  })
+
+  it('does not unwrap when event_type is not a string (R1 L-2 defense-in-depth)', () => {
+    const numericType = { event_type: 0, data: sampleProject }
+    expect(unwrapSubhubPayload(numericType as never)).toEqual(numericType)
+    const nullType = { event_type: null, data: sampleProject }
+    expect(unwrapSubhubPayload(nullType as never)).toEqual(nullType)
   })
 })

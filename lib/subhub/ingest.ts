@@ -228,35 +228,38 @@ async function getNextProjectId(db: SupabaseClient): Promise<string> {
  * the existing project's subhub_id is updated so future calls match the
  * preferred (subhub_id) path. Documents are still ingested for duplicates.
  */
+// Real SubHub deliveries wrap the project under `{ event_type, data }`;
+// curl/sample fires use the flat shape. Accept both. Action #677 task 2.
+export function unwrapSubhubPayload(
+  raw: SubHubPayload | { event_type?: string; data?: SubHubPayload } | null | undefined,
+): SubHubPayload {
+  if (
+    raw != null &&
+    typeof raw === 'object' &&
+    !Array.isArray(raw) &&
+    Object.prototype.hasOwnProperty.call(raw, 'event_type') &&
+    Object.prototype.hasOwnProperty.call(raw, 'data')
+  ) {
+    const wrapper = raw as { event_type?: unknown; data?: unknown }
+    if (
+      typeof wrapper.event_type === 'string' &&
+      wrapper.data != null &&
+      typeof wrapper.data === 'object' &&
+      !Array.isArray(wrapper.data)
+    ) {
+      return wrapper.data as SubHubPayload
+    }
+  }
+  return (raw ?? {}) as SubHubPayload
+}
+
 export async function processSubhubProject(
-  payload: SubHubPayload,
+  rawPayload: SubHubPayload | { event_type?: string; data?: SubHubPayload },
   db: SupabaseClient,
   options: IngestOptions = {},
 ): Promise<IngestResult> {
-  // DIAG-2026-05-09 (action #667): real SubHub deliveries 400 with "Missing
-  // required fields: name and address" but docs/subhub-webhook-sample.json
-  // contains all required keys correctly named. Vercel MCP can't show request
-  // bodies, so log the payload key shape ONCE per request to identify the
-  // missing/renamed field. STRIP after first real fire is captured.
-  // Hardened per red-teamer R1: guards null/array payloads (would 500 on
-  // Object.keys(null)), caps key count (anti log-volume abuse), caps PII
-  // values to first 80 chars.
-  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-    const keys = Object.keys(payload as Record<string, unknown>).slice(0, 80).sort()
-    const derived = (payload.name ?? `${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim()) || '<EMPTY>'
-    const street = payload.street ?? '<MISSING>'
-    console.log('[subhub] DIAG payload shape:', JSON.stringify({
-      topLevelKeys: keys,
-      keyCount: Object.keys(payload as Record<string, unknown>).length,
-      hasName: !!payload.name,
-      hasFirstLast: !!(payload.first_name || payload.last_name),
-      hasStreet: !!payload.street,
-      hasSubhubId: payload.subhub_id != null,
-      hasSubhubUuid: !!payload.subhub_uuid,
-      derivedName: derived.slice(0, 80),
-      streetValue: String(street).slice(0, 80),
-    }))
-  }
+  const payload = unwrapSubhubPayload(rawPayload)
+
   const customerName = payload.name ?? `${payload.first_name ?? ''} ${payload.last_name ?? ''}`.trim()
   const customerAddress = payload.street
   if (!customerName || !customerAddress) {
