@@ -5,6 +5,26 @@ import { TASKS } from '@/lib/tasks'
 // in React via @/lib/hooks/useOrg. Mirror of the export in useOrg.tsx.
 const DEFAULT_ORG_ID = 'a0000000-0000-0000-0000-000000000001'
 
+// SubHub document labels that are customer-deliverable (visible in customer
+// portal). Anything else SubHub sends defaults to is_customer_visible=false
+// so a future label addition can't silently leak internal artifacts.
+// Anchor: action #610 R1 finding High 2 (2026-05-07).
+// Stored lowercase + match is lowercase so a SubHub-side label-casing rename
+// can't silently hide legit customer docs (R1 M-1, 2026-05-12 red-teamer).
+const SUBHUB_CUSTOMER_VISIBLE_LABELS_LC = new Set<string>([
+  'signed contract',
+  'essa signed contract',
+  'contract certificate',
+  'utility bill',
+  'welcome call survey',
+  'production graph',
+  'design',
+  'shade report',
+  'dxf',
+  'id',
+  'dl',
+])
+
 /**
  * Reject `javascript:`, `data:`, `file:`, `vbscript:` URLs and anything that
  * isn't an http(s) URL. SubHub document URLs render as clickable links in the
@@ -530,16 +550,32 @@ export async function processSubhubProject(
     const stableId = payload.subhub_id ?? payload.subhub_uuid
     const fileRecords = payload.documents
       .filter((d) => isSafeHttpUrl(d.url) && typeof d.label === 'string' && d.label.length > 0)
-      .map((d, idx) => ({
-        project_id: projectId!,
-        folder_name: 'SubHub',
-        file_name: d.label!.slice(0, 200),
-        file_id: `subhub-${stableId}-${idx}`,
-        file_url: d.url!,
-        mime_type: null,
-        file_size: null,
-        synced_at: new Date().toISOString(),
-      }))
+      .map((d, idx) => {
+        // Trim + lower-case once and use for both fields. R1 M-1 fix
+        // (red-teamer 2026-05-12): case-sensitive Set.has() would silently
+        // flip `is_customer_visible` to false on any SubHub label-casing
+        // drift ('signed contract' vs 'Signed Contract'), hiding legit
+        // customer-portal docs with no error. R1 L-2 fix: previously
+        // file_name kept untrimmed whitespace while the visibility check
+        // used trim — now consistent.
+        const labelTrimmed = d.label!.trim()
+        const labelKey = labelTrimmed.toLowerCase()
+        const isVisible = SUBHUB_CUSTOMER_VISIBLE_LABELS_LC.has(labelKey)
+        if (!isVisible) {
+          console.warn(`[subhub] unknown document label "${labelTrimmed}" — defaulted to is_customer_visible=false`)
+        }
+        return {
+          project_id: projectId!,
+          folder_name: 'SubHub',
+          file_name: labelTrimmed.slice(0, 200),
+          file_id: `subhub-${stableId}-${idx}`,
+          file_url: d.url!,
+          mime_type: null,
+          file_size: null,
+          synced_at: new Date().toISOString(),
+          is_customer_visible: isVisible,
+        }
+      })
 
     if (fileRecords.length > 0) {
       // Upsert by (project_id, file_id) — unique constraint already in 023-document-management.sql
