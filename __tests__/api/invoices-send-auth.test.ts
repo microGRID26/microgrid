@@ -214,6 +214,7 @@ describe('POST /api/invoices/[id]/send — auth', () => {
         { data: [{ id: 'inv-1' }], error: null }, // claim update
         { data: [], error: null },                // line items
         { data: orgRows, error: null },           // orgs
+        { data: { id: 'P1', name: 'Project P1' }, error: null }, // projects (draftInvoice.project_id='P1')
       ],
     })
     ;(createServerClient as unknown as ReturnType<typeof vi.fn>).mockReturnValueOnce(client)
@@ -238,6 +239,7 @@ describe('POST /api/invoices/[id]/send — auth', () => {
         { data: [{ id: 'inv-1' }], error: null }, // claim
         { data: [], error: null },                // line items
         { data: orgRows, error: null },           // orgs
+        { data: { id: 'P1', name: 'Project P1' }, error: null }, // projects (draftInvoice.project_id='P1')
       ],
     })
     ;(createServerClient as unknown as ReturnType<typeof vi.fn>).mockReturnValueOnce(client)
