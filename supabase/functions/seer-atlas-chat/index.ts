@@ -286,7 +286,13 @@ function streamChat(args: {
         if (lastTurnIsToolUseStop) {
           send({ type: 'error', message: 'tool-use loop exceeded 8 iterations; cancelling stream' });
         } else {
-          send({ type: 'done', input_tokens: totalInputTokens, output_tokens: totalOutputTokens });
+          // Phase 2: emit final_text so the client can TTS-play it without
+          // re-accumulating from text deltas (which it discards in `finally`).
+          const finalText = (currentAssistantBlocks as { type?: string; text?: string }[])
+            .filter((b) => b.type === 'text' && typeof b.text === 'string')
+            .map((b) => b.text as string)
+            .join('');
+          send({ type: 'done', input_tokens: totalInputTokens, output_tokens: totalOutputTokens, final_text: finalText });
         }
       } catch (e) {
         send({ type: 'error', message: e instanceof Error ? e.message : String(e) });

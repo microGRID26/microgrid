@@ -36,10 +36,18 @@ const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const TTS_BACKFILL_SECRET = Deno.env.get('TTS_BACKFILL_SECRET') ?? ''
-const BUCKET = 'tts-cache'
+const BUCKET_CURRICULUM = 'tts-cache'        // public — flashcards/concepts
+const BUCKET_ATLAS = 'seer-atlas-audio'      // private — Atlas replies (mig 317)
+const ATLAS_SIGNED_URL_TTL_SECONDS = 60
 const DEFAULT_VOICE = 'nova'
 const MODEL = 'tts-1-hd'
 const CHUNK_MAX = 4000
+
+// Greedy strip of "[tool] foo(args)\n" markers so they don't get read aloud.
+// (v3 red-team H — lazy quantifier in earlier spec leaked tool args; this is greedy.)
+function stripToolMarkers(text: string): string {
+  return text.replace(/\[tool\][^\n]*\n?/g, '')
+}
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -163,6 +171,7 @@ Deno.serve(async (req: Request) => {
   const backfillHeader = req.headers.get('x-backfill-secret')
   const isBackfill = TTS_BACKFILL_SECRET && backfillHeader === TTS_BACKFILL_SECRET
 
+  let userId: string | null = null
   if (!isBackfill) {
     const auth = req.headers.get('authorization')
     if (!auth || !auth.startsWith('Bearer ')) return jsonResponse({ error: 'unauthorized' }, 401)
@@ -172,6 +181,7 @@ Deno.serve(async (req: Request) => {
     })
     const { data: { user }, error: userErr } = await userClient.auth.getUser()
     if (userErr || !user) return jsonResponse({ error: 'unauthorized' }, 401)
+    userId = user.id
   }
 
   let body: any
@@ -179,10 +189,12 @@ Deno.serve(async (req: Request) => {
 
   const kind = body.kind
   const voice = body.voice ?? DEFAULT_VOICE
-  if (kind !== 'concept' && kind !== 'flashcard') return jsonResponse({ error: 'invalid_kind' }, 400)
+  if (kind !== 'concept' && kind !== 'flashcard' && kind !== 'atlas') return jsonResponse({ error: 'invalid_kind' }, 400)
 
   let text = ''
   let cacheNamespace = ''
+  let bucketName = BUCKET_CURRICULUM
+  let useSignedUrl = false
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
 
   if (kind === 'concept') {
@@ -195,10 +207,19 @@ Deno.serve(async (req: Request) => {
     if (cErr || !concept) return jsonResponse({ error: 'concept_not_found' }, 404)
     text = assembleConceptText(concept)
     cacheNamespace = 'concept/' + body.slug
-  } else {
+  } else if (kind === 'flashcard') {
     if (!body.text) return jsonResponse({ error: 'text_required' }, 400)
     text = body.text.trim()
     cacheNamespace = 'flashcard/' + (body.slug ?? 'anon')
+  } else { // kind === 'atlas'
+    if (!body.text) return jsonResponse({ error: 'text_required' }, 400)
+    if (!userId) return jsonResponse({ error: 'atlas_kind_requires_user_jwt' }, 401)
+    // Strip tool markers BEFORE cache-key + synthesis (server-side authoritative;
+    // client strips defense-in-depth).
+    text = stripToolMarkers(body.text).trim()
+    cacheNamespace = 'atlas/' + userId
+    bucketName = BUCKET_ATLAS         // private bucket (mig 317)
+    useSignedUrl = true               // 60s signed URL, NOT public
   }
 
   if (text.length === 0) return jsonResponse({ error: 'empty_text' }, 400)
@@ -207,11 +228,26 @@ Deno.serve(async (req: Request) => {
   const hash = await sha256Hex(text + ':' + voice + ':' + MODEL)
   const objectPath = cacheNamespace + '/' + hash + '.mp3'
 
-  const { data: existing } = await admin.storage.from(BUCKET).list(cacheNamespace, { search: hash, limit: 1 })
+  // URL minting helper — public for curriculum, short-TTL signed for atlas.
+  async function mintUrl(): Promise<string | null> {
+    if (useSignedUrl) {
+      const { data, error } = await admin.storage.from(bucketName).createSignedUrl(objectPath, ATLAS_SIGNED_URL_TTL_SECONDS)
+      if (error) {
+        console.error('[tts-generate] signed url failed', error.message)
+        return null
+      }
+      return data.signedUrl
+    }
+    const { data } = admin.storage.from(bucketName).getPublicUrl(objectPath)
+    return data.publicUrl
+  }
+
+  const { data: existing } = await admin.storage.from(bucketName).list(cacheNamespace, { search: hash, limit: 1 })
   if (existing && existing.length > 0) {
-    const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(objectPath)
+    const audio_url = await mintUrl()
+    if (!audio_url) return jsonResponse({ error: 'url_mint_failed' }, 500)
     return jsonResponse({
-      audio_url: pub.publicUrl,
+      audio_url,
       cache_hit: true,
       duration_estimate_s: Math.round((text.length / 1000) * 11),
       text_length: text.length,
@@ -226,11 +262,11 @@ Deno.serve(async (req: Request) => {
 
   const failed = results.find(r => !r.ok) as { ok: false; status: number; body: string; index: number } | undefined
   if (failed) {
-    console.error('[tts-generate] OpenAI chunk error', failed.index, failed.status, failed.body.slice(0, 200))
+    // Server-side log only. Do NOT echo body — atlas kind may contain Greg's private text.
+    console.error('[tts-generate] OpenAI chunk error', failed.index, failed.status, failed.body.slice(0, 800))
     return jsonResponse({
       error: 'openai_failed',
-      status: failed.status,
-      openai_body: failed.body,
+      openai_status: failed.status,
       failed_chunk_index: failed.index,
       chunk_count: chunks.length,
       text_length: text.length,
@@ -240,7 +276,7 @@ Deno.serve(async (req: Request) => {
   const audioParts = results.map(r => (r as { ok: true; bytes: Uint8Array }).bytes)
   const merged = concatBytes(audioParts)
 
-  const { error: upErr } = await admin.storage.from(BUCKET).upload(objectPath, merged, {
+  const { error: upErr } = await admin.storage.from(bucketName).upload(objectPath, merged, {
     contentType: 'audio/mpeg',
     upsert: true,
   })
@@ -249,9 +285,10 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'storage_upload_failed', detail: upErr.message }, 500)
   }
 
-  const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(objectPath)
+  const audio_url = await mintUrl()
+  if (!audio_url) return jsonResponse({ error: 'url_mint_failed' }, 500)
   return jsonResponse({
-    audio_url: pub.publicUrl,
+    audio_url,
     cache_hit: false,
     duration_estimate_s: Math.round((text.length / 1000) * 11),
     text_length: text.length,
