@@ -17,8 +17,8 @@ export function Msp225a({ x, y, w, h }: AssetProps) {
       <line x1="0.5" y1="32" x2="129.5" y2="32" stroke="#111" strokeWidth="1" />
 
       <rect x="9" y="43" width="38" height="14" rx="1.5" ry="1.5" fill="white" stroke="#111" strokeWidth="0.8" />
-      <text x="28" y="53" fontSize="5" fontWeight="bold" fill="#222" textAnchor="middle">45A / 2P</text>
-      <text x="28" y="74" fontSize="4" fill="#444" textAnchor="middle">PV</text>
+      <text x="28" y="53" fontSize="5" fontWeight="bold" fill="#222" textAnchor="middle">100A / 2P</text>
+      <text x="28" y="74" fontSize="4" fill="#444" textAnchor="middle">HYBRID #1</text>
 
       <rect x="83" y="43" width="38" height="14" rx="1.5" ry="1.5" fill="white" stroke="#111" strokeWidth="1.4" />
       <text x="102" y="53" fontSize="5" fontWeight="bold" fill="#222" textAnchor="middle">125A / 2P</text>

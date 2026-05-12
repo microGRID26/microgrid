@@ -92,14 +92,14 @@
       "x": 50,
       "y": 66,
       "fontSize": 8,
-      "text": "(20) SERAPHIM SRP-380BMA-BG · 380W ea"
+      "text": "(20) SERAPHIM SRP-440-BTD-BG · 440W ea"
     },
     {
       "type": "text",
       "x": 50,
       "y": 76,
       "fontSize": 8,
-      "text": "(1) DURACELL DPC-INV-7600 · 7.6 kW AC"
+      "text": "(2) DURACELL POWER CENTER MAX HYBRID 15kW · 30.0 kW AC TOTAL"
     },
     {
       "type": "text",
@@ -107,7 +107,7 @@
       "y": 86,
       "fontSize": 8,
       "bold": true,
-      "text": "TOTAL: 7.60 kW DC STC · 7.60 kW AC CEC"
+      "text": "TOTAL: 8.80 kW DC STC · 30.00 kW AC CEC · DC:AC = 0.29"
     },
     {
       "type": "rect",
@@ -169,7 +169,7 @@
       "x": 670,
       "y": 66,
       "fontSize": 8,
-      "text": "(1) DURACELL DPC-MAX-20 · 20.0 kWh · LFP"
+      "text": "(16) DURACELL 5 kWh LFP · 80.0 kWh TOTAL · 2× STACK-8"
     },
     {
       "type": "text",
@@ -183,7 +183,7 @@
       "x": 670,
       "y": 86,
       "fontSize": 8,
-      "text": "MSP BUSBAR: 225A · BREAKER: 45A/2P (PV)"
+      "text": "MSP BUSBAR: 225A · BACKFEED: 2× 100A/2P · NEC 705.12(B)(3) — SEE BUSBAR CALC"
     },
     {
       "type": "rect",
@@ -214,7 +214,7 @@
       "x": 980,
       "y": 76,
       "fontSize": 8,
-      "text": "INVERTER: 1× DPC-INV-7600 hybrid (7.6kW)"
+      "text": "INVERTER: 2× DURACELL PC MAX HYBRID · 15.0 kW ea · UL 1741-SB · CA Rule 21"
     },
     {
       "type": "text",
@@ -229,7 +229,7 @@
     {
       "type": "text",
       "x": 50,
-      "y": 124,
+      "y": 136,
       "fontSize": 8,
       "color": "#666",
       "italic": true,
@@ -239,97 +239,161 @@
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
       "x": 50,
-      "y": 138,
-      "w": 70,
-      "h": 32
+      "y": 140,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
-      "x": 124,
-      "y": 138,
-      "w": 70,
-      "h": 32
+      "x": 79,
+      "y": 140,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
-      "x": 198,
-      "y": 138,
-      "w": 70,
-      "h": 32
+      "x": 108,
+      "y": 140,
+      "w": 26,
+      "h": 48
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 137,
+      "y": 140,
+      "w": 26,
+      "h": 48
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 166,
+      "y": 140,
+      "w": 26,
+      "h": 48
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 195,
+      "y": 140,
+      "w": 26,
+      "h": 48
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 224,
+      "y": 140,
+      "w": 26,
+      "h": 48
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 253,
+      "y": 140,
+      "w": 26,
+      "h": 48
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 282,
+      "y": 140,
+      "w": 26,
+      "h": 48
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 311,
+      "y": 140,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
       "x": 50,
-      "y": 174,
-      "w": 70,
-      "h": 32
+      "y": 200,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
-      "x": 124,
-      "y": 174,
-      "w": 70,
-      "h": 32
+      "x": 79,
+      "y": 200,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
-      "x": 198,
-      "y": 174,
-      "w": 70,
-      "h": 32
+      "x": 108,
+      "y": 200,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
-      "x": 50,
-      "y": 210,
-      "w": 70,
-      "h": 32
+      "x": 137,
+      "y": 200,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
-      "x": 124,
-      "y": 210,
-      "w": 70,
-      "h": 32
+      "x": 166,
+      "y": 200,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
-      "x": 198,
-      "y": 210,
-      "w": 70,
-      "h": 32
+      "x": 195,
+      "y": 200,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
-      "x": 50,
-      "y": 246,
-      "w": 70,
-      "h": 32
+      "x": 224,
+      "y": 200,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
-      "x": 124,
-      "y": 246,
-      "w": 70,
-      "h": 32
+      "x": 253,
+      "y": 200,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "svg-asset",
       "assetId": "seraphim-pv-module",
-      "x": 198,
-      "y": 246,
-      "w": 70,
-      "h": 32
+      "x": 282,
+      "y": 200,
+      "w": 26,
+      "h": 48
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "seraphim-pv-module",
+      "x": 311,
+      "y": 200,
+      "w": 26,
+      "h": 48
     },
     {
       "type": "text",
@@ -337,7 +401,7 @@
       "y": 294,
       "fontSize": 8,
       "bold": true,
-      "text": "BRANCH 1: (N)(10) SERAPHIM SRP-380BMA-BG · 380W ea"
+      "text": "BRANCH 1: (N)(10) SERAPHIM SRP-440-BTD-BG · 440W ea → MPPT-1 (HYBRID #1)"
     },
     {
       "type": "text",
@@ -345,7 +409,7 @@
       "y": 304,
       "fontSize": 8,
       "bold": true,
-      "text": "BRANCH 2: (N)(10) SERAPHIM SRP-380BMA-BG · 380W ea"
+      "text": "BRANCH 2: (N)(10) SERAPHIM SRP-440-BTD-BG · 440W ea → MPPT-1 (HYBRID #2)"
     },
     {
       "type": "text",
@@ -353,7 +417,7 @@
       "y": 318,
       "fontSize": 7.5,
       "color": "#666",
-      "text": "STRING-INVERTER TOPOLOGY · INTEGRATED MODULE-LEVEL RSD"
+      "text": "HYBRID-INVERTER TOPOLOGY · MODULE-LEVEL RSD-D-20 PER NEC 690.12(B)(2) · TYP (20)"
     },
     {
       "type": "text",
@@ -375,58 +439,58 @@
     {
       "type": "svg-asset",
       "assetId": "imo-rsd",
-      "x": 280,
-      "y": 150,
+      "x": 50,
+      "y": 254,
       "w": 60,
       "h": 24
     },
     {
       "type": "text",
-      "x": 280,
-      "y": 184,
-      "fontSize": 7.5,
+      "x": 116,
+      "y": 260,
+      "fontSize": 7,
       "bold": true,
       "text": "(N) IMO RSD"
     },
     {
       "type": "text",
-      "x": 280,
-      "y": 194,
-      "fontSize": 7.5,
+      "x": 116,
+      "y": 268,
+      "fontSize": 7,
       "color": "#666",
-      "text": "Rapid-Shutdown"
+      "text": "Rapid-Shutdown Initiator"
     },
     {
       "type": "text",
-      "x": 280,
-      "y": 204,
-      "fontSize": 7.5,
+      "x": 116,
+      "y": 276,
+      "fontSize": 7,
       "color": "#666",
-      "text": "Initiator · 690.12"
+      "text": "NEC 690.12(A) · RED MAINT. SWITCH"
     },
     {
       "type": "svg-asset",
       "assetId": "jb-nema3-600v",
-      "x": 285,
-      "y": 230,
+      "x": 200,
+      "y": 254,
       "w": 50,
       "h": 40
     },
     {
       "type": "text",
-      "x": 280,
-      "y": 280,
-      "fontSize": 7.5,
+      "x": 256,
+      "y": 260,
+      "fontSize": 7,
       "bold": true,
       "text": "(N) DC JB"
     },
     {
       "type": "text",
-      "x": 280,
-      "y": 290,
-      "fontSize": 7.5,
+      "x": 256,
+      "y": 268,
+      "fontSize": 7,
       "color": "#666",
-      "text": "NEMA 3R · 600V"
+      "text": "NEMA 3R · 600V · UL"
     },
     {
       "_": "----- AC SERVICE CONDUCTOR PATH -----"
@@ -453,7 +517,7 @@
       "y": 280,
       "fontSize": 8,
       "color": "#666",
-      "text": "Eaton DG222URB · 60A · 2P · 240V"
+      "text": "Eaton DG223URB · 100A · 2P · 240V"
     },
     {
       "type": "text",
@@ -503,7 +567,7 @@
       "y": 280,
       "fontSize": 8,
       "color": "#666",
-      "text": "Eaton DG222NRB · 60A · 2P · 240V"
+      "text": "Eaton DG222NRB · 60A FRAME / 45A CL FUSE · 2P · 240V"
     },
     {
       "type": "text",
@@ -573,7 +637,7 @@
       "fontSize": 6.5,
       "bold": true,
       "anchor": "middle",
-      "text": "(N) 45A PV BREAKER · 2P · OPP. END OF BUS"
+      "text": "(N) HYBRID #1 BACKFEED · 100A/2P · OPP. END OF BUS"
     },
     {
       "type": "rect",
@@ -609,7 +673,7 @@
       "fontSize": 6.5,
       "bold": true,
       "anchor": "middle",
-      "text": "(N) 30A ESS BACKFEED · 2P"
+      "text": "(N) HYBRID #2 BACKFEED · 100A/2P"
     },
     {
       "type": "text",
@@ -634,6 +698,40 @@
       "fontSize": 7.5,
       "color": "#666",
       "text": "BUSBAR 225A · 120% RULE PER 705.12(B)"
+    },
+    {
+      "type": "rect",
+      "x": 640,
+      "y": 270,
+      "w": 200,
+      "h": 38,
+      "stroke": "#a00",
+      "dash": true
+    },
+    {
+      "type": "text",
+      "x": 644,
+      "y": 282,
+      "fontSize": 7,
+      "bold": true,
+      "color": "#a00",
+      "text": "INVERTERS PCS-LIMITED PER NEC 705.13 — UL 1741-SB"
+    },
+    {
+      "type": "text",
+      "x": 644,
+      "y": 293,
+      "fontSize": 7,
+      "color": "#a00",
+      "text": "AGGREGATE EXPORT CAP: 145A CONT. (72.5A/HYBRID)"
+    },
+    {
+      "type": "text",
+      "x": 644,
+      "y": 303,
+      "fontSize": 7,
+      "color": "#a00",
+      "text": "BUSBAR CALC: 225×1.20=270 ≥ 125 MAIN + 145 PCS"
     },
     {
       "type": "svg-asset",
@@ -874,9 +972,9 @@
       "type": "text",
       "x": 70,
       "y": 580,
-      "fontSize": 8.5,
+      "fontSize": 8,
       "bold": true,
-      "text": "(N) DURACELL HYBRID INVERTER"
+      "text": "(N) HYBRID #1 · PC MAX"
     },
     {
       "type": "text",
@@ -884,7 +982,7 @@
       "y": 592,
       "fontSize": 8,
       "color": "#666",
-      "text": "DPC-INV-7600 · 7.6 kW · 240V 1Φ"
+      "text": "PC-MAX-15-40 · 15.0 kW · 240V 1Φ"
     },
     {
       "type": "text",
@@ -901,7 +999,7 @@
       "fontSize": 7.5,
       "color": "#444",
       "italic": true,
-      "text": "UL 1741-SA · IEEE 1547 · NEC 705.12(B)(2)"
+      "text": "UL 1741-SB · IEEE 1547 · NEC 705.12(B)(2) · 705.13"
     },
     {
       "type": "text",
@@ -910,6 +1008,50 @@
       "fontSize": 7.5,
       "color": "#444",
       "italic": true,
+      "text": "NEMA 3R · INDOOR/OUTDOOR"
+    },
+    {
+      "type": "svg-asset",
+      "assetId": "duracell-hybrid-inverter",
+      "x": 680,
+      "y": 410,
+      "w": 120,
+      "h": 156
+    },
+    {
+      "type": "text",
+      "x": 680,
+      "y": 580,
+      "fontSize": 8,
+      "bold": true,
+      "text": "(N) HYBRID #2 · PC MAX"
+    },
+    {
+      "type": "text",
+      "x": 680,
+      "y": 592,
+      "fontSize": 7,
+      "text": "PC-MAX-15-40 · 15.0 kW · 240V 1Φ"
+    },
+    {
+      "type": "text",
+      "x": 680,
+      "y": 602,
+      "fontSize": 7,
+      "text": "MPPT 2-CHAN · DC IN · BATT · AC OUT · GRID"
+    },
+    {
+      "type": "text",
+      "x": 680,
+      "y": 614,
+      "fontSize": 7,
+      "text": "UL 1741-SB · IEEE 1547 · NEC 705.12(B)(2) · 705.13"
+    },
+    {
+      "type": "text",
+      "x": 680,
+      "y": 624,
+      "fontSize": 7,
       "text": "NEMA 3R · INDOOR/OUTDOOR"
     },
     {
@@ -962,55 +1104,47 @@
       "y": 720,
       "fontSize": 7.5,
       "bold": true,
-      "text": "(N) (4) DURACELL 5KWH BATTERY"
+      "text": "STACK #1 → HYBRID #1"
     },
     {
       "type": "text",
       "x": 310,
       "y": 730,
-      "fontSize": 7.5,
+      "fontSize": 7,
       "color": "#666",
-      "text": "20.000 kWh TOTAL · LFP CHEMISTRY"
+      "text": "(8) 5kWh LFP · 40 kWh"
     },
     {
       "type": "text",
       "x": 310,
-      "y": 740,
-      "fontSize": 7.5,
+      "y": 744,
+      "fontSize": 7,
       "color": "#666",
-      "text": "INDOOR/OUTDOOR · GARAGE OR"
-    },
-    {
-      "type": "text",
-      "x": 310,
-      "y": 750,
-      "fontSize": 7.5,
-      "color": "#666",
-      "text": "RIGID-RACK MOUNTED · UL 9540"
+      "italic": true,
+      "text": "BOTH STACKS · INDOOR/OUTDOOR · GARAGE FLOOR/RIGID-RACK · 36\" FRONT CLEAR · SEE PV-3.2"
     },
     {
       "type": "svg-asset",
-      "assetId": "battery-combiner",
+      "assetId": "duracell-battery-stack",
       "x": 440,
       "y": 446,
-      "w": 110,
-      "h": 70
+      "w": 100,
+      "h": 260
     },
     {
       "type": "text",
       "x": 440,
-      "y": 530,
+      "y": 720,
       "fontSize": 8,
       "bold": true,
-      "text": "(N) BATTERY COMBINER"
+      "text": "STACK #2 → HYBRID #2"
     },
     {
       "type": "text",
       "x": 440,
-      "y": 540,
-      "fontSize": 7.5,
-      "color": "#666",
-      "text": "DC Bus · 175A Fuse · NEMA 3R"
+      "y": 730,
+      "fontSize": 7,
+      "text": "(8) 5kWh LFP · 40 kWh"
     },
     {
       "type": "svg-asset",
@@ -1034,7 +1168,7 @@
       "y": 578,
       "fontSize": 7.5,
       "color": "#666",
-      "text": "Battery DC · 200A"
+      "text": "Hybrid AC OUT · 100A"
     },
     {
       "type": "text",
@@ -1044,80 +1178,6 @@
       "color": "#666",
       "italic": true,
       "text": "CT EXT P/N 1001808 · #18 SHIELDED"
-    },
-    {
-      "type": "svg-asset",
-      "assetId": "jb-nema3-600v-ls",
-      "x": 440,
-      "y": 610,
-      "w": 110,
-      "h": 40
-    },
-    {
-      "type": "text",
-      "x": 440,
-      "y": 662,
-      "fontSize": 8,
-      "bold": true,
-      "text": "(N) DC JUNCTION BOX (LS)"
-    },
-    {
-      "type": "text",
-      "x": 440,
-      "y": 672,
-      "fontSize": 7.5,
-      "color": "#666",
-      "text": "600V · NEMA 3R · UL Listed"
-    },
-    {
-      "type": "svg-asset",
-      "assetId": "eaton-dg221urb",
-      "x": 680,
-      "y": 430,
-      "w": 90,
-      "h": 116
-    },
-    {
-      "type": "text",
-      "x": 680,
-      "y": 562,
-      "fontSize": 8.5,
-      "bold": true,
-      "text": "(N) ESS DISCONNECT"
-    },
-    {
-      "type": "text",
-      "x": 680,
-      "y": 574,
-      "fontSize": 8,
-      "color": "#666",
-      "text": "Eaton DG221URB · 30A · 2P · 240V"
-    },
-    {
-      "type": "text",
-      "x": 680,
-      "y": 584,
-      "fontSize": 8,
-      "color": "#666",
-      "text": "NON-FUSIBLE · NEMA 3R"
-    },
-    {
-      "type": "text",
-      "x": 680,
-      "y": 596,
-      "fontSize": 7.5,
-      "color": "#444",
-      "italic": true,
-      "text": "VISIBLE, LOCKABLE, LABELED 'BATTERY DISC'"
-    },
-    {
-      "type": "text",
-      "x": 680,
-      "y": 606,
-      "fontSize": 7.5,
-      "color": "#444",
-      "italic": true,
-      "text": "LOCATED ON ACCESSIBLE EXTERIOR WALL"
     },
     {
       "type": "svg-asset",
@@ -1223,7 +1283,7 @@
       "y": 598,
       "fontSize": 8.5,
       "bold": true,
-      "text": "(N) PROTECTED LOAD PANEL"
+      "text": "(N) BACKUP LOADS PANEL"
     },
     {
       "type": "text",
@@ -1248,49 +1308,7 @@
       "fontSize": 7.5,
       "color": "#444",
       "italic": true,
-      "text": "ESSENTIAL LOADS — TEST EDISON CIRCUIT"
-    },
-    {
-      "type": "svg-asset",
-      "assetId": "eaton-brp12l125r",
-      "x": 820,
-      "y": 660,
-      "w": 110,
-      "h": 90
-    },
-    {
-      "type": "text",
-      "x": 820,
-      "y": 762,
-      "fontSize": 8.5,
-      "bold": true,
-      "text": "(N) PV LOAD CENTER"
-    },
-    {
-      "type": "text",
-      "x": 820,
-      "y": 774,
-      "fontSize": 8,
-      "color": "#666",
-      "text": "Eaton BRP12L125R · 125A MLO"
-    },
-    {
-      "type": "text",
-      "x": 820,
-      "y": 784,
-      "fontSize": 7.5,
-      "color": "#666",
-      "italic": true,
-      "text": "NEMA 3R · UL Listed · EXTERIOR"
-    },
-    {
-      "type": "text",
-      "x": 820,
-      "y": 796,
-      "fontSize": 7.5,
-      "color": "#444",
-      "italic": true,
-      "text": "20A/2P + 15A/2P PV BACKFEED PILLS"
+      "text": "BACKUP LOADS · FED FROM HYBRID #1+#2 BACKUP AC PORTS"
     },
     {
       "_": "----- COMMS / MONITORING -----"
@@ -1669,102 +1687,6 @@
     },
     {
       "type": "line",
-      "color": "batt",
-      "label": "Hybrid BATT ↔ DC bus (4/0 AWG · 175A)",
-      "labelX": 270,
-      "labelY": 458,
-      "points": [
-        [
-          190,
-          488
-        ],
-        [
-          240,
-          488
-        ],
-        [
-          240,
-          460
-        ],
-        [
-          440,
-          460
-        ]
-      ]
-    },
-    {
-      "type": "line",
-      "color": "ac",
-      "label": "Hybrid GRID → ESS DISC (#6 AWG)",
-      "labelX": 290,
-      "labelY": 376,
-      "points": [
-        [
-          190,
-          540
-        ],
-        [
-          275,
-          540
-        ],
-        [
-          275,
-          388
-        ],
-        [
-          725,
-          388
-        ],
-        [
-          725,
-          430
-        ]
-      ]
-    },
-    {
-      "type": "line",
-      "color": "batt",
-      "label": "ESS DISC → Protected Loads",
-      "labelX": 776,
-      "labelY": 504,
-      "points": [
-        [
-          770,
-          510
-        ],
-        [
-          820,
-          510
-        ]
-      ]
-    },
-    {
-      "type": "line",
-      "color": "ac",
-      "label": "ESS DISC → MSP backfeed (#6 AWG)",
-      "labelX": 770,
-      "labelY": 770,
-      "points": [
-        [
-          725,
-          546
-        ],
-        [
-          725,
-          778
-        ],
-        [
-          995,
-          778
-        ],
-        [
-          995,
-          268
-        ]
-      ]
-    },
-    {
-      "type": "line",
       "color": "gec",
       "label": "GEC #6 AWG bare CU · NEC 250.52, 250.53(A)",
       "labelX": 50,
@@ -1842,6 +1764,142 @@
       ]
     },
     {
+      "type": "line",
+      "color": "batt",
+      "points": [
+        [
+          190,
+          488
+        ],
+        [
+          260,
+          488
+        ],
+        [
+          260,
+          470
+        ],
+        [
+          360,
+          470
+        ]
+      ],
+      "label": "Hybrid #1 BATT → STACK #1 (#4/0 AWG · 175A FUSED)",
+      "labelColor": "#444"
+    },
+    {
+      "type": "line",
+      "color": "batt",
+      "points": [
+        [
+          800,
+          488
+        ],
+        [
+          760,
+          488
+        ],
+        [
+          760,
+          470
+        ],
+        [
+          540,
+          470
+        ]
+      ],
+      "label": "Hybrid #2 BATT → STACK #2 (#4/0 AWG · 175A FUSED)",
+      "labelColor": "#444"
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "points": [
+        [
+          190,
+          510
+        ],
+        [
+          190,
+          380
+        ],
+        [
+          425,
+          380
+        ],
+        [
+          425,
+          254
+        ]
+      ],
+      "label": "Hybrid #1 AC OUT → PV DISC (#3 AWG CU THWN-2 · 100A)",
+      "labelColor": "#444"
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "points": [
+        [
+          800,
+          510
+        ],
+        [
+          800,
+          380
+        ],
+        [
+          425,
+          380
+        ]
+      ],
+      "label": "Hybrid #2 AC OUT → PV DISC (#3 AWG CU THWN-2 · 100A)",
+      "labelColor": "#444"
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "points": [
+        [
+          190,
+          540
+        ],
+        [
+          190,
+          370
+        ],
+        [
+          820,
+          370
+        ],
+        [
+          820,
+          590
+        ]
+      ],
+      "label": "Hybrid #1 BACKUP AC → BACKUP LOADS PANEL (#6 AWG)",
+      "labelColor": "#666"
+    },
+    {
+      "type": "line",
+      "color": "ac",
+      "points": [
+        [
+          800,
+          540
+        ],
+        [
+          820,
+          540
+        ],
+        [
+          820,
+          590
+        ]
+      ],
+      "label": "Hybrid #2 BACKUP AC → BACKUP LOADS PANEL (#6 AWG)",
+      "labelColor": "#666"
+    },
+    {
       "_": "----- CALLOUTS (1..15 unique, all offset from conductors and assets) -----"
     },
     {
@@ -1912,14 +1970,14 @@
     },
     {
       "type": "callout",
-      "cx": 470,
-      "cy": 386,
+      "cx": 740,
+      "cy": 410,
       "number": 12
     },
     {
       "type": "callout",
-      "cx": 720,
-      "cy": 562,
+      "cx": 490,
+      "cy": 470,
       "number": 13
     },
     {
@@ -2153,7 +2211,7 @@
       "y": 912,
       "fontSize": 7.5,
       "color": "#666",
-      "text": "NEC 250.52 / 705.12(B)(2) / 706 · UL 1741-SA · UL 9540 · UL 1973"
+      "text": "NEC 250.52 / 705.12(B)(2) / 705.13 / 706 · UL 1741-SB · UL 9540 · UL 1973"
     },
     {
       "type": "text",
@@ -2162,7 +2220,276 @@
       "fontSize": 7.5,
       "color": "#888",
       "italic": true,
-      "text": "Topology: rush-spatial · v11 · Duracell + Seraphim active fleet"
+      "text": "Topology: rush-spatial · v13 · Duracell hybrid + Seraphim · 2026-05-12"
+    },
+    {
+      "type": "rect",
+      "x": 1300,
+      "y": 40,
+      "w": 190,
+      "h": 770,
+      "stroke": "#111",
+      "strokeWidth": 1
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 78,
+      "fontSize": 16,
+      "bold": true,
+      "color": "#22d3ee",
+      "text": "MicroGRID"
+    },
+    {
+      "type": "line",
+      "color": "comm",
+      "points": [
+        [
+          1300,
+          100
+        ],
+        [
+          1490,
+          100
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 114,
+      "fontSize": 6,
+      "bold": true,
+      "color": "#666",
+      "text": "CONTRACTOR"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 126,
+      "fontSize": 8,
+      "bold": true,
+      "text": "MicroGRID Energy"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 136,
+      "fontSize": 7,
+      "text": "600 Northpark Central Dr Ste 140"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 144,
+      "fontSize": 7,
+      "text": "Houston, TX 77073"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 154,
+      "fontSize": 7,
+      "text": "(000) 000-0000 · TECL #________"
+    },
+    {
+      "type": "line",
+      "color": "comm",
+      "points": [
+        [
+          1300,
+          168
+        ],
+        [
+          1490,
+          168
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 182,
+      "fontSize": 6,
+      "bold": true,
+      "color": "#666",
+      "text": "PROJECT"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 196,
+      "fontSize": 8,
+      "bold": true,
+      "text": "PROJ-26922 · Corey Tyson"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 206,
+      "fontSize": 7,
+      "text": "— per project address —"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 216,
+      "fontSize": 7,
+      "color": "#666",
+      "text": "29.7604° N · 95.3698° W"
+    },
+    {
+      "type": "line",
+      "color": "comm",
+      "points": [
+        [
+          1300,
+          228
+        ],
+        [
+          1490,
+          228
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 242,
+      "fontSize": 6,
+      "bold": true,
+      "color": "#666",
+      "text": "ENGINEER'S STAMP"
+    },
+    {
+      "type": "rect",
+      "x": 1310,
+      "y": 250,
+      "w": 170,
+      "h": 170,
+      "stroke": "#111",
+      "dash": true
+    },
+    {
+      "type": "line",
+      "color": "comm",
+      "points": [
+        [
+          1300,
+          430
+        ],
+        [
+          1490,
+          430
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 446,
+      "fontSize": 6,
+      "bold": true,
+      "color": "#666",
+      "text": "DETAILS"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 460,
+      "fontSize": 7,
+      "text": "DRAWN  2026-05-12"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 470,
+      "fontSize": 7,
+      "text": "BY     MicroGRID Design"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 480,
+      "fontSize": 7,
+      "text": "REV    v13 · 2026-05-12"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 490,
+      "fontSize": 7,
+      "text": "SIZE   ANSI B (11×17)"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 500,
+      "fontSize": 7,
+      "text": "AHJ    TBD"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 510,
+      "fontSize": 7,
+      "text": "TOPO   HYBRID + 80 kWh ESS"
+    },
+    {
+      "type": "line",
+      "color": "comm",
+      "points": [
+        [
+          1300,
+          524
+        ],
+        [
+          1490,
+          524
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 542,
+      "fontSize": 6,
+      "bold": true,
+      "color": "#666",
+      "text": "SHEET"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 558,
+      "fontSize": 9,
+      "bold": true,
+      "text": "ELECTRICAL SINGLE LINE"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 605,
+      "fontSize": 36,
+      "bold": true,
+      "color": "#22d3ee",
+      "text": "PV-5"
+    },
+    {
+      "type": "text",
+      "x": 1410,
+      "y": 605,
+      "fontSize": 12,
+      "color": "#666",
+      "text": "of 25"
+    },
+    {
+      "type": "text",
+      "x": 1310,
+      "y": 798,
+      "fontSize": 6,
+      "color": "#666",
+      "text": "rush-spatial v13 · 2026-05-12"
     }
   ],
   "titleBlock": {
@@ -2175,13 +2502,13 @@
       "logoLabel": "MicroGRID",
       "contractor": {
         "name": "MicroGRID Energy",
-        "address": "Houston, TX",
+        "address": "600 Northpark Central Dr Suite 140, Houston TX 77073",
         "phone": "(000) 000-0000",
         "email": "ops@gomicrogridenergy.com",
         "license": "TECL #________"
       },
       "project": {
-        "name": "Duracell + Seraphim Reference",
+        "name": "PROJ-26922 · Corey Tyson Residence",
         "coordinates": "29.7604° N, 95.3698° W",
         "address": "— per project address"
       },
@@ -2190,9 +2517,9 @@
         "label": "ENGINEER'S STAMP"
       },
       "details": {
-        "drawnDate": "2026-05-05",
+        "drawnDate": "2026-05-12",
         "drawnBy": "MicroGRID Design",
-        "rev": "v11 / 2026-05-05",
+        "rev": "v13 / 2026-05-12 — wire-cleanup + legend + section-header fix",
         "sheetSize": "ANSI B (11×17)",
         "ahj": "TBD",
         "sheetName": "ELECTRICAL SINGLE LINE",

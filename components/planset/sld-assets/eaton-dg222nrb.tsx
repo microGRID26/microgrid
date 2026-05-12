@@ -13,7 +13,7 @@ export function EatonDg222Nrb({ x, y, w, h }: AssetProps) {
       <rect x="0.5" y="0.5" width="99" height="129" rx="3" ry="3" fill="white" stroke="#111" strokeWidth="1" />
 
       <text x="50" y="9.5" fontSize="7" fontWeight="bold" fill="#222" textAnchor="middle">DG222NRB</text>
-      <text x="50" y="15.5" fontSize="5.5" fill="#444" textAnchor="middle">60A / 2P</text>
+      <text x="50" y="15.5" fontSize="5.5" fill="#444" textAnchor="middle">45A / 2P</text>
       <line x1="0.5" y1="18" x2="99.5" y2="18" stroke="#111" strokeWidth="1" />
 
       <text x="35" y="29" fontSize="4.5" fill="#666" textAnchor="middle">L1</text>
