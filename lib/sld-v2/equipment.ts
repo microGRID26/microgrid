@@ -326,9 +326,13 @@ export function defaultLabelSlots(width: number, height: number): LabelSlot[] {
   ]
 }
 
-/** Standard 4-port quad for box-shaped equipment (centered ports). */
+/** Standard 4-port quad for box-shaped equipment (centered ports).
+ *
+ * Port ID format: `${prefix}.${side}` (e.g. `msp.N`, `pv.E`). The dot
+ * separator matches the convention used by `Connection.from`/`Connection.to`
+ * so the elkjs adapter can pass port ids through untouched. */
 export function quadPorts(prefix = ''): Port[] {
-  const p = (suffix: string) => (prefix ? `${prefix}-${suffix}` : suffix)
+  const p = (suffix: string) => (prefix ? `${prefix}.${suffix}` : suffix)
   return [
     { id: p('N'), side: 'N' },
     { id: p('S'), side: 'S' },
