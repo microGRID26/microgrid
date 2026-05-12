@@ -7,6 +7,7 @@
 
 import type { LayoutResult, RoutedEdge } from '../../lib/sld-v2/layout'
 import type { Equipment } from '../../lib/sld-v2/equipment'
+import type { LabelPlacementResult } from '../../lib/sld-v2/labels'
 
 import { MspBox } from './assets/MspBox'
 import { DisconnectBox } from './assets/DisconnectBox'
@@ -21,6 +22,9 @@ import { ProductionCtBox } from './assets/ProductionCtBox'
 
 export interface SldRendererProps {
   layout: LayoutResult
+  /** Optional output of placeLabels(layout.laidOut, layout.edges).
+   *  When supplied, the renderer paints external-label slot text + leader callouts. */
+  labelPlacement?: LabelPlacementResult
   debug?: boolean
 }
 
@@ -76,21 +80,56 @@ function polylinePoints(edge: RoutedEdge): string {
   return edge.polyline.map((p) => `${p.x},${p.y}`).join(' ')
 }
 
-function midpoint(edge: RoutedEdge): { x: number; y: number } {
-  const pts = edge.polyline
-  if (pts.length === 0) return { x: 0, y: 0 }
-  if (pts.length === 1) return pts[0]
-  // Pick the segment with the largest length and label its midpoint.
-  let best = { ax: pts[0].x, ay: pts[0].y, bx: pts[1].x, by: pts[1].y, len: 0 }
-  for (let i = 0; i < pts.length - 1; i++) {
-    const ax = pts[i].x, ay = pts[i].y, bx = pts[i + 1].x, by = pts[i + 1].y
-    const len = Math.hypot(bx - ax, by - ay)
-    if (len > best.len) best = { ax, ay, bx, by, len }
-  }
-  return { x: (best.ax + best.bx) / 2, y: (best.ay + best.by) / 2 }
+interface LayoutBBox { x: number; y: number; w: number; h: number }
+
+function bboxesOverlap(a: LayoutBBox, b: LayoutBBox): boolean {
+  return !(
+    a.x + a.w <= b.x
+    || b.x + b.w <= a.x
+    || a.y + a.h <= b.y
+    || b.y + b.h <= a.y
+  )
 }
 
-export function SldRenderer({ layout, debug = false }: SldRendererProps) {
+/** Find a midpoint along the edge such that the conductor LABEL bbox
+ *  (anchored at midpoint, extending rightward by ~labelText.length × 3.5 px,
+ *  about 9 px tall) does NOT overlap any equipment bbox. Returns null if
+ *  no segment works — caller skips the label entirely. */
+function midpoint(
+  edge: RoutedEdge,
+  blockBoxes: LayoutBBox[],
+  labelText: string,
+): { x: number; y: number } | null {
+  const pts = edge.polyline
+  if (pts.length < 2) return null
+
+  const labelW = labelText.length * 3.5 + 4
+  const labelH = 9
+
+  const segments: Array<{ ax: number; ay: number; bx: number; by: number; len: number }> = []
+  for (let i = 0; i < pts.length - 1; i++) {
+    const ax = pts[i].x, ay = pts[i].y, bx = pts[i + 1].x, by = pts[i + 1].y
+    segments.push({ ax, ay, bx, by, len: Math.hypot(bx - ax, by - ay) })
+  }
+  segments.sort((a, b) => b.len - a.len)
+
+  for (const s of segments) {
+    const mx = (s.ax + s.bx) / 2
+    const my = (s.ay + s.by) / 2
+    const labelBBox: LayoutBBox = {
+      x: mx - 2,
+      y: my - 10,
+      w: labelW,
+      h: labelH,
+    }
+    if (!blockBoxes.some((b) => bboxesOverlap(b, labelBBox))) {
+      return { x: mx, y: my }
+    }
+  }
+  return null
+}
+
+export function SldRenderer({ layout, labelPlacement, debug = false }: SldRendererProps) {
   const W = layout.width + layout.margin * 2
   const H = layout.height + layout.margin * 2
   const ox = layout.margin
@@ -105,42 +144,118 @@ export function SldRenderer({ layout, debug = false }: SldRendererProps) {
     >
       {/* Edges first (drawn under nodes) */}
       <g transform={`translate(${ox}, ${oy})`}>
-        {layout.edges.map((edge) => {
-          const color = EDGE_COLOR_BY_CATEGORY[edge.connection.category] ?? '#111'
-          const mid = midpoint(edge)
-          return (
-            <g key={edge.connection.id}>
-              <polyline
-                points={polylinePoints(edge)}
-                fill="none"
-                stroke={color}
-                strokeWidth={edge.connection.category === 'ground' || edge.connection.category === 'gec' ? 1.4 : 1.6}
-                strokeDasharray={edge.connection.category === 'comm' ? '4,2' : undefined}
-              />
-              {edge.connection.conductor && (
-                <g transform={`translate(${mid.x}, ${mid.y - 3})`}>
-                  <rect
-                    x={-2}
-                    y={-7}
-                    width={edge.connection.conductor.length * 3.5 + 4}
-                    height={9}
-                    fill="white"
-                    stroke="none"
-                  />
-                  <text fontSize="6" fill={color} fontFamily="Helvetica, Arial, sans-serif">
-                    {edge.connection.conductor}
-                  </text>
-                </g>
-              )}
-            </g>
-          )
-        })}
+        {(() => {
+          // Build equipment bbox list for label-placement avoidance.
+          const blockBoxes: LayoutBBox[] = layout.laidOut.map((lo) => ({
+            x: lo.x,
+            y: lo.y,
+            w: lo.equipment.width,
+            h: lo.equipment.height,
+          }))
+          return layout.edges.map((edge) => {
+            const color = EDGE_COLOR_BY_CATEGORY[edge.connection.category] ?? '#111'
+            const mid = midpoint(edge, blockBoxes, edge.connection.conductor ?? '')
+            return (
+              <g key={edge.connection.id}>
+                <polyline
+                  points={polylinePoints(edge)}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={edge.connection.category === 'ground' || edge.connection.category === 'gec' ? 1.4 : 1.6}
+                  strokeDasharray={edge.connection.category === 'comm' ? '4,2' : undefined}
+                />
+                {edge.connection.conductor && mid && (
+                  <g transform={`translate(${mid.x}, ${mid.y - 3})`}>
+                    <rect
+                      x={-2}
+                      y={-7}
+                      width={edge.connection.conductor.length * 3.5 + 4}
+                      height={9}
+                      fill="white"
+                      stroke="none"
+                    />
+                    <text fontSize="6" fill={color} fontFamily="Helvetica, Arial, sans-serif">
+                      {edge.connection.conductor}
+                    </text>
+                  </g>
+                )}
+              </g>
+            )
+          })
+        })()}
       </g>
 
       {/* Nodes on top */}
       <g transform={`translate(${ox}, ${oy})`}>
         {layout.laidOut.map((lo) => renderEquipment(lo.equipment, lo.x, lo.y, debug))}
       </g>
+
+      {/* External slot labels (Phase 3) */}
+      {labelPlacement && (
+        <g transform={`translate(${ox}, ${oy})`} fontFamily="Helvetica, Arial, sans-serif">
+          {labelPlacement.slots.map((s, i) =>
+            s.lines.map((line, j) => (
+              <text
+                key={`slot-${i}-${j}`}
+                x={line.x}
+                y={line.y}
+                fontSize={line.fontSize}
+                fontWeight={line.bold ? 'bold' : undefined}
+                textAnchor={line.textAnchor}
+                fill="#222"
+              >
+                {line.text}
+              </text>
+            )),
+          )}
+
+          {/* Leader-line callouts for orphan labels */}
+          {labelPlacement.callouts.map((c) => (
+            <g key={`callout-${c.number}`}>
+              <line
+                x1={c.anchor.x}
+                y1={c.anchor.y}
+                x2={c.label.x}
+                y2={c.label.y}
+                stroke="#22d3ee"
+                strokeWidth="0.5"
+                strokeDasharray="3,2"
+              />
+              <circle cx={c.anchor.x} cy={c.anchor.y} r="4" fill="#22d3ee" stroke="#0e7490" strokeWidth="0.6" />
+              <text x={c.anchor.x} y={c.anchor.y + 2} fontSize="5" fontWeight="bold" textAnchor="middle" fill="white">
+                {c.number}
+              </text>
+              {c.label.lines.map((line, j) => (
+                <text
+                  key={`callout-text-${c.number}-${j}`}
+                  x={line.x}
+                  y={line.y}
+                  fontSize={line.fontSize}
+                  fill="#222"
+                >
+                  {line.text}
+                </text>
+              ))}
+            </g>
+          ))}
+
+          {debug &&
+            labelPlacement.slots.map((s, i) => (
+              <rect
+                key={`slot-debug-${i}`}
+                x={s.bbox.x}
+                y={s.bbox.y}
+                width={s.bbox.w}
+                height={s.bbox.h}
+                fill="rgba(0, 200, 255, 0.08)"
+                stroke="#22d3ee"
+                strokeWidth="0.3"
+                strokeDasharray="2,2"
+                pointerEvents="none"
+              />
+            ))}
+        </g>
+      )}
     </svg>
   )
 }

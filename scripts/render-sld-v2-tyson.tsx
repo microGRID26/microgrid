@@ -6,6 +6,7 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { layoutEquipmentGraph } from '../lib/sld-v2/layout'
+import { placeLabels } from '../lib/sld-v2/labels'
 import { SldRenderer } from '../components/planset-v2/SldRenderer'
 import {
   defaultLabelSlots,
@@ -28,7 +29,11 @@ import {
 
 const pvArray: PVArray = {
   id: 'pv', kind: 'PVArray', width: 280, height: 140,
-  ports: quadPorts('pv'), labelSlots: defaultLabelSlots(280, 140), labels: [],
+  ports: quadPorts('pv'), labelSlots: defaultLabelSlots(280, 140), labels: [
+    { text: '(20) SERAPHIM SRP-440-BTD-BG · 440W', priority: 9 },
+    { text: '2 strings × 10 modules · 8.80 kW DC STC', priority: 8 },
+    { text: 'Roof: module-level RSD-D-20 per NEC 690.12(B)(2)', priority: 7 },
+  ],
   props: {
     moduleModel: 'Seraphim SRP-440-BTD-BG', moduleWatts: 440,
     moduleCount: 20, stringCount: 2, modulesPerString: 10,
@@ -37,7 +42,10 @@ const pvArray: PVArray = {
 
 const rsd: RapidShutdown = {
   id: 'rsd', kind: 'RapidShutdown', width: 60, height: 24,
-  ports: quadPorts('rsd'), labelSlots: defaultLabelSlots(60, 24), labels: [],
+  ports: quadPorts('rsd'), labelSlots: defaultLabelSlots(60, 24), labels: [
+    { text: 'Rapid-Shutdown Initiator', priority: 8 },
+    { text: 'NEC 690.12(A) · RED MAINT. SWITCH', priority: 7 },
+  ],
   props: { model: 'RSD-D-20', role: 'initiator', necCitation: 'NEC 690.12(A)' },
 }
 
@@ -68,19 +76,30 @@ const stack2: BatteryStack = { ...stack1, id: 'stack-2', ports: quadPorts('stack
 
 const pvDisc: Disconnect = {
   id: 'disc-pv', kind: 'Disconnect', width: 80, height: 90,
-  ports: quadPorts('disc-pv'), labelSlots: defaultLabelSlots(80, 90), labels: [],
+  ports: quadPorts('disc-pv'), labelSlots: defaultLabelSlots(80, 90), labels: [
+    { text: '(N) PV / DC DISCONNECT', priority: 9, bold: true },
+    { text: 'Eaton DG223URB · 100A · 2P', priority: 7 },
+    { text: 'VISIBLE, LOCKABLE — AC DISC', priority: 6 },
+  ],
   props: { role: 'pv', model: 'Eaton DG223URB', ampere: 100, poles: 2, fusible: false, nemaRating: '3R' },
 }
 
 const genDisc: Disconnect = {
   id: 'disc-gen', kind: 'Disconnect', width: 80, height: 90,
-  ports: quadPorts('disc-gen'), labelSlots: defaultLabelSlots(80, 90), labels: [],
+  ports: quadPorts('disc-gen'), labelSlots: defaultLabelSlots(80, 90), labels: [
+    { text: '(N) CUSTOMER GEN DISC', priority: 9, bold: true },
+    { text: 'Eaton DG222NRB · 45A fusible · 2P', priority: 7 },
+    { text: "LABELED 'GEN DISCONNECT'", priority: 6 },
+  ],
   props: { role: 'gen', model: 'Eaton DG222NRB', ampere: 60, poles: 2, fusible: true, fuseAmpere: 45, nemaRating: '3R' },
 }
 
 const msp: MSP = {
   id: 'msp', kind: 'MSP', width: 130, height: 140,
-  ports: quadPorts('msp'), labelSlots: defaultLabelSlots(130, 140), labels: [],
+  ports: quadPorts('msp'), labelSlots: defaultLabelSlots(130, 140), labels: [
+    { text: '225A · 240V 1Φ 3W · EXTERIOR · NEMA 3R', priority: 8 },
+    { text: 'BUSBAR 225A · 120% RULE PER NEC 705.12(B)', priority: 7 },
+  ],
   props: {
     busbarA: 225, mainBreakerA: 125, voltage: '240V 1Φ 3W',
     location: 'EXTERIOR', nemaRating: '3R',
@@ -94,7 +113,10 @@ const msp: MSP = {
 
 const serviceDisc: Disconnect = {
   id: 'disc-service', kind: 'Disconnect', width: 80, height: 90,
-  ports: quadPorts('disc-service'), labelSlots: defaultLabelSlots(80, 90), labels: [],
+  ports: quadPorts('disc-service'), labelSlots: defaultLabelSlots(80, 90), labels: [
+    { text: '(N) SERVICE DISC', priority: 9, bold: true },
+    { text: '200A · 2P · NEMA 3R · BI-DIRECTIONAL', priority: 7 },
+  ],
   props: { role: 'service', model: 'Service Disc', ampere: 200, poles: 2, fusible: false, nemaRating: '3R', bidirectional: true },
 }
 
@@ -147,7 +169,11 @@ const graph: EquipmentGraph = {
 
 async function main() {
   const layout = await layoutEquipmentGraph(graph)
-  const svg = <SldRenderer layout={layout} />
+  // Phase 3: slot picker. Free zone = right margin column for leader callouts.
+  const labelPlacement = placeLabels(layout.laidOut, layout.edges, {
+    freeZone: { x: layout.width - 240, y: 0, w: 240, h: layout.height },
+  })
+  const svg = <SldRenderer layout={layout} labelPlacement={labelPlacement} />
   const body = `<!doctype html>
 <html><head><meta charset="utf-8"><title>sld-v2 — Tyson via elkjs</title>
 <style>body{margin:0;padding:24px;background:#fafafa;font-family:system-ui}
@@ -163,6 +189,8 @@ ${renderToStaticMarkup(svg)}
 canvas: ${layout.width}×${layout.height} + margin ${layout.margin}
 equipment placed: ${layout.laidOut.length}
 edges routed: ${layout.edges.length}
+label slots filled: ${labelPlacement.slots.length}
+leader callouts: ${labelPlacement.callouts.length}
 </pre>
 </body></html>`
   process.stdout.write(body)
