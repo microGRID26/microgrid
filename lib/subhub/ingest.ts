@@ -197,16 +197,23 @@ export interface IngestResult {
   documents_inserted?: number
 }
 
-// Generate next PROJ-ID. See webhook route for the rationale on why this is
-// in app code instead of a sequence.
+// Generate next PROJ-ID via the projects_next_id_seq Postgres sequence
+// (migration 303). Replaces the old in-app full-table-scan + max+1
+// because:
+//   - the scan hit a PostgREST max-rows cap on tables > 1000 rows and would
+//     silently return max from a truncated sample, generating duplicate IDs;
+//   - concurrent webhook deliveries computed the same max+1 and raced on
+//     PK insert (#906 Issue 1) — sequence makes ID generation atomic.
+// Service-role only; the RPC is gen_next_project_id() (mig 303).
 async function getNextProjectId(db: SupabaseClient): Promise<string> {
-  const { data } = await db.from('projects').select('id')
-  if (!data || data.length === 0) return 'PROJ-30001'
-  const max = data
-    .map((row: { id: string | null }) => parseInt((row.id ?? '').replace('PROJ-', ''), 10))
-    .filter((n: number) => Number.isFinite(n) && n > 0)
-    .reduce((a: number, b: number) => Math.max(a, b), 30000)
-  return `PROJ-${max + 1}`
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (db as any).rpc('gen_next_project_id')
+  if (error || typeof data !== 'string' || !data.startsWith('PROJ-')) {
+    throw new Error(
+      `[ingest] gen_next_project_id failed: ${error?.message ?? 'no data'}`,
+    )
+  }
+  return data
 }
 
 /**

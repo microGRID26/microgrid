@@ -24,8 +24,15 @@ function mockChain(result: { data: any; error: any }) {
   return chain
 }
 
+// Counter-backed default so concurrent-flow tests don't silently produce
+// duplicate IDs (red-teamer #906 M2). Per-test overrides via
+// mockDb.rpc.mockImplementationOnce still win.
+let __rpcSeqCounter = 30100
 const mockDb = {
   from: vi.fn((_table: string) => mockChain({ data: null, error: null })),
+  rpc: vi.fn((_fn: string, _args?: unknown) =>
+    Promise.resolve({ data: `PROJ-${++__rpcSeqCounter}`, error: null }),
+  ),
 }
 
 vi.mock('@supabase/supabase-js', () => ({
@@ -239,9 +246,11 @@ describe('POST /api/webhooks/subhub — validation', () => {
       callCount++
       if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
       if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
-      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30050' }], error: null }) // getNextProjectId
       return mockChain({ data: null, error: null })
     })
+    mockDb.rpc.mockImplementationOnce(() =>
+      Promise.resolve({ data: 'PROJ-30051', error: null }),
+    )
 
     const req = makeRequest(
       { subhub_id: 'SH-3', first_name: 'Jane', last_name: 'Smith', street: '456 Oak Ave' },
@@ -285,9 +294,13 @@ describe('POST /api/webhooks/subhub — project creation', () => {
       callCount++
       if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
       if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
-      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30100' }], error: null }) // getNextProjectId
       return mockChain({ data: null, error: null })
     })
+    // gen_next_project_id() returns the next sequence value; for this test
+    // it should return PROJ-30101 so we can assert that value flows through.
+    mockDb.rpc.mockImplementationOnce(() =>
+      Promise.resolve({ data: 'PROJ-30101', error: null }),
+    )
 
     const payload = {
       subhub_id: 'SH-999',
@@ -434,15 +447,19 @@ describe('POST /api/webhooks/subhub — project creation', () => {
     )
   })
 
-  it('generates sequential project IDs', async () => {
+  it('uses gen_next_project_id RPC for new project IDs (#906 mig 303)', async () => {
     let callCount = 0
     mockDb.from.mockImplementation(() => {
       callCount++
       if (callCount === 1) return mockChain({ data: [], error: null }) // subhub_id lookup
       if (callCount === 2) return mockChain({ data: [], error: null }) // (name,address) lookup
-      if (callCount === 3) return mockChain({ data: [{ id: 'PROJ-30500' }], error: null }) // getNextProjectId
       return mockChain({ data: null, error: null })
     })
+    // Sequence allocates the next id atomically — replaces the old in-app
+    // max+1 scan (#906 Issue 2). The RPC is the single source of truth.
+    mockDb.rpc.mockImplementationOnce(() =>
+      Promise.resolve({ data: 'PROJ-30501', error: null }),
+    )
 
     const req = makeRequest(
       { subhub_id: 'SH-SEQ', name: 'ID Test', street: '999 Sequence Ave' },
@@ -452,6 +469,7 @@ describe('POST /api/webhooks/subhub — project creation', () => {
     const res = await POST(req as any)
     const json = await res.json()
     expect(json.project_id).toBe('PROJ-30501')
+    expect(mockDb.rpc).toHaveBeenCalledWith('gen_next_project_id')
   })
 })
 
