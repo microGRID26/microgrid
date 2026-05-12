@@ -214,9 +214,11 @@ describe('quadPorts() — port coords valid', () => {
     expect(sides).toEqual(new Set(['N', 'S', 'E', 'W']))
   })
 
-  it('prefixes ids when prefix provided', () => {
+  it('prefixes ids in dot-format when prefix provided (Phase 2 — ELK port id convention)', () => {
     const ports = quadPorts('msp-1')
-    expect(ports.every((p) => p.id.startsWith('msp-1-'))).toBe(true)
+    expect(ports.every((p) => p.id.startsWith('msp-1.'))).toBe(true)
+    expect(ports.find((p) => p.side === 'N')?.id).toBe('msp-1.N')
+    expect(ports.find((p) => p.side === 'E')?.id).toBe('msp-1.E')
   })
 })
 
