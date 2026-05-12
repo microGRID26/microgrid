@@ -79,15 +79,6 @@
       "stroke": "#111"
     },
     {
-      "type": "rect",
-      "x": 48,
-      "y": 45,
-      "w": 140,
-      "h": 11,
-      "fill": "#ffffff",
-      "stroke": "none"
-    },
-    {
       "type": "text",
       "x": 50,
       "y": 54,
@@ -125,15 +116,6 @@
       "w": 305,
       "h": 50,
       "stroke": "#111"
-    },
-    {
-      "type": "rect",
-      "x": 358,
-      "y": 45,
-      "w": 110,
-      "h": 11,
-      "fill": "#ffffff",
-      "stroke": "none"
     },
     {
       "type": "text",
@@ -174,15 +156,6 @@
       "stroke": "#111"
     },
     {
-      "type": "rect",
-      "x": 668,
-      "y": 45,
-      "w": 110,
-      "h": 11,
-      "fill": "#ffffff",
-      "stroke": "none"
-    },
-    {
       "type": "text",
       "x": 670,
       "y": 54,
@@ -219,15 +192,6 @@
       "w": 320,
       "h": 50,
       "stroke": "#111"
-    },
-    {
-      "type": "rect",
-      "x": 978,
-      "y": 45,
-      "w": 110,
-      "h": 11,
-      "fill": "#ffffff",
-      "stroke": "none"
     },
     {
       "type": "text",
@@ -485,21 +449,13 @@
       "x": 116,
       "y": 260,
       "fontSize": 7,
-      "bold": true,
-      "text": "(N) IMO RSD"
-    },
-    {
-      "type": "text",
-      "x": 116,
-      "y": 268,
-      "fontSize": 7,
       "color": "#666",
       "text": "Rapid-Shutdown Initiator"
     },
     {
       "type": "text",
       "x": 116,
-      "y": 276,
+      "y": 272,
       "fontSize": 7,
       "color": "#666",
       "text": "NEC 690.12(A) · RED MAINT. SWITCH"
@@ -511,22 +467,6 @@
       "y": 254,
       "w": 50,
       "h": 40
-    },
-    {
-      "type": "text",
-      "x": 256,
-      "y": 260,
-      "fontSize": 7,
-      "bold": true,
-      "text": "(N) DC JB"
-    },
-    {
-      "type": "text",
-      "x": 256,
-      "y": 268,
-      "fontSize": 7,
-      "color": "#666",
-      "text": "NEMA 3R · 600V · UL"
     },
     {
       "_": "----- AC SERVICE CONDUCTOR PATH -----"
@@ -565,15 +505,6 @@
       "text": "VISIBLE, LOCKABLE, LABELED — AC DISC"
     },
     {
-      "type": "text",
-      "x": 380,
-      "y": 316,
-      "fontSize": 7.5,
-      "color": "#444",
-      "italic": true,
-      "text": "LOCATED ON ACCESSIBLE EXTERIOR WALL"
-    },
-    {
       "type": "svg-asset",
       "assetId": "eaton-dg222nrb",
       "x": 510,
@@ -600,7 +531,7 @@
     {
       "type": "text",
       "x": 510,
-      "y": 304,
+      "y": 302,
       "fontSize": 7.5,
       "color": "#444",
       "italic": true,
@@ -698,15 +629,7 @@
     {
       "type": "text",
       "x": 640,
-      "y": 320,
-      "fontSize": 8.5,
-      "bold": true,
-      "text": "(N) MAIN SERVICE PANEL"
-    },
-    {
-      "type": "text",
-      "x": 640,
-      "y": 330,
+      "y": 280,
       "fontSize": 8,
       "color": "#666",
       "text": "225A · 240V 1Φ 3W · EXTERIOR · NEMA 3R"
@@ -714,7 +637,7 @@
     {
       "type": "text",
       "x": 640,
-      "y": 340,
+      "y": 290,
       "fontSize": 7.5,
       "color": "#666",
       "text": "BUSBAR 225A · 120% RULE PER 705.12(B)"
@@ -730,10 +653,10 @@
     },
     {
       "type": "rect",
-      "x": 376,
+      "x": 374,
       "y": 344,
-      "w": 340,
-      "h": 24,
+      "w": 380,
+      "h": 38,
       "fill": "none",
       "stroke": "#c0392b",
       "strokeDasharray": "3,2",
@@ -751,7 +674,7 @@
     {
       "type": "text",
       "x": 380,
-      "y": 356,
+      "y": 360,
       "fontSize": 7,
       "color": "#a00",
       "text": "AGGREGATE EXPORT CAP: 145A CONT. (72.5A/HYBRID)"
@@ -759,7 +682,7 @@
     {
       "type": "text",
       "x": 380,
-      "y": 364,
+      "y": 372,
       "fontSize": 7,
       "color": "#a00",
       "text": "BUSBAR CALC: 225×1.20=270 ≥ 125 MAIN + 145 PCS"
@@ -2020,15 +1943,6 @@
       "fill": "#fff"
     },
     {
-      "type": "rect",
-      "x": 48,
-      "y": 827,
-      "w": 130,
-      "h": 11,
-      "fill": "#ffffff",
-      "stroke": "none"
-    },
-    {
       "type": "text",
       "x": 50,
       "y": 836,
@@ -2146,15 +2060,6 @@
       "fontSize": 12,
       "bold": true,
       "text": "①"
-    },
-    {
-      "type": "rect",
-      "x": 788,
-      "y": 827,
-      "w": 250,
-      "h": 11,
-      "fill": "#ffffff",
-      "stroke": "none"
     },
     {
       "type": "text",
@@ -2540,33 +2445,6 @@
       "stroke": "#666666",
       "strokeWidth": 0.5,
       "strokeDasharray": "2,2"
-    },
-    {
-      "type": "rect",
-      "x": 1178,
-      "y": 469,
-      "w": 150,
-      "h": 12,
-      "fill": "#ffffff",
-      "stroke": "none"
-    },
-    {
-      "type": "rect",
-      "x": 62,
-      "y": 469,
-      "w": 165,
-      "h": 12,
-      "fill": "#ffffff",
-      "stroke": "none"
-    },
-    {
-      "type": "rect",
-      "x": 380,
-      "y": 99,
-      "w": 165,
-      "h": 12,
-      "fill": "#ffffff",
-      "stroke": "none"
     }
   ],
   "titleBlock": {
