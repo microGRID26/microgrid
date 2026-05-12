@@ -36,15 +36,25 @@ const KNOWN_OFFENDERS = new Set<string>([
   '191-rls-phase2-drop-auth-full-access.sql',
   '192-rls-drop-platform-org-bypass.sql',
   '195-cascade-user-name-trigger-gate-fix.sql',
-  '197-fleet-cost-7d.sql',
-  // 2026-05-01 — atlas_list_agents_v2 has explicit GRANT TO anon, authenticated
-  // but no name-bound REVOKE FROM PUBLIC. In this Supabase env PUBLIC EXECUTE
-  // is stripped automatically on functions in public, so the REVOKE is
-  // redundant — the GRANT lines are the real ACL. Marked PUBLIC-safe.
-  '210-atlas-agent-primary-model.sql',
+  // 197 + 210 removed 2026-05-12 (#939): regex tightened from 2000 → 400 char
+  // window, both files no longer match SECURITY DEFINER under the stricter
+  // pattern. The stale-offenders test guarded against silent drift here.
+
+  // 2026-05-12 — #939 batch. Each function has an internal auth gate
+  // (atlas_hq_is_owner / auth_is_super_admin / auth.role()-or-owner) plus
+  // GRANT EXECUTE TO authenticated. The mobile app + RLS policies need
+  // authenticated EXECUTE; locking down to service_role would break the
+  // Seer mobile read path AND the auth-helper RLS chain. The name-bound
+  // REVOKE that this test wants would be incorrect for this fn class.
+  '245-fix-atlas-set-active-pcs-scenario-audit-project-id.sql', // atlas_set_active_pcs_scenario: super_admin-gated via auth_is_super_admin()
+  '255-seer-learn-upsert-allow-service-role.sql',               // seer_learn_upsert_*: service_role OR atlas_hq_is_owner gate, defense-in-depth
+  '276-phase-4-seer-close-rings-axis-mappings.sql',             // seer_close_read_ring/quiz_ring: atlas_hq_is_owner gate, called from Seer mobile as authenticated
+  '295-seer-today-redesign.sql',                                // seer_today_quote/summary/rank_ladder/rank_concepts: atlas_hq_is_owner-gated reads, mobile RPC targets
+  '297-seer-today-summary-rank-bug.sql',                        // seer_today_summary (re-iteration of 295): same atlas_hq_is_owner gate
+  '305-auth-helper-uid-and-email-hardening.sql',                // auth_is_admin/super_admin/user_role/user_id: uid+email defense-in-depth (action #628); RLS policies need anon+authenticated EXECUTE
 ])
 
-const KNOWN_OFFENDERS_MAX = 16
+const KNOWN_OFFENDERS_MAX = 20
 
 // Match every CREATE FUNCTION that has SECURITY DEFINER somewhere in its
 // body (DEFINER usually appears 1-3 lines after the signature). Capturing
@@ -52,7 +62,17 @@ const KNOWN_OFFENDERS_MAX = 16
 // not just any REVOKE in the file. \1 in the per-name check below is what
 // closes M1 from R1: a multi-function migration that revokes only one
 // would otherwise pass.
-const CREATE_SD_FUNCTION_RE = /\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?(\w+)\s*\([\s\S]{0,2000}?\bSECURITY\s+DEFINER\b/gi
+//
+// The 400-char window (post-#939 2026-05-12) is tight enough that the
+// keyword stays inside one function's signature/body header. The prior
+// 2000-char window leaked across function boundaries — flagged
+// `seer_set_updated_at` (mig 254, plain trigger fn) and
+// `seer_curriculum_logical_today` (mig 277, plain SQL STABLE) as
+// SECURITY DEFINER because the NEXT fn in the same file was. Function
+// signatures + the DEFINER keyword fit comfortably in 400 chars; if a
+// future fn has a 401-char signature plus DEFINER, raise this back and
+// add a regression case.
+const CREATE_SD_FUNCTION_RE = /\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?(\w+)\s*\([\s\S]{0,400}?\bSECURITY\s+DEFINER\b/gi
 
 // REVOKE must explicitly target authenticated, anon, or PUBLIC — revoking
 // from service_role accomplishes the opposite of the intent (closes the
