@@ -8,11 +8,27 @@
 // production (Next.js API route, no DOM); the canvas-via-svgdom stub
 // inside pdf.ts handles that path.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+// Spy on the Inter ttf loader so we can assert it is NEVER invoked from
+// the default-options render path. The Phase 7b font-gating contract is
+// that titleBlock presence is the ONLY trigger for Inter registration;
+// regression catch for a future "always-call" refactor that would re-
+// break the Phase 5 NEC 690.12 strings-grep assertion. Closes #1024.
+vi.mock('../../lib/sld-v2/fonts/inter-loader', async () => {
+  const actual = await vi.importActual<
+    typeof import('../../lib/sld-v2/fonts/inter-loader')
+  >('../../lib/sld-v2/fonts/inter-loader')
+  return {
+    ...actual,
+    loadInterTtfBase64: vi.fn(actual.loadInterTtfBase64),
+  }
+})
 
 import { buildPlansetData, type PlansetData } from '../../lib/planset-types'
 import { equipmentGraphFromPlansetData } from '../../lib/sld-v2/from-planset-data'
 import { renderSldToPdf } from '../../lib/sld-v2/pdf'
+import { loadInterTtfBase64 } from '../../lib/sld-v2/fonts/inter-loader'
 import type { Project } from '../../types/database'
 
 const project = {
@@ -103,6 +119,22 @@ describe('renderSldToPdf', () => {
     async () => {
       const mod = await import('../../lib/sld-v2/pdf')
       expect(typeof mod.renderSldToPdf).toBe('function')
+    },
+    TIMEOUT_MS,
+  )
+
+  it(
+    'does NOT load Inter ttf when titleBlock is absent (#1024 regression catch)',
+    async () => {
+      const spy = vi.mocked(loadInterTtfBase64)
+      spy.mockClear()
+      const graph = equipmentGraphFromPlansetData(data)
+      await renderSldToPdf(graph)
+      // Default-options path stays on Helvetica + WinAnsi so the
+      // NEC 690.12 strings-grep assertion in the Phase 5 test above
+      // continues to work. If a future refactor unconditionally
+      // registers Inter, this assertion catches it.
+      expect(spy).not.toHaveBeenCalled()
     },
     TIMEOUT_MS,
   )
