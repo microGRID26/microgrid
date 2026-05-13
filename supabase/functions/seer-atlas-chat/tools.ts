@@ -90,10 +90,57 @@ export const ATLAS_TOOL_DEFS = [
       required: ['text','project'],
     },
   },
-  // NOTE: file_action / close_action / mark_concept_known / add_recap are
-  // Phase 3B confirm-chip tools. Their server-side /confirm endpoint and
-  // iOS chip UI ship in the next chain session. Defs are intentionally
-  // omitted from this build so Atlas doesn't reach for unavailable tools.
+  // ─────────────────────────── Phase 3B — Conductor (confirm-chip) ───────────────────────────
+  // These four tools INSERT a pending row into seer_atlas_pending_tools and
+  // emit a `pending_confirmation` SSE event. The stream closes; the client
+  // renders a chip; on tap, /confirm executes the underlying RPC. See
+  // index.ts (`/confirm` handler) and tools.ts (`requestConfirmation` +
+  // `executeConfirmedTool`).
+  {
+    name: 'file_action',
+    description: 'File a new row in Greg\'s action queue (greg_actions). Use when Greg says "remind me to X" or you discover something he must do. Queues a confirmation chip Greg taps to commit.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        priority: { type: 'string', enum: ['P0','P1','P2','question'], description: 'P0 critical, P1 high, P2 nice-to-have, question = unblocking question.' },
+        title:    { type: 'string', description: 'Action title, one line.' },
+        body_md:  { type: 'string', description: 'Body. Should include: what, why it unblocks, where the answer goes, how to close.' },
+        effort:   { type: 'string', description: 'Optional effort estimate (e.g. "30m", "1h", "half-day").' },
+      },
+      required: ['priority','title','body_md'],
+    },
+  },
+  {
+    name: 'close_action',
+    description: 'Mark a greg_actions row done. Use when Greg confirms an item is finished, or when an incidental answer resolves an open question. Queues a confirmation chip.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:   { type: 'integer', description: 'The greg_actions row id.' },
+        note: { type: 'string',  description: 'Optional close note (appended to body_md for audit).' },
+      },
+      required: ['id'],
+    },
+  },
+  // NOTE: mark_concept_known is deferred to Phase 4. The backing table
+  // (learn_concept_progress) does not exist yet — R1 red-teamer C1 caught
+  // this pre-ship. See greg_actions P2 #<filed-post-audit> for the Phase 4
+  // re-introduction (mig to create table + SRS gate + tool def re-add).
+  {
+    name: 'add_recap',
+    description: 'Draft a session recap into atlas_session_recaps. Use only when Greg explicitly asks. Queues a confirmation chip. body_md must be ≥200 chars, synopsis_md ≥80 chars (anti-fluff floor).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        project:      { type: 'string', description: 'Project tag (e.g. "Seer", "MicroGRID").' },
+        headline:     { type: 'string', description: 'One-sentence headline of what changed.' },
+        synopsis_md:  { type: 'string', description: 'Plain-English synopsis, 2-6 paragraphs. ≥80 chars.' },
+        body_md:      { type: 'string', description: 'Full technical body with `##` sections (triggered by, executed, deferred, lessons). ≥200 chars.' },
+        commit_shas:  { type: 'array', items: { type: 'string' }, description: 'Optional commit SHAs.' },
+      },
+      required: ['project','headline','synopsis_md','body_md'],
+    },
+  },
 ] as const;
 
 export type ToolName = typeof ATLAS_TOOL_DEFS[number]['name'];
@@ -129,9 +176,36 @@ function sanitizeForPostgrestOr(q: string): string {
 const WRITE_TOOL_NAMES = new Set<ToolName>([
   'save_memory',
   'log_assumption',
-  // Confirm-chip tools live in Phase 3B; pending-tool insertion lives elsewhere.
   // recall_memories is read-only — skip audit/cap.
+  // Confirm-chip tools route through requestConfirmation; cap+audit are taken
+  // at /confirm execution time, not at request-confirmation time. The pending
+  // INSERT itself is free — Atlas can propose without burning cap.
 ]);
+
+export const CONFIRM_CHIP_TOOLS = new Set<string>([
+  'file_action',
+  'close_action',
+  // mark_concept_known deferred to Phase 4 — see tool-defs note above.
+  'add_recap',
+]);
+
+// Sentinel returned from executeTool for confirm-chip tools. streamChat
+// detects this object shape, emits a `pending_confirmation` SSE event,
+// persists the assistant turn, and closes the stream cleanly. The orphan
+// tool_use block stays on the assistant message; /confirm later writes the
+// matching tool_result row and resumes the conversation.
+export type PendingConfirmation = {
+  __pending_confirmation: {
+    tool_id: string;
+    tool_name: string;
+    summary: string;
+    tool_use_id: string | null;  // populated by streamChat; nullable for safety
+  };
+};
+
+export function isPendingConfirmation(x: unknown): x is PendingConfirmation {
+  return typeof x === 'object' && x !== null && '__pending_confirmation' in x;
+}
 
 async function logWriteAttempt(
   supabase: SupabaseClient,
@@ -231,12 +305,239 @@ async function withAuditAndCap<T>(
   }
 }
 
+// ── Confirm-chip plumbing (Phase 3B) ─────────────────────────────────────────
+
+// Render a short human-readable label for the confirmation chip from the
+// tool's arg payload. Kept compact (≤ ~120 chars) — the iOS chip is a single
+// row of text. Falls back to JSON.stringify if the tool name is unknown.
+export function summarizeConfirmCall(toolName: string, args: Record<string, unknown>): string {
+  const truncate = (s: string, n = 80) => s.length > n ? s.slice(0, n - 1) + '…' : s;
+  if (toolName === 'file_action') {
+    const pri = typeof args.priority === 'string' ? args.priority : '?';
+    const title = typeof args.title === 'string' ? args.title : '<no title>';
+    const eff = typeof args.effort === 'string' && args.effort.length ? ` (${args.effort})` : '';
+    return `File ${pri}: ${truncate(title, 70)}${eff}`;
+  }
+  if (toolName === 'close_action') {
+    const id = typeof args.id === 'number' ? args.id : '?';
+    return `Close action #${id}${typeof args.note === 'string' && args.note.length ? ` — "${truncate(args.note, 60)}"` : ''}`;
+  }
+  if (toolName === 'add_recap') {
+    const project = typeof args.project === 'string' ? args.project : '<no project>';
+    const headline = typeof args.headline === 'string' ? args.headline : '<no headline>';
+    return `Add recap (${project}): ${truncate(headline, 70)}`;
+  }
+  return `${toolName}: ${truncate(JSON.stringify(args), 100)}`;
+}
+
+// INSERT a pending row + writes_log audit row, return both ids + summary.
+// The actual RPC for the confirm-chip tool runs at /confirm time, not here.
+// Cap is NOT checked here — caps are taken at execution time so cancelled
+// proposals don't burn the daily counter (matches mig 304 "cancelled" semantics).
+// R1 H3 fix: cap confirm-chip emissions per user per minute. Prevents
+// runaway chip loops (model ping-pongs proposing tools) from exhausting
+// the daily write cap. Threshold is generous (5/min) — normal flows fire
+// 1–2 per turn-chain.
+const CONFIRM_CHIP_RATE_LIMIT = 5;
+const CONFIRM_CHIP_RATE_WINDOW_SEC = 60;
+
+async function chipRateLimitExceeded(supabase: SupabaseClient, userId: string): Promise<boolean> {
+  const sinceIso = new Date(Date.now() - CONFIRM_CHIP_RATE_WINDOW_SEC * 1000).toISOString();
+  const { count, error } = await supabase
+    .from('seer_atlas_pending_tools')
+    .select('tool_id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', sinceIso);
+  if (error) {
+    console.error('[seer-atlas-chat] chipRateLimitExceeded check failed', error);
+    // Fail-closed: if we can't count, deny — same posture as cap check.
+    return true;
+  }
+  return (count ?? 0) >= CONFIRM_CHIP_RATE_LIMIT;
+}
+
+export async function requestConfirmation(
+  supabase: SupabaseClient,
+  userId: string,
+  toolName: string,
+  argsJson: Record<string, unknown>,
+): Promise<{ tool_id: string; audit_id: string | null; summary: string } | { error: string }> {
+  if (await chipRateLimitExceeded(supabase, userId)) {
+    return { error: `Too many pending confirmations in the last minute (cap ${CONFIRM_CHIP_RATE_LIMIT}). Slow down.` };
+  }
+
+  const summary = summarizeConfirmCall(toolName, argsJson);
+
+  // Audit row first (H1 fix from spec pre-flight reviewer — visible even if
+  // the pending INSERT fails for a reason we didn't anticipate).
+  const auditId = await logWriteAttempt(supabase, userId, toolName, argsJson);
+
+  const { data, error } = await supabase
+    .from('seer_atlas_pending_tools')
+    .insert({
+      user_id: userId,
+      tool_name: toolName,
+      args_json: argsJson,
+      summary,
+      audit_id: auditId,
+      // status defaults to 'pending'; expires_at defaults to now() + 5 min.
+      // tool_use_id is patched in by streamChat once it knows the block id.
+    })
+    .select('tool_id')
+    .single();
+  if (error) {
+    await finalizeWriteAttempt(supabase, auditId, 'failed', null, `requestConfirmation insert: ${error.message}`);
+    return { error: error.message };
+  }
+  return { tool_id: data.tool_id as string, audit_id: auditId, summary };
+}
+
+// Called by /confirm AFTER the atomic-claim UPDATE succeeded. Runs the
+// underlying RPC for one of the four confirm-chip tools, wrapped in the same
+// audit+cap pipeline as auto-execute writes. Returns { result, outcome } so
+// /confirm can persist a tool_result message + finalize the audit row.
+export async function executeConfirmedTool(
+  supabase: SupabaseClient,
+  userId: string,
+  auditId: string | null,
+  toolName: string,
+  args: Record<string, unknown>,
+): Promise<{ result: unknown; outcome: 'succeeded' | 'failed' | 'cap_denied' }> {
+  // Cap check at execution time (cancelled proposals never reach here).
+  const cap = await checkWriteCap(supabase, userId);
+  if (!cap.ok) {
+    await finalizeWriteAttempt(supabase, auditId, 'cap_denied', null, 'daily_write_cap_reached');
+    return {
+      result: { error: `Daily write cap reached (${cap.count}/${cap.cap}). Resets at midnight UTC.`, outcome: 'cap_denied' },
+      outcome: 'cap_denied',
+    };
+  }
+
+  try {
+    let result: unknown;
+    if (toolName === 'file_action') {
+      const priority = typeof args.priority === 'string' ? args.priority : '';
+      const title    = typeof args.title === 'string' ? args.title.trim() : '';
+      const body_md  = typeof args.body_md === 'string' ? args.body_md.trim() : '';
+      const effort   = typeof args.effort === 'string' ? args.effort.trim() : null;
+      if (!['P0','P1','P2','question'].includes(priority)) throw new Error('invalid priority');
+      if (!title || !body_md) throw new Error('title and body_md required');
+      // greg_actions live shape:
+      //   id bigserial, owner text (default 'greg'), priority text, title text,
+      //   body_md text, source_session text, added_at timestamptz, status text,
+      //   effort_estimate text, tags text[]
+      const { data, error } = await supabase
+        .from('greg_actions')
+        .insert({
+          owner: 'greg',
+          priority,
+          title,
+          body_md,
+          source_session: 'seer-atlas-chat',
+          effort_estimate: effort,
+          status: 'open',
+        })
+        .select('id, priority, title')
+        .single();
+      if (error) throw new Error(error.message);
+      result = { filed: true, action: data };
+    }
+    else if (toolName === 'close_action') {
+      const id = typeof args.id === 'number' ? args.id : null;
+      const note = typeof args.note === 'string' && args.note.trim().length ? args.note.trim() : null;
+      if (id == null) throw new Error('id required');
+      // mig 307: atlas_close_greg_action(p_id bigint, p_note text) → jsonb.
+      // RPC enforces owner-match internally (H2 fix).
+      const { data, error } = await supabase.rpc('atlas_close_greg_action', { p_id: id, p_note: note });
+      if (error) throw new Error(error.message);
+      result = data;
+    }
+    else if (toolName === 'add_recap') {
+      const project = typeof args.project === 'string' ? args.project.trim() : '';
+      const headline = typeof args.headline === 'string' ? args.headline.trim() : '';
+      const synopsis_md = typeof args.synopsis_md === 'string' ? args.synopsis_md.trim() : '';
+      const body_md = typeof args.body_md === 'string' ? args.body_md.trim() : '';
+      const commit_shas = Array.isArray(args.commit_shas)
+        ? (args.commit_shas as unknown[]).filter((s): s is string => typeof s === 'string')
+        : [];
+      if (!project || !headline) throw new Error('project and headline required');
+      if (synopsis_md.length < 80) throw new Error('synopsis_md must be ≥80 chars');
+      if (body_md.length < 200) throw new Error('body_md must be ≥200 chars');
+      // atlas_add_session_recap canonical signature (CLAUDE.md):
+      //   (p_session_id, p_project, p_headline, p_synopsis_md, p_body_md, p_commit_shas, p_metrics_json, p_duration_min)
+      const { data, error } = await supabase.rpc('atlas_add_session_recap', {
+        p_session_id: 'seer-atlas-chat',
+        p_project: project,
+        p_headline: headline,
+        p_synopsis_md: synopsis_md,
+        p_body_md: body_md,
+        p_commit_shas: commit_shas,
+        p_metrics_json: {},
+        p_duration_min: null,
+      });
+      if (error) throw new Error(error.message);
+      result = { added: true, recap_id: data };
+    }
+    else {
+      throw new Error(`unknown confirm-chip tool: ${toolName}`);
+    }
+
+    await finalizeWriteAttempt(supabase, auditId, 'succeeded', result, null);
+    return { result, outcome: 'succeeded' };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await finalizeWriteAttempt(supabase, auditId, 'failed', null, msg);
+    return { result: { error: msg, outcome: 'failed' }, outcome: 'failed' };
+  }
+}
+
+// Mark a writes_log audit row cancelled (no RPC executed, no cap burned).
+export async function cancelConfirmedTool(
+  supabase: SupabaseClient,
+  auditId: string | null,
+): Promise<void> {
+  await finalizeWriteAttempt(supabase, auditId, 'cancelled', null, 'user_cancelled');
+}
+
+// Patch a pending row with the Anthropic tool_use block id. Called by
+// streamChat after detecting the PendingConfirmation sentinel — we don't
+// know the tool_use_id at requestConfirmation time because tools.ts is
+// dispatcher-shaped (no access to the streamChat content block).
+export async function setPendingToolUseId(
+  supabase: SupabaseClient,
+  toolId: string,
+  toolUseId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('seer_atlas_pending_tools')
+    .update({ tool_use_id: toolUseId })
+    .eq('tool_id', toolId);
+  if (error) console.error('[seer-atlas-chat] setPendingToolUseId failed', error);
+}
+
 export async function executeTool(
   supabase: SupabaseClient,
   name: ToolName,
   input: Record<string, unknown>,
   userId: string,
 ): Promise<unknown> {
+  // Confirm-chip tools intercept here: don't execute the underlying RPC,
+  // just request confirmation and return the sentinel. streamChat detects
+  // the sentinel, emits the pending_confirmation SSE event, persists the
+  // assistant turn, and closes the stream cleanly.
+  if (CONFIRM_CHIP_TOOLS.has(name as string)) {
+    const req = await requestConfirmation(supabase, userId, name as string, input);
+    if ('error' in req) return { error: `couldn't queue confirmation: ${req.error}` };
+    return {
+      __pending_confirmation: {
+        tool_id: req.tool_id,
+        tool_name: name as string,
+        summary: req.summary,
+        tool_use_id: null, // filled in by streamChat right before the SSE emit
+      },
+    } satisfies PendingConfirmation;
+  }
+
   try {
     if (name === 'list_recent_recaps') {
       const days = typeof input.days === 'number' ? input.days : 7;
