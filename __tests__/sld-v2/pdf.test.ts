@@ -70,18 +70,30 @@ describe('renderSldToPdf', () => {
       const text = new TextDecoder('latin1').decode(bytes)
       expect(text).toMatch(/\/MediaBox\s*\[\s*0\s+0\s+1224\.?\d*\s+792\.?\d*\s*\]/)
 
-      // 4. Page-count assertion: exactly one "/Type /Page " (singular Page
-      //    object, NOT /Pages catalog). Tolerate any whitespace.
-      const pageMatches = text.match(/\/Type\s*\/Page\b(?!s)/g) ?? []
-      expect(pageMatches.length).toBe(1)
+      // 4. Page-count assertion (R1-M3 stiffened + L-tightened in R2).
+      //    Prefer the canonical /Pages catalog `/Count N` — but anchor the
+      //    regex to the dict's closing `>>` so we can't match a /Count
+      //    that belongs to a sibling catalog ref further in the stream.
+      //    Falls back to the old singular-Page-object assertion only if
+      //    /Count can't be located (jsPDF formatting variance protection).
+      const countMatch = text.match(/\/Type\s*\/Pages\b[^>]*?\/Count\s+(\d+)[^>]*?>>/)
+      if (countMatch) {
+        expect(Number(countMatch[1])).toBe(1)
+      } else {
+        const pageMatches = text.match(/\/Type\s*\/Page\b(?!s)/g) ?? []
+        expect(pageMatches.length).toBe(1)
+      }
 
-      // 5. NEC text grep (C1 fix — was "NEC 705.13", which isn't emitted).
-      //    The RSD label emits "NEC 690.12(A)" reliably; the MSP busbar
-      //    label emits "NEC 705.12(B)". Either proves text-selectability.
-      //    jsPDF default output is uncompressed so ASCII text content
-      //    appears as plain bytes inside (...) Tj operators. Note PDF
-      //    escapes parens, so "NEC 690.12(A)" appears as "NEC 690.12\(A\)".
-      expect(text).toMatch(/NEC\s*690\.12/)
+      // 5. NEC text grep (R1-M4 stiffened). Tolerates jsPDF text-split
+      //    that breaks the NEC string across multiple Tj operators on
+      //    whitespace or open-paren. C1 fix — was "NEC 705.13", which
+      //    isn't emitted; switched to "NEC 690.12" (RSD label, always
+      //    present in the Duracell-hybrid topology). PDF escapes parens
+      //    so "NEC 690.12(A)" appears in the bytes as "NEC 690.12\(A\)".
+      //    L-tightened: require at least one whitespace/paren between NEC
+      //    and the article number — `NEC690.12` is not a shape jsPDF emits.
+      const necMatches = text.match(/NEC[\s(]+690\.12/g) ?? []
+      expect(necMatches.length).toBeGreaterThanOrEqual(1)
     },
     TIMEOUT_MS,
   )

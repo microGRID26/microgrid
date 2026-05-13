@@ -3,6 +3,11 @@
 // from a Client Component. Use only from Next.js API routes, server actions,
 // or build-time tooling. (We avoid the literal `import 'server-only'` because
 // it errors under `npx tsx` harness execution outside Next.)
+//
+// Phase 6 R1-L1 defense: the JSDoc `@internal` tag on `renderSldToPdf` plus
+// the SERVER-ONLY header are the only enforcement today. If a future Next.js
+// App-Router lint rule requires the literal directive, swap to a tsx loader
+// shim — don't drop the comment-based defense without a replacement.
 
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -59,6 +64,14 @@ const FONT_FAMILY = 'Inter, Helvetica, sans-serif'
 // doesn't need the mutex; parallel test renders still work.
 let renderMutex: Promise<unknown> = Promise.resolve()
 
+/**
+ * @internal Server-only. Importing this function from a Client Component
+ * leaks jsdom + jsPDF + svg2pdf.js + the native `canvas` package into the
+ * client bundle (~5MB) and crashes at runtime because `window` is being
+ * swapped under the hood. Use it only from API routes, server actions, or
+ * build-time tooling. See the file header for the rationale on the missing
+ * literal `import 'server-only'` directive.
+ */
 export async function renderSldToPdf(
   graph: EquipmentGraph,
   options: PdfOptions = {},
