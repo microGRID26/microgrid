@@ -4,8 +4,8 @@
 **Last updated:** 2026-05-13 ~22:30 UTC (Phase H1 — RUSH-blocked window hygiene + typography prep: P0 silent-break on 222b caught + fixed, mig 223 + 224 land session_user fix, Inter Bold + Unicode-correct title block shipped, 67/67 sld-v2 tests pass)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `2756a73` (3 commits ahead of origin `c73d1b7`; not pushed per no-mid-session-push rule).** Three commits this session: `978392c` (mig 223/224 — session_user fix on stage + use_sld_v2 triggers), `de73e92` (Inter Bold + Unicode title block typography prep), `2756a73` (R1-sweep postcondition asserts + smoke-test evidence on migrations).
-**Latest commit:** `2756a73` docs(mig 223/224): R1 sweep — postcondition asserts + smoke-test evidence
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `5714af3` (4 commits ahead of origin `c73d1b7`; not pushed per no-mid-session-push rule).** Four commits this session: `978392c` (mig 223/224 — session_user fix on stage + use_sld_v2 triggers), `de73e92` (Inter Bold + Unicode title block typography prep), `2756a73` (R1-sweep postcondition asserts + smoke-test evidence on migrations), `5714af3` (HANDOFF refresh + chain_state_auto YAML).
+**Latest commit:** `5714af3` docs(planset/.atlas): handoff refresh — Phase H1 (RUSH-blocked window)
 
 ## Chain instruction (read this first, every session)
 
@@ -29,9 +29,9 @@ Pickup ritual:
 
 Multi-session effort to bring the MicroGRID planset generator's SLD output from "10 pages of mostly-empty placeholders" to RUSH-Engineering-stamp-ready drafting quality. Reference benchmark = `PROJ-26922 Corey Tyson Rev1.pdf` (36 pages, RUSH-stamped). Forward equipment baseline = Seraphim SRP-440-BTD-BG + Duracell PC Max Hybrid 15kW × 2 + 16× Duracell 5kWh LFP (80 kWh).
 
-**As of 2026-05-12 the chain pivoted** from canvas-iterating the v1 hand-positioned spec to a declarative equipment list → elkjs layout engine → React/SVG renderer with prop-driven label slots. Code lives in `lib/sld-v2/` + `components/planset-v2/`. v1 stays untouched and operational behind the existing routing in `lib/sld-layout.ts`. Phases 0-4 (equipment kinds + elkjs adapter + label picker + PlansetData adapter) shipped 2026-05-12. Phase 5 (SVG → PDF export) shipped 2026-05-13 morning. Phase 6 (feature flag + nodeOverrides + production route) shipped 2026-05-13 mid-morning. Phase 7a (per-project `use_sld_v2` column + 3-arg flag + SheetPV5 inline v2 swap) shipped 2026-05-13 ~11 UTC. **Phase 7b (this session) closes the v2 PDF into stamp-ready shape and runs the first live pilot through it.**
+**As of 2026-05-12 the chain pivoted** from canvas-iterating the v1 hand-positioned spec to a declarative equipment list → elkjs layout engine → React/SVG renderer with prop-driven label slots. Code lives in `lib/sld-v2/` + `components/planset-v2/`. v1 stays untouched and operational behind the existing routing in `lib/sld-layout.ts`. Phases 0-4 (equipment kinds + elkjs adapter + label picker + PlansetData adapter) shipped 2026-05-12. Phase 5 (SVG → PDF export) shipped 2026-05-13 morning. Phase 6 (feature flag + nodeOverrides + production route) shipped 2026-05-13 mid-morning. Phase 7a (per-project `use_sld_v2` column + 3-arg flag + SheetPV5 inline v2 swap) shipped 2026-05-13 ~11 UTC. Phase 7b (title block paint + Inter Regular + Lohf pilot PDF) shipped 2026-05-13 ~13 UTC; the cumulative R1 + R1-deferrals sweep shipped ~15:30 UTC. **Phase H1 (this session, evening 2026-05-13) used the RUSH-blocked window to fix two SECURITY DEFINER bypass bugs in the trigger guards (mig 223 + 224 — including a silently-broken-in-prod gap on 222b) and pre-empt the most likely RUSH typography ding by adding Inter Bold + Unicode-correct title-block rendering.** Phase 7c (folding RUSH stamp feedback) is the next forward phase but gated on the stamp turnaround for PROJ-32115 / Lohf (#1025, ~1 week out).
 
-**Plan doc**: `~/.claude/plans/smooth-mixing-milner.md` (Greg approved 2026-05-12), Phase 7b plan `~/.claude/plans/virtual-scribbling-raven.md` (Greg approved 2026-05-13).
+**Plan docs:** `~/.claude/plans/smooth-mixing-milner.md` (architectural, Greg-approved 2026-05-12), `~/.claude/plans/virtual-scribbling-raven.md` (Phase 7b, 2026-05-13), `~/.claude/plans/bright-forging-hare.md` (Phase H1, 2026-05-13 evening).
 
 ## ✅ Shipped this session (2026-05-13 evening — Phase H1: RUSH-blocked window hygiene + typography prep)
 
@@ -257,7 +257,7 @@ Captured via vitest run on the final commit `8bb365b`:
 - **Migrations applied this session**: `222_projects_block_direct_use_sld_v2_update` + `222b_use_sld_v2_trigger_fix_null_auth_role`. Both visible via `mcp__claude_ai_Supabase__list_migrations`.
 - **Python 3.12 required** for `scripts/sld-collision-check.py` (3.14 has broken pyexpat) — unchanged from Phase 5.
 - **Port id convention** unchanged from Phase 2 — dot-format (`pv.N`).
-- **PDF font behavior** — when `titleBlock` is present, Inter Regular ttf is registered (SHA-256 verified on load post-#1023, throws loud on mismatch). When absent, Inter is NOT registered; everything renders in Helvetica + WinAnsi (preserves `strings | grep NEC 690.12`).
+- **PDF font behavior (post-H1):** when `titleBlock` is present, BOTH Inter Regular AND Inter Bold ttfs are registered (atomic-pair guarantee — if either fails to load, neither registers and the whole sheet falls back to Helvetica + WinAnsi sanitizer). Both ttfs SHA-256-verified on load. When `titleBlock` is absent, Inter is NOT registered; everything renders in Helvetica + WinAnsi (preserves `strings | grep NEC 690.12`).
 - **PDF concurrency mutex** now covers `layoutEquipmentGraph` + `placeLabels` + `renderToStaticMarkup` (post-M3). elkjs singleton-touch seam closed.
 - **inter-loader ENOENT no longer caches null** (post-M5). Per-request warn instead of silent dyno-lifetime Helvetica fallback.
 - **`canvas` is a native dep** — Phase 6's route has `export const runtime = 'nodejs'`, unchanged.
@@ -282,20 +282,20 @@ Captured via vitest run on the final commit `8bb365b`:
 
 ### ⬅ Phase 7c (next session) — fold RUSH stamp feedback (conditional on #1025)
 
-Phase 7b shipped end-to-end. The next phase IS the RUSH feedback loop: pick up only after #1025 closes (stamp returns with feedback). Until then the chain is at a natural waiting point.
+Phase 7b + Phase H1 shipped end-to-end. The next phase IS the RUSH feedback loop: pick up only after #1025 closes (stamp returns with feedback). Until then the chain is at a natural waiting point.
 
 **Decisions Greg must answer before this phase starts:**
 
 (No decisions until RUSH feedback arrives. The shape of Phase 7c depends entirely on what RUSH dings.)
 
-**Phase work (anticipated):**
+**Phase work (anticipated, narrower after H1):**
 
-- Fold any RUSH typography feedback — switch from Helvetica to bundled Inter Bold (current session deferred Bold per Greg's pick).
-- Fold any layout feedback — row sizing, sheet-number font size, NEC notes box placement.
-- Fold any NEC compliance feedback — additional `graph.notes` painting, callout placement.
-- If RUSH stamps clean, mark v2 as the production default for new projects (separate chain).
+- **Already shipped, pre-empted by H1:** Inter Bold registration + Unicode-correct title block. If RUSH's main typography ding is "the customer name lost an accent" or "Helvetica looks too bare," that's now fixed. Lohf pilot was re-rendered with Inter Bold subset embedded (PROJ-32115 / Charles Lohf has an ASCII name so the change is invisible on that specific pilot — Unicode rendering matters for future non-ASCII customer names).
+- **Still possible:** fold layout feedback — row sizing, sheet-number font size, NEC notes box placement.
+- **Still possible:** fold NEC compliance feedback — additional `graph.notes` painting, callout placement.
+- **If RUSH stamps clean:** mark v2 as the production default for new projects (separate chain — coordinate with Phase 7.x equipment kinds which gate non-Duracell topologies).
 
-**Estimated effort:** depends on RUSH feedback. 30 min if clean stamp, 2-4 hours if substantive redraw.
+**Estimated effort:** depends on RUSH feedback. 30 min if clean stamp, 2-4 hours if substantive redraw. Lower bound vs Phase 7b because the Bold + Unicode work is already done.
 
 ### ⬅ Hardening backlog (any-time)
 
@@ -309,17 +309,16 @@ Phase 7b shipped end-to-end. The next phase IS the RUSH feedback loop: pick up o
 
 ## Specific gotchas for the next operator
 
-- **Branch is NOT pushed** — 3 commits ahead of origin (`978392c` mig 223/224, `de73e92` Inter Bold typography, `2756a73` mig doc-clarify). Awaiting Greg's end-of-session push auth per CLAUDE.md / `feedback_no_mid_session_push.md`.
-- **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2. Re-render via the route → expect the title-block PDF. **Column is genuinely trigger-protected NOW** (mig 224 fixed 222b's silent break); flipping requires `session_user IN ('postgres','supabase_admin','service_role')` (NOT `current_user` — that was the bug) OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user genuinely gets 42501.
-- **Inter Bold is now bundled in the v2 pipeline** — when titleBlock is requested, BOTH Inter Regular + Bold register atomically. If either ttf is missing/corrupted on a Vercel deploy, the pipeline falls back to Helvetica + WinAnsi sanitizer for the entire sheet (logs a warn). Lohf pilot PDF is now 294 KB (was 197 KB) with Inter Bold subset embedded.
-- **`session_user` vs `current_user` distinction.** Inside SECURITY DEFINER trigger functions, `current_user` returns the function OWNER (postgres) — broken for the bypass-list pattern. `session_user` is the original CONNECTION role and survives SET ROLE + SECURITY DEFINER. If you write another SECDEF trigger guard, use `session_user`. Mig 222b's silent break was the anchor incident.
-- **Smoke-testing SECDEF triggers via MCP requires SESSION AUTHORIZATION.** `SET LOCAL ROLE authenticated` alone does NOT change session_user (it changes current_user). Must use `SET LOCAL SESSION AUTHORIZATION authenticator; SET LOCAL ROLE authenticated;` to simulate a PostgREST connection. Documented in mig 224's header comment.
-- **`?sld=v2` URL flag is a NO-OP in production** (H1 fix). To force v2 for a project in prod, flip `use_sld_v2 = true` via Supabase MCP. The URL flag still works in test/preview/dev.
-- **inter-loader throws loud on SHA-256 mismatch** (#1023). If a partial Vercel deploy ships a corrupted or replaced ttf, the route returns 500 immediately. Expected SHA is `40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82`. To re-vendor from rsms/inter, update the constant in `lib/sld-v2/fonts/inter-loader.ts:31-32` in the same commit as the file replacement.
-- **inter-loader no longer caches null on ENOENT** (M5 fix). Every request re-attempts the read until the file is restored. Negligible perf cost (~340KB read + base64) and visibility-positive.
+- **Branch is NOT pushed** — **4 commits** ahead of origin: `978392c` (mig 223/224), `de73e92` (Inter Bold typography), `2756a73` (mig R1 doc-clarify), `5714af3` (HANDOFF refresh). Awaiting Greg's end-of-session push auth per CLAUDE.md / `feedback_no_mid_session_push.md`.
+- **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2. Re-render via the route → expect the title-block PDF. **Column is genuinely trigger-protected NOW** (mig 224 fixed 222b's silent break); flipping requires `session_user IN ('postgres','supabase_admin','service_role')` OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user genuinely gets 42501.
+- **Inter Bold is bundled and active in the v2 title-block path.** When `titleBlock` is requested, BOTH Inter Regular + Bold register atomically. If either ttf is missing/corrupted, the pipeline falls back to Helvetica + WinAnsi sanitizer for the entire sheet (logs a warn). Lohf pilot PDF is now 294 KB (was 197 KB) with Inter Bold subset embedded. **The WinAnsi-sanitizer-strips-diacritics gotcha is now only the fallback path** — happy path renders Unicode correctly.
+- **`session_user` vs `current_user` in SECURITY DEFINER.** Inside SECDEF trigger functions, `current_user` returns the function OWNER (postgres) — bypass-list checks evaluate true for every caller (this was 222b's silent prod break). `session_user` is the original CONNECTION role and survives SET ROLE + SECURITY DEFINER. If you write another SECDEF trigger guard, use `session_user`.
+- **Smoke-testing SECDEF triggers via MCP requires SESSION AUTHORIZATION.** `SET LOCAL ROLE authenticated` alone does NOT change session_user (changes current_user only). Must use `SET LOCAL SESSION AUTHORIZATION authenticator; SET LOCAL ROLE authenticated;` to simulate a PostgREST connection. Documented inline in mig 223 + 224 headers.
+- **`?sld=v2` URL flag is a NO-OP in production** (Phase 7b cumulative-R1 H1 fix). To force v2 for a project in prod, flip `use_sld_v2 = true` via Supabase MCP. URL flag still works in test/preview/dev.
+- **inter-loader throws loud on SHA-256 mismatch** for either Regular or Bold (#1023 + H1 extension). Partial Vercel deploy with a corrupted ttf → 500 on the route. SHAs: Regular `40d692fc...0c82` (line 41), Bold `28831609...947f` (line 50). Re-vendor → update the constant in the same commit as the file replacement.
+- **inter-loader no longer caches null on ENOENT** (M5 fix from prior session). Every request re-attempts the read until the file is restored.
 - **Visual companion content dir** (`.superpowers/brainstorm/<port>-<pid>/content/`) is gitignored implicitly and includes the Lohf pilot PDF. Don't commit it.
-- **`scripts/render-sld-v2-pilot-lohf.tsx`** is a session-local script; safe to keep around for future Lohf re-renders.
-- **WinAnsi sanitizer is one-way.** "Peña" → "Pena" in the PDF; users seeing the PDF won't get back the original glyph. If RUSH demands Unicode-correct rendering, Phase 7c needs to switch the title-block painter to use the embedded Inter font (with Inter Bold also registered).
+- **`scripts/render-sld-v2-pilot-lohf.tsx`** is a session-local script; auto-mirrors output to `~/Desktop/sld-v2-pilot-lohf.pdf`. Be aware this OVERWRITES any prior approved version on Desktop — git can't recover it (path is gitignored).
 - **The two-canvas iteration loop is dead** — same as Phase 7a, don't reopen v1 hand-positioning.
 - **`@react-pdf/renderer@^4.4.1`** still in active prod use for invoices / cost-basis — DO NOT remove.
 
@@ -327,15 +326,17 @@ Phase 7b shipped end-to-end. The next phase IS the RUSH feedback loop: pick up o
 
 - **Plan doc (architectural)**: `~/.claude/plans/smooth-mixing-milner.md` (Greg-approved 2026-05-12)
 - **Phase 7b session plan**: `~/.claude/plans/virtual-scribbling-raven.md` (Greg-approved 2026-05-13)
-- **Lohf pilot PDF**: `~/Desktop/sld-v2-pilot-lohf.pdf` (197 KB)
-- **Tyson demo PDF**: `~/.claude/tmp/sld-v2-tyson-titled.pdf` (171 KB)
+- **Phase H1 session plan**: `~/.claude/plans/bright-forging-hare.md` (Greg-approved 2026-05-13 evening)
+- **Lohf pilot PDF**: `~/Desktop/sld-v2-pilot-lohf.pdf` (294 KB post-H1, was 197 KB pre-H1; Inter Bold subset embedded)
+- **Tyson demo PDFs**: `~/.claude/tmp/sld-v2-tyson-titled.pdf` (with title block), `~/.claude/tmp/sld-v2-tyson.pdf` (without)
 - **RUSH stamp tracking**: action #1025 (P1) — Greg eyeballs → email → record turnaround
-- **HQ recap UI**: hq.gomicrogridenergy.com/recaps
+- **Hardening backlog**: #1053 (audit_log gap on DB-admin bypass), #1054 (PostgREST-path E2E test)
+- **HQ recap UI**: hq.gomicrogridenergy.com/recaps (Phase H1 recap = id 514)
 - **HQ actions UI**: hq.gomicrogridenergy.com/actions
 
 ---
 
-**End of handoff. Next session: pick up only when RUSH feedback arrives (#1025). All Phase 7b R1 deferrals are closed; only the 215b dormant-bug cleanup remains in the hardening backlog. Pass it forward.**
+**End of handoff. Next session: Phase 7c when RUSH feedback arrives (#1025). Hardening backlog (#1053, #1054) is fair game while waiting — Phase 7.x deferred equipment kinds (StringInverter / MicroInverter / EVCharger) is the bigger forward unlock and needs a planning conversation. Pass it forward.**
 
 ## Chain state (auto)
 
