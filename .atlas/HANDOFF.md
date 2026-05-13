@@ -4,9 +4,9 @@
 **Last updated:** 2026-05-13 ~10:15 UTC (sld-v2 Phase 6 shipped — feature flag + nodeOverrides + v2 PDF route, R1 B → R2 A)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **12 commits on origin (8a5df39); 2 commits ahead locally** (`91aea6b` handoff refresh + `2d826cb` Phase 6) — **NOT YET PUSHED.** Greg per CLAUDE.md must explicitly authorize the push.
+**Branch:** `feat/planset-v8-layouts` — **12 commits on origin (8a5df39); 4 commits ahead locally** (`91aea6b` handoff + `2d826cb` Phase 6 + `5d9d54f` handoff refresh + `9b39826` R3 fix) — **NOT YET PUSHED.** Greg per CLAUDE.md must explicitly authorize.
 **Latest pushed commit:** `8a5df39` feat(sld-v2): SVG → PDF export — Phase 5 lands
-**Latest local commit:** `2d826cb` feat(sld-v2): Phase 6 — feature-flag + nodeOverrides + v2 PDF route
+**Latest local commit:** `9b39826` fix(sld-v2): Phase 6 R3 — topology gate + schema-validation tests + gitignore
 
 ## Chain instruction (read this first, every session)
 
@@ -277,6 +277,7 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 ## Audit gates (Phase 6)
 - R1 (red-teamer, shipped code): **B** (0C / 1H / 4M / 4L) — all folded inline (H1: opaque 500; M1: resolve+prefix check; M2: schema validation incl. null-proto + finite-number coords; M3: page-count regex anchored to `>>`; M4: lowercase URL value compare; L4 tighten: NEC ≥1 separator). Deferred: L1/L2/L3 (ESLint enforcement → Phase 7), cost-basis sibling 500-leak → action #998.
 - R2 (verify, post-fix): **A** (typecheck=0 + 46/46 sld-v2 vitest + baseline diff NEW_FAIL=0)
+- R3 (self-audit, requested by Greg post-R2): **2 catches** — (M) missed Phase 5 R1-M6 topology gate (`isDuracellHybrid` check before `renderSldToPdf`), (M) no tests for R1-M2 schema-validation rejection paths. Both fixed inline in commit `9b39826`. Red-teamer on R3 delta: **A** (0/0/0/2 — gitignored TEST-*.json fixtures inline, 422-detail-string Low deferred as cosmetic). Test count 46 → 50.
 
 ## Audit gates (Phase 5)
 - Pre-flight (general-purpose, plan vs live state): GO-WITH-EDITS (0C+0H+0M+0L after fixes; original 2C+6H+6M+5L all folded inline)
