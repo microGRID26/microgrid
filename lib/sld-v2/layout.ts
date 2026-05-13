@@ -58,7 +58,23 @@ export interface LayoutResult {
 // ELK adapter
 // ──────────────────────────────────────────────────────────────────────────
 
-const elk = new ELK()
+// Phase 7b deploy fix — lazy ELK construction. `new ELK()` spawns a Web
+// Worker; constructing it at module-load time crashed `/planset`'s static
+// prerender in Next.js 16 ("l is not a constructor" out of the worker
+// factory in Node SSR where Worker isn't defined). Phase 7a wired
+// layoutEquipmentGraph into the client page via a useEffect that only
+// fires after hydration, so the actual elkjs call is always client-side
+// — but the IMPORT graph evaluated this module at module-load during
+// prerender. Lazy-construct so the worker isn't instantiated until first
+// layout call (which is always client-side by construction of the caller).
+type ElkInstance = InstanceType<typeof ELK>
+let _elkInstance: ElkInstance | null = null
+function getElk(): ElkInstance {
+  if (_elkInstance === null) {
+    _elkInstance = new ELK()
+  }
+  return _elkInstance
+}
 
 const DEFAULT_LAYOUT_OPTIONS = {
   'elk.algorithm': 'layered',
@@ -137,6 +153,7 @@ export async function layoutEquipmentGraph(
   layoutOptions: Record<string, string> = DEFAULT_LAYOUT_OPTIONS,
 ): Promise<LayoutResult> {
   const input = toElkGraph(graph, layoutOptions)
+  const elk = getElk()
   const laid = await elk.layout(input as Parameters<typeof elk.layout>[0])
 
   // Extract children (node positions)

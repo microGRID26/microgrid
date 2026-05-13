@@ -101,6 +101,25 @@ export async function GET(
     return NextResponse.json({ error: 'Not Found' }, { status: 404 })
   }
 
+  // ── Phase 7b R1-M3 fix — runtime type guard replaces the bare `as Project`
+  // cast. Asserts the project row carries the `use_sld_v2` column shape
+  // (migration 221). If `types/database.ts` is ever regenerated without the
+  // hand-written field, the cast would silently hide the regression and
+  // break the per-project rollout flag. This narrow surfaces the drift as
+  // a 500 + server-side log entry on the first request after a bad regen.
+  //
+  // Steady state (column NOT NULL DEFAULT false) = boolean. Defensive
+  // accepts of null/undefined cover migration-rollback races and ORM
+  // omission. Anything else fails the invariant.
+  //
+  // R1-H1 fix (Phase 7b red-teamer) — guard MUST fire AFTER the 3-arg
+  // flag check so flag-off projects keep returning the same 404 they
+  // returned before (preserves invisibility contract documented in the
+  // route header). Without this ordering, a future bad type-regen could
+  // distinguish flag-off-but-existing projects from genuine 404s to
+  // authed-internal callers. R1-M1 fix — correlationId is server-side
+  // log only; response body returns the same opaque shape as the catch
+  // block so 500-vs-500 doesn't become an oracle.
   const proj = project as Project
 
   // ── Phase 7a 3-arg flag check (URL + env + project.use_sld_v2) ─────────
@@ -108,6 +127,20 @@ export async function GET(
   // 404 to preserve invisibility for flag-off projects.
   if (!shouldUseSldV2(searchParams, proj)) {
     return NextResponse.json({ error: 'Not Found' }, { status: 404 })
+  }
+
+  // R1-M3 shape invariant runs HERE (post-flag-check) so flag-off
+  // projects exit at the 404 above before the invariant is even checked.
+  if (!hasUseSldV2Shape(project)) {
+    const shapeCid = Math.random().toString(36).slice(2, 10)
+    console.error(
+      `[GET /api/sld/v2/[projectId]] cid=${shapeCid} use_sld_v2 shape invariant failed`,
+      { id: projectId },
+    )
+    return NextResponse.json(
+      { error: 'Render failed', correlationId: shapeCid },
+      { status: 500 },
+    )
   }
 
   try {
@@ -168,4 +201,20 @@ export async function GET(
       { status: 500 },
     )
   }
+}
+
+// ── Phase 7b R1-M3 — runtime narrow on the project row shape ────────────
+// Replaces the bare `as Project` cast at the route entry. Asserts the row
+// carries the `use_sld_v2` column shape (migration 221) so a future
+// `types/database.ts` regeneration that drops the hand-written field
+// surfaces immediately instead of silently breaking the per-project flag.
+function hasUseSldV2Shape(p: unknown): p is Project {
+  if (!p || typeof p !== 'object') return false
+  const o = p as Record<string, unknown>
+  if (typeof o.id !== 'string') return false
+  return (
+    o.use_sld_v2 === undefined ||
+    o.use_sld_v2 === null ||
+    typeof o.use_sld_v2 === 'boolean'
+  )
 }

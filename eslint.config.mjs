@@ -11,6 +11,47 @@ const eslintConfig = defineConfig([
       // The rule flags async setState as cascading renders, but these are
       // intentional fetch-then-set patterns, not synchronous cascades.
       "react-hooks/set-state-in-effect": "off",
+      // Phase 7b — server-only gate on the v2 SLD PDF renderer.
+      // renderSldToPdf pulls in jsdom + jsPDF + svg2pdf.js + the native
+      // `canvas` package (~5 MB). Importing from a Client Component leaks
+      // the chain into the client bundle and crashes at runtime when
+      // `window`/`document` are mid-swap under the render mutex. The
+      // exemption block below allows the route handler, the verification
+      // harnesses, the test file, and the module itself.
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/lib/sld-v2/pdf",
+              message:
+                "renderSldToPdf is server-only. Import it from app/api/sld/v2/[projectId]/route.ts only; importing here drags jsdom + jsPDF + svg2pdf.js + native canvas into the client bundle.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["**/lib/sld-v2/pdf", "**/lib/sld-v2/pdf.ts"],
+              message:
+                "renderSldToPdf is server-only. Import it from app/api/sld/v2/[projectId]/route.ts only; importing here drags jsdom + jsPDF + svg2pdf.js + native canvas into the client bundle.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // Phase 7b — exemption block for renderSldToPdf legitimate callers.
+  // Must come AFTER the rule-setting block so it overrides for matched
+  // files. Anything else importing the PDF module fails the build.
+  {
+    files: [
+      "app/api/sld/v2/**/route.ts",
+      "lib/sld-v2/pdf.ts",
+      "scripts/render-sld-v2-pdf.tsx",
+      "scripts/sld-v2-pdf-concurrency-smoke.tsx",
+      "__tests__/sld-v2/pdf.test.ts",
+    ],
+    rules: {
+      "no-restricted-imports": "off",
     },
   },
   // Override default ignores of eslint-config-next.

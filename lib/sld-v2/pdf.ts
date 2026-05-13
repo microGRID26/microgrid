@@ -8,16 +8,26 @@
 // the SERVER-ONLY header are the only enforcement today. If a future Next.js
 // App-Router lint rule requires the literal directive, swap to a tsx loader
 // shim — don't drop the comment-based defense without a replacement.
+//
+// Phase 7b deploy fix — `react-dom/server`, React, and the SldRenderer
+// component are dynamic-imported INSIDE the render function below.
+// Phase 6 broke the planset-branch Vercel preview builds because the App
+// Route at app/api/sld/v2/[projectId]/route.ts pulled this module into
+// Turbopack's App Route bundle analysis, which rejects static
+// `react-dom/server` imports ("To fix it, render or return the content
+// directly as a Server Component instead"). Lazy-importing matches the
+// jsdom pattern already in place and breaks Turbopack's static-analysis
+// chain so the App Route can ship.
 
-import React from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { jsPDF } from 'jspdf'
 import { svg2pdf } from 'svg2pdf.js'
 
 import { layoutEquipmentGraph } from './layout'
 import { placeLabels } from './labels'
-import { SldRenderer } from '../../components/planset-v2/SldRenderer'
 import type { EquipmentGraph } from './equipment'
+import type { PlansetData } from '../planset-types'
+import { paintTitleBlock, TITLE_BLOCK_WIDTH_PT } from './title-block'
+import { loadInterTtfBase64 } from './fonts/inter-loader'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Phase 5 — EquipmentGraph → SVG → DOM → svg2pdf → jsPDF → Uint8Array.
@@ -50,6 +60,19 @@ export interface PdfOptions {
   pageHeightPt?: number
   /** Inner margin in pt around the SLD region. Default 36 (½ inch). */
   marginPt?: number
+  /**
+   * Phase 7b — optional right-sidebar title block. When provided, the SLD
+   * body is scaled to fit ALONGSIDE the title block (printable width
+   * reduced by TITLE_BLOCK_WIDTH_PT + gap) and the title block is painted
+   * on top via jsPDF native primitives. When omitted, the renderer
+   * matches Phase 5/6 behavior (full-width SLD, no title block — used by
+   * the verification harnesses).
+   */
+  titleBlock?: {
+    data: PlansetData
+    sheetName: string
+    sheetNumber: string
+  }
 }
 
 const DEFAULTS = { pageWidthPt: 1224, pageHeightPt: 792, marginPt: 36 } as const
@@ -85,8 +108,20 @@ export async function renderSldToPdf(
     freeZone: { x: layout.width - 240, y: 0, w: 240, h: layout.height },
   })
 
+  // Dynamic-import React + renderToStaticMarkup + SldRenderer so Turbopack's
+  // App Route analyzer doesn't see `react-dom/server` reachable from the
+  // route file and reject the build. SldRenderer is a server-only renderer
+  // (renders SVG via renderToStaticMarkup); the lazy chain stays server-side
+  // because the parent module is already gated by the SERVER-ONLY header
+  // + ESLint no-restricted-imports rule.
+  const [ReactMod, { renderToStaticMarkup }, { SldRenderer }] = await Promise.all([
+    import('react'),
+    import('react-dom/server'),
+    import('../../components/planset-v2/SldRenderer'),
+  ])
+
   const svgString = renderToStaticMarkup(
-    React.createElement(SldRenderer, { layout, labelPlacement }),
+    ReactMod.createElement(SldRenderer, { layout, labelPlacement }),
   )
 
   const g = globalThis as Record<string, unknown>
@@ -102,6 +137,7 @@ export async function renderSldToPdf(
       pageWidthPt,
       pageHeightPt,
       marginPt,
+      titleBlock: options.titleBlock,
     })
 
   if (hostHasDom) {
@@ -119,10 +155,11 @@ interface RunOneRenderArgs {
   pageWidthPt: number
   pageHeightPt: number
   marginPt: number
+  titleBlock?: PdfOptions['titleBlock']
 }
 
 async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
-  const { svgString, hostHasDom, pageWidthPt, pageHeightPt, marginPt } = args
+  const { svgString, hostHasDom, pageWidthPt, pageHeightPt, marginPt, titleBlock } = args
   const g = globalThis as Record<string, unknown>
   const prevWindow = g.window
   const prevDocument = g.document
@@ -151,13 +188,18 @@ async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
       throw new Error(`renderSldToPdf: bad SVG dimensions w=${svgW} h=${svgH}`)
     }
 
-    const printW = pageWidthPt - marginPt * 2
-    const printH = pageHeightPt - marginPt * 2
-    const scale = Math.min(printW / svgW, printH / svgH)
+    // Phase 7b — when a title block is supplied, narrow the printable
+    // SLD region to leave room for the right-sidebar block.
+    const sidebarReserve = titleBlock
+      ? TITLE_BLOCK_WIDTH_PT + 6 /* gap */
+      : 0
+    const sldAreaW = pageWidthPt - marginPt * 2 - sidebarReserve
+    const sldAreaH = pageHeightPt - marginPt * 2
+    const scale = Math.min(sldAreaW / svgW, sldAreaH / svgH)
     const fitW = svgW * scale
     const fitH = svgH * scale
-    const offX = marginPt + (printW - fitW) / 2
-    const offY = marginPt + (printH - fitH) / 2
+    const offX = marginPt + (sldAreaW - fitW) / 2
+    const offY = marginPt + (sldAreaH - fitH) / 2
 
     const pdf = new jsPDF({
       orientation: 'landscape',
@@ -165,12 +207,41 @@ async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
       format: [pageWidthPt, pageHeightPt],
     })
 
+    // Phase 7b — register Inter ttf with jsPDF ONLY when a title block
+    // is requested. Inter registration switches embedded-text encoding
+    // from WinAnsi (Helvetica Type 1 standard, plain ASCII in PDF bytes)
+    // to TrueType-CID glyph codes — which breaks the `strings | grep`
+    // verification pattern that Phase 5's tests use to confirm NEC text
+    // is present. Title-block paint is the only reason to register a
+    // custom font; the SLD body's labels stay readable in Helvetica.
+    // If the ttf fails to load, fall back to Helvetica without crashing.
+    let fontName = 'helvetica'
+    if (titleBlock) {
+      const interB64 = await loadInterTtfBase64()
+      if (interB64) {
+        pdf.addFileToVFS('Inter-Regular.ttf', interB64)
+        pdf.addFont('Inter-Regular.ttf', 'Inter', 'normal')
+        fontName = 'Inter'
+      }
+    }
+
     await svg2pdf(svgElement as unknown as Element, pdf, {
       x: offX,
       y: offY,
       width: fitW,
       height: fitH,
     })
+
+    // Phase 7b — paint the title block AFTER the SLD body so it
+    // renders on top of any clipping artifacts (svg2pdf occasionally
+    // emits stray vectors at the SVG's right edge).
+    if (titleBlock) {
+      const tbX = pageWidthPt - marginPt - TITLE_BLOCK_WIDTH_PT
+      const tbY = marginPt
+      const tbW = TITLE_BLOCK_WIDTH_PT
+      const tbH = pageHeightPt - marginPt * 2
+      paintTitleBlock(pdf, titleBlock, tbX, tbY, tbW, tbH, { fontName })
+    }
 
     const buf = pdf.output('arraybuffer')
     return new Uint8Array(buf as ArrayBuffer)
