@@ -24,21 +24,38 @@ const INTERNAL_ROLES = new Set(['admin', 'super_admin', 'manager', 'finance'])
  * Renders the project's SLD via the Phase 5 v2 pipeline (elkjs auto-layout +
  * jsPDF) and streams the PDF as the response body. Internal users only.
  *
- * Feature-flagged: returns 404 unless `?sld=v2` is present in the URL or
- * `SLD_V2_DEFAULT=1` is set in the environment. The 404 is intentional —
- * the route should be invisible to non-opted-in callers until Phase 7
- * cuts PV-5 over.
+ * Feature-flagged on three independent paths (any one enables the route):
+ *   1. URL `?sld=v2`  — per-request testing path; reveals route existence
+ *      on auth failure (caller is intentionally probing).
+ *   2. Env `SLD_V2_DEFAULT=1` — process-wide override for preview/dev.
+ *   3. `projects.use_sld_v2 = true` — Phase 7a per-project rollout path.
+ *
+ * Invisibility contract: when URL + env are BOTH off (i.e. the only
+ * possible activation is the per-project flag), auth/role failures return
+ * 404 (not 401/403) so the route stays invisible to non-testing callers
+ * probing flag-off projects. When URL or env is on, the caller knows the
+ * route — normal HTTP semantics apply.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> },
 ) {
   const { projectId } = await params
+  const searchParams = request.nextUrl.searchParams
 
-  // ── Feature flag (intentional 404 when off — route stays invisible) ────
-  if (!shouldUseSldV2(request.nextUrl.searchParams)) {
-    return NextResponse.json({ error: 'Not Found' }, { status: 404 })
-  }
+  // ── Pre-auth flag check (URL + env only, no project arg) ───────────────
+  // When this returns true the caller is in the "testing" or "preview" path
+  // and the route is intentionally visible. When false, the route MIGHT
+  // still activate via the per-project flag (Phase 7a) — but the route stays
+  // invisible to unauth callers and to flag-off projects.
+  const urlOrEnvFlag = shouldUseSldV2(searchParams)
+  const respond404OrAuthError = (
+    authBody: { error: string },
+    authStatus: number,
+  ) =>
+    urlOrEnvFlag
+      ? NextResponse.json(authBody, { status: authStatus })
+      : NextResponse.json({ error: 'Not Found' }, { status: 404 })
 
   // ── Auth + role gate (mirrors cost-basis PDF route) ────────────────────
   const supabase = createServerClient(
@@ -48,7 +65,7 @@ export async function GET(
   )
   const { data: { user } } = await supabase.auth.getUser()
   if (!user?.email) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return respond404OrAuthError({ error: 'Unauthorized' }, 401)
   }
 
   const { data: userRow } = await supabase
@@ -58,10 +75,13 @@ export async function GET(
     .single()
   const role = (userRow as { role: string } | null)?.role
   if (!role || !INTERNAL_ROLES.has(role)) {
-    return NextResponse.json({ error: 'Internal users only' }, { status: 403 })
+    return respond404OrAuthError({ error: 'Internal users only' }, 403)
   }
 
   // ── Rate limit (PDF render is expensive; v2 is iterative-proof territory)
+  // Rate-limit failures return 429 unconditionally — the caller is authed
+  // and the response leaks no new information beyond the rate-limit headers
+  // they were already seeing.
   const { success } = await rateLimit(`sld-v2-pdf:${user.email}`, {
     windowMs: 60_000,
     max: 20,
@@ -78,21 +98,24 @@ export async function GET(
     .eq('id', projectId)
     .single()
   if (projectErr || !project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Not Found' }, { status: 404 })
+  }
+
+  const proj = project as Project
+
+  // ── Phase 7a 3-arg flag check (URL + env + project.use_sld_v2) ─────────
+  // If all three are off the route is "fully off" for this project; return
+  // 404 to preserve invisibility for flag-off projects.
+  if (!shouldUseSldV2(searchParams, proj)) {
+    return NextResponse.json({ error: 'Not Found' }, { status: 404 })
   }
 
   try {
-    const proj = project as Project
-
-    // Phase 6 hardcodes Duracell-hybrid topology defaults. Phase 7 wires the
-    // real per-project overrides when the PV-5 sheet migrates.
-    const data = buildPlansetData(proj, {
-      inverterCount: 2,
-      inverterModel: 'Duracell Power Center Max Hybrid 15kW',
-      inverterAcPower: 15,
-      batteryCount: 16,
-      batteriesPerStack: 8,
-    })
+    // Phase 7a strips Phase 6's hardcoded Duracell-hybrid overrides — they
+    // were byte-identical to DURACELL_DEFAULTS, so calling buildPlansetData
+    // with no overrides produces the same output. Phase 7b will wire real
+    // per-project options when project rows gain inverter/battery columns.
+    const data = buildPlansetData(proj)
 
     // Phase 5 R1-M6 (R3 catch) — only route to v2 when the topology has
     // shipped equipment kinds. Non-Duracell topologies produce an empty
@@ -100,11 +123,13 @@ export async function GET(
     // with 422 until Phase 7.x fills StringInverter / MicroInverter / EV
     // kinds.
     //
-    // Today this gate is a no-op because the buildPlansetData call above
-    // hardcodes the Duracell inverter model, so isDuracellHybrid is always
-    // true. The gate goes live in Phase 7 when this route reads the real
-    // per-project inverter model from the project row. Don't remove it —
-    // the dead-code window is exactly until that swap.
+    // Today this gate is a no-op because DURACELL_DEFAULTS in
+    // lib/planset-types.ts hardcodes the Duracell inverter model — when
+    // buildPlansetData is called with no `inverterModel` override (as
+    // Phase 7a does), it falls back to those defaults, so isDuracellHybrid
+    // is always true. The gate goes live in Phase 7b/7.x when project rows
+    // gain an inverter-model column and buildPlansetData reads it directly.
+    // Don't remove it — the dead-code window is exactly until that swap.
     if (!isDuracellHybrid(data)) {
       return NextResponse.json(
         { error: 'sld_v2_unsupported_topology', detail: 'Phase 6 supports Duracell hybrid topology only.' },

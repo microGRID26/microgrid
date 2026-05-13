@@ -19,9 +19,52 @@ import { DURACELL_DEFAULTS, dominantInverter } from '@/lib/planset-types'
 import { autoDistributeStrings } from '@/lib/planset-calcs'
 import { calculateSldLayout } from '@/lib/sld-layout'
 import { SldRenderer } from '@/components/SldRenderer'
+import { SldRenderer as SldRendererV2 } from '@/components/planset-v2/SldRenderer'
+import type { LayoutResult } from '@/lib/sld-v2/layout'
 import { TitleBlockHtml } from './TitleBlockHtml'
 
-function SheetPV5Inner({ data }: { data: PlansetData }) {
+interface SheetPV5Props {
+  data: PlansetData
+  /** Phase 7a — per-project sld-v2 opt-in (projects.use_sld_v2). When true
+   *  AND `layoutV2` is supplied by the parent, the sheet renders the v2
+   *  pipeline instead of v1. The async `layoutEquipmentGraph` call lives in
+   *  the parent (app/planset/page.tsx is a client component) so this sheet
+   *  can stay synchronous + memoized. */
+  useSldV2?: boolean
+  /** Phase 7a — pre-computed v2 layout result from the parent's useEffect.
+   *  When `useSldV2` is true but this is undefined the sheet falls back to
+   *  the v1 path (covers the brief async-loading window). */
+  layoutV2?: LayoutResult
+}
+
+function SheetPV5Inner({ data, useSldV2, layoutV2 }: SheetPV5Props) {
+  // Phase 7a — v2 inline path. Gated on the per-project opt-in AND on the
+  // parent having resolved the elkjs layout. On flag-off projects the early
+  // return never fires and the v1 path below stays identical to Phase 6.
+  if (useSldV2 && layoutV2) {
+    return (
+      <div
+        className="sheet"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 2.5in',
+          border: '2px solid #000',
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontSize: '8pt',
+          width: '16.5in',
+          height: '10.5in',
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
+        <div className="sld-content" style={{ overflow: 'hidden' }}>
+          <SldRendererV2 layout={layoutV2} />
+        </div>
+        <TitleBlockHtml sheetName="ELECTRICAL SINGLE LINE DIAGRAM" sheetNumber="PV-5" data={data} />
+      </div>
+    )
+  }
+
   let sldStrings = data.strings
   let sldStringsPerInverter = data.stringsPerInverter
   const effectivePanelCount = data.panelCount > 0 ? data.panelCount : (data.existingPanelCount ?? 0)

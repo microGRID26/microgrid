@@ -74,6 +74,13 @@ export interface Project {
    *  Optional in the type so legacy Project literals (tests, seed data)
    *  don't all need updating; runtime selects from DB always include it. */
   planset_overrides?: PlansetOverridesPayload | null
+  /** Per-project opt-in for the sld-v2 SLD pipeline. Migration 221.
+   *  DEFAULT false; v1 stays the default rendering path. The PDF route
+   *  app/api/sld/v2/[projectId]/route.ts and SheetPV5.tsx both honour this
+   *  flag in addition to URL ?sld=v2 + env SLD_V2_DEFAULT=1. Optional in the
+   *  type so legacy Project literals (tests, seed data) don't all need
+   *  updating; runtime selects from DB always include it. */
+  use_sld_v2?: boolean
 }
 
 /** Shape of the persisted planset overrides JSONB blob. Mirrors the runtime

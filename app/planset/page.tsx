@@ -7,6 +7,8 @@ import { useCurrentUser } from '@/lib/useCurrentUser'
 import { handleApiError } from '@/lib/errors'
 import { loadProjectById } from '@/lib/api'
 import { buildPlansetData, DURACELL_DEFAULTS } from '@/lib/planset-types'
+import { equipmentGraphFromPlansetData } from '@/lib/sld-v2/from-planset-data'
+import { layoutEquipmentGraph, type LayoutResult } from '@/lib/sld-v2/layout'
 import { autoDistributeStrings } from '@/lib/planset-calcs'
 import { evaluateExportReadiness, type CutSheetStatus } from '@/lib/planset-export-readiness'
 import { SheetPV1, SheetPV2, SheetPV2A, SheetPV3, SheetPV31, SheetPV4, SheetPV41, SheetPV5, SheetPV6, SheetPV7, SheetPV71, SheetPV8, SheetCutSheet, CUT_SHEETS, computeSheetTotal, UtilityBatteryLetter } from '@/components/planset'
@@ -426,6 +428,13 @@ function PlanSetPageInner() {
   const [projectId, setProjectId] = useState<string>('')
   const [data, setData] = useState<PlansetData | null>(null)
   const [loading, setLoading] = useState(false)
+  // Phase 7a — per-project sld-v2 opt-in (projects.use_sld_v2). Set by
+  // loadProject/rebuildData from the loaded project row. The layoutV2
+  // useEffect below recomputes the elkjs auto-layout whenever this flips on
+  // (or `data` changes); SheetPV5 reads both props and falls back to v1 when
+  // either is unset.
+  const [useSldV2, setUseSldV2] = useState(false)
+  const [layoutV2, setLayoutV2] = useState<LayoutResult | undefined>(undefined)
   // P1-13 (R1 audit 2026-04-28) — true between an OverridesPanel edit and the
   // debounced rebuild that re-computes compliance flags. Without this gate,
   // a designer who edits a string and immediately clicks "Download as PDF"
@@ -479,6 +488,9 @@ function PlanSetPageInner() {
         setTimeout(() => setToast(null), 3000)
         return
       }
+
+      // Phase 7a — pick up the per-project sld-v2 flag from the loaded row.
+      setUseSldV2(Boolean(project.use_sld_v2))
 
       // Hydrate persisted overrides from projects.planset_overrides (#446).
       // Seed runtime state BEFORE building plansetData so the buildPlansetData
@@ -624,6 +636,10 @@ function PlanSetPageInner() {
     try {
       const project = await loadProjectById(projectId)
       if (!project) return
+      // Phase 7a — re-pick the per-project sld-v2 flag in case it changed
+      // between the initial load and this rebuild (e.g. Greg flipped the
+      // column in another tab).
+      setUseSldV2(Boolean(project.use_sld_v2))
       const plansetData = buildPlansetData(project, { ...overrides, strings, roofFaces: roofFaces.length > 0 ? roofFaces : undefined, sitePlanImageUrl: images.sitePlanImageUrl ?? undefined })
       plansetData.sheetTotal = computeSheetTotal(enhanced)
       setData(plansetData)
@@ -641,6 +657,58 @@ function PlanSetPageInner() {
     rebuildTimerRef.current = setTimeout(() => rebuildData(), 500)
     return () => { if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current) }
   }, [projectId, strings, overrides, roofFaces, images.sitePlanImageUrl, rebuildData])
+
+  // Phase 7a — async sld-v2 layout. Recomputes the elkjs auto-layout
+  // whenever `data` changes (string edits, polygon edits, override changes)
+  // or when the per-project flag flips on. The result is passed to
+  // SheetPV5 as a prop; SheetPV5 falls back to the v1 inline path when
+  // either `useSldV2` is false or `layoutV2` is still undefined (covers
+  // the brief async window on first load). The cancelled flag protects
+  // against race conditions when `data` changes faster than elkjs returns.
+  //
+  // R1-H1 fix — hash the equipment graph and short-circuit when the graph
+  // is semantically unchanged. Without this, `data` rebuilds (autosave,
+  // debounce flush, no-op overrides edit) would call layoutEquipmentGraph
+  // again and write a fresh-ref `LayoutResult` into state, breaking memo()
+  // on SheetPV5 and re-mounting SldRendererV2 on every keystroke. Hash via
+  // JSON.stringify on the graph (small, deterministic for our equipment
+  // shape) — cheaper than the elkjs call it gates and avoids the DOM
+  // thrash + print-preview focus loss.
+  const lastSldV2GraphHashRef = useRef<string>('')
+  useEffect(() => {
+    if (!useSldV2 || !data) {
+      setLayoutV2(undefined)
+      lastSldV2GraphHashRef.current = ''
+      return
+    }
+    const graph = equipmentGraphFromPlansetData(data)
+    const hash = JSON.stringify(graph)
+    if (hash === lastSldV2GraphHashRef.current) {
+      // Graph semantically unchanged — preserve the cached layoutV2 ref so
+      // SheetPV5's memo() keeps holding. No elkjs call, no state write.
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const result = await layoutEquipmentGraph(graph)
+        if (!cancelled) {
+          lastSldV2GraphHashRef.current = hash
+          setLayoutV2(result)
+        }
+      } catch (err) {
+        // Layout failure falls back to v1 silently — the v1 path is the
+        // historical safe default. Surface to console for debug but don't
+        // toast: the sheet still renders, just via v1.
+        console.error('[planset] sld-v2 layoutEquipmentGraph failed', err)
+        if (!cancelled) {
+          lastSldV2GraphHashRef.current = ''
+          setLayoutV2(undefined)
+        }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [data, useSldV2])
 
   // Phase 6: auto-pull photos from the project's Google Drive folder when a new
   // project is loaded. Fires ONCE per projectId — does not re-run on manual
@@ -1067,7 +1135,7 @@ function PlanSetPageInner() {
                 ...(enhanced ? [
                   { id: 'PV-4.1', label: 'Attachment Detail', component: <SheetPV41 data={data} /> },
                 ] : []),
-                { id: 'PV-5', label: 'Single Line Diagram', component: <SheetPV5 data={data} /> },
+                { id: 'PV-5', label: 'Single Line Diagram', component: <SheetPV5 data={data} useSldV2={useSldV2} layoutV2={layoutV2} /> },
                 { id: 'PV-6', label: 'Wiring Calculations', component: <SheetPV6 data={data} /> },
                 { id: 'PV-7', label: 'Warning Labels', component: <SheetPV7 data={data} /> },
                 { id: 'PV-7.1', label: 'Equipment Placards', component: <SheetPV71 data={data} /> },
