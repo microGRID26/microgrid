@@ -5,6 +5,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { SLA_THRESHOLDS, INTERNAL_DOMAINS } from '@/lib/utils'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
 import { checkCronSecret } from '@/lib/auth/check-cron-secret'
+import { isAgentEnabled } from '@/lib/fleet/enabled'
 
 // Digest fans out to ~200 active PMs over a portfolio scan + Resend send
 // per PM. Vercel default 10s is way too tight. Audit 2026-05 H2.
@@ -36,10 +37,21 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Env-check FIRST so isAgentEnabled's fail-open behavior never matters here.
+  // If Supabase env is missing, the kill-switch RPC would fail-open and the
+  // digest would resume sending real PM emails — exactly what #1029 closes.
+  // Return 503 here; the kill-switch only runs when env is present.
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)?.trim()
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 })
+  }
+
+  // 2026-05-13 (#1029): respect the atlas_agents.enabled kill-switch. Prior
+  // to this, the UI badge said "disabled" but the cron still sent real PM
+  // digests every weekday. Now the flag actually gates execution.
+  if (!(await isAgentEnabled('mg-email-digest'))) {
+    return NextResponse.json({ skipped: true, reason: 'agent disabled' })
   }
 
   const supabase = createClient(supabaseUrl, serviceKey)

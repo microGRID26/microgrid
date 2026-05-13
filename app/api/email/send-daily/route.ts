@@ -5,6 +5,7 @@ import { getTemplate, getMaxDay } from '@/lib/email-templates'
 import { rateLimit } from '@/lib/rate-limit'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
 import { checkCronSecret } from '@/lib/auth/check-cron-secret'
+import { isAgentEnabled } from '@/lib/fleet/enabled'
 
 // Daily onboarding email scan + per-recipient send. Audit 2026-05 H2.
 export const maxDuration = 60
@@ -26,6 +27,18 @@ export async function GET(req: Request) {
 
   if (!checkCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Env-check FIRST so isAgentEnabled's fail-open never silently re-enables
+  // a disabled cron when env vars drift (see #1029 R1 H-1).
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      !(process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)) {
+    return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 })
+  }
+
+  // 2026-05-13 (#1029): respect the atlas_agents.enabled kill-switch.
+  if (!(await isAgentEnabled('mg-email-send-daily'))) {
+    return NextResponse.json({ skipped: true, reason: 'agent disabled' })
   }
 
   const fleetStartedAt = new Date()

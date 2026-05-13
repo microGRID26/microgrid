@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email'
 import { rateLimit } from '@/lib/rate-limit'
 import { reportFleetRun, type FleetRunStatus } from '@/lib/hq-fleet'
 import { checkCronSecret } from '@/lib/auth/check-cron-secret'
+import { isAgentEnabled } from '@/lib/fleet/enabled'
 
 // Reminder scan + per-recipient send. Audit 2026-05 H2.
 export const maxDuration = 60
@@ -27,10 +28,17 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Env-check FIRST so isAgentEnabled's fail-open never silently re-enables
+  // a disabled cron when env vars drift (see #1029 R1 H-1).
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)?.trim()
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 })
+  }
+
+  // 2026-05-13 (#1029): respect the atlas_agents.enabled kill-switch.
+  if (!(await isAgentEnabled('mg-email-onboarding-reminder'))) {
+    return NextResponse.json({ skipped: true, reason: 'agent disabled' })
   }
 
   const supabase = createClient(supabaseUrl, serviceKey)
