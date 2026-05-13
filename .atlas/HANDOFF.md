@@ -1,12 +1,12 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-13 ~09:35 UTC (sld-v2 Phase 5 shipped — SVG → PDF export with R1 fixes folded in)
+**Last updated:** 2026-05-13 ~09:50 UTC (sld-v2 Phase 5 shipped + pushed — SVG → PDF export with R1 fixes folded in)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **12 local commits ahead of origin** (Phase 5 not yet committed at handoff write time), NONE pushed (per Greg's per-push auth rule)
-**Latest pushed commit:** `a6a2e88` chore(planset): chain handoff + atomic patcher helper for cross-session pickup
-**Latest local commit:** `772b19d` chore(planset): chain handoff rewrite for sld-v2 architectural pivot (Phase 5 commit pending in this session)
+**Branch:** `feat/planset-v8-layouts` — **12 commits on origin, fully pushed** (Greg authorized push 2026-05-13 09:50 UTC)
+**Latest pushed commit:** `8a5df39` feat(sld-v2): SVG → PDF export — Phase 5 lands
+**Latest local commit:** `8a5df39` (matches origin — tree clean except for the untracked `scripts/__pycache__/` + visual-companion `.superpowers/brainstorm/` runtime files)
 
 ## Chain instruction (read this first, every session)
 
@@ -144,37 +144,49 @@ Commit `4acf3a9` · `__tests__/sld-v2/equipment.test.ts`
 ```bash
 cd ~/repos/MicroGRID-planset-phase1
 
-# Commit history check — should see Phases 0–4 + r6-r12 v1 history
-git log --oneline -12
+# Commit history check — should see 8a5df39 (Phase 5) at HEAD on origin
+git log --oneline -14
+git log origin/feat/planset-v8-layouts --oneline -1   # should match 8a5df39
 
 # Typecheck the whole worktree (v1 + v2 must coexist clean)
 npx tsc --noEmit
 
-# Run v2 test suites — 38 tests pass total
+# Run v2 test suites — 40 tests pass total (Phases 0–4 = 38, Phase 5 = 2 new)
 npx vitest run __tests__/sld-v2/
 
 # Chain test baseline diff — confirm no new regressions vs this session's state
-python3.12 ~/.claude/scripts/chain_test_baseline.py diff --repo $(pwd) --sha 4acf3a9
-# Expected: NEW_FAIL = 0 (16 pre-existing failures stay 16)
+/opt/homebrew/bin/python3.12 ~/.claude/scripts/chain_test_baseline.py diff --repo $(pwd) --sha 8a5df39
+# Expected: NEW_FAIL = 0 (16 pre-existing v1 sld-layout + SheetPV failures stay 16)
 
-# Phase 0 — collision validator against r12 baseline
-python3.12 scripts/sld-collision-check.py ~/.claude/tmp/duracell-pv5-r12.html --mode text --top 10
+# Phase 0 — collision validator against r12 baseline (v1 hand-positioned)
+/opt/homebrew/bin/python3.12 scripts/sld-collision-check.py ~/.claude/tmp/duracell-pv5-r12.html --mode text --top 10
 # Expected: 42 overlaps, exit 1
 
 # Phase 1.3 — render all 10 equipment-kind components
 npx tsx scripts/render-sld-v2-all-kinds.tsx > ~/.claude/tmp/sld-v2-all-kinds.html
-python3.12 scripts/sld-collision-check.py ~/.claude/tmp/sld-v2-all-kinds.html
+/opt/homebrew/bin/python3.12 scripts/sld-collision-check.py ~/.claude/tmp/sld-v2-all-kinds.html
 # Expected: 0 overlaps, exit 0
 
 # Phase 2/3 — Tyson topology via elkjs + slot picker
 npx tsx scripts/render-sld-v2-tyson.tsx > ~/.claude/tmp/sld-v2-tyson.html
-python3.12 scripts/sld-collision-check.py ~/.claude/tmp/sld-v2-tyson.html
+/opt/homebrew/bin/python3.12 scripts/sld-collision-check.py ~/.claude/tmp/sld-v2-tyson.html
 # Expected: 119 texts, 92 rects, 0 overlaps, exit 0
 
-# Phase 4 — full pipeline from PlansetData
+# Phase 4 — full HTML pipeline from PlansetData
 npx tsx scripts/render-sld-v2-from-planset.tsx > ~/.claude/tmp/sld-v2-from-planset.html
-python3.12 scripts/sld-collision-check.py ~/.claude/tmp/sld-v2-from-planset.html
+/opt/homebrew/bin/python3.12 scripts/sld-collision-check.py ~/.claude/tmp/sld-v2-from-planset.html
 # Expected: 131 texts, 90 rects, 0 overlaps, exit 0
+
+# Phase 5 — PDF pipeline (the new one this chain version shipped)
+npx tsx scripts/render-sld-v2-pdf.tsx
+# Expected: wrote ~/.claude/tmp/sld-v2-tyson.pdf (67,538 bytes)
+strings ~/.claude/tmp/sld-v2-tyson.pdf | grep -c 'NEC 690.12'   # Expected: 4
+strings ~/.claude/tmp/sld-v2-tyson.pdf | grep -c '/MediaBox \[0 0 1224. 792.\]'  # Expected: 1
+open ~/.claude/tmp/sld-v2-tyson.pdf   # opens cleanly in Preview, vector zoom crisp
+
+# Phase 5 — concurrency invariant (mutex serializes 3 parallel renders)
+npx tsx scripts/sld-v2-pdf-concurrency-smoke.tsx
+# Expected: "3-concurrent renders OK in ~3000ms — sizes 67538, 67538, 67538"
 ```
 
 Staged screenshots on Desktop:
@@ -184,25 +196,30 @@ Staged screenshots on Desktop:
 - `~/Desktop/sld-v2-from-planset.png` — End-to-end PlansetData pipeline
 - `~/Desktop/duracell-pv5-r12.png` — v1 final hand-positioned baseline (for PROJ-26922 PDF-edit path)
 
-## Spec deltas discovered this session
+## Spec deltas discovered this session (Phase 5)
 
-(none — Phases 0–4 followed the plan exactly; no scope corrections needed)
+Four deltas, all caught by the pre-flight reviewer BEFORE code shipped and folded into the plan inline:
+
+- **NEC text target** — original plan said `pdfgrep "NEC 705.13"` for the selectable-text verification; that string is **not emitted anywhere** in the v2 codebase. Live code emits `NEC 690.12(A)` (RSD label) and `NEC 705.12(B)` (MSP busbar). Phase 5 + Phase 6 + Phase 7 verifications should target `NEC 690.12`.
+- **viewBox math** — original plan said "viewBox 1224×792 → 1:1 px:pt mapping". `SldRenderer.tsx` actually emits viewBox sized by elkjs's auto-layout output (variable per graph). Phase 5 pivoted to **aspect-preserved scale-to-fit** via `svg2pdf(svg, doc, {x, y, width, height})`. Phase 7 may upgrade to a fixed-canvas renderer when the title block lands.
+- **Font path** — original plan said "bundle Inter ttf + register with jsPDF.addFont() in Phase 5". Inter bundling is moved to Phase 7. Phase 5 ships with the SVG declaring `font-family: 'Inter, Helvetica, sans-serif'` (via `rewriteFontFamily`) and jsPDF falls back to its built-in Helvetica (selectable, plan-checker-grep-able). When Phase 7 calls `jsPDF.addFont('Inter')`, the font automatically picks up — no other Phase 7 code change needed for typography.
+- **`server-only` directive** — original plan said `import 'server-only'` at the top of `lib/sld-v2/pdf.ts` for SSR safety. The literal import errors under `npx tsx` harness execution outside Next.js. Phase 5 ships with a comment + naming-convention defense instead; Phase 6 should re-add the directive with a tsx loader shim or document the bundle-leak risk explicitly (R1-L1).
 
 ## Test baseline
 
-Captured via `chain_test_baseline.py capture` against this session's final commit `4acf3a9`:
-- **3853 tests pass, 16 fail, 0 skipped** (163 test files)
-- Cached at `~/.claude/data/chain_test_baselines/MicroGRID-planset-phase1-4acf3a978089-vitest.json`
+Captured via `chain_test_baseline.py capture` against this session's final commit `8a5df39`:
+- **3855 tests pass, 16 fail, 0 skipped** (164 test files)
+- Cached at `~/.claude/data/chain_test_baselines/MicroGRID-planset-phase1-8a5df3949028-vitest.json`
 
 The 16 failing tests are PRE-EXISTING v1 sheet/layout failures NOT introduced by this session:
 - `__tests__/lib/sld-layout.test.ts` — 13 failures in v1 SLD renderer (touches `renderSldFromSpec` and topology gating, not touched this session)
 - `__tests__/components/planset/SheetPV1-120pct-banner.test.tsx` — 1 failure
 - `__tests__/components/planset/SheetPV3-roof-plane.test.tsx` — 1 failure
-- Plus 1 known-broken sld-v2 test that was caught + fixed in commit `4acf3a9` BEFORE baseline capture (the quadPorts dash→dot convention)
+- Plus 1 known-broken sld-v2 test that was caught + fixed in Phase-4 commit `4acf3a9` BEFORE baseline capture (the `quadPorts` dash→dot convention)
 
-**At baseline capture vs pre-session (commit `a6a2e88`)**: 161 files / 3815 pass / 16 fail → 163 files / 3853 pass / 16 fail. **+38 passing tests (the new sld-v2 suites), 0 net regressions.**
+**At baseline capture vs pre-Phase-5 (commit `772b19d`)**: 163 files / 3853 pass / 16 fail → 164 files / 3855 pass / 16 fail. **+2 passing tests (the new `pdf.test.ts`), 0 net regressions.** Full chain history vs pre-pivot (commit `a6a2e88`): +40 passing tests (38 sld-v2 + 2 pdf).
 
-To verify next session: `python3.12 ~/.claude/scripts/chain_test_baseline.py diff --repo $(pwd) --sha 4acf3a9` — should report `NEW_FAIL = 0`.
+To verify next session: `python3.12 ~/.claude/scripts/chain_test_baseline.py diff --repo $(pwd) --sha 8a5df39` — should report `NEW_FAIL = 0`.
 
 The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER objective baseline — the visual-regression number for Phase 7 RUSH-stamping comparison.
 
@@ -228,12 +245,16 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 
 ## Live state worth knowing
 
-- **Branch status**: `feat/planset-v8-layouts` **10 commits ahead of origin**, NONE pushed. Greg authorizes each push explicitly per CLAUDE.md. The 10 are: r6-r8 v1 cleanup (7fc76c2), r9-r12 cleanup (883c0ee), Phase 0 (3a6772f), Phase 1.1 (45fc446), Phase 1.2 (ac9a49f), Phase 1.3 (e354536), Phase 2 (5211656), Phase 3 (4a0602e), Phase 4 (b599231), test fix (4acf3a9).
-- **Python**: scripts/sld-collision-check.py REQUIRES `/opt/homebrew/bin/python3.12`. System `python3.14` has a broken `pyexpat` binding from a libexpat ABI mismatch. Don't waste time debugging that.
+- **Branch status**: `feat/planset-v8-layouts` **12 commits on origin, fully pushed** (Greg authorized 2026-05-13 09:50 UTC). The 12 in chronological order: r6-r8 v1 cleanup (`7fc76c2`), r9-r12 cleanup (`883c0ee`), Phase 0 (`3a6772f`), Phase 1.1 (`45fc446`), Phase 1.2 (`ac9a49f`), Phase 1.3 (`e354536`), Phase 2 (`5211656`), Phase 3 (`4a0602e`), Phase 4 (`b599231`), test fix (`4acf3a9`), chain handoff rewrite (`772b19d`), **Phase 5 (`8a5df39`)**.
+- **Python**: `scripts/sld-collision-check.py` REQUIRES `/opt/homebrew/bin/python3.12`. System `python3.14` has a broken `pyexpat` binding from a libexpat ABI mismatch. Don't waste time debugging that.
 - **Port id convention (v2 only)**: `quadPorts(prefix)` now emits dot-format ids — `pv.N`, `pv.S`, `pv.E`, `pv.W`. Connections reference them directly: `Connection.from = "pv.E"`, `Connection.to = "rsd.W"`. ELK consumes these untouched.
-- **Routing path**: `lib/sld-layout.ts` still routes everything to v1 specs (`rush-spatial.json`, `legacy-string-mppt.json`, `sonnen-microinverter.json`). v2 path is reachable ONLY via the standalone harnesses (`scripts/render-sld-v2-*.tsx`). Phase 6 adds the production feature flag.
-- **NEC warnings**: Phase 4 adapter surfaces `graph.notes` for non-compliance. SldRenderer doesn't yet PAINT these notes — Phase 5 or Phase 7 work.
+- **Routing path**: `lib/sld-layout.ts` still routes everything to v1 specs (`rush-spatial.json`, `legacy-string-mppt.json`, `sonnen-microinverter.json`). v2 path is reachable ONLY via the standalone harnesses (`scripts/render-sld-v2-*.tsx`) and the new Phase 5 `renderSldToPdf()` API. Phase 6 adds the production feature flag + the first real Next.js API route.
+- **NEC warnings**: Phase 4 adapter surfaces `graph.notes` for non-compliance. Renderer doesn't yet PAINT these notes — **deferred to Phase 7** alongside the title block + Inter ttf registration.
+- **PDF font behavior** (Phase 5): every `<text>`/`<g>`/`<tspan>` carries `font-family="Inter, Helvetica, sans-serif"`. Inter ttf is NOT yet registered with jsPDF, so the actual rendered font is jsPDF's built-in Helvetica (Type 1 standard, no embed). When Phase 7 calls `jsPDF.addFont('Inter')`, the font automatically switches — no other code change required.
+- **PDF concurrency** (Phase 5): `renderSldToPdf` uses a module-level promise-chain mutex to serialize concurrent calls that swap `globalThis.window` / `document`. Test env (jsdom present) bypasses the mutex. Concurrency smoke at `scripts/sld-v2-pdf-concurrency-smoke.tsx` verifies 3 parallel renders → byte-identical PDFs.
+- **`canvas` is a native dep** added in Phase 5 — Phase 6's Next.js API route MUST declare `export const runtime = 'nodejs'` (NOT edge) or `canvas` won't load. Cold-start cost ~200-500ms on Vercel; warm calls are fast.
 - **PROJ-26922 stamping path** (per Greg's plan-approval decisions): r12 SLD ships to RUSH via PDF hand-edit (Affinity/Illustrator). v2 builds in parallel; doesn't block stamping revenue.
+- **Visual companion**: brainstorm server live at `http://localhost:58479` while this session was active (boots from `~/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/scripts/start-server.sh --project-dir <repo> --background`). Auto-killed when host reboots; re-boot at session start for any iterative visual work.
 
 ## Open follow-ups
 
@@ -277,29 +298,6 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 
 ### ⬅ Phase 7 (after Phase 6) — PV-5 production migration
 
-**Decisions Greg must answer before this phase starts:**
-
-1. **Per-project or per-sheet feature flag?**
-   - (a) Per-project field on the DB row (`use_sld_v2: boolean`).
-   - (b) Per-sheet env flag or URL query param (`?sld=v2`).
-   - **Default: (b) initially** for testing; promote to (a) once Phase 7 has 10+ projects validated.
-
-2. **nodeOverrides JSON spec — where does it live?**
-   - (a) Inline on the EquipmentGraph spec file (when one exists per-project).
-   - (b) Separate `<project-id>-overrides.json` in `lib/sld-v2/overrides/`.
-   - (c) DB column (`sld_v2_node_overrides jsonb`).
-   - **Default: (b)** for now; promote to (c) once 10+ projects need overrides.
-
-**Phase work:**
-
-- Extend `lib/sld-layout.ts` with a v2 path that routes based on the feature flag.
-- New spec format: declarative `EquipmentGraph` JSON (much smaller than the 270-element hand-positioned spec — just equipment list + connections + nodeOverrides).
-- Migration: keep v1 generator running for backward compat. Cut over per sheet via flag.
-
-**Estimated effort:** 1-2 days.
-
-### ⬅ Phase 7 (after Phase 6) — PV-5 production migration
-
 Migrate PV-5 SLD to the v2 path for live projects. Send v2-generated PV-5 PDF to RUSH for stamp. If they stamp without redraw → migrate PV-3 (site plan), PV-3.1 (equipment elevation), PV-6+. If they redraw → diff their redraw against our output, fold deltas into v2 conventions, re-submit.
 
 **Also in Phase 7:**
@@ -312,22 +310,30 @@ Migrate PV-5 SLD to the v2 path for live projects. Send v2-generated PV-5 PDF to
 
 ## Specific gotchas for the next operator
 
-- **DO NOT push** the local commits without Greg's explicit auth per CLAUDE.md / `feedback_no_mid_session_push.md`. The 9 ahead include the architectural pivot — Greg may want to review before publish.
+- **Branch is pushed.** 12 commits live on `origin/feat/planset-v8-layouts` as of 2026-05-13 09:50 UTC. Any new commits in Phase 6 still need Greg's per-push auth per CLAUDE.md / `feedback_no_mid_session_push.md`. No mid-session pushes.
+- **Boot the visual companion at session start.** Standing rule from 2026-05-08 (`feedback_visual_companion_for_phased_builds.md`). Run `~/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/scripts/start-server.sh --project-dir ~/repos/MicroGRID-planset-phase1 --background` and push HTML + PDF artifacts to its content dir. Phase 5 missed this at start; don't repeat.
 - **Python 3.14 is broken** for `scripts/sld-collision-check.py` because of the libexpat ABI mismatch. Always use `/opt/homebrew/bin/python3.12`. Don't be tempted to "fix" Python 3.14 — that's a system-level pyexpat rebuild and not what you're here for.
 - **Port id format is dot-separated** in v2 (`pv.N`) but `eq-N` in some asset-internal anchor manifests. If you write a new equipment component, keep the asset-internal anchors using the EQUIPMENT id format (e.g. `<g id="${msp.id}-N">`) — those are for human/debug inspection only; ELK reads the dot-format port ids you declared in `equipment.ports[]`.
 - **The `placeLabels` slot picker assumes default slot priorities N>S>E>W.** If you customize `labelSlots[]` per equipment kind in Phase 7, keep the convention so the same equipment-priority logic in the picker keeps making sense.
-- **`graph.notes` are emitted but not rendered.** Phase 5 or 7 needs to paint them in a notes box. Until then, they're invisible — only `console.log` or the renderer footer will surface them.
+- **`graph.notes` are emitted but not rendered.** Phase 7 paints them in a notes box alongside the title block. Until then, they're invisible — only `console.log` or the renderer footer will surface them. Phase 6's API route should still return them in a response header or sidecar JSON if Phase 6 needs them surfaced earlier.
+- **`canvas` is a native dep.** Phase 6's API route MUST declare `export const runtime = 'nodejs'`. Edge runtime won't load `canvas`. Cold-start cost ~200-500ms on Vercel.
+- **`renderSldToPdf` is server-only by convention, not by directive.** Comment in `lib/sld-v2/pdf.ts` documents why; Phase 6 should either re-add `import 'server-only'` with a tsx loader shim or accept the bundle-leak risk explicitly.
 - **r12 PV-5 SLD has known residuals** (MSP internal collisions are in the SVG component, not the spec) — those are intentionally out of scope for r12 cleanup. If you reopen v1 hand-positioning work, you're walking back the architectural pivot — don't.
 - **The two-canvas iteration loop is dead.** If a future session brings in canvas patches against `rush-spatial.json`, REDIRECT to the v2 path. The r12 commit + PDF-edit unblock is the v1 final state.
+- **`@react-pdf/renderer@^4.4.1` is in active production use** for `app/api/invoices/[id]/send/route.ts` and `app/api/projects/[id]/cost-basis/pdf/route.ts`. DO NOT remove it. It's the financial-PDF code path, intentionally decoupled from the SLD PDF pipeline (`renderSldToPdf` uses jsPDF + svg2pdf.js).
+- **Untracked-but-fine files in the worktree:** `scripts/__pycache__/` (Python compile cache) and `.superpowers/brainstorm/<port>-<pid>/` (visual companion runtime). Both should probably be added to `.gitignore` in Phase 6's first commit but neither is load-bearing today.
 
 ## Reference
 
 - **Plan doc**: `~/.claude/plans/smooth-mixing-milner.md` (Greg-approved 2026-05-12)
+- **Phase 5 session plan**: `~/.claude/plans/humming-tumbling-wozniak.md`
+- **Phase 5 pre-flight review**: `/tmp/planset-phase-5-plan-review.md`
 - **Tyson reference PDF**: `~/Desktop/PROJ-26922 Corey Tyson Rev1.pdf` (drafting-quality reference, not equipment reference)
-- **Recent recap**: `~/.claude/projects/-Users-gregkelsch/memory/session_recaps.md` (Recap 402)
+- **Phase 5 PDF output**: `~/.claude/tmp/sld-v2-tyson.pdf` (67,538 bytes, 1 page, 4× NEC 690.12 hits)
+- **Recap (Phase 5)**: HQ `atlas_session_recaps` id 482; local fallback at `~/.claude/projects/-Users-gregkelsch/memory/session_recaps.md` (newest first)
 - **HQ recap UI**: hq.gomicrogridenergy.com/recaps
 - **HQ actions UI**: hq.gomicrogridenergy.com/actions
 
 ---
 
-**End of handoff. Next session: chain audit, then plan-mode, then ship Phase 5. Update this file. Pass it forward.**
+**End of handoff. Next session: chain audit (verify Phase 5), boot visual companion, plan-mode on Phase 6 decisions, ship Phase 6. Update this file. Pass it forward.**
