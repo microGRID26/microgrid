@@ -194,7 +194,7 @@ Captured via vitest run on the final commit `8bb365b`:
 - **PDF concurrency mutex** now covers `layoutEquipmentGraph` + `placeLabels` + `renderToStaticMarkup` (post-M3). elkjs singleton-touch seam closed.
 - **inter-loader ENOENT no longer caches null** (post-M5). Per-request warn instead of silent dyno-lifetime Helvetica fallback.
 - **`canvas` is a native dep** — Phase 6's route has `export const runtime = 'nodejs'`, unchanged.
-- **Visual companion**: brainstorm server lived at `http://localhost:57354` for this session (NOTE: different port than the Phase 7b session's 50737 — port is dynamic, not fixed). Content dir at `.superpowers/brainstorm/60886-1778695837/content/`.
+- **Visual companion**: brainstorm server is live at `http://localhost:64594` (current session) — port is dynamic, NOT fixed across restarts. Content dir at `.superpowers/brainstorm/88553-1778708615/content/`. Earlier session-dir `.superpowers/brainstorm/60886-1778695837/content/` carries the source HTML; it's been copied forward. If the server is down on pickup, restart via `~/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/scripts/start-server.sh --project-dir ~/repos/MicroGRID-planset-phase1` and copy `index.html` into the new content dir.
 
 ## Open follow-ups
 
@@ -271,10 +271,10 @@ Phase 7b shipped end-to-end. The next phase IS the RUSH feedback loop: pick up o
 ```yaml
 chain_state_auto:
   project: MicroGRID
-  generated_at: 2026-05-13T21:37:43Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  generated_at: 2026-05-13T21:45:21Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
-  main_head: 8d1e801  # feat(mig 321): seer_listen_progress — resume-where-left-off for Seer TTS
-  main_head_committed: 2026-05-13T15:00:25-05:00
+  main_head: 8b30cd8  # fix(email): respect atlas_agents.enabled kill-switch on mg-email-* crons
+  main_head_committed: 2026-05-13T16:38:24-05:00
   recent_recaps:  # newest first; pulled from atlas_session_recaps
     - planset-2026-05-13-r1-deferrals-sweep (2026-05-13T19:49:04, 57dc174): Closed all four Phase 7b R1 deferrals + cumulative milestone R1 (Grade B) across SLD v2 surface
     - planset-7b-2026-05-13-pm (2026-05-13T17:50:26, ba81df5): Phase 7b ships: v2 SLD PDF gets a title block, RUSH stamp pilot rendered for PROJ-32115, Vercel previews un...
@@ -291,7 +291,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (8bb365b): 39 ahead of main
+    - feat/planset-v8-layouts (90c59bc): 40 ahead of main, 1 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main
