@@ -4,9 +4,9 @@
 **Last updated:** 2026-05-13 ~11:20 UTC (sld-v2 Phase 7a shipped — per-project use_sld_v2 column + 3-arg flag + SheetPV5 inline v2 swap, R1 B → R2 A)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **17 commits on origin (`8ae865e`); 3 commits ahead locally** (`c7e1c3a` close #998+#1006, `8b6cfc4` handoff refresh, `62eaff7` Phase 7a) — **NOT YET PUSHED.** Greg pre-authorized housekeeping + Phase 7a push at session pickup; batched for session-end push per `feedback_no_mid_session_push.md`.
-**Latest pushed commit:** `8ae865e` docs(planset): refresh handoff after Phase 6 R3 fix
-**Latest local commit:** `62eaff7` feat(sld-v2): Phase 7a — per-project use_sld_v2 column + 3-arg flag + SheetPV5 inline v2 swap
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `56ceba2` (origin matches; 0 commits ahead).** All Phase 7a work + the 2 stranded prior-session commits pushed in one batch at session end (Greg pre-authorized at plan-mode + AskUserQuestion). 4 new commits this session: `c7e1c3a` → `8b6cfc4` → `62eaff7` → `56ceba2`.
+**Latest commit (HEAD = origin):** `56ceba2` docs(planset): refresh handoff after Phase 7a ships
+**Phase 7a feature commit:** `62eaff7` feat(sld-v2): Phase 7a — per-project use_sld_v2 column + 3-arg flag + SheetPV5 inline v2 swap (7 files, +245 / -41)
 **Migration applied to prod:** 221 (`projects.use_sld_v2 boolean NOT NULL DEFAULT false`) — applied via MCP after migration-planner GO Grade A.
 
 ## Chain instruction (read this first, every session)
@@ -45,7 +45,7 @@ Started as a multi-session, multi-canvas effort to bring the MicroGRID planset g
 
 ### Phase 7a — production cutover infrastructure
 
-Commit `62eaff7` (NOT pushed). 7 files changed, +245 / -41. Migration applied via MCP.
+Commit `62eaff7` (pushed in this session's batch to `origin/feat/planset-v8-layouts`). 7 files changed, +245 / -41. Migration applied via MCP.
 
 **New / changed:**
 - `supabase/migrations/221-projects-use-sld-v2-column.sql` — `ALTER TABLE projects ADD COLUMN use_sld_v2 boolean NOT NULL DEFAULT false`. migration-planner GO Grade A; PG17 metadata-only path on 3,297 rows; RLS column-agnostic; rollback clean.
@@ -77,7 +77,7 @@ Commit `62eaff7` (NOT pushed). 7 files changed, +245 / -41. Migration applied vi
 
 ### Phase 6 — wire v2 to a real route, behind a flag
 
-Commit `2d826cb` (NOT pushed). 8 files changed, +328 / -11.
+Commit `2d826cb` (pushed by prior session via `8ae865e` at 09:50 UTC; now part of `origin/feat/planset-v8-layouts` history). 8 files changed, +328 / -11.
 
 **New:**
 - `lib/sld-v2/feature-flag.ts` — `shouldUseSldV2(searchParams)`. URL `?sld=v2` (case-insensitive value) OR env `SLD_V2_DEFAULT=1` flips it on. Off-by-default.
@@ -213,9 +213,9 @@ Commit `4acf3a9` · `__tests__/sld-v2/equipment.test.ts`
 ```bash
 cd ~/repos/MicroGRID-planset-phase1
 
-# Commit history check — should see 8a5df39 (Phase 5) at HEAD on origin
+# Commit history check — should see 56ceba2 (Phase 7a handoff) at HEAD on origin
 git log --oneline -14
-git log origin/feat/planset-v8-layouts --oneline -1   # should match 8a5df39
+git log origin/feat/planset-v8-layouts --oneline -1   # should match 56ceba2
 
 # Typecheck the whole worktree (v1 + v2 must coexist clean)
 npx tsc --noEmit
@@ -339,7 +339,7 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 
 ## Live state worth knowing
 
-- **Branch status**: `feat/planset-v8-layouts` **12 commits on origin, fully pushed** (Greg authorized 2026-05-13 09:50 UTC). The 12 in chronological order: r6-r8 v1 cleanup (`7fc76c2`), r9-r12 cleanup (`883c0ee`), Phase 0 (`3a6772f`), Phase 1.1 (`45fc446`), Phase 1.2 (`ac9a49f`), Phase 1.3 (`e354536`), Phase 2 (`5211656`), Phase 3 (`4a0602e`), Phase 4 (`b599231`), test fix (`4acf3a9`), chain handoff rewrite (`772b19d`), **Phase 5 (`8a5df39`)**.
+- **Branch status**: `feat/planset-v8-layouts` HEAD = `56ceba2`, **origin matches (0 commits ahead)**. The chain has now landed Phases 0 → 7a inclusive. Key SHAs by phase: Phase 0 (`3a6772f`), Phase 1.1 (`45fc446`), Phase 1.2 (`ac9a49f`), Phase 1.3 (`e354536`), Phase 2 (`5211656`), Phase 3 (`4a0602e`), Phase 4 (`b599231`), Phase 5 (`8a5df39`), Phase 6 (`2d826cb`), Phase 6 R3 fix (`9b39826`), Phase 6 close-out (`c7e1c3a`), **Phase 7a (`62eaff7`)**. Each phase has at least one trailing docs commit refreshing this handoff.
 - **Python**: `scripts/sld-collision-check.py` REQUIRES `/opt/homebrew/bin/python3.12`. System `python3.14` has a broken `pyexpat` binding from a libexpat ABI mismatch. Don't waste time debugging that.
 - **Port id convention (v2 only)**: `quadPorts(prefix)` now emits dot-format ids — `pv.N`, `pv.S`, `pv.E`, `pv.W`. Connections reference them directly: `Connection.from = "pv.E"`, `Connection.to = "rsd.W"`. ELK consumes these untouched.
 - **Routing path**: `lib/sld-layout.ts` still routes everything to v1 specs (`rush-spatial.json`, `legacy-string-mppt.json`, `sonnen-microinverter.json`). v2 path is reachable ONLY via the standalone harnesses (`scripts/render-sld-v2-*.tsx`) and the new Phase 5 `renderSldToPdf()` API. Phase 6 adds the production feature flag + the first real Next.js API route.
@@ -354,7 +354,7 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 
 (Read each `python3 ~/.claude/scripts/greg_actions.py show <id>` before working on it — pre-resolution gate per chain rule.)
 
-- **#1012 (P2, claimed Phase 7a)** — coordination row. Closes at Phase 7a session end after batch-push lands.
+- ~~#1012 (P2)~~ — closed 2026-05-13 16:21 UTC ("Phase 7a shipped, commits pushed, audits A/B/A").
 - **R1-M3 deferral (no action ID yet) — type-regen safety on `as Project` cast.** `route.ts:104` casts the Supabase row to `Project`. If `types/database.ts` is ever regenerated via `mcp__claude_ai_Supabase__generate_typescript_types` and the regeneration drops the hand-written `use_sld_v2` field, the route silently breaks. Current runtime is safe-by-default (strict `=== true` check), but the type-system regression is invisible. Phase 7b should either (a) add a runtime guard before the cast, (b) migrate to the fully-generated `Database['public']['Tables']['projects']['Row']` type, or (c) add a vitest fixture that asserts `Project` has `use_sld_v2`.
 - ~~#996 (P2)~~ — closed at Phase 7a pickup ("Phase 6 fully shipped, housekeeping complete pre-Phase-7a").
 - ~~#998 (P2)~~ — closed by prior session's `c7e1c3a` (cost-basis 500-leak now returns opaque message + correlation id).
