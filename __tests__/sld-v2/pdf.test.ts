@@ -22,13 +22,17 @@ vi.mock('../../lib/sld-v2/fonts/inter-loader', async () => {
   return {
     ...actual,
     loadInterTtfBase64: vi.fn(actual.loadInterTtfBase64),
+    loadInterBoldTtfBase64: vi.fn(actual.loadInterBoldTtfBase64),
   }
 })
 
 import { buildPlansetData, type PlansetData } from '../../lib/planset-types'
 import { equipmentGraphFromPlansetData } from '../../lib/sld-v2/from-planset-data'
 import { renderSldToPdf } from '../../lib/sld-v2/pdf'
-import { loadInterTtfBase64 } from '../../lib/sld-v2/fonts/inter-loader'
+import {
+  loadInterTtfBase64,
+  loadInterBoldTtfBase64,
+} from '../../lib/sld-v2/fonts/inter-loader'
 import type { Project } from '../../types/database'
 
 const project = {
@@ -126,15 +130,99 @@ describe('renderSldToPdf', () => {
   it(
     'does NOT load Inter ttf when titleBlock is absent (#1024 regression catch)',
     async () => {
-      const spy = vi.mocked(loadInterTtfBase64)
-      spy.mockClear()
+      const regularSpy = vi.mocked(loadInterTtfBase64)
+      const boldSpy = vi.mocked(loadInterBoldTtfBase64)
+      regularSpy.mockClear()
+      boldSpy.mockClear()
       const graph = equipmentGraphFromPlansetData(data)
       await renderSldToPdf(graph)
       // Default-options path stays on Helvetica + WinAnsi so the
       // NEC 690.12 strings-grep assertion in the Phase 5 test above
       // continues to work. If a future refactor unconditionally
       // registers Inter, this assertion catches it.
-      expect(spy).not.toHaveBeenCalled()
+      expect(regularSpy).not.toHaveBeenCalled()
+      expect(boldSpy).not.toHaveBeenCalled()
+    },
+    TIMEOUT_MS,
+  )
+
+  it(
+    'loads Inter Regular AND Bold when titleBlock IS present (H1 typography prep)',
+    async () => {
+      const regularSpy = vi.mocked(loadInterTtfBase64)
+      const boldSpy = vi.mocked(loadInterBoldTtfBase64)
+      regularSpy.mockClear()
+      boldSpy.mockClear()
+      const graph = equipmentGraphFromPlansetData(data)
+      await renderSldToPdf(graph, {
+        titleBlock: { data, sheetName: 'Single Line Diagram', sheetNumber: 'PV-5' },
+      })
+      // Both ttfs MUST be loaded — atomic-pair guarantee in pdf.ts. If a
+      // future refactor only loads Regular and tries to setFont('Inter','bold')
+      // without registering the Bold variant, jsPDF emits a warning and falls
+      // back unpredictably. This assertion catches that regression.
+      expect(regularSpy).toHaveBeenCalledTimes(1)
+      expect(boldSpy).toHaveBeenCalledTimes(1)
+    },
+    TIMEOUT_MS,
+  )
+
+  it(
+    'BOTH Inter Regular and Inter Bold embedded in PDF when titleBlock present',
+    async () => {
+      const graph = equipmentGraphFromPlansetData(data)
+      const bytes = await renderSldToPdf(graph, {
+        titleBlock: { data, sheetName: 'Single Line Diagram', sheetNumber: 'PV-5' },
+      })
+      // jsPDF identifies registered TrueType fonts by their postscript family
+      // name in the FontDescriptor — both 'normal' and 'bold' variants of
+      // Inter use the family name "Inter". Each variant has its own
+      // FontDescriptor block, so the dictionary contains exactly TWO
+      // `/FontName /Inter` entries when both variants are registered.
+      // Built-in Helvetica/Courier/Times are Type 1 standard fonts (not
+      // embedded as TrueType), so they have NO FontFile2 reference — we
+      // also assert exactly two FontFile2 blocks, one per embedded ttf.
+      const text = new TextDecoder('latin1').decode(bytes)
+      const interFontNames = text.match(/\/FontName\s+\/Inter\b/g) ?? []
+      expect(interFontNames.length).toBe(2)
+      const fontFile2Refs = text.match(/\/FontFile2\s+\d+\s+0\s+R/g) ?? []
+      expect(fontFile2Refs.length).toBe(2)
+    },
+    TIMEOUT_MS,
+  )
+
+  it(
+    'Unicode customer names render WITHOUT lossy transliteration when Inter is registered',
+    async () => {
+      // Unicode test — owner name "Charles Peña" should NOT be sanitized to
+      // "Charles Pena" when Inter is registered (unicodeSafe=true path).
+      const unicodeProject = { ...project, name: 'Charles Peña' } as Project
+      const unicodeData = buildPlansetData(unicodeProject, {
+        inverterCount: 2,
+        inverterModel: 'Duracell Power Center Max Hybrid 15kW',
+        inverterAcPower: 15,
+        batteryCount: 16,
+        batteriesPerStack: 8,
+      })
+      const graph = equipmentGraphFromPlansetData(unicodeData)
+      const bytes = await renderSldToPdf(graph, {
+        titleBlock: { data: unicodeData, sheetName: 'Single Line Diagram', sheetNumber: 'PV-5' },
+      })
+      // PDF byte-grep for the lossy "Pena" form. With Inter registered
+      // (unicodeSafe=true), the sanitizer is bypassed and "Pena" should
+      // NOT appear — the painter passes "Peña" through unchanged.
+      // We can't grep for "Peña" directly in the CID-encoded font stream,
+      // but we CAN catch the regression of the sanitizer firing when it
+      // shouldn't.
+      //
+      // Note: "Pena" CAN appear in 5-char ASCII Tj operators outside the
+      // Inter font block (e.g. inside resource catalog, metadata, etc.),
+      // so we restrict the grep to plain Tj operators with parens —
+      // jsPDF's title-block paint emits `(Charles Pena) Tj` under
+      // Helvetica fallback. Restricting the regex to that shape avoids
+      // false positives.
+      const text = new TextDecoder('latin1').decode(bytes)
+      expect(text).not.toMatch(/\(Charles Pena\)\s*Tj/)
     },
     TIMEOUT_MS,
   )

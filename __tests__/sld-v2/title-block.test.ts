@@ -1,17 +1,34 @@
-// Phase 7b — title-block paint regression tests.
+// Phase 7b — title-block paint regression tests (Helvetica fallback path).
 //
 // Locks in the R1-H1 fix (Helvetica WinAnsi can't render non-ASCII codepoints;
 // the painter transliterates common Latin diacritics + sanitizes via the
 // winAnsi() helper) and the R1-M1 fix (long values get width-clamped via
 // splitTextToSize instead of overflowing the 175pt sidebar).
 //
+// H1 typography prep — the Inter Bold pipeline ships a separate test file
+// (none yet — assertions live in pdf.test.ts). This file MOCKS the Inter
+// loader to return null so the renderer falls back to Helvetica + WinAnsi,
+// which is what the existing assertions assume (plain-ASCII Tj operators
+// grep-able from raw bytes). The fallback path is production-relevant when
+// the ttf files are missing or fail SHA verification.
+//
 // We exercise paintTitleBlock through the full renderSldToPdf pipeline (the
-// only legitimate caller) and inspect the resulting PDF byte stream. Text
-// content is held in the PDF as `(SomeString) Tj` operators because we use
-// Helvetica Type 1 WinAnsi encoding for the title block (not the embedded
-// Inter TrueType), so plain-ASCII grep on `strings`-style bytes works.
+// only legitimate caller) and inspect the resulting PDF byte stream.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+// Force Helvetica fallback for every render in this file. The Inter-active
+// path is validated in pdf.test.ts.
+vi.mock('../../lib/sld-v2/fonts/inter-loader', async () => {
+  const actual = await vi.importActual<
+    typeof import('../../lib/sld-v2/fonts/inter-loader')
+  >('../../lib/sld-v2/fonts/inter-loader')
+  return {
+    ...actual,
+    loadInterTtfBase64: vi.fn(() => Promise.resolve(null)),
+    loadInterBoldTtfBase64: vi.fn(() => Promise.resolve(null)),
+  }
+})
 
 import { buildPlansetData } from '../../lib/planset-types'
 import { equipmentGraphFromPlansetData } from '../../lib/sld-v2/from-planset-data'

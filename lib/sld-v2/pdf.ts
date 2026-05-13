@@ -27,7 +27,7 @@ import { placeLabels } from './labels'
 import type { EquipmentGraph } from './equipment'
 import type { PlansetData } from '../planset-types'
 import { paintTitleBlock, TITLE_BLOCK_WIDTH_PT } from './title-block'
-import { loadInterTtfBase64 } from './fonts/inter-loader'
+import { loadInterTtfBase64, loadInterBoldTtfBase64 } from './fonts/inter-loader'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Phase 5 — EquipmentGraph → SVG → DOM → svg2pdf → jsPDF → Uint8Array.
@@ -220,21 +220,45 @@ async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
       format: [pageWidthPt, pageHeightPt],
     })
 
-    // Phase 7b — register Inter ttf with jsPDF ONLY when a title block
-    // is requested. Inter registration switches embedded-text encoding
-    // from WinAnsi (Helvetica Type 1 standard, plain ASCII in PDF bytes)
-    // to TrueType-CID glyph codes — which breaks the `strings | grep`
-    // verification pattern that Phase 5's tests use to confirm NEC text
-    // is present. Title-block paint is the only reason to register a
-    // custom font; the SLD body's labels stay readable in Helvetica.
-    // If the ttf fails to load, fall back to Helvetica without crashing.
-    let fontName = 'helvetica'
+    // Phase 7b / H1 typography prep — register Inter ttf (Regular + Bold)
+    // with jsPDF ONLY when a title block is requested. Inter registration
+    // switches embedded-text encoding from WinAnsi (Helvetica Type 1
+    // standard, plain ASCII in PDF bytes) to TrueType-CID glyph codes —
+    // which breaks the `strings | grep` verification pattern Phase 5's
+    // tests use to confirm NEC text is present. Title-block paint is the
+    // only reason to register a custom font; the SLD body's labels stay
+    // readable in Helvetica when the title block is absent.
+    //
+    // ATOMIC GUARANTEE: we register Inter only when BOTH Regular and Bold
+    // load successfully. The title block has bold rows (labels, sheet
+    // name, sheet number); calling `doc.setFont('Inter', 'bold')` with
+    // only Regular registered emits a loud jsPDF warning and falls back
+    // unpredictably. If either ttf fails (ENOENT/EACCES/SHA mismatch),
+    // we skip Inter entirely and render the whole sheet in Helvetica with
+    // the WinAnsi sanitizer.
+    //
+    // When Inter IS registered, the title block runs through it (no
+    // sanitizer — full Unicode for customer names with accents like Peña)
+    // AND the SLD body's font-family resolution picks it up via svg2pdf.
+    let titleFontName = 'helvetica'
+    let titleUnicodeSafe = false
     if (titleBlock) {
-      const interB64 = await loadInterTtfBase64()
-      if (interB64) {
+      const [interB64, interBoldB64] = await Promise.all([
+        loadInterTtfBase64(),
+        loadInterBoldTtfBase64(),
+      ])
+      if (interB64 && interBoldB64) {
         pdf.addFileToVFS('Inter-Regular.ttf', interB64)
         pdf.addFont('Inter-Regular.ttf', 'Inter', 'normal')
-        fontName = 'Inter'
+        pdf.addFileToVFS('Inter-Bold.ttf', interBoldB64)
+        pdf.addFont('Inter-Bold.ttf', 'Inter', 'bold')
+        titleFontName = 'Inter'
+        titleUnicodeSafe = true
+      } else if (interB64) {
+        // Regular loaded but Bold didn't — log + fall back fully. Don't
+        // half-register because setFont('Inter','bold') would silently
+        // misrender. Loud warn matches the inter-loader philosophy.
+        console.warn('[sld-v2/pdf] Inter Bold ttf missing; rendering title block in Helvetica (full fallback)')
       }
     }
 
@@ -249,25 +273,21 @@ async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
     // renders on top of any clipping artifacts (svg2pdf occasionally
     // emits stray vectors at the SVG's right edge).
     //
-    // Title block stays on Helvetica regardless of `fontName` — Inter
-    // is registered as Regular only (Greg's pick), and jsPDF warns
-    // loudly when setFont('Inter', 'bold') has no registered variant.
-    // The title block has multiple bold rows (labels, sheet name,
-    // sheet number numeral) so it needs a font with native bold —
-    // Helvetica's Type 1 standard ships normal + bold built-in. The
-    // SLD body still gets Inter via the SVG font-family declaration
-    // (where svg2pdf resolves to the registered 'normal' variant).
+    // Title-block font is Inter (Regular + Bold) when both ttfs registered
+    // above; falls back to Helvetica + WinAnsi sanitizer when either ttf
+    // is missing. unicodeSafe=true tells the painter to skip the lossy
+    // sanitizer (Inter has full Unicode coverage) so customer names like
+    // "Peña" render correctly for RUSH-stamped output.
     if (titleBlock) {
       const tbX = pageWidthPt - marginPt - TITLE_BLOCK_WIDTH_PT
       const tbY = marginPt
       const tbW = TITLE_BLOCK_WIDTH_PT
       const tbH = pageHeightPt - marginPt * 2
-      paintTitleBlock(pdf, titleBlock, tbX, tbY, tbW, tbH)
+      paintTitleBlock(pdf, titleBlock, tbX, tbY, tbW, tbH, {
+        fontName: titleFontName,
+        unicodeSafe: titleUnicodeSafe,
+      })
     }
-    // Silence ESLint: fontName is read indirectly through svg2pdf's
-    // font-family resolution; the variable is intentionally retained
-    // for clarity but not directly used after Inter registration.
-    void fontName
 
     const buf = pdf.output('arraybuffer')
     return new Uint8Array(buf as ArrayBuffer)

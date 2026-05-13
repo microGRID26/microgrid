@@ -34,6 +34,18 @@ export interface TitleBlockData {
 interface PaintOptions {
   /** Font family registered with jsPDF for body text. Defaults to 'helvetica'. */
   fontName?: string
+  /**
+   * When true, the painter trusts the font (typically 'Inter' with both
+   * Regular + Bold registered) to handle Unicode codepoints natively and
+   * skips the lossy WinAnsi transliteration. When false (or omitted), the
+   * painter applies `winAnsi()` to every string so Helvetica Type 1
+   * doesn't emit broken glyphs for accents, smart-quotes, em-dashes, etc.
+   *
+   * Set by `pdf.ts` based on whether Inter Regular + Bold both registered
+   * successfully. RUSH-stamped output ideally goes through the
+   * unicodeSafe=true branch so customer names like "Peña" render correctly.
+   */
+  unicodeSafe?: boolean
 }
 
 // Row heights in pt — sum to 720 (default sidebar height = page 792 − 2×36 margin).
@@ -125,6 +137,13 @@ interface RowCtx {
   y: number
   width: number
   height: number
+  /**
+   * Per-render sanitizer. When `unicodeSafe=true` is passed to paintTitleBlock,
+   * this is the identity (null → ''); when false, it's `winAnsi()`. Bound at
+   * paint time and threaded through every row so render correctness is
+   * deterministic regardless of font choice.
+   */
+  sanitize: (s: string | null | undefined) => string
 }
 
 function drawRowSeparator(ctx: RowCtx): void {
@@ -135,21 +154,21 @@ function drawRowSeparator(ctx: RowCtx): void {
 }
 
 function drawLabel(ctx: RowCtx, text: string): void {
-  const { doc, font, x, y } = ctx
+  const { doc, font, x, y, sanitize } = ctx
   doc.setFont(font, 'bold')
   doc.setFontSize(LABEL_SIZE_PT)
   doc.setTextColor(...LABEL_GRAY)
   // Letter-spacing approximation: jsPDF doesn't support tracking directly;
   // the uppercase + bold + 4.5pt rendering reads as a label even without
   // explicit tracking. Matches the v1 visual hierarchy well enough for RUSH.
-  doc.text(winAnsi(text.toUpperCase()), x + PAD_X, y + PAD_Y_LABEL)
+  doc.text(sanitize(text.toUpperCase()), x + PAD_X, y + PAD_Y_LABEL)
 }
 
 function drawValueLines(
   ctx: RowCtx,
   lines: Array<{ text: string; bold?: boolean; size?: number; color?: [number, number, number] }>,
 ): void {
-  const { doc, font, x, y, width } = ctx
+  const { doc, font, x, y, width, sanitize } = ctx
   // R1-M1 fix — width-clamp values via splitTextToSize so long values
   // (long addresses, long contractor names) don't overflow the 175pt
   // sidebar into the SLD body. Inner width = sidebar - 2 × side padding.
@@ -159,7 +178,7 @@ function drawValueLines(
     doc.setFont(font, line.bold ? 'bold' : 'normal')
     doc.setFontSize(line.size ?? VALUE_SIZE_PT)
     doc.setTextColor(...(line.color ?? VALUE_NEAR_BLACK))
-    const wrapped = doc.splitTextToSize(winAnsi(line.text), innerWidth) as string[]
+    const wrapped = doc.splitTextToSize(sanitize(line.text), innerWidth) as string[]
     for (const segment of wrapped) {
       doc.text(segment, x + PAD_X, cursorY)
       cursorY += LINE_GAP
@@ -197,6 +216,14 @@ export function paintTitleBlock(
   opts: PaintOptions = {},
 ): void {
   const font = opts.fontName ?? 'helvetica'
+  // When unicodeSafe=true (font has full Unicode coverage — typically
+  // Inter Regular + Bold), skip the lossy WinAnsi transliteration so
+  // "Peña" stays "Peña" instead of becoming "Pena". When false, the
+  // sanitizer protects Helvetica Type 1 from glyph corruption on
+  // accents, smart-quotes, em-dashes, etc.
+  const sanitize: (s: string | null | undefined) => string = opts.unicodeSafe
+    ? (s) => (s == null ? '' : s)
+    : winAnsi
   const { data, sheetName, sheetNumber } = tb
 
   // Default-fill optional PlansetData fields (mirror v1's `??` fallbacks at
@@ -220,7 +247,7 @@ export function paintTitleBlock(
   let cursorY = y
 
   // ── Row 1 — CONTRACTOR ─────────────────────────────────────────────
-  const row1: RowCtx = { doc, font, x, y: cursorY, width, height: ROW_HEIGHTS.contractor }
+  const row1: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.contractor }
   drawLabel(row1, 'Contractor')
   drawValueLines(row1, [
     { text: data.contractor.name, bold: true },
@@ -233,7 +260,7 @@ export function paintTitleBlock(
   cursorY += ROW_HEIGHTS.contractor
 
   // ── Row 2 — PROJECT NAME & ADDRESS ────────────────────────────────
-  const row2: RowCtx = { doc, font, x, y: cursorY, width, height: ROW_HEIGHTS.project }
+  const row2: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.project }
   drawLabel(row2, 'Project Name & Address')
   drawValueLines(row2, [
     { text: data.owner ?? '—', bold: true },
@@ -245,7 +272,7 @@ export function paintTitleBlock(
   cursorY += ROW_HEIGHTS.project
 
   // ── Row 3 — ENGINEER'S STAMP (1.7" fixed) ─────────────────────────
-  const row3: RowCtx = { doc, font, x, y: cursorY, width, height: ROW_HEIGHTS.stamp }
+  const row3: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.stamp }
   drawLabel(row3, "Engineer's Stamp")
   // Dashed placeholder rectangle for the PE seal area.
   const stampInsetX = x + PAD_X
@@ -261,28 +288,28 @@ export function paintTitleBlock(
   doc.setFont(font, 'normal')
   doc.setFontSize(5.5)
   // Centered placeholder text.
-  const placeholderText = winAnsi('PE STAMP AREA')
+  const placeholderText = sanitize('PE STAMP AREA')
   const ptWidth = doc.getTextWidth(placeholderText)
   doc.text(placeholderText, stampInsetX + (stampW - ptWidth) / 2, stampInsetY + stampH / 2 + 2)
   drawRowSeparator(row3)
   cursorY += ROW_HEIGHTS.stamp
 
   // ── Row 4 — DRAWN DATE ─────────────────────────────────────────────
-  const row4: RowCtx = { doc, font, x, y: cursorY, width, height: ROW_HEIGHTS.drawnDate }
+  const row4: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.drawnDate }
   drawLabel(row4, 'Drawn Date')
   drawValueLines(row4, [{ text: data.drawnDate ?? '—' }])
   drawRowSeparator(row4)
   cursorY += ROW_HEIGHTS.drawnDate
 
   // ── Row 5 — DRAWN BY ──────────────────────────────────────────────
-  const row5: RowCtx = { doc, font, x, y: cursorY, width, height: ROW_HEIGHTS.drawnBy }
+  const row5: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.drawnBy }
   drawLabel(row5, 'Drawn By')
   drawValueLines(row5, [{ text: drawnBy }])
   drawRowSeparator(row5)
   cursorY += ROW_HEIGHTS.drawnBy
 
   // ── Row 6 — REVISION ──────────────────────────────────────────────
-  const row6: RowCtx = { doc, font, x, y: cursorY, width, height: ROW_HEIGHTS.revision }
+  const row6: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.revision }
   drawLabel(row6, 'Revision')
   const revLines: Array<{ text: string; size?: number; color?: [number, number, number] }> = [
     { text: `REV ${latestRev.rev}  ·  ${latestRev.date}` },
@@ -295,21 +322,21 @@ export function paintTitleBlock(
   cursorY += ROW_HEIGHTS.revision
 
   // ── Row 7 — SHEET SIZE ────────────────────────────────────────────
-  const row7: RowCtx = { doc, font, x, y: cursorY, width, height: ROW_HEIGHTS.sheetSize }
+  const row7: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.sheetSize }
   drawLabel(row7, 'Sheet Size')
   drawValueLines(row7, [{ text: sheetSize }])
   drawRowSeparator(row7)
   cursorY += ROW_HEIGHTS.sheetSize
 
   // ── Row 8 — AHJ ───────────────────────────────────────────────────
-  const row8: RowCtx = { doc, font, x, y: cursorY, width, height: ROW_HEIGHTS.ahj }
+  const row8: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.ahj }
   drawLabel(row8, 'AHJ')
   drawValueLines(row8, [{ text: data.ahj || '—' }])
   drawRowSeparator(row8)
   cursorY += ROW_HEIGHTS.ahj
 
   // ── Row 9 — SHEET NAME (uppercase, slightly larger) ───────────────
-  const row9: RowCtx = { doc, font, x, y: cursorY, width, height: ROW_HEIGHTS.sheetName }
+  const row9: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.sheetName }
   drawLabel(row9, 'Sheet Name')
   drawValueLines(row9, [
     { text: sheetName.toUpperCase(), bold: true, size: SHEET_NAME_SIZE_PT },
@@ -326,18 +353,18 @@ export function paintTitleBlock(
   doc.setFont(font, 'bold')
   doc.setFontSize(LABEL_SIZE_PT)
   doc.setTextColor(...SHEET_NUMBER_GRAY_LABEL)
-  doc.text(winAnsi('SHEET NUMBER'), x + PAD_X + 4, cursorY + 14)
-  // Large numeral. WinAnsi-sanitize even though the typical value is
-  // 'PV-5' (pure ASCII) — defensive in case a future caller passes
-  // a Unicode glyph in the sheet number.
-  const safeNumber = winAnsi(sheetNumber)
+  doc.text(sanitize('SHEET NUMBER'), x + PAD_X + 4, cursorY + 14)
+  // Large numeral. Sanitize even though the typical value is 'PV-5'
+  // (pure ASCII) — defensive in case a future caller passes a Unicode
+  // glyph in the sheet number (and harmless under unicodeSafe).
+  const safeNumber = sanitize(sheetNumber)
   doc.setFont(font, 'bold')
   doc.setFontSize(SHEET_NUMBER_SIZE_PT)
   doc.setTextColor(255, 255, 255)
   doc.text(safeNumber, x + PAD_X + 4, cursorY + row10Height / 2 + 14)
   // "of N" small.
   const sheetTotalRaw = (data as PlansetData & { sheetTotal?: string | number }).sheetTotal
-  const sheetTotal = sheetTotalRaw != null ? winAnsi(String(sheetTotalRaw)) : ''
+  const sheetTotal = sheetTotalRaw != null ? sanitize(String(sheetTotalRaw)) : ''
   if (sheetTotal) {
     doc.setFont(font, 'normal')
     doc.setFontSize(SHEET_OF_SIZE_PT)
