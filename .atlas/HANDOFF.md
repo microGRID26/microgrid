@@ -1,12 +1,13 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-13 ~10:15 UTC (sld-v2 Phase 6 shipped — feature flag + nodeOverrides + v2 PDF route, R1 B → R2 A)
+**Last updated:** 2026-05-13 ~11:20 UTC (sld-v2 Phase 7a shipped — per-project use_sld_v2 column + 3-arg flag + SheetPV5 inline v2 swap, R1 B → R2 A)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **17 commits on origin (8ae865e); 1 commit ahead locally** (`c7e1c3a` close #998+#1006) — **NOT YET PUSHED.** Greg per CLAUDE.md must explicitly authorize.
+**Branch:** `feat/planset-v8-layouts` — **17 commits on origin (`8ae865e`); 3 commits ahead locally** (`c7e1c3a` close #998+#1006, `8b6cfc4` handoff refresh, `62eaff7` Phase 7a) — **NOT YET PUSHED.** Greg pre-authorized housekeeping + Phase 7a push at session pickup; batched for session-end push per `feedback_no_mid_session_push.md`.
 **Latest pushed commit:** `8ae865e` docs(planset): refresh handoff after Phase 6 R3 fix
-**Latest local commit:** `c7e1c3a` fix: close #998 (cost-basis 500-leak) + #1006 (sld-v2 wire-label overdrawn by parallel conductors)
+**Latest local commit:** `62eaff7` feat(sld-v2): Phase 7a — per-project use_sld_v2 column + 3-arg flag + SheetPV5 inline v2 swap
+**Migration applied to prod:** 221 (`projects.use_sld_v2 boolean NOT NULL DEFAULT false`) — applied via MCP after migration-planner GO Grade A.
 
 ## Chain instruction (read this first, every session)
 
@@ -40,7 +41,39 @@ Started as a multi-session, multi-canvas effort to bring the MicroGRID planset g
 
 **Plan doc**: `~/.claude/plans/smooth-mixing-milner.md` (Greg approved 2026-05-12)
 
-## ✅ Shipped this session (2026-05-13, Phase 6 — feature flag + nodeOverrides + v2 PDF route)
+## ✅ Shipped this session (2026-05-13, Phase 7a — per-project use_sld_v2 + 3-arg flag + SheetPV5 inline v2 swap)
+
+### Phase 7a — production cutover infrastructure
+
+Commit `62eaff7` (NOT pushed). 7 files changed, +245 / -41. Migration applied via MCP.
+
+**New / changed:**
+- `supabase/migrations/221-projects-use-sld-v2-column.sql` — `ALTER TABLE projects ADD COLUMN use_sld_v2 boolean NOT NULL DEFAULT false`. migration-planner GO Grade A; PG17 metadata-only path on 3,297 rows; RLS column-agnostic; rollback clean.
+- `types/database.ts` — `Project.use_sld_v2?: boolean` added to the hand-written interface (line 76-83). Generated `Tables.projects.Row` aliases to `Project`, so the field propagates without re-running `generate_typescript_types`.
+- `lib/sld-v2/feature-flag.ts` — `shouldUseSldV2(searchParams, project?)` 2-arg promotion. Eval order: URL `?sld=v2` (testing) → env `SLD_V2_DEFAULT=1` (preview/dev) → `project?.use_sld_v2 === true` (production rollout). Strict-equality on the project check means null/undefined/missing column all fall through to false — safe-by-default on type drift.
+- `app/api/sld/v2/[projectId]/route.ts` — reordered: auth → role → rate-limit → load project → 3-arg flag check. `respond404OrAuthError` helper does dual-response on auth/role failures: 404 when URL+env both off (preserves Phase 6 invisibility), 401/403 when URL or env on (caller is intentionally probing). Stripped the hardcoded `{ inverterCount: 2, inverterModel: 'Duracell Power Center Max Hybrid 15kW', ... }` — verified byte-identical to `DURACELL_DEFAULTS` in `lib/planset-types.ts:121`, so `buildPlansetData(proj)` produces the same output.
+- `components/planset/SheetPV5.tsx` — props expanded to `{data, useSldV2?, layoutV2?}`. Early-return v2 path renders `<SldRendererV2 layout={layoutV2} />` instead of the v1 `calculateSldLayout` → `<SldRenderer>` chain. V1 path identical to Phase 6. Still wrapped in `memo()`.
+- `app/planset/page.tsx` — new state `useSldV2` (boolean) + `layoutV2` (LayoutResult | undefined). `loadProject` + `rebuildData` both call `setUseSldV2(Boolean(project.use_sld_v2))`. New `useEffect([data, useSldV2])` computes `layoutEquipmentGraph(equipmentGraphFromPlansetData(data))` async; **R1-H1 fix:** `lastSldV2GraphHashRef` short-circuits the elkjs call when the graph stringify is unchanged, preserving SheetPV5's memo() on autosave/debounce/no-op edits. Cancelled-flag handles races. Error path falls back to v1 silently (console.error only).
+- `__tests__/sld-v2/feature-flag.test.ts` — 3 → 9 tests (+6 net). Coverage: project flag on/off/null/undefined/{}, URL-wins-over-project, env-wins-over-project, uppercase `?sld=V2` (R1-M4), trailing-space `?sld=v2 ` (false, documents no-trim).
+
+### R1 (red-teamer) — Phase 7a surface
+**Grade B (0C / 1H / 3M / 2L).** All folded inline before R2. No deferrals beyond M3 type-regen note (current runtime is safe-by-default).
+- H1 — memo break: `layoutV2` ref churned on every `data` rebuild because elkjs returns a fresh object. Fix: JSON-stringify hash of the equipment graph short-circuits the call when semantically unchanged.
+- M1 — Phase 5 R1-M6 topology-gate comment misleading post-override-strip. Re-worded to point at `DURACELL_DEFAULTS`.
+- M2 — R1-M4 case-insensitive contract not exercised by tests. Added `?sld=V2` (true) + `?sld=v2 ` (false) cases.
+- M3 — `as Project` cast at route line 104 will hide future regression if types regenerated without the column. Current runtime is safe (strict `=== true` check). Documented in Open follow-ups as a Phase 7b-or-later type-safety hardening item.
+- L1 — RLS posture verified clean (no SECURITY DEFINER RPC + no anon path leaks the column). Informational.
+- L2 — cancelled-flag race verified sound. Informational.
+
+### R2 (verify) — Phase 7a
+**Grade A.** typecheck exit=0; sld-v2 tests **50 → 56 pass (+6)**; chain test baseline diff vs `8a5df3949028` returns `NEW_FAIL=0 STILL_FAIL=16` (pre-existing v1 failures unchanged).
+
+### Pre-Phase-7a housekeeping (Greg authorized at pickup)
+- `c7e1c3a` (close #998 cost-basis 500-leak + #1006 wire-label overdrawn) and `8b6cfc4` (handoff refresh) committed by the prior session were stranded local-only. Pushed alongside Phase 7a at session end (override marker; Greg authorized via AskUserQuestion at plan-mode pickup).
+- Greg actions #996 closed ("Phase 6 fully shipped, housekeeping complete pre-Phase-7a"). #1012 filed for Phase 7a coordination, claimed, will close at session end.
+
+### Older history below (Phase 6 — feature flag + nodeOverrides + v2 PDF route)
+## ✅ Shipped 2026-05-13 ~10:15 UTC, Phase 6 — feature flag + nodeOverrides + v2 PDF route
 
 ### Phase 6 — wire v2 to a real route, behind a flag
 
@@ -232,7 +265,13 @@ Staged screenshots on Desktop:
 - `~/Desktop/sld-v2-from-planset.png` — End-to-end PlansetData pipeline
 - `~/Desktop/duracell-pv5-r12.png` — v1 final hand-positioned baseline (for PROJ-26922 PDF-edit path)
 
-## Spec deltas discovered this session (Phase 5)
+## Spec deltas discovered this session (Phase 7a)
+
+One delta — the planset page's async-lift constraint:
+
+- **`app/planset/page.tsx` is `'use client'`.** The plan assumed the parent could be a server component and `await` the elkjs layout inline. Reality is the parent is client-side (because of ZoomToolbar / OverridesPanel / interactive editing), so the async lift had to use `useEffect` + `useState<LayoutResult>` instead of server-await. Phase 7a's implementation does this with a graph-hash short-circuit (R1-H1 fix) so the memo() contract on SheetPV5 holds. Phase 7b should be aware: if a future renderer or shape needs to be computed async + passed down to a sheet, the `useEffect([data, useSldV2])` + `lastSldV2GraphHashRef` pattern is the established shape on this page.
+
+## Older spec deltas — Phase 5
 
 Four deltas, all caught by the pre-flight reviewer BEFORE code shipped and folded into the plan inline:
 
@@ -243,7 +282,15 @@ Four deltas, all caught by the pre-flight reviewer BEFORE code shipped and folde
 
 ## Test baseline
 
-Captured via `chain_test_baseline.py capture` against this session's final commit `8a5df39`:
+Captured via `chain_test_baseline.py capture` against this session's final commit `62eaff7`:
+- **3871 tests pass, 16 fail, 0 skipped** (Phase 7a HEAD)
+- Cached at `~/.claude/data/chain_test_baselines/MicroGRID-planset-phase1-62eaff70109f-vitest.json`
+
+Phase 7a diff vs the Phase 5 baseline (`8a5df3949028`): NEW_FAIL=0, STILL_FAIL=16, all 6 new sld-v2 tests pass. Phase 6 added ~10 tests (sld-v2 grew 46 → 50 + others), Phase 7a added 6 (sld-v2 50 → 56), for a cumulative +16 since the Phase 5 baseline.
+
+### Older baseline — Phase 5
+
+Captured against Phase 5's final commit `8a5df39`:
 - **3855 tests pass, 16 fail, 0 skipped** (164 test files)
 - Cached at `~/.claude/data/chain_test_baselines/MicroGRID-planset-phase1-8a5df3949028-vitest.json`
 
@@ -269,10 +316,16 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 - ✅ Phase 3 — Label slot picker + leader callouts + bbox-aware wire labels
 - ✅ Phase 4 — PlansetData adapter (11 tests)
 - ✅ Phase 5 — SVG → PDF export (`lib/sld-v2/pdf.ts`) — 2026-05-13 09:35 UTC
-- ✅ **Phase 6 — feature-flag + nodeOverrides + `/api/sld/v2/[projectId]` route — 2026-05-13 10:15 UTC**
-- ☐ Phase 7 — Migrate PV-5 production path to v2 + RUSH stamp validation
+- ✅ Phase 6 — feature-flag + nodeOverrides + `/api/sld/v2/[projectId]` route — 2026-05-13 10:15 UTC
+- ✅ **Phase 7a — per-project use_sld_v2 column + 3-arg flag + SheetPV5 inline v2 swap — 2026-05-13 11:20 UTC**
+- ☐ Phase 7b — Title block + Inter ttf + ESLint no-restricted-imports rule + Tyson-temp cleanup + RUSH stamp pilot pick
 - ☐ Phase 7.x — Fill `StringInverterBox` / `MicroInverterBox` / `EVChargerBox` (deferred kinds)
 - ☐ PROJ-26922 stamp unblock — PDF-edit r12 hand-tweak (Atlas-side, not blocked by v2)
+
+## Audit gates (Phase 7a)
+- Pre-apply (migration-planner, migration 221): **GO Grade A** (0C / 0H / 0M / 1L) — 1 Low was a planning-accuracy note (brief overstated row count: said 50k, actual 3,297). PG17 metadata-only path; RLS column-agnostic; rollback clean. Applied via Supabase MCP after GO.
+- R1 (red-teamer, shipped code): **B** (0C / 1H / 3M / 2L) — all folded inline (H1: memo break via graph-hash short-circuit; M1: stale topology-gate comment; M2: case-insensitive contract tests; M3: type-regen safety documented in Open follow-ups; L1/L2: informational). Deferred: M3 type-regen hardening → Phase 7b.
+- R2 (verify, post-fix): **A** (typecheck=0 + 56/56 sld-v2 vitest + baseline diff NEW_FAIL=0)
 
 ## Audit gates (Phase 6)
 - R1 (red-teamer, shipped code): **B** (0C / 1H / 4M / 4L) — all folded inline (H1: opaque 500; M1: resolve+prefix check; M2: schema validation incl. null-proto + finite-number coords; M3: page-count regex anchored to `>>`; M4: lowercase URL value compare; L4 tighten: NEC ≥1 separator). Deferred: L1/L2/L3 (ESLint enforcement → Phase 7), cost-basis sibling 500-leak → action #998.
@@ -301,43 +354,59 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 
 (Read each `python3 ~/.claude/scripts/greg_actions.py show <id>` before working on it — pre-resolution gate per chain rule.)
 
-- **#996 (P2, claimed Phase 6)** — coordination row. Closes when Phase 6 is signed off and Phase 7 starts. Greg, this can be closed any time you're satisfied with the Phase 6 work.
-- ~~#998 (P2)~~ — closed by `c7e1c3a` (cost-basis PDF route now returns opaque message + correlation id, mirrors Phase 6 R1-H1 fix shape).
-- ~~#1006 (P2)~~ — closed by `c7e1c3a` (`midpoint()` avoidance set extended to other-edge segments + placed labels; `SldRenderer` rewritten to two-pass — all polylines first, then all wire labels — so cross-edge overdraw is structurally impossible).
-
-**Note:** `c7e1c3a` is local-only; visual confirmation via `http://localhost:59834` while the brainstorm server lives. Greg viewed it at session-end. Push pending.
+- **#1012 (P2, claimed Phase 7a)** — coordination row. Closes at Phase 7a session end after batch-push lands.
+- **R1-M3 deferral (no action ID yet) — type-regen safety on `as Project` cast.** `route.ts:104` casts the Supabase row to `Project`. If `types/database.ts` is ever regenerated via `mcp__claude_ai_Supabase__generate_typescript_types` and the regeneration drops the hand-written `use_sld_v2` field, the route silently breaks. Current runtime is safe-by-default (strict `=== true` check), but the type-system regression is invisible. Phase 7b should either (a) add a runtime guard before the cast, (b) migrate to the fully-generated `Database['public']['Tables']['projects']['Row']` type, or (c) add a vitest fixture that asserts `Project` has `use_sld_v2`.
+- ~~#996 (P2)~~ — closed at Phase 7a pickup ("Phase 6 fully shipped, housekeeping complete pre-Phase-7a").
+- ~~#998 (P2)~~ — closed by prior session's `c7e1c3a` (cost-basis 500-leak now returns opaque message + correlation id).
+- ~~#1006 (P2)~~ — closed by prior session's `c7e1c3a` (`midpoint()` avoidance + two-pass renderer eliminates cross-edge label overdraw).
 
 ## Next phase to pick up
 
-### ⬅ Phase 7 (next session) — PV-5 production migration
+### ⬅ Phase 7b (next session) — drafting-quality polish + RUSH stamp pilot
+
+Phase 7a shipped the per-project cutover infrastructure. Phase 7b finishes the v2 PDF into RUSH-stamp-ready shape and sends the first one for stamp.
 
 **Decisions Greg must answer before this phase starts:**
 
-1. **Cutover strategy — atomic or feature-flag-by-project?**
-   - (a) Flip `SLD_V2_DEFAULT=1` env-wide in one Vercel deploy. Every PV-5 sheet starts using v2.
-   - (b) Promote Phase 6's `shouldUseSldV2` to a 3-arg version that also reads a `projects.use_sld_v2 boolean` column. Cut over project-by-project.
-   - **Default: (b)** — adds a column-add migration but keeps blast radius small. Phase 7 needs to ship the migration AND retrofit Phase 6's `feature-flag.ts`.
+1. **RUSH stamp pilot project — pick one.**
+   - The deferred decision from Phase 7. v2 is now wired end-to-end (PDF route + inline SheetPV5 render); Phase 7b will flip `use_sld_v2=true` on a live project, regenerate, and ship to RUSH.
+   - Candidates: pick any active project that needs a stamp soon. PROJ-26922 (Tyson) is reserved for the v1 PDF-edit path so RUSH doesn't see two outputs for the same job — don't pick Tyson.
+   - **No default** — Greg picks.
 
-2. **Where does PV-5 actually call into the renderer today?**
-   - The planset page renders the SLD inline (HTML/SVG) — it does NOT fetch the PDF route. Phase 7 must decide: does PV-5 swap to an iframe pointing at `/api/sld/v2/[id]?sld=v2`, or do we add a parallel `renderSldHtmlV2` for the in-page render?
-   - **No default** — needs Greg to look at the sheet UX and call it. Live state worth reading: `components/planset/SheetPV5.tsx` + wherever it consumes `calculateSldLayout`.
+2. **Title block — match v1 `TitleBlockHtml` exactly, or new design?**
+   - v1 renders a 2.5"×10.5" right-column title block per `SheetPV5.tsx:170`. v2 currently inherits it (the v2 early-return in Phase 7a keeps the same outer chrome).
+   - For the PDF route (`renderSldToPdf` in `lib/sld-v2/pdf.ts`), there's no title block today — the PDF is single-page SLD-only. Phase 7b should paint one inside `renderSldToPdf` using jsPDF text() calls.
+   - (a) Mirror `TitleBlockHtml` layout in the PDF — same fields, same proportions. Predictable for RUSH.
+   - (b) Design a new title block tuned for the v2 PDF page (1224×792 pt, landscape) — extra room for NEC notes box.
+   - **Default: (a)** — match v1 first; iterate after RUSH feedback.
 
-3. **RUSH stamp pilot — which project?**
-   - Phase 7 will send a v2-generated PV-5 PDF to RUSH for stamp. Which live project should be the pilot? PROJ-26922 (Tyson, the original reference) was reserved for the v1 PDF-edit unblock path; using it for v2 too means RUSH sees two outputs.
-   - **No default** — Greg picks once Phase 7 starts.
+3. **Inter ttf bundling — single weight or family?**
+   - Phase 5's `rewriteFontFamily` declares `font-family: 'Inter, Helvetica, sans-serif'` in every text element. Phase 7b registers Inter with jsPDF via `addFont()`.
+   - (a) Bundle Inter Regular only (~340 KB ttf). Bold/italic fall back to Helvetica.
+   - (b) Bundle Inter Regular + Bold (~680 KB). Title block can use Bold for headings.
+   - **Default: (a)** — Regular only; revisit if RUSH dings the typography hierarchy.
+
+4. **ESLint `no-restricted-imports` rule on `renderSldToPdf` — strict or warn?**
+   - Phase 6 R1-L3 deferral: prevent `renderSldToPdf` import from anywhere except `app/api/sld/v2/**/route.ts`. Prevents accidental bundle-leak (server-only + jsdom + canvas drag-in to client).
+   - (a) `error` severity — block the build.
+   - (b) `warn` severity — surface but don't gate.
+   - **Default: (a)** error — server-only invariant is load-bearing for bundle size.
 
 **Phase work:**
 
-- Land Decision 1 — promote `lib/sld-v2/feature-flag.ts` to a 3-arg call AND add the column migration if (b) chosen. Update `app/api/sld/v2/[projectId]/route.ts` to pass the project row to `shouldUseSldV2`.
-- Replace the hardcoded Duracell-hybrid `buildPlansetData` overrides in `app/api/sld/v2/[projectId]/route.ts` with real per-project options from the project row.
-- Add the title block + NEC notes box to the PDF inside `renderSldToPdf` (the `graph.notes` array already exists from Phase 4; just paint it).
-- Register Inter ttf via `jsPDF.addFont()` — Phase 5 already rewrites font-family to `'Inter, Helvetica, sans-serif'` so the registration alone switches the rendered font.
-- Fill the 3 deferred equipment kinds (`StringInverterBox`, `MicroInverterBox`, `EVChargerBox`) when their first live project hits.
-- Wire PV-5 sheet to the v2 path per Decision 2.
-- ESLint `no-restricted-imports` rule on `renderSldToPdf` paths from anywhere under `app/**` that isn't a route.ts (Phase 6 R1-L3 deferral).
-- Send v2 PV-5 to RUSH; iterate on any redraw deltas.
+- Land Decision 1 — pick pilot project, flip `use_sld_v2=true` in the dashboard.
+- Land Decision 2/3 — title block paint inside `renderSldToPdf`; Inter ttf at `lib/sld-v2/fonts/Inter-Regular.ttf` (+ Bold if 3b chosen); `jsPDF.addFont()` registration.
+- Land Decision 4 — ESLint rule at `.eslintrc.json` (or `eslint.config.js`).
+- Paint `graph.notes` (NEC compliance warnings emitted by Phase 4 adapter) into the notes box alongside the title block.
+- Remove `__TYSON_OVERRIDES_TEMP` from `lib/planset-types.ts:589-591` if PROJ-26922's v1 path is no longer needed.
+- Run the pilot through RUSH stamp. Iterate on redraw deltas.
+- Handle R1-M3 type-regen safety (above) — pick (a)/(b)/(c) and ship.
 
-**Estimated effort:** 3-5 days.
+**Estimated effort:** 2-3 days, mostly typography iteration + RUSH-feedback round.
+
+### ⬅ Phase 7.x (deferred — not blocking) — missing equipment kinds
+
+- Fill `StringInverterBox` / `MicroInverterBox` / `EVChargerBox` when the first live non-Duracell project hits the v2 path (`isDuracellHybrid` gate at route line 108 will 422 until then).
 
 ## Specific gotchas for the next operator
 
