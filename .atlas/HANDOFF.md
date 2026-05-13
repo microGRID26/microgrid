@@ -1,12 +1,12 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-13 ~09:50 UTC (sld-v2 Phase 5 shipped + pushed — SVG → PDF export with R1 fixes folded in)
+**Last updated:** 2026-05-13 ~10:15 UTC (sld-v2 Phase 6 shipped — feature flag + nodeOverrides + v2 PDF route, R1 B → R2 A)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **12 commits on origin, fully pushed** (Greg authorized push 2026-05-13 09:50 UTC)
+**Branch:** `feat/planset-v8-layouts` — **12 commits on origin (8a5df39); 2 commits ahead locally** (`91aea6b` handoff refresh + `2d826cb` Phase 6) — **NOT YET PUSHED.** Greg per CLAUDE.md must explicitly authorize the push.
 **Latest pushed commit:** `8a5df39` feat(sld-v2): SVG → PDF export — Phase 5 lands
-**Latest local commit:** `8a5df39` (matches origin — tree clean except for the untracked `scripts/__pycache__/` + visual-companion `.superpowers/brainstorm/` runtime files)
+**Latest local commit:** `2d826cb` feat(sld-v2): Phase 6 — feature-flag + nodeOverrides + v2 PDF route
 
 ## Chain instruction (read this first, every session)
 
@@ -40,7 +40,43 @@ Started as a multi-session, multi-canvas effort to bring the MicroGRID planset g
 
 **Plan doc**: `~/.claude/plans/smooth-mixing-milner.md` (Greg approved 2026-05-12)
 
-## ✅ Shipped this session (2026-05-13, Phase 5 — SVG → PDF export)
+## ✅ Shipped this session (2026-05-13, Phase 6 — feature flag + nodeOverrides + v2 PDF route)
+
+### Phase 6 — wire v2 to a real route, behind a flag
+
+Commit `2d826cb` (NOT pushed). 8 files changed, +328 / -11.
+
+**New:**
+- `lib/sld-v2/feature-flag.ts` — `shouldUseSldV2(searchParams)`. URL `?sld=v2` (case-insensitive value) OR env `SLD_V2_DEFAULT=1` flips it on. Off-by-default.
+- `lib/sld-v2/overrides/loader.ts` — `loadNodeOverrides(projectId): Promise<NodeOverrides | undefined>`. Reads `lib/sld-v2/overrides/<id>.json`. Defenses: `SAFE_ID = /^[A-Za-z0-9_-]+$/` regex, `path.resolve` + prefix re-check (R1-M1), schema validation rejects `__proto__`/`constructor`/`prototype` keys + non-finite coords (R1-M2). Returns null-proto object.
+- `lib/sld-v2/overrides/PROJ-DEMO.json` — example overrides file. Shape: `{ version: 1, nodes: { "<id>": { x, y } } }`.
+- `app/api/sld/v2/[projectId]/route.ts` — GET handler. Mirrors `app/api/projects/[id]/cost-basis/pdf/route.ts` exactly: `runtime = 'nodejs'`, `dynamic = 'force-dynamic'`, `INTERNAL_ROLES = {admin, super_admin, manager, finance}`, `rateLimit('sld-v2-pdf:<email>', { windowMs: 60_000, max: 20, prefix: 'sld-v2' })`. Pipeline: feature flag → auth → role → rate-limit → load project (RLS-scoped via SSR client) → `buildPlansetData(proj, {Duracell-hybrid defaults})` → `equipmentGraphFromPlansetData(data)` → `loadNodeOverrides(projectId)` (splice into `graph.nodeOverrides` if present) → `renderSldToPdf(graph)` → return bytes with `Content-Type: application/pdf`. 500 catch returns opaque message + correlation id (R1-H1).
+- `__tests__/sld-v2/feature-flag.test.ts` — 3 tests (URL flag, env flag, default off).
+- `__tests__/sld-v2/overrides-loader.test.ts` — 3 tests (loads PROJ-DEMO, missing file → undefined, unsafe ids → undefined).
+
+**Modified:**
+- `__tests__/sld-v2/pdf.test.ts` — page-count regex anchored to `>>` dict close (R1-M3); NEC regex requires ≥1 whitespace/paren separator (R1-L4 tighten).
+- `lib/sld-v2/pdf.ts` — header comment refresh (R1-L1) + JSDoc `@internal` tag on `renderSldToPdf` (R1-L1). No behavior change.
+
+### R1 (red-teamer) — Phase 6 surface
+**Grade B (0C / 1H / 4M / 4L).** All folded inline before R2. No deferrals.
+- H1 — opaque 500 error + correlation id (route.ts catch block).
+- M1 — `path.resolve` + prefix re-check in loader (defense vs symlinks + future regex relaxation).
+- M2 — schema validation: forbidden keys (`__proto__`/`constructor`/`prototype`) + finite-number coords. Returns null-proto.
+- M3 — page-count regex stiffened to anchor on dict close (`>>`).
+- M4 — `?sld=v2` value compare lowercased.
+- L4 — NEC regex requires `[\s(]+` separator (jsPDF never emits zero-separator).
+
+Multi-tenancy verified via Supabase MCP: `projects` RLS policy `projects_select_v2` enforces `org_id = ANY (auth_user_org_ids()) OR auth_is_platform_user()`. `auth_is_platform_user()` is super_admin-only post-#354 (2026-04-29). Internal users (admin/manager/finance) in OrgA cannot read OrgB projects via this route.
+
+### R2 (verify) — Phase 6
+**Grade A.** typecheck exit=0; sld-v2 tests **40 → 46 pass (+6)**; chain test baseline diff vs `8a5df3949028` returns `NEW_FAIL=0 STILL_FAIL=16` (documented pre-existing v1 failures unchanged).
+
+### Out-of-scope follow-ups filed
+- **#998 (P2)** — `app/api/projects/[id]/cost-basis/pdf/route.ts:93-97` has the same `err.message` 500 leak. Pre-Phase-5 code, outside Phase 6 audit scope. Mirror the route.ts fix; one-line edit.
+
+### Older history below (Phase 5 — SVG → PDF export)
+## ✅ Shipped 2026-05-13 ~09:35 UTC, Phase 5 — SVG → PDF export
 
 ### Phase 5 — SVG → PDF export
 New files:
@@ -232,15 +268,19 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 - ✅ Phase 2 — elkjs adapter + SldRenderer
 - ✅ Phase 3 — Label slot picker + leader callouts + bbox-aware wire labels
 - ✅ Phase 4 — PlansetData adapter (11 tests)
-- ✅ **Phase 5 — SVG → PDF export (`lib/sld-v2/pdf.ts`) — 2026-05-13**
-- ☐ Phase 6 — `nodeOverrides` JSON spec + v1/v2 feature flag routing
+- ✅ Phase 5 — SVG → PDF export (`lib/sld-v2/pdf.ts`) — 2026-05-13 09:35 UTC
+- ✅ **Phase 6 — feature-flag + nodeOverrides + `/api/sld/v2/[projectId]` route — 2026-05-13 10:15 UTC**
 - ☐ Phase 7 — Migrate PV-5 production path to v2 + RUSH stamp validation
 - ☐ Phase 7.x — Fill `StringInverterBox` / `MicroInverterBox` / `EVChargerBox` (deferred kinds)
 - ☐ PROJ-26922 stamp unblock — PDF-edit r12 hand-tweak (Atlas-side, not blocked by v2)
 
+## Audit gates (Phase 6)
+- R1 (red-teamer, shipped code): **B** (0C / 1H / 4M / 4L) — all folded inline (H1: opaque 500; M1: resolve+prefix check; M2: schema validation incl. null-proto + finite-number coords; M3: page-count regex anchored to `>>`; M4: lowercase URL value compare; L4 tighten: NEC ≥1 separator). Deferred: L1/L2/L3 (ESLint enforcement → Phase 7), cost-basis sibling 500-leak → action #998.
+- R2 (verify, post-fix): **A** (typecheck=0 + 46/46 sld-v2 vitest + baseline diff NEW_FAIL=0)
+
 ## Audit gates (Phase 5)
 - Pre-flight (general-purpose, plan vs live state): GO-WITH-EDITS (0C+0H+0M+0L after fixes; original 2C+6H+6M+5L all folded inline)
-- R1 (red-teamer, shipped code): **C** (0C / 4H / 6M / 3L) — deferred: M3, M4, M6, L1, L2, L3 (Phase 6 hygiene)
+- R1 (red-teamer, shipped code): **C** (0C / 4H / 6M / 3L) — deferred: M3, M4, M6, L1, L2, L3 (Phase 6 hygiene — M3/M4/M6/L1 folded in Phase 6 commit `2d826cb`)
 - R2 (self-verify, fixes): **A** (typecheck + 40/40 vitest + concurrency smoke confirm no regression)
 
 ## Live state worth knowing
@@ -260,51 +300,38 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 
 (Read each `python3 ~/.claude/scripts/greg_actions.py show <id>` before working on it — pre-resolution gate per chain rule.)
 
-- (none filed against this session — Phase 5/6/7 are queued in the plan doc, not as `greg_actions` rows yet. File one when claiming a phase.)
+- **#996 (P2, claimed Phase 6)** — coordination row. Closes when Phase 6 is signed off and Phase 7 starts. Greg, this can be closed any time you're satisfied with the Phase 6 work.
+- **#998 (P2)** — cost-basis PDF route has the same 500-leak shape Phase 6 R1 caught + fixed in the sld-v2 route. One-line mirror fix. Picked up in any session, not chain-gated.
 
 ## Next phase to pick up
 
-### ⬅ Phase 6 (next session) — nodeOverrides + v1/v2 feature flag routing
+### ⬅ Phase 7 (next session) — PV-5 production migration
 
 **Decisions Greg must answer before this phase starts:**
 
-1. **Per-project or per-sheet feature flag?**
-   - (a) Per-project field on the DB row (`use_sld_v2: boolean`).
-   - (b) Per-sheet env flag or URL query param (`?sld=v2`).
-   - **Default: (b) initially** for testing; promote to (a) once Phase 7 has 10+ projects validated.
+1. **Cutover strategy — atomic or feature-flag-by-project?**
+   - (a) Flip `SLD_V2_DEFAULT=1` env-wide in one Vercel deploy. Every PV-5 sheet starts using v2.
+   - (b) Promote Phase 6's `shouldUseSldV2` to a 3-arg version that also reads a `projects.use_sld_v2 boolean` column. Cut over project-by-project.
+   - **Default: (b)** — adds a column-add migration but keeps blast radius small. Phase 7 needs to ship the migration AND retrofit Phase 6's `feature-flag.ts`.
 
-2. **nodeOverrides JSON spec — where does it live?**
-   - (a) Inline on the EquipmentGraph spec file (when one exists per-project).
-   - (b) Separate `<project-id>-overrides.json` in `lib/sld-v2/overrides/`.
-   - (c) DB column (`sld_v2_node_overrides jsonb`).
-   - **Default: (b)** for now; promote to (c) once 10+ projects need overrides.
+2. **Where does PV-5 actually call into the renderer today?**
+   - The planset page renders the SLD inline (HTML/SVG) — it does NOT fetch the PDF route. Phase 7 must decide: does PV-5 swap to an iframe pointing at `/api/sld/v2/[id]?sld=v2`, or do we add a parallel `renderSldHtmlV2` for the in-page render?
+   - **No default** — needs Greg to look at the sheet UX and call it. Live state worth reading: `components/planset/SheetPV5.tsx` + wherever it consumes `calculateSldLayout`.
 
-3. **Should Phase 6 also fold in the R1-Medium follow-ups from Phase 5?**
-   - **R1-M3**: stiffen pdf.test.ts page-count regex (use `/Count` from `/Pages` dict, not literal `/Type /Page` matches).
-   - **R1-M4**: stiffen NEC regex against jsPDF text-split / future compression.
-   - **R1-M6**: confirm the eventual API route declares `export const runtime = 'nodejs'`.
-   - **R1-L1**: re-add `import 'server-only'` with a tsx loader shim, OR document the bundle-leak risk explicitly.
-   - **Default: (a) fold inline** — these touch the same file/test surface Phase 6 will modify when wiring v2 to a route.
+3. **RUSH stamp pilot — which project?**
+   - Phase 7 will send a v2-generated PV-5 PDF to RUSH for stamp. Which live project should be the pilot? PROJ-26922 (Tyson, the original reference) was reserved for the v1 PDF-edit unblock path; using it for v2 too means RUSH sees two outputs.
+   - **No default** — Greg picks once Phase 7 starts.
 
 **Phase work:**
 
-- Extend `lib/sld-layout.ts` with a v2 path that routes based on the feature flag.
-- New spec format: declarative `EquipmentGraph` JSON (much smaller than the 270-element hand-positioned spec — just equipment list + connections + nodeOverrides).
-- New API route (likely `app/api/sld/v2/[projectId]/route.ts`) that calls `renderSldToPdf` and returns the bytes. MUST declare `export const runtime = 'nodejs'` per Phase 5 R1-M6.
-- Phase 6 feature flag MUST gate on `isDuracellHybrid(data)` (`lib/sld-v2/from-planset-data.ts`) — only route to v2 when the topology has shipped equipment kinds (Phase 5 R1-M6).
-- Migration: keep v1 generator running for backward compat. Cut over per sheet via flag.
-
-**Estimated effort:** 1-2 days.
-
-### ⬅ Phase 7 (after Phase 6) — PV-5 production migration
-
-Migrate PV-5 SLD to the v2 path for live projects. Send v2-generated PV-5 PDF to RUSH for stamp. If they stamp without redraw → migrate PV-3 (site plan), PV-3.1 (equipment elevation), PV-6+. If they redraw → diff their redraw against our output, fold deltas into v2 conventions, re-submit.
-
-**Also in Phase 7:**
-- Fill the 3 deferred equipment kinds (`StringInverterBox`, `MicroInverterBox`, `EVChargerBox`) when their first project hits.
-- Add title block + NEC notes box to the PDF (deferred from Phase 5).
-- Register Inter ttf via `jsPDF.addFont()` — Phase 5 already rewrites font-family on every text node to `'Inter, Helvetica, sans-serif'`, so the registration alone will switch the rendered font.
-- Address Phase 5 R1-M3 / M4 / M6 / L1 if not yet folded into Phase 6.
+- Land Decision 1 — promote `lib/sld-v2/feature-flag.ts` to a 3-arg call AND add the column migration if (b) chosen. Update `app/api/sld/v2/[projectId]/route.ts` to pass the project row to `shouldUseSldV2`.
+- Replace the hardcoded Duracell-hybrid `buildPlansetData` overrides in `app/api/sld/v2/[projectId]/route.ts` with real per-project options from the project row.
+- Add the title block + NEC notes box to the PDF inside `renderSldToPdf` (the `graph.notes` array already exists from Phase 4; just paint it).
+- Register Inter ttf via `jsPDF.addFont()` — Phase 5 already rewrites font-family to `'Inter, Helvetica, sans-serif'` so the registration alone switches the rendered font.
+- Fill the 3 deferred equipment kinds (`StringInverterBox`, `MicroInverterBox`, `EVChargerBox`) when their first live project hits.
+- Wire PV-5 sheet to the v2 path per Decision 2.
+- ESLint `no-restricted-imports` rule on `renderSldToPdf` paths from anywhere under `app/**` that isn't a route.ts (Phase 6 R1-L3 deferral).
+- Send v2 PV-5 to RUSH; iterate on any redraw deltas.
 
 **Estimated effort:** 3-5 days.
 
