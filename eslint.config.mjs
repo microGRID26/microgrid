@@ -58,7 +58,13 @@ const eslintConfig = defineConfig([
       "lib/sld-v2/pdf.ts",
       "scripts/render-sld-v2-pdf.tsx",
       "scripts/sld-v2-pdf-concurrency-smoke.tsx",
+      // Cumulative R1 H2 fix — title-block.test.ts (Phase 7b) and
+      // pdf.test.ts both exercise renderSldToPdf via the full pipeline.
+      // Test files exempting one but not the other broke `npm run lint`
+      // silently. Keep both listed explicitly so future test additions
+      // surface the gap as a lint error, not a missing exemption.
       "__tests__/sld-v2/pdf.test.ts",
+      "__tests__/sld-v2/title-block.test.ts",
     ],
     rules: {
       "no-restricted-imports": "off",

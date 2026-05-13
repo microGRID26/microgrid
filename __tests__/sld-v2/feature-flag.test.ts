@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { shouldUseSldV2 } from '../../lib/sld-v2/feature-flag'
 
@@ -7,6 +7,7 @@ describe('shouldUseSldV2', () => {
   afterEach(() => {
     if (originalEnv === undefined) delete process.env.SLD_V2_DEFAULT
     else process.env.SLD_V2_DEFAULT = originalEnv
+    vi.unstubAllEnvs()
   })
 
   it('returns true when ?sld=v2 is in the URL', () => {
@@ -65,5 +66,38 @@ describe('shouldUseSldV2', () => {
     expect(
       shouldUseSldV2(new URLSearchParams(), { use_sld_v2: false }),
     ).toBe(true)
+  })
+
+  // Cumulative R1 H1 fix — URL flag must be a no-op in production. An authed
+  // internal user cannot override a project owner's explicit use_sld_v2=false
+  // by appending ?sld=v2 to the URL. The URL flag stays available in test +
+  // dev + preview environments for the manual smoke harnesses.
+  it('URL flag is a no-op in production (H1: cannot override use_sld_v2=false)', () => {
+    delete process.env.SLD_V2_DEFAULT
+    vi.stubEnv('NODE_ENV', 'production')
+    expect(
+      shouldUseSldV2(new URLSearchParams('sld=v2'), { use_sld_v2: false }),
+    ).toBe(false)
+    expect(
+      shouldUseSldV2(new URLSearchParams('sld=v2'), { use_sld_v2: null }),
+    ).toBe(false)
+    expect(
+      shouldUseSldV2(new URLSearchParams('sld=v2')),
+    ).toBe(false)
+  })
+
+  it('URL flag still works in production when project.use_sld_v2 is true (the explicit opt-in path stays open)', () => {
+    delete process.env.SLD_V2_DEFAULT
+    vi.stubEnv('NODE_ENV', 'production')
+    // Project flag is the authoritative production path; URL is moot.
+    expect(
+      shouldUseSldV2(new URLSearchParams('sld=v2'), { use_sld_v2: true }),
+    ).toBe(true)
+  })
+
+  it('Env flag stays effective in production (Vercel preview controls SLD_V2_DEFAULT separately)', () => {
+    process.env.SLD_V2_DEFAULT = '1'
+    vi.stubEnv('NODE_ENV', 'production')
+    expect(shouldUseSldV2(new URLSearchParams())).toBe(true)
   })
 })

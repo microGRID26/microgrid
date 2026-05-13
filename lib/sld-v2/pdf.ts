@@ -85,6 +85,15 @@ const FONT_FAMILY = 'Inter, Helvetica, sans-serif'
 // global state across requests. Serialize the global-swap renders through
 // a promise chain. Test env (hostHasDom === true) doesn't swap globals so
 // doesn't need the mutex; parallel test renders still work.
+//
+// Cumulative R1 M3 — the mutex now also covers `layoutEquipmentGraph` and
+// the React renderToStaticMarkup call. elkjs's module-level singleton (see
+// lib/sld-v2/layout.ts:71-77 `_elkInstance`) is currently safe in single-
+// threaded JS (issue #1021 was verified non-exploitable) but the
+// `await elk.layout()` boundary creates a window where two concurrent route
+// calls could share the same Worker queue. Serializing everything from
+// layout → svgString → svg2pdf inside one mutex closure removes the seam
+// without depending on elkjs internals being reentrant.
 let renderMutex: Promise<unknown> = Promise.resolve()
 
 /**
@@ -103,36 +112,18 @@ export async function renderSldToPdf(
   const pageHeightPt = options.pageHeightPt ?? DEFAULTS.pageHeightPt
   const marginPt = options.marginPt ?? DEFAULTS.marginPt
 
-  const layout = await layoutEquipmentGraph(graph)
-  const labelPlacement = placeLabels(layout.laidOut, layout.edges, {
-    freeZone: { x: layout.width - 240, y: 0, w: 240, h: layout.height },
-  })
-
-  // Dynamic-import React + renderToStaticMarkup + SldRenderer so Turbopack's
-  // App Route analyzer doesn't see `react-dom/server` reachable from the
-  // route file and reject the build. SldRenderer is a server-only renderer
-  // (renders SVG via renderToStaticMarkup); the lazy chain stays server-side
-  // because the parent module is already gated by the SERVER-ONLY header
-  // + ESLint no-restricted-imports rule.
-  const [ReactMod, { renderToStaticMarkup }, { SldRenderer }] = await Promise.all([
-    import('react'),
-    import('react-dom/server'),
-    import('../../components/planset-v2/SldRenderer'),
-  ])
-
-  const svgString = renderToStaticMarkup(
-    ReactMod.createElement(SldRenderer, { layout, labelPlacement }),
-  )
-
   const g = globalThis as Record<string, unknown>
   const hostHasDom =
     typeof g.document !== 'undefined' && typeof g.window !== 'undefined'
 
-  // R1-H1: serialize global-swap renders so concurrent calls don't corrupt
-  // window/document. Test env (hostHasDom === true) bypasses the mutex.
+  // Cumulative R1 M3 — layoutEquipmentGraph + placeLabels + renderToStaticMarkup
+  // run INSIDE the mutex closure now so the elkjs singleton can't be touched
+  // by two concurrent route calls at the same `await` boundary. Test env
+  // (hostHasDom === true) bypasses the mutex; parallel test renders still
+  // work because vitest is single-threaded per worker.
   const work = (): Promise<Uint8Array> =>
     runOneRender({
-      svgString,
+      graph,
       hostHasDom,
       pageWidthPt,
       pageHeightPt,
@@ -150,7 +141,7 @@ export async function renderSldToPdf(
 }
 
 interface RunOneRenderArgs {
-  svgString: string
+  graph: EquipmentGraph
   hostHasDom: boolean
   pageWidthPt: number
   pageHeightPt: number
@@ -159,7 +150,7 @@ interface RunOneRenderArgs {
 }
 
 async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
-  const { svgString, hostHasDom, pageWidthPt, pageHeightPt, marginPt, titleBlock } = args
+  const { graph, hostHasDom, pageWidthPt, pageHeightPt, marginPt, titleBlock } = args
   const g = globalThis as Record<string, unknown>
   const prevWindow = g.window
   const prevDocument = g.document
@@ -175,6 +166,28 @@ async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
 
   let appendedSvg: Element | null = null
   try {
+    // Cumulative R1 M3 — pre-svg2pdf pipeline runs inside the mutex now.
+    const layout = await layoutEquipmentGraph(graph)
+    const labelPlacement = placeLabels(layout.laidOut, layout.edges, {
+      freeZone: { x: layout.width - 240, y: 0, w: 240, h: layout.height },
+    })
+
+    // Dynamic-import React + renderToStaticMarkup + SldRenderer so Turbopack's
+    // App Route analyzer doesn't see `react-dom/server` reachable from the
+    // route file and reject the build. SldRenderer is a server-only renderer
+    // (renders SVG via renderToStaticMarkup); the lazy chain stays server-side
+    // because the parent module is already gated by the SERVER-ONLY header
+    // + ESLint no-restricted-imports rule.
+    const [ReactMod, { renderToStaticMarkup }, { SldRenderer }] = await Promise.all([
+      import('react'),
+      import('react-dom/server'),
+      import('../../components/planset-v2/SldRenderer'),
+    ])
+
+    const svgString = renderToStaticMarkup(
+      ReactMod.createElement(SldRenderer, { layout, labelPlacement }),
+    )
+
     installBBoxShim(g.window as Window & typeof globalThis)
     const doc = g.document as Document
     const svgElement = parseSvg(svgString, doc)

@@ -1,3 +1,5 @@
+import crypto from 'node:crypto'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
@@ -16,7 +18,40 @@ export const runtime = 'nodejs'
 // behaviour changes per-request and SLD bytes are user-scoped.
 export const dynamic = 'force-dynamic'
 
-const INTERNAL_ROLES = new Set(['admin', 'super_admin', 'manager', 'finance'])
+// Cumulative R1 M2 fix — `finance` was copy-paste drift from the cost-basis
+// PDF route's role set. SLDs are engineering output; finance has no business
+// rendering one. Scoped to engineering + ops roles only. If a finance user
+// needs to view an SLD, route through the planset viewer (which renders a
+// preview HTML, not a stamp-worthy PDF).
+const INTERNAL_ROLES = new Set(['admin', 'super_admin', 'manager'])
+
+function makeCorrelationId(): string {
+  // Cumulative R1 L3 fix — was Math.random().toString(36).slice(2,10) which
+  // collides statistically. UUIDv4 first 8 chars is still ~16M combinations
+  // per minute, safe for the route's 20/min rate limit per user.
+  return crypto.randomUUID().slice(0, 8)
+}
+
+interface CatchableError {
+  name?: string
+  code?: unknown
+  stack?: string
+}
+
+// Cumulative R1 M4 fix — never log raw err.message because upstream libs
+// (svg2pdf, jspdf-core) can include fragments of project data in their
+// errors. Log structure-only: name, code, top-5 stack frames. This is
+// enough to bisect a regression without putting customer PII (address,
+// owner name, ESID) into Vercel runtime logs.
+function structuredErrorLog(err: unknown): Record<string, unknown> {
+  if (!(err instanceof Error)) return { name: 'NonError', repr: typeof err }
+  const e = err as CatchableError
+  return {
+    name: e.name ?? 'Error',
+    code: e.code,
+    stack: e.stack?.split('\n').slice(0, 5).join('\n'),
+  }
+}
 
 /**
  * GET /api/sld/v2/[projectId]
@@ -64,14 +99,18 @@ export async function GET(
     { cookies: { getAll() { return request.cookies.getAll() }, setAll() {} } },
   )
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user?.email) {
+  if (!user?.id) {
     return respond404OrAuthError({ error: 'Unauthorized' }, 401)
   }
 
+  // Cumulative R1 L1 fix — was `.eq('email', user.email)` which drifts when
+  // a user changes their email in Supabase Auth (users.email and auth.users.email
+  // can diverge). The `users.id` FK to `auth.users.id` is stable across email
+  // changes and is the canonical join elsewhere in this codebase.
   const { data: userRow } = await supabase
     .from('users')
     .select('role')
-    .eq('email', user.email)
+    .eq('id', user.id)
     .single()
   const role = (userRow as { role: string } | null)?.role
   if (!role || !INTERNAL_ROLES.has(role)) {
@@ -82,7 +121,10 @@ export async function GET(
   // Rate-limit failures return 429 unconditionally — the caller is authed
   // and the response leaks no new information beyond the rate-limit headers
   // they were already seeing.
-  const { success } = await rateLimit(`sld-v2-pdf:${user.email}`, {
+  //
+  // Cumulative R1 L2 fix — keyed on user.id, not email. Email-keyed buckets
+  // reset when a user updates their email; user.id is immutable.
+  const { success } = await rateLimit(`sld-v2-pdf:${user.id}`, {
     windowMs: 60_000,
     max: 20,
     prefix: 'sld-v2',
@@ -132,7 +174,7 @@ export async function GET(
   // R1-M3 shape invariant runs HERE (post-flag-check) so flag-off
   // projects exit at the 404 above before the invariant is even checked.
   if (!hasUseSldV2Shape(project)) {
-    const shapeCid = Math.random().toString(36).slice(2, 10)
+    const shapeCid = makeCorrelationId()
     console.error(
       `[GET /api/sld/v2/[projectId]] cid=${shapeCid} use_sld_v2 shape invariant failed`,
       { id: projectId },
@@ -204,10 +246,18 @@ export async function GET(
     // R1-H1 fix — never leak internal error messages to the client. They
     // surface library names + graph-id state that an authenticated internal
     // user could fuzz to enumerate. Return an opaque string plus a short
-    // correlation id; keep the real message in server logs.
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    const correlationId = Math.random().toString(36).slice(2, 10)
-    console.error(`[GET /api/sld/v2/[projectId]] cid=${correlationId}`, message)
+    // correlation id; keep structured error info in server logs.
+    //
+    // Cumulative R1 M4 fix — was `console.error(..., message)` with the raw
+    // err.message verbatim. Upstream libs (svg2pdf, jspdf-core, jsdom) can
+    // surface fragments of project data inside error messages; logging them
+    // pushed customer PII into Vercel runtime logs. Switched to structured
+    // {name, code, stack-truncated} via structuredErrorLog().
+    const correlationId = makeCorrelationId()
+    console.error(
+      `[GET /api/sld/v2/[projectId]] cid=${correlationId}`,
+      structuredErrorLog(err),
+    )
     return NextResponse.json(
       { error: 'Render failed', correlationId },
       { status: 500 },

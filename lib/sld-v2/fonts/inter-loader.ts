@@ -83,9 +83,19 @@ export async function loadInterTtfBase64(): Promise<string | null> {
       throw err
     }
     // Benign file-read failure (ENOENT, EACCES, etc) — fall back to
-    // Helvetica. Cache the null so we don't re-read on every call.
+    // Helvetica.
+    //
+    // Cumulative R1 M5 fix — previously cached `null` permanently, which
+    // meant a partial Vercel deploy that lost the ttf would silently
+    // fall back to Helvetica for the entire dyno lifetime with a single
+    // log line. RUSH Engineering would receive Helvetica-rendered title
+    // blocks for every customer until the next cold boot. Asymmetric with
+    // the SHA-mismatch path (which throws + does NOT cache so a fixed
+    // file re-verifies). Match the loud-on-deploy-bug philosophy: do NOT
+    // cache the failure. Every request re-attempts the read and emits a
+    // fresh warn. The 340KB read overhead is acceptable for the visibility
+    // — and once the file is restored, the next call caches successfully.
     console.warn(`[sld-v2/inter-loader] Inter ttf load failed; falling back to Helvetica: ${err instanceof Error ? err.message : err}`)
-    cached = null
     return null
   }
 }
