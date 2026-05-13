@@ -75,3 +75,39 @@ $$;
 -- Owner + grants preserved by CREATE OR REPLACE (Postgres semantics confirmed:
 -- prior owner=postgres, ACL=authenticated+service_role+anon EXECUTE).
 -- Trigger binding (BEFORE UPDATE OF stage, stage_date) unchanged.
+--
+-- ---------------------------------------------------------------------------
+-- POSTCONDITION ASSERT (R1-M3)
+-- ---------------------------------------------------------------------------
+-- Fail fast if the new function body is not in place after this migration
+-- runs. Protects against a future migration silently regressing the bypass
+-- back to the broken current_user pattern.
+DO $$
+BEGIN
+  IF position('session_user' IN pg_get_functiondef('public.projects_block_direct_stage_update'::regproc)) = 0 THEN
+    RAISE EXCEPTION 'migration 223 did not take effect — projects_block_direct_stage_update body missing session_user';
+  END IF;
+  IF position('app.via_set_project_stage' IN pg_get_functiondef('public.projects_block_direct_stage_update'::regproc)) = 0 THEN
+    RAISE EXCEPTION 'migration 223 did not take effect — RPC GUC bypass missing from projects_block_direct_stage_update';
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- SMOKE-TEST EVIDENCE (R1-L1 — clarify test setup so future readers don't re-fight this)
+-- ---------------------------------------------------------------------------
+-- Authenticated-path test must use SET LOCAL SESSION AUTHORIZATION authenticator
+-- (not just SET LOCAL ROLE) because session_user is the original CONNECTION
+-- role and SET LOCAL ROLE alone does NOT change it. Inside MCP execute_sql,
+-- session_user is always 'postgres' regardless of SET LOCAL ROLE — which
+-- would land in the bypass list and falsely pass the test. SESSION
+-- AUTHORIZATION flips session_user to 'authenticator', simulating a real
+-- PostgREST connection. The smoke tests run pre-commit verified:
+--   T3 (authenticated path):  SET LOCAL SESSION AUTHORIZATION authenticator
+--                             + SET LOCAL ROLE authenticated
+--                             + UPDATE projects SET stage = stage WHERE id = 'PROJ-32115'
+--                             → SQLSTATE 42501 (correctly blocked)
+--   T5 (postgres MCP path):   UPDATE projects SET stage = stage WHERE id = 'PROJ-32115'
+--                             → succeeded (Bypass A correctly fired)
+-- A real REST-path E2E test (curl against /rest/v1/projects with a real
+-- non-admin JWT) would be even more robust; filed as P2 follow-up for SPARK
+-- chain harness scope.

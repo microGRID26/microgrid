@@ -71,3 +71,41 @@ $$;
 
 -- Owner + grants preserved by CREATE OR REPLACE.
 -- Trigger binding (BEFORE UPDATE OF use_sld_v2) unchanged.
+--
+-- ---------------------------------------------------------------------------
+-- POSTCONDITION ASSERT (R1-M3)
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  IF position('session_user' IN pg_get_functiondef('public.projects_block_direct_use_sld_v2_update'::regproc)) = 0 THEN
+    RAISE EXCEPTION 'migration 224 did not take effect — projects_block_direct_use_sld_v2_update body missing session_user';
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- SMOKE-TEST EVIDENCE (R1-L1 — clarify test setup)
+-- ---------------------------------------------------------------------------
+-- The "222b silently broken" claim was verified live against the pre-fix
+-- function body using `SET LOCAL ROLE authenticated` from MCP — under that
+-- shape, the SECURITY DEFINER trigger sees current_user='postgres' (function
+-- owner) and 222b's bypass `current_user IN ('postgres', ...)` fires for
+-- every caller. Repro succeeded: UPDATE use_sld_v2 returned no error.
+--
+-- The post-fix authenticated-path verification (T2) uses SET LOCAL SESSION
+-- AUTHORIZATION authenticator (NOT just SET LOCAL ROLE) because session_user
+-- is the original CONNECTION role and is NOT changed by SET LOCAL ROLE.
+-- Inside MCP execute_sql, session_user remains 'postgres' under SET LOCAL
+-- ROLE alone — which would land in the bypass list and falsely pass the
+-- test. SESSION AUTHORIZATION flips session_user to 'authenticator',
+-- simulating a real PostgREST connection. Pre-commit smoke test result:
+--   T2 (authenticated path):  SET LOCAL SESSION AUTHORIZATION authenticator
+--                             + SET LOCAL ROLE authenticated
+--                             + UPDATE projects SET use_sld_v2 = NOT use_sld_v2 WHERE id = 'PROJ-32115'
+--                             → SQLSTATE 42501 (correctly blocked post-fix)
+--   T4 (postgres MCP path):   UPDATE projects SET use_sld_v2 = use_sld_v2 WHERE id = 'PROJ-32115'
+--                             → succeeded (Bypass A correctly fired)
+--
+-- Blast-radius audit (this session, post-fix): only PROJ-32115 has
+-- use_sld_v2=true; zero audit_log rows for use_sld_v2 changes during the
+-- 222b buggy window (~6h, 2026-05-13 ~15:30 → ~21:30 UTC). No unauthorized
+-- flips occurred.
