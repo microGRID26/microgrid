@@ -27,6 +27,16 @@ const eslintConfig = defineConfig([
               message:
                 "renderSldToPdf is server-only. Import it from app/api/sld/v2/[projectId]/route.ts only; importing here drags jsdom + jsPDF + svg2pdf.js + native canvas into the client bundle.",
             },
+            {
+              name: "./pdf",
+              message:
+                "renderSldToPdf is server-only. Sibling relative imports from lib/sld-v2/* bypass the absolute-path patterns; use the exempt route handler instead.",
+            },
+            {
+              name: "../pdf",
+              message:
+                "renderSldToPdf is server-only. Parent relative imports bypass the absolute-path patterns; use the exempt route handler instead.",
+            },
           ],
           patterns: [
             {
