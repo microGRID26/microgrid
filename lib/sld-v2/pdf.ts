@@ -235,13 +235,26 @@ async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
     // Phase 7b — paint the title block AFTER the SLD body so it
     // renders on top of any clipping artifacts (svg2pdf occasionally
     // emits stray vectors at the SVG's right edge).
+    //
+    // Title block stays on Helvetica regardless of `fontName` — Inter
+    // is registered as Regular only (Greg's pick), and jsPDF warns
+    // loudly when setFont('Inter', 'bold') has no registered variant.
+    // The title block has multiple bold rows (labels, sheet name,
+    // sheet number numeral) so it needs a font with native bold —
+    // Helvetica's Type 1 standard ships normal + bold built-in. The
+    // SLD body still gets Inter via the SVG font-family declaration
+    // (where svg2pdf resolves to the registered 'normal' variant).
     if (titleBlock) {
       const tbX = pageWidthPt - marginPt - TITLE_BLOCK_WIDTH_PT
       const tbY = marginPt
       const tbW = TITLE_BLOCK_WIDTH_PT
       const tbH = pageHeightPt - marginPt * 2
-      paintTitleBlock(pdf, titleBlock, tbX, tbY, tbW, tbH, { fontName })
+      paintTitleBlock(pdf, titleBlock, tbX, tbY, tbW, tbH)
     }
+    // Silence ESLint: fontName is read indirectly through svg2pdf's
+    // font-family resolution; the variable is intentionally retained
+    // for clarity but not directly used after Inter registration.
+    void fontName
 
     const buf = pdf.output('arraybuffer')
     return new Uint8Array(buf as ArrayBuffer)

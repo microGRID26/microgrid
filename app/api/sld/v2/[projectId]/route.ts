@@ -178,7 +178,19 @@ export async function GET(
       graph.nodeOverrides = { ...(graph.nodeOverrides ?? {}), ...overrides }
     }
 
-    const bytes = await renderSldToPdf(graph)
+    // Phase 7b — pass title-block data to the renderer so the v2 PDF
+    // gets the v1-style right-sidebar plan-sheet anatomy (contractor,
+    // project, PE stamp area, drawn date, revision, sheet size, AHJ,
+    // sheet name, sheet number). Mirrors the v1 TitleBlockHtml layout
+    // field-for-field so RUSH Engineering sees the same shape they're
+    // used to from existing plansheets.
+    const bytes = await renderSldToPdf(graph, {
+      titleBlock: {
+        data,
+        sheetName: 'Single Line Diagram',
+        sheetNumber: 'PV-5',
+      },
+    })
 
     return new NextResponse(bytes as unknown as BodyInit, {
       status: 200,

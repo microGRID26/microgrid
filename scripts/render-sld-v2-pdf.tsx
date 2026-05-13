@@ -49,15 +49,25 @@ const data: PlansetData = buildPlansetData(project, {
 
 async function main() {
   const graph = equipmentGraphFromPlansetData(data)
-  const bytes = await renderSldToPdf(graph)
+
+  // Phase 7b — render WITH the title block by default. Pass `--no-title`
+  // to fall back to Phase 5/6 behavior (used by the test suite's NEC
+  // grep assertion since Inter+TrueType-CID encoding hides ASCII).
+  const includeTitleBlock = !process.argv.includes('--no-title')
+  const bytes = await renderSldToPdf(graph, {
+    titleBlock: includeTitleBlock
+      ? { data, sheetName: 'Single Line Diagram', sheetNumber: 'PV-5' }
+      : undefined,
+  })
 
   const outDir = path.join(os.homedir(), '.claude', 'tmp')
   fs.mkdirSync(outDir, { recursive: true })
-  const outPath = path.join(outDir, 'sld-v2-tyson.pdf')
+  const outName = includeTitleBlock ? 'sld-v2-tyson-titled.pdf' : 'sld-v2-tyson.pdf'
+  const outPath = path.join(outDir, outName)
   fs.writeFileSync(outPath, bytes)
 
   process.stdout.write(
-    `wrote ${outPath} (${bytes.byteLength.toLocaleString()} bytes)\n`,
+    `wrote ${outPath} (${bytes.byteLength.toLocaleString()} bytes${includeTitleBlock ? ', with title block + Inter font' : ''})\n`,
   )
 }
 
