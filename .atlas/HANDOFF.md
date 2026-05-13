@@ -4,8 +4,13 @@
 **Last updated:** 2026-05-13 ~22:30 UTC (Phase H1 — RUSH-blocked window hygiene + typography prep: P0 silent-break on 222b caught + fixed, mig 223 + 224 land session_user fix, Inter Bold + Unicode-correct title block shipped, 67/67 sld-v2 tests pass)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `5714af3` (4 commits ahead of origin `c73d1b7`; not pushed per no-mid-session-push rule).** Four commits this session: `978392c` (mig 223/224 — session_user fix on stage + use_sld_v2 triggers), `de73e92` (Inter Bold + Unicode title block typography prep), `2756a73` (R1-sweep postcondition asserts + smoke-test evidence on migrations), `5714af3` (HANDOFF refresh + chain_state_auto YAML).
-**Latest commit:** `5714af3` docs(planset/.atlas): handoff refresh — Phase H1 (RUSH-blocked window)
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `2b4c2ba` (5 commits ahead of origin `c73d1b7`; not pushed per no-mid-session-push rule).** Five commits this session, split substantively:
+  - `978392c` — mig 223 + 224 (session_user fix on stage + use_sld_v2 triggers)
+  - `de73e92` — Inter Bold + Unicode-correct title block typography prep
+  - `2756a73` — R1-sweep postcondition asserts + smoke-test evidence on migrations
+  - `5714af3` — initial HANDOFF refresh + chain_state_auto YAML snapshot
+  - `2b4c2ba` — HANDOFF review fixes (stale commit count + Inter Bold path + Phase 7c anticipation)
+**Latest commit:** `2b4c2ba` docs(planset/.atlas): handoff review — fix stale commit count, Inter Bold path, Phase 7c anticipation
 
 ## Chain instruction (read this first, every session)
 
@@ -309,7 +314,7 @@ Phase 7b + Phase H1 shipped end-to-end. The next phase IS the RUSH feedback loop
 
 ## Specific gotchas for the next operator
 
-- **Branch is NOT pushed** — **4 commits** ahead of origin: `978392c` (mig 223/224), `de73e92` (Inter Bold typography), `2756a73` (mig R1 doc-clarify), `5714af3` (HANDOFF refresh). Awaiting Greg's end-of-session push auth per CLAUDE.md / `feedback_no_mid_session_push.md`.
+- **Branch is NOT pushed** — **5 commits** ahead of origin: `978392c` (mig 223/224), `de73e92` (Inter Bold typography), `2756a73` (mig R1 doc-clarify), `5714af3` (HANDOFF refresh), `2b4c2ba` (HANDOFF review fixes). Awaiting Greg's end-of-session push auth per CLAUDE.md / `feedback_no_mid_session_push.md`.
 - **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2. Re-render via the route → expect the title-block PDF. **Column is genuinely trigger-protected NOW** (mig 224 fixed 222b's silent break); flipping requires `session_user IN ('postgres','supabase_admin','service_role')` OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user genuinely gets 42501.
 - **Inter Bold is bundled and active in the v2 title-block path.** When `titleBlock` is requested, BOTH Inter Regular + Bold register atomically. If either ttf is missing/corrupted, the pipeline falls back to Helvetica + WinAnsi sanitizer for the entire sheet (logs a warn). Lohf pilot PDF is now 294 KB (was 197 KB) with Inter Bold subset embedded. **The WinAnsi-sanitizer-strips-diacritics gotcha is now only the fallback path** — happy path renders Unicode correctly.
 - **`session_user` vs `current_user` in SECURITY DEFINER.** Inside SECDEF trigger functions, `current_user` returns the function OWNER (postgres) — bypass-list checks evaluate true for every caller (this was 222b's silent prod break). `session_user` is the original CONNECTION role and survives SET ROLE + SECURITY DEFINER. If you write another SECDEF trigger guard, use `session_user`.
