@@ -1,11 +1,11 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-13 ~12:50 UTC (Phase 7b shipped — title block paint + Inter ttf + ESLint gate + runtime guard + Vercel deploy fix + first live v2 PDF pilot rendered for PROJ-32115)
+**Last updated:** 2026-05-13 ~13:00 UTC (Phase 7b shipped — title block paint + Inter ttf + ESLint gate + runtime guard + Vercel deploy fix + first live v2 PDF pilot rendered for PROJ-32115; chain_state_auto YAML block at file tail; Greg eyeballed the Lohf PDF + confirmed layout passes visual review)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `db2f962` (origin matches; 0 commits ahead).** Two commits this session: `ba81df5` (deploy fix + dormant 7b infra, pushed mid-session to unblock Vercel) and `db2f962` (Phase 7b feature: title block + Inter + tests, pushed at session end). Vercel preview `ba81df5` confirmed READY (~70s build, branch's first green since Phase 5); `db2f962` builds on top.
-**Latest commit (HEAD = origin):** `db2f962` feat(sld-v2): Phase 7b — title block paint + Inter font registration
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `ca7c990` (origin matches; 0 commits ahead).** Three commits this session: `ba81df5` (deploy fix + dormant 7b infra, pushed mid-session to unblock Vercel), `db2f962` (Phase 7b feature: title block + Inter + tests, pushed at session end), `ca7c990` (handoff refresh + pilot harness, pushed at session end). Vercel preview `ba81df5` confirmed READY (~70s build, branch's first green since Phase 5); subsequent pushes build on top.
+**Latest commit (HEAD = origin):** `ca7c990` docs(planset): refresh handoff after Phase 7b ships + Lohf pilot rendered
 
 ## Chain instruction (read this first, every session)
 
@@ -229,3 +229,38 @@ Phase 7b shipped end-to-end. The next phase IS the RUSH feedback loop: pick up o
 ---
 
 **End of handoff. Next session: pick up only when RUSH feedback arrives (#1025). Hardening backlog (#1021–#1024) available any-time. Pass it forward.**
+
+## Chain state (auto)
+
+```yaml
+chain_state_auto:
+  project: MicroGRID
+  generated_at: 2026-05-13T17:59:21Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  current_branch: feat/planset-v8-layouts
+  current_head: ca7c990
+  current_head_committed: 2026-05-13T12:54:00-05:00
+  main_head: 2e00006
+  recent_recaps:  # newest first; pulled from atlas_session_recaps
+    - planset-7b-2026-05-13-pm (2026-05-13T17:50:26, ba81df5): Phase 7b ships — v2 SLD PDF title block + RUSH stamp pilot for PROJ-32115; 4-day Vercel outage fixed
+    - planset-phase-7a-2026-05-13 (2026-05-13T16:24:27, c7e1c3a): Phase 7a — per-project use_sld_v2 column + 3-arg flag + SheetPV5 inline v2 swap
+    - planset-phase-6-closeout-2026-05-13 (2026-05-13T15:46:01, c7e1c3a): planset Phase 6 close-out — #998 + #1006 fixed inline
+    - planset-phase-6-2026-05-13 (2026-05-13T15:20:02, 2d826cb): planset Phase 6 — feature-flag + nodeOverrides + v2 PDF route shipped
+    - planset-phase-5-pdf-2026-05-13 (2026-05-13T14:44:11, 8a5df39): planset sld-v2 Phase 5 — SVG→PDF export shipped (jsPDF + svg2pdf.js)
+    - planset-sld-v2-pivot-2026-05-12 (2026-05-12T22:08:45, 883c0ee): planset chain pivoted from hand-positioned spec to elkjs layout engine
+  branch_status: feat/planset-v8-layouts (34 ahead of main, 0 ahead of origin — pushed)
+  open_actions:
+    blocking_pilot: ['#1025 (P1) — RUSH stamp turnaround tracking for PROJ-32115']
+    hardening_backlog:
+      - '#1021 (P2) — concurrent ELK init worker leak (lib/sld-v2/layout.ts)'
+      - '#1022 (P2) — ESLint no-restricted-imports patterns may miss sibling relative imports'
+      - '#1023 (P2) — Inter ttf has no runtime SHA-256 verification'
+      - '#1024 (P2) — spy assertion that loadInterTtfBase64 NOT called from default-options test'
+  vercel_state: GREEN (ba81df5 READY 1778693172697 — first green on this branch since Phase 5)
+  pilot_prod_state:
+    project_id: PROJ-32115
+    customer: Charles Lohf
+    use_sld_v2: true  # flipped 2026-05-13 via Supabase MCP
+    pdf_bytes: 197218
+    pdf_path: ~/Desktop/sld-v2-pilot-lohf.pdf
+  # autonomy-band flags below are owned by the chain skill, not this snapshot
+```
