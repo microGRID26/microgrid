@@ -73,8 +73,14 @@ const localStorageMock = (() => {
     clear: vi.fn(() => { store = {} }),
   }
 })()
-Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+// Some test files opt into `node` env (e.g. sld-v2/pdf.test.ts) — guard the
+// jsdom-only globals so the setup file imports cleanly under both envs.
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+}
 
 // Mock URL.createObjectURL / revokeObjectURL (for CSV export)
-URL.createObjectURL = vi.fn(() => 'blob:mock-url')
-URL.revokeObjectURL = vi.fn()
+if (typeof URL !== 'undefined') {
+  URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+  URL.revokeObjectURL = vi.fn()
+}

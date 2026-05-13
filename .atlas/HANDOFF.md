@@ -1,12 +1,12 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-12 ~17:15 UTC (sld-v2 Phases 0–4 shipped + test fix, architectural pivot complete)
+**Last updated:** 2026-05-13 ~09:35 UTC (sld-v2 Phase 5 shipped — SVG → PDF export with R1 fixes folded in)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **10 local commits ahead of origin**, NONE pushed (per Greg's per-push auth rule)
+**Branch:** `feat/planset-v8-layouts` — **12 local commits ahead of origin** (Phase 5 not yet committed at handoff write time), NONE pushed (per Greg's per-push auth rule)
 **Latest pushed commit:** `a6a2e88` chore(planset): chain handoff + atomic patcher helper for cross-session pickup
-**Latest local commit:** `4acf3a9` test(sld-v2): update quadPorts test to dot-format ids (Phase 2 convention)
+**Latest local commit:** `772b19d` chore(planset): chain handoff rewrite for sld-v2 architectural pivot (Phase 5 commit pending in this session)
 
 ## Chain instruction (read this first, every session)
 
@@ -40,7 +40,39 @@ Started as a multi-session, multi-canvas effort to bring the MicroGRID planset g
 
 **Plan doc**: `~/.claude/plans/smooth-mixing-milner.md` (Greg approved 2026-05-12)
 
-## ✅ Shipped this session (2026-05-12, ~6 hours)
+## ✅ Shipped this session (2026-05-13, Phase 5 — SVG → PDF export)
+
+### Phase 5 — SVG → PDF export
+New files:
+- `lib/sld-v2/pdf.ts` (218 LOC) — `renderSldToPdf(graph, options?): Promise<Uint8Array>`. Pipeline: `layoutEquipmentGraph` → `placeLabels` → `renderToStaticMarkup(<SldRenderer/>)` → JSDOM parse → `rewriteFontFamily` → `svg2pdf.js` → `jsPDF` → bytes. Title block + NEC notes box deferred to Phase 7.
+- `scripts/render-sld-v2-pdf.tsx` — Tyson-topology harness; writes `~/.claude/tmp/sld-v2-tyson.pdf`. Reuses the same stub `Project` as `scripts/render-sld-v2-from-planset.tsx` (M4 fix).
+- `scripts/sld-v2-pdf-concurrency-smoke.tsx` — 3-parallel-renders smoke; verifies the R1-H1 mutex serializes the global-window swap without corruption.
+- `__tests__/sld-v2/pdf.test.ts` (2 tests) — render-and-assert: PDF signature `%PDF-1.`, MediaBox `[0 0 1224. 792.]` (jsPDF's float pretty-print), exactly 1 `/Type /Page`, byteLength ∈ [8 KB, 200 KB], `NEC 690.12` ASCII match (C1 fix — was `NEC 705.13`, doesn't exist in the codebase); plus a module-load smoke test.
+- Modified `vitest.setup.ts` — guarded `window` / `URL` references with `typeof !== 'undefined'` so node-env test files don't error during setup.
+
+Pre-flight reviewer caught **2 Critical + 6 High** in the original plan BEFORE any code touched disk — folded inline before execution. Critical fixes: C1 (NEC text target was `705.13`, doesn't exist anywhere — switched to `690.12`), C2 (plan assumed 1:1 viewBox→page mapping but `SldRenderer` outputs elkjs-sized variable canvas — switched to aspect-preserved scale-to-fit). High fixes: H1 (dropped fragile jsdom-getBBox assumption, added prototype shim), H2 (jsdom's getBBox stub returns zero, swap to JSDOM lazy-import + shim), H3 (test timeout + byteLength positive-content invariant), H5 (`@react-pdf/renderer` is in active production use for invoices/cost-basis — DO NOT remove), H6 (server-only marker via comment + naming convention since literal `import 'server-only'` errors under tsx).
+
+**R1 audit (red-teamer):** Grade C, 0C / 4H / 6M / 3L. Four High fixed inline:
+- **H1 fixed** — module-level `renderMutex` promise chain serializes concurrent renders that swap globalThis.window/document. Smoke test confirms 3 parallel calls produce byte-identical PDFs without state corruption.
+- **H2 fixed** — `doc.body.removeChild(svgElement)` moved into `finally` with `parentNode` guard; appended SVG no longer leaks if svg2pdf throws.
+- **H3 documented** — getBBox prototype shim persists across the vitest jsdom run; grep confirms no other test asserts on `getBBox`, so leak is benign today; comment in code names the future-refactor path.
+- **H4 fixed** — `rewriteFontFamily` no longer gates on `hasAttribute`; unconditionally writes `'Inter, Helvetica, sans-serif'` on every walked `<text>`/`<g>`/`<tspan>` so Phase 7's Inter ttf registration will actually take effect.
+
+Six Medium / three Low findings: documented; non-blocking; M3/M4 (test-regex stiffening) and M6 (Vercel runtime=nodejs declaration for the future API route) flagged for Phase 6.
+
+**R2 verify:** typecheck clean; 40/40 sld-v2 tests pass; harness still produces 67,538-byte PDF (identical to pre-R1-fix output); 3-parallel-renders smoke completes in 3065 ms with byte-identical PDFs.
+
+### Deps added
+- `svg2pdf.js@^2.7.0` (deps)
+- `jspdf@latest` (deps; was already a transitive)
+- `svgdom@^0.1.23` (deps — installed during exploration; not currently imported by pdf.ts but retained as a fallback path for Phase 7)
+- `canvas@^3.2.3` (deps — provides text-measurement context to svg2pdf via jsdom; required at runtime in the API route)
+- `server-only@^0.0.1` (deps — present but NOT imported; comment in pdf.ts documents why)
+- `@types/svgdom@^0.1.2` (devDeps)
+- `@types/jsdom@latest` (devDeps)
+
+### Older history below (Phases 0–4, 2026-05-12)
+## ✅ Shipped 2026-05-12 (sld-v2 Phases 0–4, ~6 hours)
 
 ### Phase 0 — Collision validator
 Commit `3a6772f` · `scripts/sld-collision-check.py` (329 LOC, Python 3.12)
@@ -183,11 +215,16 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 - ✅ Phase 2 — elkjs adapter + SldRenderer
 - ✅ Phase 3 — Label slot picker + leader callouts + bbox-aware wire labels
 - ✅ Phase 4 — PlansetData adapter (11 tests)
-- ☐ Phase 5 — SVG → PDF export (`lib/sld-v2/pdf.ts`)
+- ✅ **Phase 5 — SVG → PDF export (`lib/sld-v2/pdf.ts`) — 2026-05-13**
 - ☐ Phase 6 — `nodeOverrides` JSON spec + v1/v2 feature flag routing
 - ☐ Phase 7 — Migrate PV-5 production path to v2 + RUSH stamp validation
 - ☐ Phase 7.x — Fill `StringInverterBox` / `MicroInverterBox` / `EVChargerBox` (deferred kinds)
 - ☐ PROJ-26922 stamp unblock — PDF-edit r12 hand-tweak (Atlas-side, not blocked by v2)
+
+## Audit gates (Phase 5)
+- Pre-flight (general-purpose, plan vs live state): GO-WITH-EDITS (0C+0H+0M+0L after fixes; original 2C+6H+6M+5L all folded inline)
+- R1 (red-teamer, shipped code): **C** (0C / 4H / 6M / 3L) — deferred: M3, M4, M6, L1, L2, L3 (Phase 6 hygiene)
+- R2 (self-verify, fixes): **A** (typecheck + 40/40 vitest + concurrency smoke confirm no regression)
 
 ## Live state worth knowing
 
@@ -206,50 +243,39 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 
 ## Next phase to pick up
 
-### ⬅ Phase 5 (next session) — SVG → PDF export
+### ⬅ Phase 6 (next session) — nodeOverrides + v1/v2 feature flag routing
 
 **Decisions Greg must answer before this phase starts:**
 
-1. **PDF library choice — confirm or override the plan default.**
-   - (a) `svg2pdf.js` + `jsPDF` (plan default) — vector-preserving SVG to PDF, text remains selectable, lightweight. Worked well in research.
-   - (b) Switch to `@react-pdf/renderer` — full PDF primitives, no SVG, but reimplementing the renderer in Page/View/Svg primitives is heavy.
-   - (c) Server-side render via headless Chrome + print-to-PDF — production-grade, slower, more infrastructure.
-   - **Default: (a)** unless you want hard pages with header/footer chrome generated by a dedicated PDF lib.
+1. **Per-project or per-sheet feature flag?**
+   - (a) Per-project field on the DB row (`use_sld_v2: boolean`).
+   - (b) Per-sheet env flag or URL query param (`?sld=v2`).
+   - **Default: (b) initially** for testing; promote to (a) once Phase 7 has 10+ projects validated.
 
-2. **Page size — sticking with ANSI B?**
-   - Plan default: 11×17 landscape (1224×792 pt @ 72 DPI). Matches the v1 layout intent + RUSH's typical sheet size.
-   - Alternative: ANSI D (22×34) for projects with denser SLDs. Defer to Phase 7+ if needed.
-   - **Default: (a) ANSI B**.
+2. **nodeOverrides JSON spec — where does it live?**
+   - (a) Inline on the EquipmentGraph spec file (when one exists per-project).
+   - (b) Separate `<project-id>-overrides.json` in `lib/sld-v2/overrides/`.
+   - (c) DB column (`sld_v2_node_overrides jsonb`).
+   - **Default: (b)** for now; promote to (c) once 10+ projects need overrides.
 
-3. **Font embedding strategy.**
-   - (a) Subset Inter or Helvetica — RUSH plan-checkers grep PDF text, so a known font matters.
-   - (b) Embed full Roboto — adds ~150KB to the PDF.
-   - **Default: (a)** with Inter as the choice (free, modern, geometric).
-
-4. **Should the renderer surface graph.notes (NEC warnings) on the sheet now, or wait for Phase 7?**
-   - (a) Add a notes box bottom-left of every PDF — visible to RUSH at stamp review.
-   - (b) Wait for Phase 7 and add it to the sheet template alongside the title block.
-   - **Default: (b)** — keep Phase 5 narrow to PDF mechanics; sheet template work belongs in Phase 7.
+3. **Should Phase 6 also fold in the R1-Medium follow-ups from Phase 5?**
+   - **R1-M3**: stiffen pdf.test.ts page-count regex (use `/Count` from `/Pages` dict, not literal `/Type /Page` matches).
+   - **R1-M4**: stiffen NEC regex against jsPDF text-split / future compression.
+   - **R1-M6**: confirm the eventual API route declares `export const runtime = 'nodejs'`.
+   - **R1-L1**: re-add `import 'server-only'` with a tsx loader shim, OR document the bundle-leak risk explicitly.
+   - **Default: (a) fold inline** — these touch the same file/test surface Phase 6 will modify when wiring v2 to a route.
 
 **Phase work:**
 
-- New: `lib/sld-v2/pdf.ts`
-  - Function signature: `renderSldToPdf(graph: EquipmentGraph, options?): Promise<Uint8Array>`
-  - Internally: runs `layoutEquipmentGraph` + `placeLabels`, builds SVG via `renderToStaticMarkup(<SldRenderer …/>)`, parses SVG into a DOM (jsdom or browser), feeds to `svg2pdf.js` → `jsPDF` instance → exports Uint8Array.
-  - Page setup: ANSI B landscape, 72 DPI, viewBox 1224×792 → 1:1 pt mapping.
-  - Title block: paint title-block strip from `graph.sheet.titleBlock` after the SLD is drawn (separate pass — title block is a fixed-position template, not part of the auto-layout).
-- New: `scripts/render-sld-v2-pdf.tsx` — harness that takes a PlansetData stub → produces `~/.claude/tmp/sld-v2-test.pdf`.
-- Tests in `__tests__/sld-v2/pdf.test.ts`: PDF byte signature check (`%PDF-1.`), page count = 1, page dimensions = 1224×792 pt. Skip strict pixel-equivalence — that's a Phase 7 visual regression concern.
+- Extend `lib/sld-layout.ts` with a v2 path that routes based on the feature flag.
+- New spec format: declarative `EquipmentGraph` JSON (much smaller than the 270-element hand-positioned spec — just equipment list + connections + nodeOverrides).
+- New API route (likely `app/api/sld/v2/[projectId]/route.ts`) that calls `renderSldToPdf` and returns the bytes. MUST declare `export const runtime = 'nodejs'` per Phase 5 R1-M6.
+- Phase 6 feature flag MUST gate on `isDuracellHybrid(data)` (`lib/sld-v2/from-planset-data.ts`) — only route to v2 when the topology has shipped equipment kinds (Phase 5 R1-M6).
+- Migration: keep v1 generator running for backward compat. Cut over per sheet via flag.
 
-**Verification end-state:**
-- `open ~/.claude/tmp/sld-v2-test.pdf` opens cleanly in Preview / Acrobat
-- `pdfgrep "NEC 705.13" ~/.claude/tmp/sld-v2-test.pdf` returns a hit (text-selectable)
-- Vector zoom at 400% is crisp (not raster)
-- File size < 200 KB for a single-page SLD
+**Estimated effort:** 1-2 days.
 
-**Estimated effort:** 1 day focused work.
-
-### ⬅ Phase 6 (after Phase 5) — nodeOverrides + v1/v2 feature flag routing
+### ⬅ Phase 7 (after Phase 6) — PV-5 production migration
 
 **Decisions Greg must answer before this phase starts:**
 
@@ -276,7 +302,11 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 
 Migrate PV-5 SLD to the v2 path for live projects. Send v2-generated PV-5 PDF to RUSH for stamp. If they stamp without redraw → migrate PV-3 (site plan), PV-3.1 (equipment elevation), PV-6+. If they redraw → diff their redraw against our output, fold deltas into v2 conventions, re-submit.
 
-**Also in Phase 7:** fill the 3 deferred equipment kinds (`StringInverterBox`, `MicroInverterBox`, `EVChargerBox`) when their first project hits.
+**Also in Phase 7:**
+- Fill the 3 deferred equipment kinds (`StringInverterBox`, `MicroInverterBox`, `EVChargerBox`) when their first project hits.
+- Add title block + NEC notes box to the PDF (deferred from Phase 5).
+- Register Inter ttf via `jsPDF.addFont()` — Phase 5 already rewrites font-family on every text node to `'Inter, Helvetica, sans-serif'`, so the registration alone will switch the rendered font.
+- Address Phase 5 R1-M3 / M4 / M6 / L1 if not yet folded into Phase 6.
 
 **Estimated effort:** 3-5 days.
 
