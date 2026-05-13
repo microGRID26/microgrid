@@ -91,13 +91,32 @@ function bboxesOverlap(a: LayoutBBox, b: LayoutBBox): boolean {
   )
 }
 
+/** Polyline segment as a thin avoidance bbox (matches lib/sld-v2/labels.ts
+ *  edgeBBoxes shape so the two avoidance sets stay coherent). */
+function edgeSegmentBoxes(edges: RoutedEdge[]): LayoutBBox[] {
+  const out: LayoutBBox[] = []
+  for (const e of edges) {
+    for (let i = 0; i < e.polyline.length - 1; i++) {
+      const a = e.polyline[i]
+      const b = e.polyline[i + 1]
+      const minX = Math.min(a.x, b.x) - 1
+      const minY = Math.min(a.y, b.y) - 1
+      const maxX = Math.max(a.x, b.x) + 1
+      const maxY = Math.max(a.y, b.y) + 1
+      out.push({ x: minX, y: minY, w: maxX - minX, h: maxY - minY })
+    }
+  }
+  return out
+}
+
 /** Find a midpoint along the edge such that the conductor LABEL bbox
  *  (anchored at midpoint, extending rightward by ~labelText.length × 3.5 px,
- *  about 9 px tall) does NOT overlap any equipment bbox. Returns null if
- *  no segment works — caller skips the label entirely. */
+ *  about 9 px tall) does NOT overlap any avoidance box. avoidance =
+ *  equipment bboxes + segments of OTHER edges + previously-placed wire
+ *  labels. Returns null if no segment works — caller skips the label. */
 function midpoint(
   edge: RoutedEdge,
-  blockBoxes: LayoutBBox[],
+  avoidance: LayoutBBox[],
   labelText: string,
 ): { x: number; y: number } | null {
   const pts = edge.polyline
@@ -122,7 +141,7 @@ function midpoint(
       w: labelW,
       h: labelH,
     }
-    if (!blockBoxes.some((b) => bboxesOverlap(b, labelBBox))) {
+    if (!avoidance.some((b) => bboxesOverlap(b, labelBBox))) {
       return { x: mx, y: my }
     }
   }
@@ -145,27 +164,70 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
       {/* Edges first (drawn under nodes) */}
       <g transform={`translate(${ox}, ${oy})`}>
         {(() => {
-          // Build equipment bbox list for label-placement avoidance.
+          // Build avoidance pieces:
+          //   1. Equipment bboxes — wire labels never sit on a block.
+          //   2. Per-edge "other-edge segment" bboxes — wire labels never
+          //      sit on a parallel conductor (#1006 fix). Computed via
+          //      lookup table so we don't recompute the full segment list
+          //      for every edge.
+          //   3. Equipment-label bboxes (when labelPlacement is supplied)
+          //      so wire labels also avoid the printed equipment text.
+          //   4. Cumulative wire-label bboxes — wire labels don't stack
+          //      on each other.
           const blockBoxes: LayoutBBox[] = layout.laidOut.map((lo) => ({
             x: lo.x,
             y: lo.y,
             w: lo.equipment.width,
             h: lo.equipment.height,
           }))
-          return layout.edges.map((edge) => {
+          const placedLabelBoxes: LayoutBBox[] = (labelPlacement?.slots ?? []).map((s) => s.bbox)
+          // Map from edge id → segment bboxes for that edge alone.
+          const segmentsByEdge = new Map<string, LayoutBBox[]>()
+          for (const e of layout.edges) {
+            segmentsByEdge.set(e.connection.id, edgeSegmentBoxes([e]))
+          }
+          const allSegmentBoxes = edgeSegmentBoxes(layout.edges)
+          const placedWireLabelBoxes: LayoutBBox[] = []
+          // Compute per-edge midpoint up-front so we can render in two
+          // passes: all polylines first, then all wire labels on top.
+          // Z-order fix for #1006 — single-pass rendering lets a later
+          // edge's polyline paint over an earlier edge's label even when
+          // the label's white-mask rect was drawn correctly within its
+          // own group.
+          const edgeRenderData = layout.edges.map((edge) => {
             const color = EDGE_COLOR_BY_CATEGORY[edge.connection.category] ?? '#111'
-            const mid = midpoint(edge, blockBoxes, edge.connection.conductor ?? '')
-            return (
-              <g key={edge.connection.id}>
+            const ownSegments = segmentsByEdge.get(edge.connection.id) ?? []
+            const otherEdgeBoxes = allSegmentBoxes.filter((b) => !ownSegments.includes(b))
+            const avoidance: LayoutBBox[] = [
+              ...blockBoxes,
+              ...otherEdgeBoxes,
+              ...placedLabelBoxes,
+              ...placedWireLabelBoxes,
+            ]
+            const mid = midpoint(edge, avoidance, edge.connection.conductor ?? '')
+            if (mid && edge.connection.conductor) {
+              const w = edge.connection.conductor.length * 3.5 + 4
+              placedWireLabelBoxes.push({ x: mid.x - 2, y: mid.y - 10, w, h: 9 })
+            }
+            return { edge, color, mid }
+          })
+          return (
+            <>
+              {/* Pass 1 — all polylines */}
+              {edgeRenderData.map(({ edge, color }) => (
                 <polyline
+                  key={`line-${edge.connection.id}`}
                   points={polylinePoints(edge)}
                   fill="none"
                   stroke={color}
                   strokeWidth={edge.connection.category === 'ground' || edge.connection.category === 'gec' ? 1.4 : 1.6}
                   strokeDasharray={edge.connection.category === 'comm' ? '4,2' : undefined}
                 />
-                {edge.connection.conductor && mid && (
-                  <g transform={`translate(${mid.x}, ${mid.y - 3})`}>
+              ))}
+              {/* Pass 2 — all wire labels (always paint on top of any line) */}
+              {edgeRenderData.map(({ edge, color, mid }) =>
+                edge.connection.conductor && mid ? (
+                  <g key={`label-${edge.connection.id}`} transform={`translate(${mid.x}, ${mid.y - 3})`}>
                     <rect
                       x={-2}
                       y={-7}
@@ -178,10 +240,10 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
                       {edge.connection.conductor}
                     </text>
                   </g>
-                )}
-              </g>
-            )
-          })
+                ) : null,
+              )}
+            </>
+          )
         })()}
       </g>
 

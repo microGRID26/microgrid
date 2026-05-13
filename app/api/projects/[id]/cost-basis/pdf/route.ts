@@ -91,8 +91,17 @@ export async function GET(
       },
     })
   } catch (err) {
+    // Mirror of the Phase 6 sld-v2 route fix (#998 close-out, 2026-05-13).
+    // Never leak internal error messages to the client — they surface
+    // library names + state machine that an authenticated internal user
+    // could fuzz to enumerate. Opaque message + correlation id; real
+    // message stays in server logs.
     const message = err instanceof Error ? err.message : 'Unknown error'
-    console.error('[GET /api/projects/[id]/cost-basis/pdf]', message)
-    return NextResponse.json({ error: message }, { status: 500 })
+    const correlationId = Math.random().toString(36).slice(2, 10)
+    console.error(`[GET /api/projects/[id]/cost-basis/pdf] cid=${correlationId}`, message)
+    return NextResponse.json(
+      { error: 'Render failed', correlationId },
+      { status: 500 },
+    )
   }
 }
