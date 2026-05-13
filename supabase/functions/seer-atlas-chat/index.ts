@@ -259,7 +259,7 @@ function streamChat(args: {
           for (const block of currentAssistantBlocks) {
             const b = block as { type: string; id?: string; name?: string; input?: Record<string, unknown> };
             if (b.type !== 'tool_use' || !b.name) continue;
-            const result = await executeTool(adminClient as any, b.name as ToolName, b.input || {});
+            const result = await executeTool(adminClient as any, b.name as ToolName, b.input || {}, userId);
             const resultJson = JSON.stringify(result);
             const isError = !!(result && typeof result === 'object' && 'error' in (result as Record<string, unknown>));
             send({ type: 'tool_result', name: b.name, length: resultJson.length, error: isError });
