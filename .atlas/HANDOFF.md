@@ -4,9 +4,9 @@
 **Last updated:** 2026-05-13 ~10:15 UTC (sld-v2 Phase 6 shipped — feature flag + nodeOverrides + v2 PDF route, R1 B → R2 A)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **12 commits on origin (8a5df39); 4 commits ahead locally** (`91aea6b` handoff + `2d826cb` Phase 6 + `5d9d54f` handoff refresh + `9b39826` R3 fix) — **NOT YET PUSHED.** Greg per CLAUDE.md must explicitly authorize.
-**Latest pushed commit:** `8a5df39` feat(sld-v2): SVG → PDF export — Phase 5 lands
-**Latest local commit:** `9b39826` fix(sld-v2): Phase 6 R3 — topology gate + schema-validation tests + gitignore
+**Branch:** `feat/planset-v8-layouts` — **17 commits on origin (8ae865e); 1 commit ahead locally** (`c7e1c3a` close #998+#1006) — **NOT YET PUSHED.** Greg per CLAUDE.md must explicitly authorize.
+**Latest pushed commit:** `8ae865e` docs(planset): refresh handoff after Phase 6 R3 fix
+**Latest local commit:** `c7e1c3a` fix: close #998 (cost-basis 500-leak) + #1006 (sld-v2 wire-label overdrawn by parallel conductors)
 
 ## Chain instruction (read this first, every session)
 
@@ -302,7 +302,10 @@ The collision-check r12 baseline at 42 overlaps / 5390 sq px is the OTHER object
 (Read each `python3 ~/.claude/scripts/greg_actions.py show <id>` before working on it — pre-resolution gate per chain rule.)
 
 - **#996 (P2, claimed Phase 6)** — coordination row. Closes when Phase 6 is signed off and Phase 7 starts. Greg, this can be closed any time you're satisfied with the Phase 6 work.
-- **#998 (P2)** — cost-basis PDF route has the same 500-leak shape Phase 6 R1 caught + fixed in the sld-v2 route. One-line mirror fix. Picked up in any session, not chain-gated.
+- ~~#998 (P2)~~ — closed by `c7e1c3a` (cost-basis PDF route now returns opaque message + correlation id, mirrors Phase 6 R1-H1 fix shape).
+- ~~#1006 (P2)~~ — closed by `c7e1c3a` (`midpoint()` avoidance set extended to other-edge segments + placed labels; `SldRenderer` rewritten to two-pass — all polylines first, then all wire labels — so cross-edge overdraw is structurally impossible).
+
+**Note:** `c7e1c3a` is local-only; visual confirmation via `http://localhost:59834` while the brainstorm server lives. Greg viewed it at session-end. Push pending.
 
 ## Next phase to pick up
 
