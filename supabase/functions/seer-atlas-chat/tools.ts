@@ -75,7 +75,7 @@ export const ATLAS_TOOL_DEFS = [
       },
     },
   },
-  // ─────────────────────────── Phase 3B — Conductor writes ───────────────────────────
+  // ─────────────────────────── Phase 3B — Conductor (auto-exec subset) ───────────────────────────
   {
     name: 'log_assumption',
     description: 'Log a non-obvious assumption Atlas is about to act on (API contract, schema field, business rule). Auto-execute — Greg reviews assumptions later via /status. Use freely.',
@@ -90,58 +90,10 @@ export const ATLAS_TOOL_DEFS = [
       required: ['text','project'],
     },
   },
-  {
-    name: 'file_action',
-    description: 'File a new item in Greg\'s action queue (greg_actions). Requires Greg to tap a confirmation chip before execution. Use when something needs Greg\'s manual attention or a future decision he should track. Priority levels: P0 critical, P1 important, P2 nice-to-have, question (need answer).',
-    input_schema: {
-      type: 'object',
-      properties: {
-        priority: { type: 'string', enum: ['P0','P1','P2','question'], description: 'Default P2.' },
-        title:    { type: 'string', description: 'Short title (under 90 chars).' },
-        body:     { type: 'string', description: 'Markdown body — what / why / how to close.' },
-        source:   { type: 'string', description: 'Optional source tag. Default "seer-atlas-chat".' },
-        effort:   { type: 'string', description: 'Optional effort estimate (e.g. "5m","30m","2h").' },
-      },
-      required: ['title','body'],
-    },
-  },
-  {
-    name: 'close_action',
-    description: 'Close a greg_actions row by id. Requires confirmation chip. Use when Greg confirms an action is done OR you discover it\'s already shipped. Idempotent on already-closed rows.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        id:   { type: 'integer', description: 'The action id (bigint).' },
-        note: { type: 'string', description: 'Optional close note appended to body_md.' },
-      },
-      required: ['id'],
-    },
-  },
-  {
-    name: 'mark_concept_known',
-    description: 'Mark a Seer learn_concepts slug as "known" in Greg\'s curriculum (advances his position). Requires confirmation chip. Use when Greg demonstrates understanding of a concept in chat (asked sophisticated questions about it, or explicitly said he gets it). Idempotent — advancing past current position is a no-op.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        slug: { type: 'string', description: 'The concept slug (e.g. "llm","tool-use","mcp").' },
-      },
-      required: ['slug'],
-    },
-  },
-  {
-    name: 'add_recap',
-    description: 'Write a session recap to atlas_session_recaps. Requires confirmation chip. Use at the end of a substantive chat session (≥5 turns of real work). Two shapes: plain-English synopsis (60-second skim) + full body (archival).',
-    input_schema: {
-      type: 'object',
-      properties: {
-        headline:     { type: 'string', description: 'One-sentence headline of what changed.' },
-        synopsis_md:  { type: 'string', description: '2-6 paragraphs, plain English, lead with outcome.' },
-        body_md:      { type: 'string', description: 'Full technical detail.' },
-        project:      { type: 'string', description: 'Project (e.g. "Seer","MicroGRID").' },
-      },
-      required: ['headline','synopsis_md','body_md','project'],
-    },
-  },
+  // NOTE: file_action / close_action / mark_concept_known / add_recap are
+  // Phase 3B confirm-chip tools. Their server-side /confirm endpoint and
+  // iOS chip UI ship in the next chain session. Defs are intentionally
+  // omitted from this build so Atlas doesn't reach for unavailable tools.
 ] as const;
 
 export type ToolName = typeof ATLAS_TOOL_DEFS[number]['name'];
@@ -457,17 +409,6 @@ export async function executeTool(
         if (error) return { error: error.message };
         return { logged: true, id: data };
       });
-    }
-
-    // Phase 3B confirm-chip tools (file_action, close_action, mark_concept_known,
-    // add_recap) are NOT dispatched here — they route through requestConfirmation
-    // in index.ts which inserts a seer_atlas_pending_tools row + emits a
-    // pending_confirmation SSE event. The /confirm endpoint claims the row,
-    // executes the underlying RPC, and resumes the stream.
-    if (name === 'file_action' || name === 'close_action'
-        || name === 'mark_concept_known' || name === 'add_recap') {
-      // Should be intercepted upstream. If we land here, the dispatch routing is buggy.
-      return { error: `confirm-chip tool ${name} reached executeTool — should have been intercepted` };
     }
 
     return { error: `unknown tool: ${name}` };
