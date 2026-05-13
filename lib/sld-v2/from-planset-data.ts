@@ -37,7 +37,7 @@ import type { PlansetData } from '../planset-types'
 // Topology detection
 // ──────────────────────────────────────────────────────────────────────────
 
-function isDuracellHybrid(data: PlansetData): boolean {
+export function isDuracellHybrid(data: PlansetData): boolean {
   return /duracell.*(hybrid|pc\s*max)/i.test(data.inverterModel)
 }
 

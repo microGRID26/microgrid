@@ -59,3 +59,9 @@ scripts/import-project-files.py
 # Never commit — it flaps on every build.
 /lib/infographic/codebase-stats.ts
 .env*.local
+
+# Test fixtures from __tests__/sld-v2/overrides-loader.test.ts.
+# Loader hardcodes process.cwd()+lib/sld-v2/overrides for resolution, so
+# tests must write fixtures into the real dir. afterAll cleans them but a
+# crashed run could leak them; gitignore prevents accidental commit.
+/lib/sld-v2/overrides/TEST-*.json

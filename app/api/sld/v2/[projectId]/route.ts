@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 
 import { rateLimit } from '@/lib/rate-limit'
 import { buildPlansetData } from '@/lib/planset-types'
-import { equipmentGraphFromPlansetData } from '@/lib/sld-v2/from-planset-data'
+import { equipmentGraphFromPlansetData, isDuracellHybrid } from '@/lib/sld-v2/from-planset-data'
 import { renderSldToPdf } from '@/lib/sld-v2/pdf'
 import { shouldUseSldV2 } from '@/lib/sld-v2/feature-flag'
 import { loadNodeOverrides } from '@/lib/sld-v2/overrides/loader'
@@ -93,6 +93,24 @@ export async function GET(
       batteryCount: 16,
       batteriesPerStack: 8,
     })
+
+    // Phase 5 R1-M6 (R3 catch) — only route to v2 when the topology has
+    // shipped equipment kinds. Non-Duracell topologies produce an empty
+    // graph + warn note today; rendering them yields a broken PDF. Reject
+    // with 422 until Phase 7.x fills StringInverter / MicroInverter / EV
+    // kinds.
+    //
+    // Today this gate is a no-op because the buildPlansetData call above
+    // hardcodes the Duracell inverter model, so isDuracellHybrid is always
+    // true. The gate goes live in Phase 7 when this route reads the real
+    // per-project inverter model from the project row. Don't remove it —
+    // the dead-code window is exactly until that swap.
+    if (!isDuracellHybrid(data)) {
+      return NextResponse.json(
+        { error: 'sld_v2_unsupported_topology', detail: 'Phase 6 supports Duracell hybrid topology only.' },
+        { status: 422 },
+      )
+    }
 
     const graph = equipmentGraphFromPlansetData(data)
 
