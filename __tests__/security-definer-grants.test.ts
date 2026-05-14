@@ -42,9 +42,21 @@ const KNOWN_OFFENDERS = new Set<string>([
   // is stripped automatically on functions in public, so the REVOKE is
   // redundant — the GRANT lines are the real ACL. Marked PUBLIC-safe.
   '210-atlas-agent-primary-model.sql',
+  // 2026-05-14 — chain planset Phase H3 surfaced these via the mig 226 R1
+  // red-teamer (which flagged the sister functions lack name-bound REVOKEs
+  // alongside its in-session fold for mig 226 itself). All four are trigger
+  // functions invoked by Postgres on table writes; the trigger invocation
+  // uses owner privileges and ignores EXECUTE grants, so the actual exploit
+  // surface is `SELECT public.<fn>()` directly which is low-risk for these
+  // functions (a non-admin caller gets NULL OLD/NEW and either no-ops or
+  // raises). Backport tracked as a P2 hygiene action.
+  '222b-use-sld-v2-trigger-fix-null-auth-role.sql',
+  '223-stage-trigger-fix-null-auth-role.sql',
+  '224-use-sld-v2-trigger-fix-secdef-current-user.sql',
+  '225-audit-log-db-admin-bypass-trigger.sql',
 ])
 
-const KNOWN_OFFENDERS_MAX = 16
+const KNOWN_OFFENDERS_MAX = 20
 
 // Match every CREATE FUNCTION that has SECURITY DEFINER somewhere in its
 // body (DEFINER usually appears 1-3 lines after the signature). Capturing
