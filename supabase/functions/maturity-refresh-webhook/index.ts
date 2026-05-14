@@ -41,6 +41,25 @@ const SLUG_MAP: Record<string, string> = {
 
 const MAX_BODY_BYTES = 1_000_000; // 1MB — GitHub payloads cap at 25MB by default but our event shape is <10KB; tight ceiling.
 
+// R1 M-1 mitigation (v3) — per-slug enqueue collapse. A captured-HMAC adversary
+// (or a misconfigured re-push loop) gets a fresh delivery-id every push, so the
+// PK-based replay defense doesn't gate them. Instead: if a refresh request for
+// this slug is already pending OR was completed in the last RATELIMIT_WINDOW_S,
+// short-circuit with `collapsed:true`. The watcher will get to the existing
+// row; one collector run per push burst is the only useful outcome anyway.
+//
+// v3 R1 H-1 fix: bound the unclaimed-row branch by UNCLAIMED_GRACE_SECONDS
+// so a stalled watcher can't permanently suppress all future webhooks for a
+// slug. A row older than the grace window is treated as orphaned for
+// collapse purposes (the watcher's own claim path still owns it).
+//
+// v3 R1 M-2 tradeoff: 60s collapse window means a fast push-amend-push dev
+// loop merges its second push into the first refresh. Documented and
+// accepted; the alternative (no collapse) lets a captured-HMAC adversary
+// flood the queue with one POST/sec of fresh-delivery-id pushes.
+const RATELIMIT_WINDOW_SECONDS = 60;
+const UNCLAIMED_GRACE_SECONDS = 300; // 5x collapse window — past this the row is presumed orphaned.
+
 const URL_ENV         = Deno.env.get("SUPABASE_URL");
 const SERVICE_KEY_ENV = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const SECRET_ENV      = Deno.env.get("MATURITY_WEBHOOK_GITHUB_SECRET");
@@ -166,6 +185,32 @@ Deno.serve(async (req) => {
     }
     console.error("delivery_insert_failed", deliveryInsErr);
     return errJson(500, "delivery_insert_failed");
+  }
+
+  // Per-slug enqueue collapse — check for a fresh-unclaimed row OR a
+  // recently-completed run for this slug. If either exists, skip insert.
+  // The check is racy by design — worst case two concurrent first-attempts
+  // both enqueue, which the watcher's claim contention resolves to one run.
+  //
+  // R1 H-1 fix: the unclaimed branch is age-bounded by UNCLAIMED_GRACE so
+  // a stalled watcher can't permanently suppress webhooks for a slug.
+  // R1 H-2 fix: lookup errors fall through to insert (open-fail) — collapse
+  // is an optimization, not a safety gate; GitHub retry with the same
+  // delivery-id would otherwise hit the PK replay gate and lose the push.
+  // R1 L-1 fix: select only id; the row contents aren't read.
+  const sinceIso        = new Date(Date.now() - RATELIMIT_WINDOW_SECONDS * 1000).toISOString();
+  const unclaimedSinceIso = new Date(Date.now() - UNCLAIMED_GRACE_SECONDS * 1000).toISOString();
+  const { data: existingRows, error: lookupErr } = await supabase
+    .from("atlas_maturity_refresh_queue")
+    .select("id")
+    .eq("target_slug", slug)
+    .or(`and(claimed_at.is.null,requested_at.gte.${unclaimedSinceIso}),completed_at.gte.${sinceIso}`)
+    .limit(1);
+  if (lookupErr) {
+    console.error("queue_lookup_failed_openfail", lookupErr);
+    // fall through — better double-enqueue than drop-push.
+  } else if (existingRows && existingRows.length > 0) {
+    return okJson({ slug, collapsed: true });
   }
 
   const { error: insErr } = await supabase
