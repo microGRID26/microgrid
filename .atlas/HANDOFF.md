@@ -1,17 +1,20 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-14 ~17:05 UTC (Phase H5 — tightened cross-file SECDEF REVOKE scan to same-or-later file order, closes #1073; hardening backlog now empty; chain in stasis until 2026-05-28 RUSH stamp unblock)
+**Last updated:** 2026-05-14 ~19:45 UTC (Phase H6 — server-side puppeteer PDF route + cut-sheet merge, closes #332; R1 red-teamer B → A with both Highs + both Mediums + L1 folded inline; 33/33 unit + chain baseline NEW_FAIL=0)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `0d6f63b` (8 commits ahead of origin `211ede7`; not pushed per no-mid-session-push rule).** This session shipped (on top of prior session's `4b717f5`):
-  - `a17d602` — feat(mig 226): audit_log append-only seal — BEFORE UPDATE/DELETE trigger + purge GUC (Phase H3)
-  - `b291a0f` — feat(tests/integration): scaffold + close #1054 PostgREST-path trigger-guards (Phase H3)
-  - `b754478` — docs(planset/.atlas): handoff refresh — Phase H3
-  - `cc7787c` — feat(mig 227): REVOKE EXECUTE backport on mig 222b/223/224/225 SECDEF trigger functions (Phase H4)
-  - `8d4a8b7` — docs(planset/.atlas): handoff refresh — Phase H4
-  - `0d6f63b` — test(secdef): tighten cross-file REVOKE scan to same-or-later file order (Phase H5)
-**Latest commit:** `0d6f63b` test(secdef): tighten cross-file REVOKE scan to same-or-later file order
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `3ec67fb` (12 commits ahead of origin `211ede7`; not pushed per no-mid-session-push rule).** This session shipped (on top of prior session's `4b717f5`):
+  - `a17d602` — feat(mig 226): audit_log append-only seal (Phase H3)
+  - `b291a0f` — feat(tests/integration): scaffold + close #1054 (Phase H3)
+  - `b754478` — docs(planset/.atlas): handoff refresh (Phase H3)
+  - `cc7787c` — feat(mig 227): REVOKE EXECUTE backport (Phase H4)
+  - `8d4a8b7` — docs(planset/.atlas): handoff refresh (Phase H4)
+  - `0d6f63b` — test(secdef): cross-file REVOKE scan tighten (Phase H5)
+  - `98363df` — docs(planset/.atlas): handoff refresh (Phase H5)
+  - `a35783a` — docs(planset/.atlas): surface #332+#346 + close stale #335
+  - `3ec67fb` — **feat(planset): server-side puppeteer PDF route + cut-sheet merge (Phase H6, closes #332)**
+**Latest commit:** `3ec67fb` feat(planset): server-side puppeteer PDF route + cut-sheet merge (#332)
 
 ## Chain instruction (read this first, every session)
 
@@ -39,7 +42,68 @@ Multi-session effort to bring the MicroGRID planset generator's SLD output from 
 
 **Plan docs:** `~/.claude/plans/smooth-mixing-milner.md` (architectural, Greg-approved 2026-05-12), `~/.claude/plans/virtual-scribbling-raven.md` (Phase 7b, 2026-05-13), `~/.claude/plans/bright-forging-hare.md` (Phase H1, 2026-05-13 evening).
 
-## ✅ Shipped this session (2026-05-14 — Phase H5: SECDEF cross-file scan tightened to same-or-later file order)
+## ✅ Shipped this session (2026-05-14 — Phase H6: server-side puppeteer PDF route + cut-sheet merge)
+
+Greg gave the architecture call on #332 (puppeteer via `@sparticuz/chromium`, not html2pdf — render-engine parity for PE stamping is load-bearing, and the `sld-assets/` SVG library locks out `@react-pdf/renderer`). Plan written + approved + executed against the existing v2 SLD route's auth/role/rate-limit pattern.
+
+### Commit `3ec67fb` — feat(planset): server-side puppeteer PDF route + cut-sheet merge
+
+**New route `GET /api/planset/[projectId]/pdf`**:
+- Mirrors `app/api/sld/v2/[projectId]/route.ts` on auth/role/rate-limit/RLS-scoped project load. `INTERNAL_ROLES = {admin, super_admin, manager}`. Rate limit 10/min per `user.id` (lower than SLD's 20/min — chromium cold start is ~5-10x more expensive per request).
+- `runtime: 'nodejs'`, `dynamic: 'force-dynamic'`, `maxDuration: 60`.
+- Launches `puppeteer-core` + `@sparticuz/chromium`, forwards user session cookies to the headless browser, navigates to `<origin>/planset?project=<id>&print=1`, emulates print media, captures 17×11 landscape PDF.
+- Merges static cut-sheet PDFs from `public/cut-sheets/` via `pdf-lib` using the canonical `CUT_SHEETS` array from `SheetCutSheets.tsx`.
+- Returns `application/pdf` inline with `X-Planset-PDF-Correlation-Id` header.
+
+**New helper `lib/planset/pdf-merge.ts`**:
+- Pure function `mergePlansetWithCutSheets(plansetBytes, entries, dir?)`.
+- Defends against path traversal (canonical-path startsWith check), missing files (skipped with `ENOENT` reason), corrupt PDFs (skipped with load-error reason). Returns `{ bytes, merged, skipped }` so the caller logs the skip set without failing the whole render.
+- 5/5 unit tests pass (`@vitest-environment node` — jsdom mangles `Uint8Array` → `NaN` inside `pdf-lib`'s type detection).
+
+**Modified `components/planset/SheetCutSheets.tsx`**:
+- New `isPrintMode?: boolean` prop. When true: replaces `<embed type="application/pdf">` with a placeholder div (chromium does NOT render nested PDFs from `<embed>` during its own PDF render — would be a blank rectangle). Also suppresses the screen-only yellow banner ("Cut sheets do NOT print via Save-as-PDF — use server-side merge") because the merge IS that fix.
+
+**Modified `app/planset/page.tsx`**:
+- Reads `?print=1` query param. Threads `isPrintMode` through to `SheetCutSheet`.
+
+**Modified `next.config.ts`**:
+- Added `serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium', 'pdf-lib']` so the chromium binary isn't bundled into the Vercel lambda.
+
+### Audit gate summary
+
+- **R1 red-teamer on the route handler + helper:** B (0C / 2H / 2M / 2L) → A after fold. All findings folded inline:
+  - **H1 (host-header spoof → puppeteer fetches attacker.com → user cookies leaked):** `resolveOriginForPrint` now requires `PLANSET_PDF_ORIGIN` OR a `VERCEL_*` env in production; localhost-only in dev (with regex match). Throws `PlansetPdfOriginError` otherwise, caught by the route's outer catch → 500 with correlation id.
+  - **H2 (cookie forwarding too broad — PostHog/Sentry/other-project cookies re-issued in chromium):** Added `filterSupabaseAuthCookies` filter to `name.startsWith('sb-')`.
+  - **M1 (429 path had no warn-log):** Added `console.warn` with `user.id` on rate-limit reject.
+  - **M2 (setCookie shape lacks Partitioned/CHIPS coverage — silent failure = blank PDF to AHJ):** Added `page.cookies(origin)` round-trip assertion after `setCookie`; throws if no `sb-*` cookie installed.
+  - **L1 (X-Planset-PDF-Merged header echoes cut-sheet filenames — reflection sink if CUT_SHEETS ever goes user-controlled):** Dropped.
+  - **L2 (maxDuration assumes Pro tier):** Acknowledged in comment; Greg on Pro.
+
+### Verification
+
+- 5/5 pdf-merge unit tests pass.
+- 33/33 tests across migrations + SECDEF + pdf-merge pass after R1 folds.
+- `npx tsc --noEmit` exit 0.
+- `chain_test_baseline.py diff vs 8a5df3949028` → NEW_FAIL=0, STILL_FAIL=16.
+
+### Pre-resolved follow-ups verified this session
+
+None new. #332 closed by `answer` (auto-close) when the architecture call was filed earlier; the implementation is THIS commit.
+
+### Follow-up filed
+
+- **#1077 (P2, NEW)** — integration test for the PDF route. Deferred because the existing integration test user is role='user' (load-bearing for the trigger-guard tests in #1058); adding an admin-role sister fixture is the right structural extension. ~1h.
+
+### Vercel deploy verification (pending Greg's push)
+
+Once the branch is pushed:
+1. Visit `https://microgrid-git-feat-planset-v8-layouts-….vercel.app/api/planset/PROJ-32115/pdf` (with auth cookie + manager role).
+2. Confirm it returns a PDF (not 504 from chromium cold start, not 500 from a missing binary).
+3. Open the PDF in Preview/Acrobat — confirm SLD renders, cut sheets are present, customer name carries through Inter Bold.
+
+---
+
+## ✅ Previously shipped (2026-05-14 ~17:05 UTC — Phase H5: SECDEF cross-file scan tightened to same-or-later file order)
 
 After Phase H4 wrapped, Greg said "keep going" again. Picked up the only remaining hardening item (#1073) from the H4 migration-planner M1 finding. ~10 min execution: test-only change to `__tests__/security-definer-grants.test.ts`, no new migration.
 
@@ -405,6 +469,7 @@ Captured via vitest run on the final commit `8bb365b`:
 - ✅ **Phase H3 — mig 226 audit_log append-only seal (closes #1059) + integration-test scaffolding (closes #1058 + #1054) — 2026-05-14 ~15:05 UTC**
 - ✅ **Phase H4 — mig 227 REVOKE EXECUTE backport on four SECDEF trigger fns (closes #1069) + cross-file SECDEF static-test — 2026-05-14 ~16:30 UTC**
 - ✅ **Phase H5 — tightened cross-file SECDEF scan to same-or-later file order (closes #1073) — 2026-05-14 ~17:05 UTC**
+- ✅ **Phase H6 — server-side puppeteer PDF route + cut-sheet merge (closes #332) — 2026-05-14 ~19:45 UTC**
 - 💤 RUSH stamp turnaround on Lohf pilot (#1025) — snoozed to 2026-05-28
 - ☐ Phase 7c (conditional) — fold RUSH feedback (typography, layout, NEC compliance)
 - ☐ Phase 7.x — Fill `StringInverterBox` / `MicroInverterBox` / `EVChargerBox` (deferred kinds)
@@ -437,7 +502,8 @@ Captured via vitest run on the final commit `8bb365b`:
 (Read each `python3 ~/.claude/scripts/greg_actions.py show <id>` before working on it — pre-resolution gate per chain rule.)
 
 - **#1025 (P1, SNOOZED to 2026-05-28)** — RUSH stamp turnaround tracking for PROJ-32115 (Charles Lohf). Greg deferred this two weeks at Phase H3 start; resumes 2026-05-28. Re-rendered PDF stays at 294 KB (Inter Bold subset). Closes when stamped sheet returns + decision on Phase 7c made.
-- **#332 (P1, NEEDS GREG DECISION — surfaced from queue this session)** — planset full-PDF export still uses client-side `window.print()` (verified live: `app/planset/page.tsx:347/397/400/838/867`, no `app/api/planset/` PDF route exists). Greg picks between **(1) puppeteer/headless chromium via `@sparticuz/chromium`** (recommended in the action body — pixel-perfect with React/Tailwind + `sld-assets/` SVG library, ~50-60MB, cold start ~3-5s) and **(3) html2pdf** (smaller deps, known SVG/transform/flex bugs). Option (2) `@react-pdf/renderer` rewrite is eliminated (can't render arbitrary JSX/SVG, would kill the `sld-assets/` hybrid pipeline). Effort once decided: ~1.5 day. Owner-field normalized to `greg` this session (was buried under tag-string owner). Distinct from the v2 SLD path which has its own PDF pipeline in `lib/sld-v2/pdf.ts`.
+- **#1077 (P2, NEW this session)** — integration test for the planset PDF route. Adds an admin-role test user to the integration scaffold and exercises the auth/role/404 paths. Optionally adds a 200-path test if CI has a live Next dev server. Deferred because adding the admin fixture cleanly requires extending `__tests__/integration/setup.ts` with a second user (the existing `e2e_test_integration` user is load-bearing role='user' for the trigger-guard tests). ~1h.
+- ~~#332~~ — closed this session by commit `3ec67fb` (Phase H6: puppeteer PDF route + cut-sheet merge). Architecture pick was puppeteer via `@sparticuz/chromium`.
 - **#346 (P2, GREG-BLOCKED)** — Verify PV-6 row 6 battery-combiner-to-inverter wire spec; needs Duracell Power Center Max Hybrid 15kW datasheet. SheetPV6 was made data-driven in May (no longer hardcoded), but the default values `data.batteryCombinerOutputWire` + `data.batteryCombinerOutputConduit` need PE verification against the datasheet.
 - ~~#335~~ — closed this session as stale. Premise verified (4 hardcoded EMT specs in `app/redesign/components/SingleLineDiagram.tsx`) but the proposed fix `data.batteryConduit` doesn't fit the redesign tool's data shape `{existing, target, results}`. Redesign tool is on the deprecation path; hardcodes vanish when it's deleted.
 - ~~#1073~~ — closed this session by commit `0d6f63b`. SECDEF cross-file scan now requires REVOKE in same-or-later file order.
@@ -475,11 +541,9 @@ Captured via vitest run on the final commit `8bb365b`:
 
 ### ⬅ Hardening backlog (any-time)
 
-- **(empty — chain-internal R1 deferrals).** Every R1 deferral from Phase 7b through Phase H4 is now shipped.
-- **Adjacent open queue items surfaced this session but NOT chain-hardening-scope:**
-  - **#332 (P1)** — full-planset PDF server route. Architecture decision needed from Greg; once picked, ~1.5 day execution. Reasonable next forward unlock IF Phase 7c stays RUSH-gated.
-  - **#346 (P2)** — Duracell datasheet PE-verify (Greg-blocked on the datasheet).
-- ~~#1054~~, ~~#1058~~, ~~#1059~~, ~~#1069~~, ~~#1073~~ — SHIPPED this session.
+- **#1077 (P2, ~1h)** — integration test for the planset PDF route. Extends `__tests__/integration/setup.ts` with an admin-role test user, then adds a test file that exercises auth/role/404 against the new route.
+- **#346 (P2)** — Duracell datasheet PE-verify (Greg-blocked).
+- ~~#1054~~, ~~#1058~~, ~~#1059~~, ~~#1069~~, ~~#1073~~, ~~#332~~ — SHIPPED this session.
 - ~~#335~~ — closed as stale (deprecated-path hygiene).
 - ~~#1053~~ — SHIPPED in Phase H2 (mig 225).
 - ~~215b NULL auth.role() bypass patch~~ — SHIPPED in mig 223 (also surfaced a worse SECDEF/current_user bug that was silently broken in prod via 222b → fixed in mig 224).
@@ -528,10 +592,10 @@ Captured via vitest run on the final commit `8bb365b`:
 ```yaml
 chain_state_auto:
   project: planset
-  generated_at: 2026-05-14T16:07:46Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  generated_at: 2026-05-14T18:36:29Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
-  main_head: 8abcb4a  # feat(seer): mig 326+327 + seer-curriculum-ingest agent (Chain 7 Phase 5)
-  main_head_committed: 2026-05-14T10:01:45-05:00
+  main_head: 47fef5d  # feat(seer): mig 328+329 + Phase 6 R2 polish (Chain 7 Phase 6)
+  main_head_committed: 2026-05-14T12:32:36-05:00
   recent_recaps: []  # recaps unreachable (creds missing or RPC down)
   branches_with_work:
     - feat/atlas-canonical-pipeline-installs (cba5a83): 1 ahead of main
@@ -542,7 +606,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (0d6f63b): 55 ahead of main, 8 unpushed to origin/feat/planset-v8-layouts
+    - feat/planset-v8-layouts (3ec67fb): 58 ahead of main, 11 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main
