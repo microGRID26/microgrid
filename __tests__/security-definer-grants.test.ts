@@ -91,20 +91,35 @@ describe('SECURITY DEFINER grant hygiene', () => {
     const files = await listMigrations(migDir)
     expect(files.length, 'expected migrations under supabase/migrations/').toBeGreaterThan(0)
 
-    // Cross-file scan: a REVOKE for function X in a LATER migration also
-    // closes the gap (mig 227 backports REVOKEs for mig 222b/223/224/225
-    // SECDEF trigger functions). Build the union of all .sql content so
-    // buildRevokeRe(fnName) can match against any file. Added 2026-05-14
-    // (Phase H4) — prior pass required same-file REVOKE which made it
-    // impossible to retroactively close historical SECDEF grants without
-    // mutating already-applied migration files.
-    const allContent = (
-      await Promise.all(files.map(n => fs.readFile(path.join(migDir, n), 'utf-8')))
-    ).join('\n;-- next file --;\n')
+    // Cross-file scan with file-order discipline (Phase H4 → H5 tighten).
+    //
+    // Accept REVOKE for function X if it appears in mig X's own file
+    // (preferred — fresh migration hygiene), OR in any LATER migration
+    // (back-fix path; mig 227 backports REVOKEs for mig 222b/223/224/225).
+    //
+    // Do NOT accept REVOKE in an EARLIER migration. Otherwise a future
+    // SECDEF function redefining an existing name (e.g. another
+    // `projects_block_direct_stage_update` via CREATE OR REPLACE in
+    // mig 250) would free-ride on mig 227's historic REVOKE even though
+    // the new mig has no REVOKE of its own. The same-or-later constraint
+    // forces every fresh SECDEF migration to carry its own hygiene.
+    //
+    // Lex order on the .sql filenames is the migration-apply order
+    // (`listMigrations` sorts). Reads are cached per filename so each
+    // file is loaded at most once even when N CREATE FUNCTIONs in one
+    // file each need a same-or-later scan.
+    const fileContent: Record<string, string> = {}
+    const readFileCached = async (name: string): Promise<string> => {
+      if (!(name in fileContent)) {
+        fileContent[name] = await fs.readFile(path.join(migDir, name), 'utf-8')
+      }
+      return fileContent[name]
+    }
 
     const newOffenders: string[] = []
-    for (const name of files) {
-      const content = await fs.readFile(path.join(migDir, name), 'utf-8')
+    for (let i = 0; i < files.length; i++) {
+      const name = files[i]
+      const content = await readFileCached(name)
       if (BLANKET_REVOKE_RE.test(content)) continue   // schema-wide revoke covers every fn
       const matches = [...content.matchAll(CREATE_SD_FUNCTION_RE)]
       if (matches.length === 0) continue
@@ -112,11 +127,19 @@ describe('SECURITY DEFINER grant hygiene', () => {
       const ungated: string[] = []
       for (const m of matches) {
         const fnName = m[1]
-        // Accept REVOKE in the same file (preferred — fresh migration
-        // hygiene) OR in any later migration (back-fix path).
-        if (!buildRevokeRe(fnName).test(content) && !buildRevokeRe(fnName).test(allContent)) {
-          ungated.push(fnName)
+        const revokeRe = buildRevokeRe(fnName)
+        // Same-file first (preferred shape).
+        if (revokeRe.test(content)) continue
+        // Later-file fallback. Scan files[i+1..] until match or exhausted.
+        let foundLater = false
+        for (let j = i + 1; j < files.length; j++) {
+          const laterContent = await readFileCached(files[j])
+          if (revokeRe.test(laterContent)) {
+            foundLater = true
+            break
+          }
         }
+        if (!foundLater) ungated.push(fnName)
       }
       if (ungated.length > 0) {
         newOffenders.push(`${name} → ${ungated.join(', ')}`)
