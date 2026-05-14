@@ -42,21 +42,15 @@ const KNOWN_OFFENDERS = new Set<string>([
   // is stripped automatically on functions in public, so the REVOKE is
   // redundant — the GRANT lines are the real ACL. Marked PUBLIC-safe.
   '210-atlas-agent-primary-model.sql',
-  // 2026-05-14 — chain planset Phase H3 surfaced these via the mig 226 R1
-  // red-teamer (which flagged the sister functions lack name-bound REVOKEs
-  // alongside its in-session fold for mig 226 itself). All four are trigger
-  // functions invoked by Postgres on table writes; the trigger invocation
-  // uses owner privileges and ignores EXECUTE grants, so the actual exploit
-  // surface is `SELECT public.<fn>()` directly which is low-risk for these
-  // functions (a non-admin caller gets NULL OLD/NEW and either no-ops or
-  // raises). Backport tracked as a P2 hygiene action.
-  '222b-use-sld-v2-trigger-fix-null-auth-role.sql',
-  '223-stage-trigger-fix-null-auth-role.sql',
-  '224-use-sld-v2-trigger-fix-secdef-current-user.sql',
-  '225-audit-log-db-admin-bypass-trigger.sql',
 ])
 
-const KNOWN_OFFENDERS_MAX = 20
+// 2026-05-14 chain planset Phase H4: backported name-bound REVOKE EXECUTE
+// on mig 222b/223/224/225 SECDEF trigger functions via mig 227. The four
+// were briefly punch-listed in Phase H3 (KNOWN_OFFENDERS_MAX bumped to 20);
+// punch-list now back to 16 after mig 227 closed the gap. Live ACL
+// post-mig-227: {postgres=X/postgres, service_role=X/postgres} on all four.
+
+const KNOWN_OFFENDERS_MAX = 16
 
 // Match every CREATE FUNCTION that has SECURITY DEFINER somewhere in its
 // body (DEFINER usually appears 1-3 lines after the signature). Capturing
@@ -97,6 +91,17 @@ describe('SECURITY DEFINER grant hygiene', () => {
     const files = await listMigrations(migDir)
     expect(files.length, 'expected migrations under supabase/migrations/').toBeGreaterThan(0)
 
+    // Cross-file scan: a REVOKE for function X in a LATER migration also
+    // closes the gap (mig 227 backports REVOKEs for mig 222b/223/224/225
+    // SECDEF trigger functions). Build the union of all .sql content so
+    // buildRevokeRe(fnName) can match against any file. Added 2026-05-14
+    // (Phase H4) — prior pass required same-file REVOKE which made it
+    // impossible to retroactively close historical SECDEF grants without
+    // mutating already-applied migration files.
+    const allContent = (
+      await Promise.all(files.map(n => fs.readFile(path.join(migDir, n), 'utf-8')))
+    ).join('\n;-- next file --;\n')
+
     const newOffenders: string[] = []
     for (const name of files) {
       const content = await fs.readFile(path.join(migDir, name), 'utf-8')
@@ -107,7 +112,11 @@ describe('SECURITY DEFINER grant hygiene', () => {
       const ungated: string[] = []
       for (const m of matches) {
         const fnName = m[1]
-        if (!buildRevokeRe(fnName).test(content)) ungated.push(fnName)
+        // Accept REVOKE in the same file (preferred — fresh migration
+        // hygiene) OR in any later migration (back-fix path).
+        if (!buildRevokeRe(fnName).test(content) && !buildRevokeRe(fnName).test(allContent)) {
+          ungated.push(fnName)
+        }
       }
       if (ungated.length > 0) {
         newOffenders.push(`${name} → ${ungated.join(', ')}`)
