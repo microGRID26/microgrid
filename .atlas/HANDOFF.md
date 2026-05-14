@@ -437,7 +437,9 @@ Captured via vitest run on the final commit `8bb365b`:
 (Read each `python3 ~/.claude/scripts/greg_actions.py show <id>` before working on it — pre-resolution gate per chain rule.)
 
 - **#1025 (P1, SNOOZED to 2026-05-28)** — RUSH stamp turnaround tracking for PROJ-32115 (Charles Lohf). Greg deferred this two weeks at Phase H3 start; resumes 2026-05-28. Re-rendered PDF stays at 294 KB (Inter Bold subset). Closes when stamped sheet returns + decision on Phase 7c made.
-- **(none)** — hardening backlog is empty. The only remaining open row is #1025 (RUSH stamp, snoozed to 2026-05-28).
+- **#332 (P1, NEEDS GREG DECISION — surfaced from queue this session)** — planset full-PDF export still uses client-side `window.print()` (verified live: `app/planset/page.tsx:347/397/400/838/867`, no `app/api/planset/` PDF route exists). Greg picks between **(1) puppeteer/headless chromium via `@sparticuz/chromium`** (recommended in the action body — pixel-perfect with React/Tailwind + `sld-assets/` SVG library, ~50-60MB, cold start ~3-5s) and **(3) html2pdf** (smaller deps, known SVG/transform/flex bugs). Option (2) `@react-pdf/renderer` rewrite is eliminated (can't render arbitrary JSX/SVG, would kill the `sld-assets/` hybrid pipeline). Effort once decided: ~1.5 day. Owner-field normalized to `greg` this session (was buried under tag-string owner). Distinct from the v2 SLD path which has its own PDF pipeline in `lib/sld-v2/pdf.ts`.
+- **#346 (P2, GREG-BLOCKED)** — Verify PV-6 row 6 battery-combiner-to-inverter wire spec; needs Duracell Power Center Max Hybrid 15kW datasheet. SheetPV6 was made data-driven in May (no longer hardcoded), but the default values `data.batteryCombinerOutputWire` + `data.batteryCombinerOutputConduit` need PE verification against the datasheet.
+- ~~#335~~ — closed this session as stale. Premise verified (4 hardcoded EMT specs in `app/redesign/components/SingleLineDiagram.tsx`) but the proposed fix `data.batteryConduit` doesn't fit the redesign tool's data shape `{existing, target, results}`. Redesign tool is on the deprecation path; hardcodes vanish when it's deleted.
 - ~~#1073~~ — closed this session by commit `0d6f63b`. SECDEF cross-file scan now requires REVOKE in same-or-later file order.
 - ~~#1069~~ — closed this session by mig 227 + commit `cc7787c`. Live ACL on all four SECDEF trigger fns now `{postgres, service_role}` only.
 - ~~#1054~~ — closed this session by integration scaffold + `__tests__/integration/trigger-guards.test.ts` (commit `b291a0f`); 3/3 pass against real PostgREST.
@@ -473,8 +475,12 @@ Captured via vitest run on the final commit `8bb365b`:
 
 ### ⬅ Hardening backlog (any-time)
 
-- **(empty)** — every R1 deferral from Phase 7b through Phase H4 is now shipped. Next forward-progress phase is either Phase 7c (RUSH-gated) or Phase 7.x (needs a planning conversation).
+- **(empty — chain-internal R1 deferrals).** Every R1 deferral from Phase 7b through Phase H4 is now shipped.
+- **Adjacent open queue items surfaced this session but NOT chain-hardening-scope:**
+  - **#332 (P1)** — full-planset PDF server route. Architecture decision needed from Greg; once picked, ~1.5 day execution. Reasonable next forward unlock IF Phase 7c stays RUSH-gated.
+  - **#346 (P2)** — Duracell datasheet PE-verify (Greg-blocked on the datasheet).
 - ~~#1054~~, ~~#1058~~, ~~#1059~~, ~~#1069~~, ~~#1073~~ — SHIPPED this session.
+- ~~#335~~ — closed as stale (deprecated-path hygiene).
 - ~~#1053~~ — SHIPPED in Phase H2 (mig 225).
 - ~~215b NULL auth.role() bypass patch~~ — SHIPPED in mig 223 (also surfaced a worse SECDEF/current_user bug that was silently broken in prod via 222b → fixed in mig 224).
 
