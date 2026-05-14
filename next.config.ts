@@ -2,6 +2,15 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  // Externalize heavy native deps from the Vercel lambda bundle. The
+  // chromium binary from @sparticuz/chromium is ~50-60MB and must NOT
+  // be bundled by webpack — it's loaded from the runtime filesystem at
+  // request time. puppeteer-core depends on chromium; pdf-lib has
+  // a CommonJS-only dependency tree (pako). Listing them here keeps
+  // them outside the Next 16 client/server bundlers.
+  // Closes greg_actions #332 (planset full-PDF server route).
+  serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium', 'pdf-lib'],
+
   async headers() {
     return [{
       source: '/(.*)',

@@ -42,10 +42,25 @@ export function computeSheetTotal(enhanced: boolean): number {
  *    skips <embed type="application/pdf"> (use server-side PDF merge to
  *    bake the cut sheets into the final permit PDF — #323 P1).
  */
-export function SheetCutSheet({ entry }: { entry: CutSheetEntry }) {
-  const [status, setStatus] = useState<'pending' | 'ok' | 'missing'>('pending')
+/**
+ * `isPrintMode=true` is set by the puppeteer print route (`?print=1` on the
+ * planset page). In that mode the `<embed>` is replaced with a placeholder
+ * because:
+ *   1. chromium's PDF renderer does not render nested PDFs from <embed> when
+ *      rendering its own PDF — the embed comes through as a blank rectangle.
+ *   2. The cut-sheet pages are merged in by lib/planset/pdf-merge.ts after
+ *      the puppeteer render, so the placeholder is the visible seam between
+ *      the rendered planset and the appended cut sheet.
+ * The screen banner is also suppressed because it's not relevant in print
+ * mode (the merge IS the fix it points at).
+ */
+export function SheetCutSheet({ entry, isPrintMode = false }: { entry: CutSheetEntry; isPrintMode?: boolean }) {
+  const [status, setStatus] = useState<'pending' | 'ok' | 'missing'>(
+    isPrintMode ? 'ok' : 'pending',
+  )
 
   useEffect(() => {
+    if (isPrintMode) return // skip the HEAD probe in print mode — pdf-merge handles missing files
     let cancelled = false
     fetch(entry.src, { method: 'HEAD' })
       .then((res) => {
@@ -57,7 +72,7 @@ export function SheetCutSheet({ entry }: { entry: CutSheetEntry }) {
         setStatus('missing')
       })
     return () => { cancelled = true }
-  }, [entry.src])
+  }, [entry.src, isPrintMode])
 
   return (
     <div
@@ -109,24 +124,54 @@ export function SheetCutSheet({ entry }: { entry: CutSheetEntry }) {
         </span>
       </div>
 
-      {/* Screen-only warning — browser print engine skips <embed type="application/pdf"> */}
-      <div
-        className="print:hidden"
-        style={{
-          background: '#fefce8',
-          border: '1px solid #ca8a04',
-          color: '#713f12',
-          fontSize: '7pt',
-          padding: '4px 10px',
-        }}
-      >
-        ⚠ Cut sheets do NOT print via Save-as-PDF — browser PDF embeds are skipped by the print
-        engine. For permit submission, append the PDF directly:{' '}
-        <code style={{ background: '#fef9c3', padding: '0 4px' }}>{entry.src}</code>
-      </div>
+      {/* Screen-only warning — browser print engine skips <embed type="application/pdf">. */}
+      {/* Suppressed in print mode because the server-side merge route IS the fix. */}
+      {!isPrintMode && (
+        <div
+          className="print:hidden"
+          style={{
+            background: '#fefce8',
+            border: '1px solid #ca8a04',
+            color: '#713f12',
+            fontSize: '7pt',
+            padding: '4px 10px',
+          }}
+        >
+          ⚠ Cut sheets do NOT print via Save-as-PDF — browser PDF embeds are skipped by the print
+          engine. For permit submission, append the PDF directly:{' '}
+          <code style={{ background: '#fef9c3', padding: '0 4px' }}>{entry.src}</code>
+        </div>
+      )}
 
-      {/* Full-height PDF embed OR missing-file fallback */}
-      {status === 'missing' ? (
+      {/* Print-mode placeholder — pdf-merge appends the real PDF after the planset. */}
+      {/* Skip the regular <embed>/<missing-file> branch entirely so chromium */}
+      {/* doesn't render a blank rectangle in its place. */}
+      {isPrintMode ? (
+        <div
+          data-cut-sheet-placeholder
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#f9fafb',
+            border: '2px dashed #9ca3af',
+            color: '#374151',
+            padding: '24px',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: '14pt', fontWeight: 'bold', marginBottom: '8px' }}>
+            {entry.title}
+          </div>
+          <div style={{ fontSize: '8pt', maxWidth: '6in', color: '#6b7280' }}>
+            Cut sheet PDF appended after this page by the server-side merge route.
+          </div>
+          <div style={{ fontSize: '7pt', marginTop: '12px', color: '#9ca3af' }}>
+            <code>{entry.src}</code>
+          </div>
+        </div>
+      ) : status === 'missing' ? (
         <div
           data-cut-sheet-missing
           style={{

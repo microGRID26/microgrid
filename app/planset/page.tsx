@@ -425,6 +425,12 @@ function PlanSetPageInner() {
   // get the canonical 13-sheet planset. ?enhanced=0 opts back into the legacy
   // 10-sheet "classic" output for projects that need only the minimum.
   const enhanced = searchParams.get('enhanced') !== '0'
+  // Phase H6 — `?print=1` is set by the server-side puppeteer PDF route
+  // (`/api/planset/[projectId]/pdf`). It tells SheetCutSheet to render a
+  // placeholder instead of <embed type="application/pdf">, because chromium
+  // won't render nested PDFs and the cut sheets get merged in after the
+  // puppeteer render by lib/planset/pdf-merge.ts. No-op on the in-app preview.
+  const isPrintMode = searchParams.get('print') === '1'
   const [projectId, setProjectId] = useState<string>('')
   const [data, setData] = useState<PlansetData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -1143,7 +1149,7 @@ function PlanSetPageInner() {
                 ...CUT_SHEETS.map(cs => ({
                   id: cs.sheetId,
                   label: cs.title,
-                  component: <SheetCutSheet entry={cs} />,
+                  component: <SheetCutSheet entry={cs} isPrintMode={isPrintMode} />,
                 })),
               ]
 
