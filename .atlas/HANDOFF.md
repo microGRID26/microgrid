@@ -676,7 +676,7 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 ```yaml
 chain_state_auto:
   project: planset
-  generated_at: 2026-05-14T19:34:43Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  generated_at: 2026-05-14T19:43:49Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
   main_head: 47fef5d  # feat(seer): mig 328+329 + Phase 6 R2 polish (Chain 7 Phase 6)
   main_head_committed: 2026-05-14T12:32:36-05:00
@@ -690,7 +690,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (918ab28): 60 ahead of main, 1 unpushed to origin/feat/planset-v8-layouts
+    - feat/planset-v8-layouts (a38090f): 62 ahead of main, 3 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main

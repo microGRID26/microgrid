@@ -63,7 +63,7 @@ function SheetPV1Inner({ data, aerialPhotoUrl, housePhotoUrl }: SheetPV1Props) {
     ['PV-3.2', 'GARAGE FLOOR PLAN · BATTERY DETAIL B'],
     ['PV-4',   'ROOF PLAN WITH MODULES'],
     ['PV-4.1', 'ATTACHMENT DETAIL'],
-    ['PV-5',   'ELECTRICAL SINGLE LINE DIAGRAM'],
+    ['PV-5',   'ELECTRICAL THREE LINE DIAGRAM'],
     ['PV-5.1', 'PCS LABELS'],
     ['PV-6',   'TAG WIRE CHART + CALCULATIONS'],
     ['PV-7',   'WARNING LABELS'],
