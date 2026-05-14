@@ -1141,7 +1141,7 @@ function PlanSetPageInner() {
                 ...(enhanced ? [
                   { id: 'PV-4.1', label: 'Attachment Detail', component: <SheetPV41 data={data} /> },
                 ] : []),
-                { id: 'PV-5', label: 'Single Line Diagram', component: <SheetPV5 data={data} useSldV2={useSldV2} layoutV2={layoutV2} /> },
+                { id: 'PV-5', label: 'Electrical Three Line Diagram', component: <SheetPV5 data={data} useSldV2={useSldV2} layoutV2={layoutV2} /> },
                 { id: 'PV-6', label: 'Wiring Calculations', component: <SheetPV6 data={data} /> },
                 { id: 'PV-7', label: 'Warning Labels', component: <SheetPV7 data={data} /> },
                 { id: 'PV-7.1', label: 'Equipment Placards', component: <SheetPV71 data={data} /> },

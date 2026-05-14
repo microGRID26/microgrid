@@ -27,6 +27,8 @@ import { placeLabels } from './labels'
 import type { EquipmentGraph } from './equipment'
 import type { PlansetData } from '../planset-types'
 import { paintTitleBlock, TITLE_BLOCK_WIDTH_PT } from './title-block'
+import { paintHeaderStrip, HEADER_STRIP_HEIGHT_PT, HEADER_STRIP_GAP_PT } from './header-strip'
+import { paintInstallerNotes, INSTALLER_NOTES_HEIGHT_PT, INSTALLER_NOTES_WIDTH_PT } from './installer-notes'
 import { loadInterTtfBase64, loadInterBoldTtfBase64 } from './fonts/inter-loader'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -203,16 +205,20 @@ async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
 
     // Phase 7b — when a title block is supplied, narrow the printable
     // SLD region to leave room for the right-sidebar block.
+    // Phase H7 — when a title block is supplied, ALSO reserve a horizontal
+    // strip at the top of the page for the 4 PE-required metadata boxes
+    // (STC / METER / BATTERY SCOPE / SCOPE), matching the Tyson Rev1 layout.
     const sidebarReserve = titleBlock
       ? TITLE_BLOCK_WIDTH_PT + 6 /* gap */
       : 0
+    const headerReserve = titleBlock ? HEADER_STRIP_HEIGHT_PT + HEADER_STRIP_GAP_PT : 0
     const sldAreaW = pageWidthPt - marginPt * 2 - sidebarReserve
-    const sldAreaH = pageHeightPt - marginPt * 2
+    const sldAreaH = pageHeightPt - marginPt * 2 - headerReserve
     const scale = Math.min(sldAreaW / svgW, sldAreaH / svgH)
     const fitW = svgW * scale
     const fitH = svgH * scale
     const offX = marginPt + (sldAreaW - fitW) / 2
-    const offY = marginPt + (sldAreaH - fitH) / 2
+    const offY = marginPt + headerReserve + (sldAreaH - fitH) / 2
 
     const pdf = new jsPDF({
       orientation: 'landscape',
@@ -287,6 +293,32 @@ async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
         fontName: titleFontName,
         unicodeSafe: titleUnicodeSafe,
       })
+
+      // Phase H7 — paint the 4 PE-metadata boxes across the top of the
+      // SLD body area (left of the title block). Same font/unicode posture
+      // as the title block.
+      const hsX = marginPt
+      const hsY = marginPt
+      const hsW = pageWidthPt - marginPt * 2 - sidebarReserve
+      const hsH = HEADER_STRIP_HEIGHT_PT
+      paintHeaderStrip(pdf, titleBlock.data, hsX, hsY, hsW, hsH, {
+        fontName: titleFontName,
+        unicodeSafe: titleUnicodeSafe,
+      })
+
+      // Phase H7 — installer-notes block at bottom-left of the SLD body
+      // area. Mirrors the Tyson Rev1 REQUIRES bullet list.
+      const inX = marginPt
+      const inY = pageHeightPt - marginPt - INSTALLER_NOTES_HEIGHT_PT
+      paintInstallerNotes(
+        pdf,
+        titleBlock.data,
+        inX,
+        inY,
+        INSTALLER_NOTES_WIDTH_PT,
+        INSTALLER_NOTES_HEIGHT_PT,
+        { fontName: titleFontName, unicodeSafe: titleUnicodeSafe },
+      )
     }
 
     const buf = pdf.output('arraybuffer')

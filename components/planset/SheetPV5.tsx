@@ -60,7 +60,7 @@ function SheetPV5Inner({ data, useSldV2, layoutV2 }: SheetPV5Props) {
         <div className="sld-content" style={{ overflow: 'hidden' }}>
           <SldRendererV2 layout={layoutV2} />
         </div>
-        <TitleBlockHtml sheetName="ELECTRICAL SINGLE LINE DIAGRAM" sheetNumber="PV-5" data={data} />
+        <TitleBlockHtml sheetName="ELECTRICAL THREE LINE DIAGRAM" sheetNumber="PV-5" data={data} />
       </div>
     )
   }
@@ -210,7 +210,7 @@ function SheetPV5Inner({ data, useSldV2, layoutV2 }: SheetPV5Props) {
       <div className="sld-content" style={{ overflow: 'hidden' }}>
         <SldRenderer layout={layout} />
       </div>
-      <TitleBlockHtml sheetName="ELECTRICAL SINGLE LINE DIAGRAM" sheetNumber="PV-5" data={data} />
+      <TitleBlockHtml sheetName="ELECTRICAL THREE LINE DIAGRAM" sheetNumber="PV-5" data={data} />
     </div>
   )
 }

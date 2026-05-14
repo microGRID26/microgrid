@@ -145,8 +145,8 @@ function batteryStacksFromData(data: PlansetData): BatteryStack[] {
       labelSlots: defaultLabelSlots(90, 110),
       labels: [
         { text: `(N) BATTERY STACK #${i + 1}`, priority: 8, bold: true },
-        { text: `${modulesThisStack}× ${data.batteryModel}`, priority: 6 },
-        { text: `${modulesThisStack * data.batteryCapacity} kWh`, priority: 6 },
+        { text: `${modulesThisStack}× ${data.batteryModel} · ${modulesThisStack * data.batteryCapacity} kWh`, priority: 6 },
+        { text: 'FLOOR · BOLLARDS 3FT · HEAT DET.', priority: 5 },
       ],
       props: {
         model: data.batteryModel,
@@ -167,9 +167,11 @@ function pvDisconnect(): Disconnect {
     ports: quadPorts('disc-pv'),
     labelSlots: defaultLabelSlots(80, 90),
     labels: [
-      { text: '(N) PV / DC DISCONNECT', priority: 9, bold: true },
-      { text: 'Eaton DG223URB · 100A · 2P', priority: 7 },
-      { text: 'VISIBLE, LOCKABLE — AC DISC', priority: 6 },
+      // Tyson-spec NEC phrasing, compressed to fit the label-slot budget.
+      { text: '(N) PV DISCONNECT — NON-FUSIBLE', priority: 9, bold: true },
+      { text: '(EATON) DG223URB · 100A/2P · 240V 3R', priority: 7 },
+      { text: 'VISIBLE, LOCKABLE — "AC DISCONNECT"', priority: 6 },
+      { text: 'EXTERIOR WALL', priority: 5 },
     ],
     props: {
       role: 'pv',
@@ -191,9 +193,10 @@ function genDisconnect(): Disconnect {
     ports: quadPorts('disc-gen'),
     labelSlots: defaultLabelSlots(80, 90),
     labels: [
-      { text: '(N) CUSTOMER GEN DISC', priority: 9, bold: true },
-      { text: 'Eaton DG222NRB · 45A fusible · 2P', priority: 7 },
-      { text: "LABELED 'GEN DISCONNECT'", priority: 6 },
+      { text: '(N) CUSTOMER GEN DISC — FUSIBLE', priority: 9, bold: true },
+      { text: '(EATON) DG222NRB · 60A/2P · 240V 3R', priority: 7 },
+      { text: '(45A FUSES) · VISIBLE, LOCKABLE', priority: 6 },
+      { text: '"AC DISC" ≤10\' OF METER', priority: 5 },
     ],
     props: {
       role: 'gen',
@@ -223,8 +226,10 @@ function mspFromData(data: PlansetData): MSP {
     ports: quadPorts('msp'),
     labelSlots: defaultLabelSlots(130, 140),
     labels: [
-      { text: `${busbar}A · ${data.voltage} · EXTERIOR · NEMA 3R`, priority: 8 },
-      { text: `BUSBAR ${busbar}A · 120% RULE PER NEC 705.12(B)`, priority: 7 },
+      { text: '(N) MAIN SERVICE PANEL', priority: 9, bold: true },
+      { text: `${busbar}A · ${data.voltage} · EXTERIOR NEMA 3R`, priority: 8 },
+      { text: `BUSBAR ${busbar}A · 120% NEC 705.12(B)`, priority: 7 },
+      { text: '(N) SURGE PROTECTOR', priority: 6 },
     ],
     props: {
       busbarA: busbar,
@@ -247,8 +252,9 @@ function serviceDisc(serviceA: number): Disconnect {
     ports: quadPorts('disc-service'),
     labelSlots: defaultLabelSlots(80, 90),
     labels: [
-      { text: '(N) SERVICE DISC', priority: 9, bold: true },
-      { text: `${serviceA}A · 2P · NEMA 3R · BI-DIRECTIONAL`, priority: 7 },
+      { text: '(N) MAIN BREAKER TO HOUSE', priority: 9, bold: true },
+      { text: `240V · ${serviceA}A/2P · TOP FED`, priority: 8 },
+      { text: 'BI-DIRECTIONAL · NEMA 3R', priority: 6 },
     ],
     props: {
       role: 'service',
@@ -271,7 +277,8 @@ function meterFromData(data: PlansetData): Meter {
     ports: quadPorts('meter'),
     labelSlots: defaultLabelSlots(70, 70),
     labels: [
-      { text: `(E) UTILITY METER`, priority: 9, bold: true },
+      { text: `(E) BI-DIR UTILITY METER`, priority: 9, bold: true },
+      { text: `1Φ 3W · ${data.voltage || '120/240V'} · 200A`, priority: 7 },
       { text: `Meter: ${data.meter || '__________'}`, priority: 6 },
       { text: `ESID: ${data.esid || '__________'}`, priority: 6 },
     ],
@@ -293,7 +300,11 @@ function backupPanel(): BackupPanel {
     height: 70,
     ports: quadPorts('blp'),
     labelSlots: defaultLabelSlots(110, 70),
-    labels: [],
+    labels: [
+      { text: '(N) PROTECTED LOAD PANEL', priority: 9, bold: true },
+      { text: 'EATON BRP20B125R · 125A', priority: 8 },
+      { text: 'MAIN 240V/40A/2P · NEMA 3R', priority: 7 },
+    ],
     props: {
       model: 'Eaton BRP20B125R',
       mainLugAmperage: 125,
