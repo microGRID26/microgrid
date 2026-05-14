@@ -1,13 +1,15 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-14 ~15:05 UTC (Phase H3 — mig 226 audit_log append-only seal closes #1059; integration-test scaffolding closes #1058 + #1054; both R1 red-teamer A/B with all Highs + Mediums folded inline; 9/9 mig 226 + 3/3 integration tests pass)
+**Last updated:** 2026-05-14 ~16:30 UTC (Phase H4 — mig 227 REVOKE EXECUTE backport on mig 222b/223/224/225 SECDEF trigger functions closes #1059's sister R1 finding via #1069; migration-planner retro-sign-off A; all 4 SECDEF trigger fns now ACL {postgres, service_role} only; cross-file scan added to security-definer-grants.test.ts)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `b291a0f` (4 commits ahead of origin `211ede7`; not pushed per no-mid-session-push rule).** This session shipped two substantive commits on top of Phase H2's `4b717f5` (which itself was the handoff-refresh commit on top of the prior session's `600f5c0`):
-  - `a17d602` — feat(mig 226): audit_log append-only seal — BEFORE UPDATE/DELETE trigger + purge GUC
-  - `b291a0f` — feat(tests/integration): scaffold + close #1054 PostgREST-path trigger-guards
-**Latest commit:** `b291a0f` feat(tests/integration): scaffold + close #1054 PostgREST-path trigger-guards
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `cc7787c` (6 commits ahead of origin `211ede7`; not pushed per no-mid-session-push rule).** This session shipped three substantive commits on top of Phase H2's `4b717f5`:
+  - `a17d602` — feat(mig 226): audit_log append-only seal — BEFORE UPDATE/DELETE trigger + purge GUC (Phase H3)
+  - `b291a0f` — feat(tests/integration): scaffold + close #1054 PostgREST-path trigger-guards (Phase H3)
+  - `b754478` — docs(planset/.atlas): handoff refresh — Phase H3
+  - `cc7787c` — feat(mig 227): REVOKE EXECUTE backport on mig 222b/223/224/225 SECDEF trigger functions (Phase H4)
+**Latest commit:** `cc7787c` feat(mig 227): REVOKE EXECUTE backport on mig 222b/223/224/225 SECDEF trigger functions
 
 ## Chain instruction (read this first, every session)
 
@@ -35,7 +37,36 @@ Multi-session effort to bring the MicroGRID planset generator's SLD output from 
 
 **Plan docs:** `~/.claude/plans/smooth-mixing-milner.md` (architectural, Greg-approved 2026-05-12), `~/.claude/plans/virtual-scribbling-raven.md` (Phase 7b, 2026-05-13), `~/.claude/plans/bright-forging-hare.md` (Phase H1, 2026-05-13 evening).
 
-## ✅ Shipped this session (2026-05-14 — Phase H3: audit_log append-only seal + integration-test scaffolding)
+## ✅ Shipped this session (2026-05-14 — Phase H4: REVOKE EXECUTE backport on the four SECDEF trigger functions)
+
+After Phase H3 wrapped, Greg said "keep going." Picked up the only remaining hardening item (#1069) from the H3 R1 sister-finding.
+
+### Commit `cc7787c` — feat(mig 227): REVOKE EXECUTE backport on mig 222b/223/224/225 SECDEF trigger functions
+
+Closes #1069. Three REVOKE statements covering the three distinct SECURITY DEFINER trigger functions across the four migrations (`projects_block_direct_use_sld_v2_update` is one pg_proc row shared by mig 222b + 224 via CREATE OR REPLACE). Postcondition DO block asserts each ACL no longer contains PUBLIC / anon / authenticated.
+
+**Live ACL after apply (all four SECDEF trigger fns now `{postgres, service_role}` only):**
+- `audit_log_block_admin_tamper` — was already clean from mig 226 (Phase H3).
+- `projects_block_direct_stage_update` — was `{postgres, anon, authenticated, service_role}`.
+- `projects_block_direct_use_sld_v2_update` — same transition.
+- `projects_log_db_admin_bypass` — was `{public, postgres, anon, authenticated, service_role}` (also had bare PUBLIC).
+
+**Test changes — `__tests__/security-definer-grants.test.ts` cross-file scan.** Previously the test required the REVOKE in the SAME migration file. Now `buildRevokeRe(fnName)` matches against the union of all .sql content — back-fix migrations close the gap for historic offenders without requiring file mutation. Removed mig 222b/223/224/225 from `KNOWN_OFFENDERS`; `KNOWN_OFFENDERS_MAX` back to 16 (was 20 in H3 as a temporary punch-list).
+
+### Audit gate summary
+
+- **migration-planner retro-sign-off on mig 227** (apply-then-commit pattern for low-risk REVOKEs): A (0C / 0H / 1M / 2L). **M1 (cross-file scan name-collision false-pass — future SECDEF fn redefining an existing name could free-ride on the historic REVOKE)** filed as P2 #1073, non-urgent. L1 (regex shapes) confirmed exhaustive. L2 (no GRANT after REVOKE) intentional.
+
+### Verification
+
+- `npx vitest run __tests__/security-definer-grants.test.ts` → 3/3 pass after cross-file change.
+- `npx tsc --noEmit` → exit 0.
+- `chain_test_baseline.py diff vs 8a5df3949028` → NEW_FAIL=0, STILL_FAIL=16.
+- Live ACL via `mcp__claude_ai_Supabase__execute_sql` on all four functions: postgres + service_role only.
+
+---
+
+## ✅ Previously shipped (2026-05-14 ~15:05 UTC — Phase H3: audit_log append-only seal + integration-test scaffolding)
 
 Greg picked option (γ) of plan `~/.claude/plans/lexical-roaming-toast.md` — ship #1059 first (cheap, self-contained), then start #1058 (which absorbed #1054 in the same commit). RUSH stamp feedback (#1025) snoozed to 2026-05-28 per Greg's "defer RUSH two weeks" call at session start.
 
@@ -345,6 +376,7 @@ Captured via vitest run on the final commit `8bb365b`:
 - ✅ **Phase H1 — RUSH-blocked window hygiene: mig 223 + 224 (session_user fix) + Inter Bold typography prep — 2026-05-13 ~22:30 UTC**
 - ✅ **Phase H2 — mig 225 audit_log AFTER trigger on DB-admin bypass (closes #1053) — 2026-05-13 ~23:35 UTC**
 - ✅ **Phase H3 — mig 226 audit_log append-only seal (closes #1059) + integration-test scaffolding (closes #1058 + #1054) — 2026-05-14 ~15:05 UTC**
+- ✅ **Phase H4 — mig 227 REVOKE EXECUTE backport on four SECDEF trigger fns (closes #1069) + cross-file SECDEF static-test — 2026-05-14 ~16:30 UTC**
 - 💤 RUSH stamp turnaround on Lohf pilot (#1025) — snoozed to 2026-05-28
 - ☐ Phase 7c (conditional) — fold RUSH feedback (typography, layout, NEC compliance)
 - ☐ Phase 7.x — Fill `StringInverterBox` / `MicroInverterBox` / `EVChargerBox` (deferred kinds)
@@ -377,7 +409,8 @@ Captured via vitest run on the final commit `8bb365b`:
 (Read each `python3 ~/.claude/scripts/greg_actions.py show <id>` before working on it — pre-resolution gate per chain rule.)
 
 - **#1025 (P1, SNOOZED to 2026-05-28)** — RUSH stamp turnaround tracking for PROJ-32115 (Charles Lohf). Greg deferred this two weeks at Phase H3 start; resumes 2026-05-28. Re-rendered PDF stays at 294 KB (Inter Bold subset). Closes when stamped sheet returns + decision on Phase 7c made.
-- **#1069 (P2, NEW this session)** — Backport name-bound `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` on the four SECURITY DEFINER trigger functions from mig 222b/223/224/225. R1 red-teamer M1 fold for mig 226 closed the gap for `audit_log_block_admin_tamper` but the sister functions still inherit Postgres' default PUBLIC grant. The `security-definer-grants` static test has these four punch-listed (`KNOWN_OFFENDERS_MAX` bumped 16 → 20 in this session's commit `b291a0f`). New mig 227 with REVOKEs closes the row; defense in depth, not a live hole (trigger invocation uses owner privs, ignores EXECUTE grants).
+- **#1073 (P2, NEW this session)** — Tighten `security-definer-grants` cross-file scan against name-collision false-pass. If a future migration redefines an existing SECDEF fn name without its own REVOKE, the cross-file scan would find the historic REVOKE and false-pass. Fix: require the matching REVOKE appears at-or-after the CREATE FUNCTION in file order. Non-urgent — low probability + live ACL still correct via the cumulative REVOKE. ~30min.
+- ~~#1069~~ — closed this session by mig 227 + commit `cc7787c`. Live ACL on all four SECDEF trigger fns now `{postgres, service_role}` only.
 - ~~#1054~~ — closed this session by integration scaffold + `__tests__/integration/trigger-guards.test.ts` (commit `b291a0f`); 3/3 pass against real PostgREST.
 - ~~#1058~~ — closed this session by `__tests__/integration/` scaffold (commit `b291a0f`).
 - ~~#1059~~ — closed this session by mig 226 + commit `a17d602`.
@@ -411,8 +444,8 @@ Captured via vitest run on the final commit `8bb365b`:
 
 ### ⬅ Hardening backlog (any-time)
 
-- **#1069 (P2)** — Backport REVOKE EXECUTE on mig 222b/223/224/225 SECDEF trigger functions. New mig 227 with name-bound REVOKEs from PUBLIC/anon/authenticated. After apply, remove the four from `KNOWN_OFFENDERS` in `__tests__/security-definer-grants.test.ts` and drop `KNOWN_OFFENDERS_MAX` back to 16. ~1h.
-- ~~#1054~~, ~~#1058~~, ~~#1059~~ — SHIPPED this session.
+- **#1073 (P2)** — Tighten the `security-definer-grants` cross-file scan to require the matching REVOKE appears at-or-after the CREATE in file order. Defends against a future SECDEF fn redefining an existing name without its own REVOKE. ~30min.
+- ~~#1054~~, ~~#1058~~, ~~#1059~~, ~~#1069~~ — SHIPPED this session.
 - ~~#1053~~ — SHIPPED in Phase H2 (mig 225).
 - ~~215b NULL auth.role() bypass patch~~ — SHIPPED in mig 223 (also surfaced a worse SECDEF/current_user bug that was silently broken in prod via 222b → fixed in mig 224).
 
@@ -460,7 +493,7 @@ Captured via vitest run on the final commit `8bb365b`:
 ```yaml
 chain_state_auto:
   project: planset
-  generated_at: 2026-05-14T15:08:13Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  generated_at: 2026-05-14T15:56:45Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
   main_head: 8abcb4a  # feat(seer): mig 326+327 + seer-curriculum-ingest agent (Chain 7 Phase 5)
   main_head_committed: 2026-05-14T10:01:45-05:00
@@ -474,7 +507,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (b291a0f): 51 ahead of main, 4 unpushed to origin/feat/planset-v8-layouts
+    - feat/planset-v8-layouts (cc7787c): 53 ahead of main, 6 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main
