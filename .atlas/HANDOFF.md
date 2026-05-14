@@ -1,12 +1,13 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-13 ~23:35 UTC (Phase H2 — mig 225 audit_log AFTER trigger on DB-admin bypass closes #1053; migration-planner A + R1 red-teamer B with M1 GUC-clear folded inline; 8/8 mig 225 tests + 67/67 sld-v2 + typecheck clean)
+**Last updated:** 2026-05-14 ~15:05 UTC (Phase H3 — mig 226 audit_log append-only seal closes #1059; integration-test scaffolding closes #1058 + #1054; both R1 red-teamer A/B with all Highs + Mediums folded inline; 9/9 mig 226 + 3/3 integration tests pass)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `600f5c0` (1 commit ahead of origin `211ede7`; not pushed per no-mid-session-push rule).** Origin matches `211ede7` (Greg pushed Phase H1's 5 commits at start of this session). This session shipped one substantive commit:
-  - `600f5c0` — feat(mig 225): audit_log AFTER trigger on DB-admin bypass for stage/use_sld_v2
-**Latest commit:** `600f5c0` feat(mig 225): audit_log AFTER trigger on DB-admin bypass for stage/use_sld_v2
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `b291a0f` (4 commits ahead of origin `211ede7`; not pushed per no-mid-session-push rule).** This session shipped two substantive commits on top of Phase H2's `4b717f5` (which itself was the handoff-refresh commit on top of the prior session's `600f5c0`):
+  - `a17d602` — feat(mig 226): audit_log append-only seal — BEFORE UPDATE/DELETE trigger + purge GUC
+  - `b291a0f` — feat(tests/integration): scaffold + close #1054 PostgREST-path trigger-guards
+**Latest commit:** `b291a0f` feat(tests/integration): scaffold + close #1054 PostgREST-path trigger-guards
 
 ## Chain instruction (read this first, every session)
 
@@ -34,7 +35,73 @@ Multi-session effort to bring the MicroGRID planset generator's SLD output from 
 
 **Plan docs:** `~/.claude/plans/smooth-mixing-milner.md` (architectural, Greg-approved 2026-05-12), `~/.claude/plans/virtual-scribbling-raven.md` (Phase 7b, 2026-05-13), `~/.claude/plans/bright-forging-hare.md` (Phase H1, 2026-05-13 evening).
 
-## ✅ Shipped this session (2026-05-13 late — Phase H2: audit_log AFTER trigger on DB-admin bypass)
+## ✅ Shipped this session (2026-05-14 — Phase H3: audit_log append-only seal + integration-test scaffolding)
+
+Greg picked option (γ) of plan `~/.claude/plans/lexical-roaming-toast.md` — ship #1059 first (cheap, self-contained), then start #1058 (which absorbed #1054 in the same commit). RUSH stamp feedback (#1025) snoozed to 2026-05-28 per Greg's "defer RUSH two weeks" call at session start.
+
+### Commit `a17d602` — feat(mig 226): audit_log append-only seal
+
+Closes greg_actions #1059 (R1 red-teamer Low on mig 225, 2026-05-13 evening). Mig 225 added an AFTER trigger on `public.projects` that writes audit_log rows when DB-admin trust principals (postgres / supabase_admin / service_role) directly UPDATE stage/stage_date/use_sld_v2 — closes the silent-paper-trail gap. **Mig 226 closes the tamper-the-trail gap**: same DB-admin principals could `UPDATE audit_log SET reason='innocuous'` or `DELETE FROM audit_log WHERE …` because audit_log has `rls_forced=false`, `owner=postgres`, no UPDATE/DELETE policies — RLS doesn't block the owner and service_role bypasses RLS by design.
+
+**Function design (`public.audit_log_block_admin_tamper`, SECURITY DEFINER, search_path=public,pg_temp):**
+- BEFORE UPDATE OR DELETE trigger on `public.audit_log`.
+- GUC gate: `current_setting('app.audit_log_admin_purge', true) IS NOT DISTINCT FROM 'true'` (NULL-safe; mig 222b's `auth.role() <> 'authenticated'` NULL-trap is the cautionary tale).
+- Authorized path: TG_OP discriminator returns OLD on DELETE, NEW on UPDATE (correct BEFORE-trigger contract).
+- Unauthorized path: `RAISE EXCEPTION ... USING ERRCODE = '42501'` — same SQLSTATE the mig 223/224 BEFORE triggers raise.
+- R1 fold M1: `REVOKE EXECUTE ON FUNCTION ... FROM PUBLIC, anon, authenticated` blocks the discoverable `SELECT public.audit_log_block_admin_tamper()` surface. (Mig 223/224/225 share the same gap; backport tracked as P2 #1069.)
+- R1 fold M2: postcondition DO block now asserts `(tgtype & 2) <> 0 AND tgenabled = 'O'` — ad-hoc `ALTER TABLE audit_log DISABLE TRIGGER` no longer silently neuters the seal at the apply gate.
+
+**Trigger:** `BEFORE UPDATE OR DELETE ON public.audit_log FOR EACH ROW`.
+
+**Postcondition `DO $$` block** asserts function existence + body contains `app.audit_log_admin_purge` + `IS NOT DISTINCT FROM` + `42501` + trigger attached as BEFORE+enabled. Apply-time gate against future CREATE OR REPLACE drift.
+
+**Static test (`__tests__/migrations/audit-log-block-admin-tamper.test.ts`)** — 9 tests mirroring `projects-log-db-admin-bypass.test.ts` (mig 225): SECDEF + search_path, GUC name pin, NULL-safe IS NOT DISTINCT FROM (negative-assert no `=`), 42501 SQLSTATE, TG_OP RETURN correctness, BEFORE UPDATE OR DELETE (negative-assert NOT INSERT), neutralize-bypass detector (DROP/DISABLE/RENAME/GRANT), REVOKE present, postcondition-asserts-tgtype-and-tgenabled.
+
+### Commit `b291a0f` — feat(tests/integration): scaffold + close #1054 PostgREST-path trigger-guards
+
+Closes greg_actions #1058 (integration-test scaffolding) AND #1054 (PostgREST-path E2E test for mig 223 + 224 trigger guards) in one commit. Prior trigger-guard coverage was static-inspection .sql tests + MCP BEGIN/ROLLBACK smoke; neither exercises the actual authenticated-user → API gateway → DB path. **First real client → JWT → PostgREST → DB test in the repo.**
+
+**Files (new):**
+- `vitest.integration.config.ts` — sister to `vitest.eval.config.ts`. `pool: 'forks'`, `fileParallelism: false`, `environment: 'node'`, separate setupFiles from `vitest.setup.ts` (so the `@/lib/supabase/*` global mocks don't fire).
+- `__tests__/integration/setup.ts` — `.env.local` loader; `beforeAll` provisions ONE org (`org_type='engineering'` to avoid the `organizations_grant_staff_on_new_epc` trigger), ONE auth.user + public.user (role='user'), ONE org_membership (member), ONE test project (with `pm_id=userId` — load-bearing for `projects_update_v2` RLS, without it the user gets 0 rows from RLS pre-filter and the trigger never fires). `afterAll` teardown deletes everything in dep order with slug/email/id guards. `scrubSecrets()` covers JWT (eyJ…), service-role (sbp_…), AND literal env-var values.
+- `__tests__/integration/clients.ts` — `serviceClient()` + `userClient(email, password)`, cloned from `evals/helpers/clients.ts`. Direct `@supabase/supabase-js` import bypasses the global mocks.
+- `__tests__/integration/fixtures.ts` — **per-run namespacing (R1 H1 fold).** `RUN_ID` from env (`GITHUB_RUN_ID` / `BUILDKITE_BUILD_NUMBER` / `VITEST_INTEGRATION_RUN_ID`) or `randomUUID().slice(0,8)`. Concurrent CI runners no longer race on the shared fixture user.
+- `__tests__/integration/trigger-guards.test.ts` — 3 tests:
+  1. SELECT precondition (catches RLS pre-filter regression that would silently pass-on-null).
+  2. UPDATE stage as non-admin user → `isPermissionDeniedError(error)` AND server-side re-read confirms unchanged.
+  3. UPDATE use_sld_v2 as non-admin user → same shape.
+  The `isPermissionDeniedError` helper (R1 H2 fold) checks code + details + message + hint for `42501` or `/permission denied/` — defends against supabase-js version drift in where SQLSTATE surfaces.
+- `__tests__/integration/README.md` — env-var requirements, cleanup grep (with `ESCAPE '\\'` so `_` doesn't wildcard-match unrelated orphans), how to run.
+
+**Files (modified):**
+- `vitest.config.ts` — exclude `__tests__/integration/**` from default suite.
+- `package.json` — `test:integration` script.
+- `__tests__/security-definer-grants.test.ts` — punch-list mig 222b/223/224/225 (sister SECDEF functions still lack name-bound REVOKEs); `KNOWN_OFFENDERS_MAX` 16 → 20. Backport tracked as P2 #1069 (new this session).
+
+### Audit gates summary
+
+- **migration-planner pre-apply on draft 226:** A (0C / 0H / 1M / 1L). M1 = COALESCE dead code (cosmetic), L1 = SECURITY DEFINER unnecessary (kept for pattern consistency with mig 223/224/225). Both acknowledged not folded.
+- **R1 red-teamer post-apply on mig 226:** A (0C / 0H / 2M / 2L initially → A 0/0/0/2 after fold). **M1 (REVOKE EXECUTE from PUBLIC/anon/authenticated)** folded inline; **M2 (postcondition pin BEFORE+enabled)** folded inline. Lows acknowledged (message-divulges-GUC = operator help, dead COALESCE = cosmetic).
+- **R1 red-teamer on integration scaffold:** B (0C / 2H / 4M / 2L initially → A 0/0/2/2 after fold). **H1 (concurrent-CI namespacing)** folded via per-run suffix in `fixtures.ts`; **H2 (42501 assertion brittle)** folded via `isPermissionDeniedError` helper. **M3 (auth.admin.listUsers page-1 cap, blocks at 200 users — MG is past 200)** folded via create-then-lookup-via-public.users pattern. **M4 (scrubSecrets sbp_ + literal env)** folded. M1 (FK teardown for future child-row tests), M2 (test-body errors not scrubbed) acknowledged not folded.
+- **R2 verify:** mig 226 + mig 225 tests 17/17 pass; integration tests 3/3 pass against real PostgREST; `npm test` unit suite 3899 pass / 16 fail (no regression vs Phase 5 baseline `8a5df3949028`, `chain_test_baseline.py diff` returns NEW_FAIL=0); `npx tsc --noEmit` exit 0.
+
+### Live smoke tests for mig 226 (all BEGIN/ROLLBACK against prod, no state mutation)
+
+- **T1** — postgres direct `UPDATE audit_log SET reason='tamper-T1' WHERE id=1466` → 42501 raised. ✅
+- **T2** — postgres direct `DELETE FROM audit_log WHERE id=1466` → 42501 raised. ✅
+- **T3** — postgres `SET LOCAL app.audit_log_admin_purge='true'; UPDATE audit_log SET reason='retention-T3' WHERE id=1466` → succeeds; reason updated within txn. ✅
+- **T4** — postgres `INSERT INTO audit_log (...)` → succeeds; BEFORE UPDATE/DELETE trigger correctly does not fire on INSERT. ✅
+
+Live audit of trigger state post-apply: `tgtype` BEFORE+UPDATE+DELETE (NOT INSERT), `tgenabled='O'`. Live ACL on function: `{postgres=X/postgres, service_role=X/postgres}` — PUBLIC/anon/authenticated stripped.
+
+### Pre-resolved follow-ups verified this session
+
+- **#1025 snoozed**, not closed. Greg deferred RUSH stamp watch by two weeks at session start (`greg_actions.py snooze 1025 2026-05-28`).
+- Other open follow-ups walked at pickup: #1054 (closed in this session), #1058 (closed in this session), #1059 (closed in this session). All premise-checks against current code confirmed open.
+
+---
+
+## ✅ Previously shipped (2026-05-13 late — Phase H2: audit_log AFTER trigger on DB-admin bypass)
 
 Greg picked option (γ) from plan `~/.claude/plans/twinkly-herding-narwhal.md` (file integration-test scaffolding as prereq + ship #1053 in this session). The chain audit found Phase H1's commits already pushed (`211ede7`) and the pointer file stale at `ca7c990` — no drift in code, just the pointer's one-line state was behind.
 
@@ -277,7 +344,8 @@ Captured via vitest run on the final commit `8bb365b`:
 - ✅ **Phase 7b R1-deferrals sweep + cumulative milestone R1 — 2H + 5M + 3L closed inline, migration 222 + 222b applied — 2026-05-13 ~15:30 UTC**
 - ✅ **Phase H1 — RUSH-blocked window hygiene: mig 223 + 224 (session_user fix) + Inter Bold typography prep — 2026-05-13 ~22:30 UTC**
 - ✅ **Phase H2 — mig 225 audit_log AFTER trigger on DB-admin bypass (closes #1053) — 2026-05-13 ~23:35 UTC**
-- ⏳ Awaiting RUSH stamp turnaround on Lohf pilot (#1025)
+- ✅ **Phase H3 — mig 226 audit_log append-only seal (closes #1059) + integration-test scaffolding (closes #1058 + #1054) — 2026-05-14 ~15:05 UTC**
+- 💤 RUSH stamp turnaround on Lohf pilot (#1025) — snoozed to 2026-05-28
 - ☐ Phase 7c (conditional) — fold RUSH feedback (typography, layout, NEC compliance)
 - ☐ Phase 7.x — Fill `StringInverterBox` / `MicroInverterBox` / `EVChargerBox` (deferred kinds)
 - ☐ PROJ-26922 Tyson stamp unblock — PDF-edit r12 path (Atlas-side, not blocked by v2)
@@ -308,13 +376,13 @@ Captured via vitest run on the final commit `8bb365b`:
 
 (Read each `python3 ~/.claude/scripts/greg_actions.py show <id>` before working on it — pre-resolution gate per chain rule.)
 
-- **#1025 (P1)** — RUSH stamp turnaround tracking for PROJ-32115 (Charles Lohf). Greg eyeballs PDF, mails to RUSH, records turnaround + feedback when stamp returns. Closes when stamped sheet returns + decision on Phase 7c made. **Open for ~1 week (RUSH-blocked).** Re-rendered PDF now 294 KB (was 197) with Inter Bold subset embedded — visually identical for ASCII names like Charles Lohf, but the SECDEF-guard fix in 224 means use_sld_v2 is now actually admin-only as advertised.
-- **#1054 (P2)** — Real PostgREST-path E2E test for stage + use_sld_v2 trigger guards. Filed during H1 R1 sweep. **BLOCKED on #1058** (integration-test scaffolding doesn't exist in repo — discovered during H2 plan-mode). Vitest integration test using Supabase JS client + non-admin JWT to attempt UPDATE → expect 42501. Will close once scaffolding lands + test ships green.
-- **#1058 (P2)** — **NEW** prereq for #1054: build `__tests__/integration/` scaffolding + non-admin test user fixture helper (ephemeral provisioning via service_role + teardown). Plan doc: `~/.claude/plans/twinkly-herding-narwhal.md` option (α). ~3-4h project.
-- **#1059 (P2)** — **NEW** from R1 red-teamer L2 on mig 225: audit_log tamper-resistance / append-only seal. audit_log has no UPDATE/DELETE policies; service_role + postgres can post-mutate rows mig 225 just wrote. Default fix: BEFORE UPDATE/DELETE trigger on audit_log that raises unless a deliberate-purge GUC is set. ~1h.
-- ~~#1053~~ — closed this session by mig 225 + commit `600f5c0` (audit_log AFTER trigger).
-- ~~#1051~~ — Phase H1 itself, closed by end-of-prior-session.
-- ~~#1052~~ — P0 / 222b silent break, closed by mig 224 + smoke tests.
+- **#1025 (P1, SNOOZED to 2026-05-28)** — RUSH stamp turnaround tracking for PROJ-32115 (Charles Lohf). Greg deferred this two weeks at Phase H3 start; resumes 2026-05-28. Re-rendered PDF stays at 294 KB (Inter Bold subset). Closes when stamped sheet returns + decision on Phase 7c made.
+- **#1069 (P2, NEW this session)** — Backport name-bound `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` on the four SECURITY DEFINER trigger functions from mig 222b/223/224/225. R1 red-teamer M1 fold for mig 226 closed the gap for `audit_log_block_admin_tamper` but the sister functions still inherit Postgres' default PUBLIC grant. The `security-definer-grants` static test has these four punch-listed (`KNOWN_OFFENDERS_MAX` bumped 16 → 20 in this session's commit `b291a0f`). New mig 227 with REVOKEs closes the row; defense in depth, not a live hole (trigger invocation uses owner privs, ignores EXECUTE grants).
+- ~~#1054~~ — closed this session by integration scaffold + `__tests__/integration/trigger-guards.test.ts` (commit `b291a0f`); 3/3 pass against real PostgREST.
+- ~~#1058~~ — closed this session by `__tests__/integration/` scaffold (commit `b291a0f`).
+- ~~#1059~~ — closed this session by mig 226 + commit `a17d602`.
+- ~~#1053~~ — closed in Phase H2 by mig 225.
+- ~~#1051~~, ~~#1052~~ — closed earlier sessions.
 - ~~#1021~~, ~~#1022~~, ~~#1023~~, ~~#1024~~ — closed in earlier sessions.
 
 ### Latent / informational (not blocking, not yet filed as actions)
@@ -325,27 +393,27 @@ Captured via vitest run on the final commit `8bb365b`:
 
 ### ⬅ Phase 7c (next session) — fold RUSH stamp feedback (conditional on #1025)
 
-Phase 7b + Phase H1 shipped end-to-end. The next phase IS the RUSH feedback loop: pick up only after #1025 closes (stamp returns with feedback). Until then the chain is at a natural waiting point.
+#1025 is **SNOOZED to 2026-05-28**. Phase 7c remains the next forward-progress phase but does not pick up until RUSH feedback arrives.
 
 **Decisions Greg must answer before this phase starts:**
 
-(No decisions until RUSH feedback arrives. The shape of Phase 7c depends entirely on what RUSH dings.)
+(No decisions until RUSH feedback arrives. The shape of Phase 7c depends entirely on what RUSH dings. Until then sessions can pick up the hardening backlog OR start Phase 7.x — see below.)
 
 **Phase work (anticipated, narrower after H1):**
 
-- **Already shipped, pre-empted by H1:** Inter Bold registration + Unicode-correct title block. If RUSH's main typography ding is "the customer name lost an accent" or "Helvetica looks too bare," that's now fixed. Lohf pilot was re-rendered with Inter Bold subset embedded (PROJ-32115 / Charles Lohf has an ASCII name so the change is invisible on that specific pilot — Unicode rendering matters for future non-ASCII customer names).
+- **Already shipped, pre-empted by H1:** Inter Bold registration + Unicode-correct title block. If RUSH's main typography ding is "the customer name lost an accent" or "Helvetica looks too bare," that's now fixed.
+- **Already shipped, pre-empted by H2 + H3:** silent-paper-trail closed (mig 225 AFTER trigger writes audit_log on DB-admin direct UPDATE) + tamper-the-paper-trail closed (mig 226 BEFORE UPDATE/DELETE seal). Real PostgREST-path test coverage on the trigger guards (mig 223/224) shipped via the integration scaffold. Any RUSH ding that surfaces a regression in stage/use_sld_v2 state will be loud, not silent.
 - **Still possible:** fold layout feedback — row sizing, sheet-number font size, NEC notes box placement.
 - **Still possible:** fold NEC compliance feedback — additional `graph.notes` painting, callout placement.
 - **If RUSH stamps clean:** mark v2 as the production default for new projects (separate chain — coordinate with Phase 7.x equipment kinds which gate non-Duracell topologies).
 
-**Estimated effort:** depends on RUSH feedback. 30 min if clean stamp, 2-4 hours if substantive redraw. Lower bound vs Phase 7b because the Bold + Unicode work is already done.
+**Estimated effort:** depends on RUSH feedback. 30 min if clean stamp, 2-4 hours if substantive redraw.
 
 ### ⬅ Hardening backlog (any-time)
 
-- **#1058 (P2)** — Build `__tests__/integration/` scaffolding + non-admin test user fixture helper. Prereq for #1054. Plan doc: `~/.claude/plans/twinkly-herding-narwhal.md` option (α). ~3-4h. Higher-value because every future trigger / RLS / RPC E2E test reuses it.
-- **#1054 (P2)** — Real PostgREST-path E2E test for the trigger guards. BLOCKED on #1058 (no integration infra in repo). ~1h once scaffolding exists.
-- **#1059 (P2)** — audit_log append-only seal (BEFORE UPDATE/DELETE trigger that raises unless purge GUC set). Defends against service_role/postgres post-mutating their own paper trail. ~1h.
-- ~~#1053~~ — SHIPPED this session in mig 225 + commit `600f5c0`.
+- **#1069 (P2)** — Backport REVOKE EXECUTE on mig 222b/223/224/225 SECDEF trigger functions. New mig 227 with name-bound REVOKEs from PUBLIC/anon/authenticated. After apply, remove the four from `KNOWN_OFFENDERS` in `__tests__/security-definer-grants.test.ts` and drop `KNOWN_OFFENDERS_MAX` back to 16. ~1h.
+- ~~#1054~~, ~~#1058~~, ~~#1059~~ — SHIPPED this session.
+- ~~#1053~~ — SHIPPED in Phase H2 (mig 225).
 - ~~215b NULL auth.role() bypass patch~~ — SHIPPED in mig 223 (also surfaced a worse SECDEF/current_user bug that was silently broken in prod via 222b → fixed in mig 224).
 
 ### ⬅ Phase 7.x (deferred — not blocking) — missing equipment kinds
@@ -354,8 +422,9 @@ Phase 7b + Phase H1 shipped end-to-end. The next phase IS the RUSH feedback loop
 
 ## Specific gotchas for the next operator
 
-- **Branch is NOT pushed** — **1 commit** ahead of origin: `600f5c0` (feat mig 225 audit_log AFTER trigger). The five Phase H1 commits + handoff-refresh chain (`978392c` → `de73e92` → `2756a73` → `5714af3` → `2b4c2ba` → `211ede7`) shipped to origin between H1 and H2 (Greg pushed at start of H2). Awaiting end-of-session push auth per CLAUDE.md / `feedback_no_mid_session_push.md`.
-- **`mig 225` is APPLIED to prod** — postcondition asserts ran during apply, trigger is live. Live smoke tests T2/T5/T4/T6 verified the function logic (BEGIN/ROLLBACK so no state mutation). Any subsequent direct MCP UPDATE to projects.stage / stage_date / use_sld_v2 will now write an audit_log row attributed to `'db-admin'` / session_user; flag for next session that this is no longer silent.
+- **Branch is NOT pushed** — **4 commits** ahead of origin `211ede7`: `4b717f5` (Phase H2 handoff-refresh) → `600f5c0` (Phase H2 feat mig 225, pushed status applies on top of `4b717f5`) → `a17d602` (Phase H3 feat mig 226) → `b291a0f` (Phase H3 feat integration scaffold). Awaiting end-of-session push auth per CLAUDE.md / `feedback_no_mid_session_push.md`.
+- **`mig 226` is APPLIED to prod** (this session, two apply_migration calls — initial + R1-fold REVOKE+postcondition-tighten). Trigger is live: `audit_log_block_admin_tamper_trg` BEFORE UPDATE OR DELETE on public.audit_log, `tgenabled='O'`, NOT on INSERT. Live ACL on the function: `{postgres=X/postgres, service_role=X/postgres}` — PUBLIC/anon/authenticated stripped. Any direct UPDATE/DELETE on audit_log now raises 42501 unless the txn has `SET LOCAL app.audit_log_admin_purge='true'`. Heads-up to future operators: legitimate retention pruning of audit_log MUST set the GUC first.
+- **`mig 225` is APPLIED to prod** (Phase H2) — postcondition asserts ran during apply, trigger is live. Any subsequent direct MCP UPDATE to projects.stage / stage_date / use_sld_v2 will now write an audit_log row attributed to `'db-admin'` / session_user; PLUS that audit_log row is now tamper-protected by mig 226.
 - **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2. Re-render via the route → expect the title-block PDF. **Column is genuinely trigger-protected NOW** (mig 224 fixed 222b's silent break); flipping requires `session_user IN ('postgres','supabase_admin','service_role')` OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user genuinely gets 42501.
 - **Inter Bold is bundled and active in the v2 title-block path.** When `titleBlock` is requested, BOTH Inter Regular + Bold register atomically. If either ttf is missing/corrupted, the pipeline falls back to Helvetica + WinAnsi sanitizer for the entire sheet (logs a warn). Lohf pilot PDF is now 294 KB (was 197 KB) with Inter Bold subset embedded. **The WinAnsi-sanitizer-strips-diacritics gotcha is now only the fallback path** — happy path renders Unicode correctly.
 - **`session_user` vs `current_user` in SECURITY DEFINER.** Inside SECDEF trigger functions, `current_user` returns the function OWNER (postgres) — bypass-list checks evaluate true for every caller (this was 222b's silent prod break). `session_user` is the original CONNECTION role and survives SET ROLE + SECURITY DEFINER. If you write another SECDEF trigger guard, use `session_user`.
@@ -367,6 +436,8 @@ Phase 7b + Phase H1 shipped end-to-end. The next phase IS the RUSH feedback loop
 - **`scripts/render-sld-v2-pilot-lohf.tsx`** is a session-local script; auto-mirrors output to `~/Desktop/sld-v2-pilot-lohf.pdf`. Be aware this OVERWRITES any prior approved version on Desktop — git can't recover it (path is gitignored).
 - **The two-canvas iteration loop is dead** — same as Phase 7a, don't reopen v1 hand-positioning.
 - **`@react-pdf/renderer@^4.4.1`** still in active prod use for invoices / cost-basis — DO NOT remove.
+- **Integration test suite now exists.** Real client → JWT → PostgREST → DB. Lives at `__tests__/integration/` under its own vitest config (`vitest.integration.config.ts`). Run via `npm run test:integration`. Fixture identifiers are per-run (`E2E_TEST_PREFIX = 'e2e_test_'` + suffix from env or randomUUID). To add a new trigger/RLS/RPC E2E test: drop a `*.test.ts` in that dir, import `serviceClient` / `userClient` from `./clients`, import `getIntegrationContext()` from `./setup`, write the test. NO new setup/teardown plumbing needed for the basic shape. Heads-up: if your test writes any FK-child row against the fixture project (work_orders, change_orders, invoices, etc.), the existing teardown will FK-fail — extend `setup.ts:teardown()` to delete the child in dep order first (see the comment block on `evals/cleanup.ts` for the 19-FK-child enumeration pattern).
+- **mig 226 GUC name:** `app.audit_log_admin_purge`. Any future retention/purge tool MUST `SET LOCAL app.audit_log_admin_purge = 'true'` at txn start or every UPDATE/DELETE will raise 42501.
 
 ## Reference
 
@@ -389,10 +460,10 @@ Phase 7b + Phase H1 shipped end-to-end. The next phase IS the RUSH feedback loop
 ```yaml
 chain_state_auto:
   project: planset
-  generated_at: 2026-05-13T23:32:01Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  generated_at: 2026-05-14T15:08:13Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
-  main_head: 0e8a067  # feat(feedback): close out feedback when fix ships + drop /feed from Seer triage
-  main_head_committed: 2026-05-13T17:22:20-05:00
+  main_head: 8abcb4a  # feat(seer): mig 326+327 + seer-curriculum-ingest agent (Chain 7 Phase 5)
+  main_head_committed: 2026-05-14T10:01:45-05:00
   recent_recaps: []  # recaps unreachable (creds missing or RPC down)
   branches_with_work:
     - feat/atlas-canonical-pipeline-installs (cba5a83): 1 ahead of main
@@ -403,7 +474,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (600f5c0): 48 ahead of main, 1 unpushed to origin/feat/planset-v8-layouts
+    - feat/planset-v8-layouts (b291a0f): 51 ahead of main, 4 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main
