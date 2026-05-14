@@ -1,10 +1,10 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-14 ~19:45 UTC (Phase H6 — server-side puppeteer PDF route + cut-sheet merge, closes #332; R1 red-teamer B → A with both Highs + both Mediums + L1 folded inline; 33/33 unit + chain baseline NEW_FAIL=0)
+**Last updated:** 2026-05-14 ~21:05 UTC (Phase H7 partial — Greg visual-reviewed v2 SLD against RUSH-stamped Tyson Rev1 PV-5; 4 of 8 categories shipped: top-of-sheet header strip, equipment annotation phrases, sheet-name rename to "Electrical Three Line Diagram", installer-notes block. 5 deeper-layout categories deferred to Phase H8.)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `3ec67fb` (12 commits ahead of origin `211ede7`; not pushed per no-mid-session-push rule).** This session shipped (on top of prior session's `4b717f5`):
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `918ab28` locally (1 commit ahead of origin `c9306c3`; H7 partial commit not yet pushed — awaiting Greg's signal).** This session shipped (on top of prior session's `4b717f5`):
   - `a17d602` — feat(mig 226): audit_log append-only seal (Phase H3)
   - `b291a0f` — feat(tests/integration): scaffold + close #1054 (Phase H3)
   - `b754478` — docs(planset/.atlas): handoff refresh (Phase H3)
@@ -13,8 +13,10 @@
   - `0d6f63b` — test(secdef): cross-file REVOKE scan tighten (Phase H5)
   - `98363df` — docs(planset/.atlas): handoff refresh (Phase H5)
   - `a35783a` — docs(planset/.atlas): surface #332+#346 + close stale #335
-  - `3ec67fb` — **feat(planset): server-side puppeteer PDF route + cut-sheet merge (Phase H6, closes #332)**
-**Latest commit:** `3ec67fb` feat(planset): server-side puppeteer PDF route + cut-sheet merge (#332)
+  - `3ec67fb` — feat(planset): server-side puppeteer PDF route + cut-sheet merge (Phase H6, closes #332)
+  - `c9306c3` — docs(planset/.atlas): handoff refresh (Phase H6)
+  - `918ab28` — **feat(sld-v2): Phase H7 partial — PE-required PV-5 annotations (Tyson diff, 4 of 8 categories)**
+**Latest commit:** `918ab28` feat(sld-v2): Phase H7 partial — PE-required PV-5 annotations
 
 ## Chain instruction (read this first, every session)
 
@@ -42,7 +44,44 @@ Multi-session effort to bring the MicroGRID planset generator's SLD output from 
 
 **Plan docs:** `~/.claude/plans/smooth-mixing-milner.md` (architectural, Greg-approved 2026-05-12), `~/.claude/plans/virtual-scribbling-raven.md` (Phase 7b, 2026-05-13), `~/.claude/plans/bright-forging-hare.md` (Phase H1, 2026-05-13 evening).
 
-## ✅ Shipped this session (2026-05-14 — Phase H6: server-side puppeteer PDF route + cut-sheet merge)
+## ✅ Shipped this session (2026-05-14 — Phase H7 partial: PE-required PV-5 annotations from Tyson visual diff)
+
+Greg pulled the RUSH-stamped Tyson Rev1 PV-5 (`~/Desktop/PROJ-26922 Corey Tyson Rev1.pdf`, page 22) as the visual canonical and ran a diff against our v2 Lohf SLD render. 8 categories of missing surface surfaced. This commit closes 4 — the cheap wins. 5 deeper-layout categories are deferred to Phase H8.
+
+### Commit `918ab28` — feat(sld-v2): Phase H7 partial — PE-required PV-5 annotations
+
+**A. Top-of-sheet header strip (new `lib/sld-v2/header-strip.ts`).** Four framed metadata boxes painted across the top of the SLD page via jsPDF native primitives: STC (module + inverter DC/AC math), METER + UTILITY (meter number + ESID + utility + AHJ), BATTERY SCOPE (storage + electrical info + MSP/MSB ratings), SCOPE (full system summary). Reserves `HEADER_STRIP_HEIGHT_PT = 60` at the top of the page; SLD body scales down accordingly. Painted only when a `titleBlock` is present (same gate as `paintTitleBlock`).
+
+**F. Equipment annotation phrases (`lib/sld-v2/from-planset-data.ts`).** Compressed 3-4 dense Tyson-style NEC phrases per equipment block:
+- PV Disconnect: `(EATON) DG223URB · 100A/2P · 240V 3R` / `VISIBLE, LOCKABLE — "AC DISCONNECT"` / `EXTERIOR WALL`
+- Gen Disconnect: `(45A FUSES) · VISIBLE, LOCKABLE` / `"AC DISC" ≤10' OF METER`
+- Service Disc renamed to `(N) MAIN BREAKER TO HOUSE` w/ `TOP FED · BI-DIRECTIONAL`
+- MSP: `BUSBAR · 120% NEC 705.12(B)` / `(N) SURGE PROTECTOR`
+- Meter: `(E) BI-DIR UTILITY METER` / `1Φ 3W · 120/240V · 200A`
+- Backup Panel: `(N) PROTECTED LOAD PANEL` / `EATON BRP20B125R · 125A` / `MAIN 240V/40A/2P`
+- Battery Stack: `FLOOR · BOLLARDS 3FT · HEAT DET.`
+
+**G partial. Sheet name rename** — `"Single Line Diagram"` → `"Electrical Three Line Diagram"` across all real call sites: `scripts/render-sld-v2-pilot-lohf.tsx`, `app/planset/page.tsx`, `components/planset/SheetPV5.tsx`, `components/planset/SheetPV1.tsx` (cover-page drawing-list), `app/api/sld/v2/[projectId]/route.ts`. Full L1/L2 color-coded conductor split is a separate refactor (deferred to H8).
+
+**D. Installer-notes block (new `lib/sld-v2/installer-notes.ts`).** Red-titled bullet block painted at bottom-left of the SLD page replicating the Tyson REQUIRES list: relocate (E) essential loads to (N) protected loads panel, Edison-circuit test before energization, 10-12 single-pole loads backup per homeowner selection, batteries floor-mounted, heat detectors required on interior, bollards 3ft from battery, main panel upgrade, smoke detectors. Battery-related bullets condition on `data.batteryCount > 0`; bollards condition on LFP chemistry. Static dimensions (`INSTALLER_NOTES_HEIGHT_PT = 80`, `INSTALLER_NOTES_WIDTH_PT = 260`).
+
+### Audit gate summary
+
+- **red-teamer R1 on sensitive-surface change (api/sld/v2 route):** A (0C/0H/0M/0L). Diff is a single string literal swap on `titleBlock.sheetName`; auth/RLS/rate-limit/error-log surfaces byte-identical pre/post.
+
+### Verification
+
+- `npx vitest run __tests__/sld-v2/` → 67/67 pass.
+- `npx tsc --noEmit` → exit 0.
+- `npx tsx scripts/render-sld-v2-pilot-lohf.tsx` → 298 KB Lohf SLD with all 4 categories visible at `~/Desktop/sld-v2-pilot-lohf.pdf`. Greg eyeballed and confirmed direction.
+
+### Pre-resolved follow-ups verified this session
+
+None new.
+
+---
+
+## ✅ Previously shipped (2026-05-14 ~19:45 UTC — Phase H6: server-side puppeteer PDF route + cut-sheet merge)
 
 Greg gave the architecture call on #332 (puppeteer via `@sparticuz/chromium`, not html2pdf — render-engine parity for PE stamping is load-bearing, and the `sld-assets/` SVG library locks out `@react-pdf/renderer`). Plan written + approved + executed against the existing v2 SLD route's auth/role/rate-limit pattern.
 
@@ -470,6 +509,8 @@ Captured via vitest run on the final commit `8bb365b`:
 - ✅ **Phase H4 — mig 227 REVOKE EXECUTE backport on four SECDEF trigger fns (closes #1069) + cross-file SECDEF static-test — 2026-05-14 ~16:30 UTC**
 - ✅ **Phase H5 — tightened cross-file SECDEF scan to same-or-later file order (closes #1073) — 2026-05-14 ~17:05 UTC**
 - ✅ **Phase H6 — server-side puppeteer PDF route + cut-sheet merge (closes #332) — 2026-05-14 ~19:45 UTC**
+- ✅ **Phase H7 partial — PE-required PV-5 annotations from Tyson diff: A + D + F + G partial (4 of 8 categories) — 2026-05-14 ~21:05 UTC**
+- ⏳ Phase H8 — finish the remaining 5 Tyson-diff categories on PV-5 (B / C / E / H / G full)
 - 💤 RUSH stamp turnaround on Lohf pilot (#1025) — snoozed to 2026-05-28
 - ☐ Phase 7c (conditional) — fold RUSH feedback (typography, layout, NEC compliance)
 - ☐ Phase 7.x — Fill `StringInverterBox` / `MicroInverterBox` / `EVChargerBox` (deferred kinds)
@@ -521,7 +562,41 @@ Captured via vitest run on the final commit `8bb365b`:
 
 ## Next phase to pick up
 
-### ⬅ Phase 7c (next session) — fold RUSH stamp feedback (conditional on #1025)
+### ⬅ Phase H8 (next session) — finish the remaining 5 Tyson-diff PV-5 categories
+
+Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing the v2 Lohf SLD render (`~/Desktop/sld-v2-pilot-lohf.pdf`) against the RUSH-stamped Tyson Rev1 PV-5 (`~/Desktop/PROJ-26922 Corey Tyson Rev1.pdf` page 22). The remaining 5 need deeper SVG/layout work and were deferred for time. Total estimate: ~10h across the 5.
+
+**Decisions Greg must answer before this phase starts:**
+
+1. **Order to take the 5 categories.**
+   - (a) Recommended: B → H → C → E → G full (per impact-per-hour for RUSH-stamp likelihood).
+   - (b) Stop after a subset (e.g. B + H only, ~3h). The current Phase H7 output may already be RUSH-stamp-passable for the upcoming Lohf pilot — let RUSH ding what's actually missing before doing G full.
+   - Default: (b) — stop after B + H, re-run the Lohf pilot through RUSH, fold C/E/G-full only if dinged.
+
+2. **Should next-session also ship the integration test for the puppeteer PDF route (#1077)** while in the file-system-touching SLD code?
+   - (a) Bundle it — 1h on top of the SLD work, while context is fresh.
+   - (b) Defer to a dedicated hardening session.
+   - Default: (b) — keep Phase H8 focused on the visual SLD work; integration test is independent.
+
+**Phase work (the 5 remaining categories):**
+
+- **B (per-wire spec annotations on each leg — ~2h).** Expand `data.acWireToPanel` / `data.dcStringWire` / etc. style strings from 1-line `"#10 AWG CU PV WIRE"` to Tyson's 3-line `(qty) #AWG TYPE-2 / (1) #AWG EGC / conduit-size`. Teach `SldRenderer.tsx`'s edge-label renderer to render multi-line conductor labels at the polyline midpoint.
+
+- **H (10' MAX dimension + GEC NEC grounding callout — ~1h).** Static overlays painted onto the PDF AFTER the SVG body renders. 10' MAX = arrow between gen-disc and main-service-panel x-coords (extract from layout result). GEC = a small ground symbol + `NEC 250.52, 250.53(A)` callout near the MSP. Both need layout coordinates threaded through to `pdf.ts`.
+
+- **C (distributed numbered callouts 1-9 — ~2h).** Tyson tags wire SEGMENTS, not equipment. Add a `tagNumber: number` field to `Connection` in `equipment.ts`, populate sequentially in `from-planset-data.ts`, render numbered circles at edge midpoints in `SldRenderer.tsx`. Cross-reference with PV-6 wire chart (which already uses TAG 1-9).
+
+- **E (comm subsystem — DPCRGM cell, ethernet switch, homeowner router, comm wires — ~2h).** Tyson's pattern is Sonnen-specific (Sonnen Production CT + Sonnen comm bus). Lohf is Duracell hybrid — comm needs are different. Add new equipment kinds (`DpcRgmCell`, `EthernetSwitch`, `HomeRouter`) in `equipment.ts`, add a `comm` edge category that renders dashed in `SldRenderer.tsx`, instantiate them in `from-planset-data.ts` when `isDuracellHybrid(data)`.
+
+- **G full (L1/L2 color-coded three-line conductor split — ~3h).** Biggest. Rewrite the SVG edge renderer in `SldRenderer.tsx` to draw 2-3 parallel colored polylines per AC edge (L1 red, L2 black, N white, G green) instead of a single line. Touch `lib/sld-v2/layout.ts` to allow per-edge multi-line offsets. Tyson convention is three-wire with separate phase colors visible at every breaker block.
+
+**Pickup ritual reminders:**
+- `npx tsx scripts/render-sld-v2-pilot-lohf.tsx` re-renders to `~/Desktop/sld-v2-pilot-lohf.pdf` for visual check.
+- Reference PDF for diff: `~/Desktop/PROJ-26922 Corey Tyson Rev1.pdf` page 22.
+
+---
+
+### ⬅ Phase 7c (subsequent — gated on RUSH) — fold RUSH stamp feedback (conditional on #1025)
 
 #1025 is **SNOOZED to 2026-05-28**. Phase 7c remains the next forward-progress phase but does not pick up until RUSH feedback arrives.
 
@@ -541,6 +616,7 @@ Captured via vitest run on the final commit `8bb365b`:
 
 ### ⬅ Hardening backlog (any-time)
 
+- **Phase H8 — 5 remaining Tyson-diff categories on PV-5 (B/C/E/H/G full, ~10h total).** See "Next phase to pick up" above for the full breakdown + decisions for Greg.
 - **#1077 (P2, ~1h)** — integration test for the planset PDF route. Extends `__tests__/integration/setup.ts` with an admin-role test user, then adds a test file that exercises auth/role/404 against the new route.
 - **#346 (P2)** — Duracell datasheet PE-verify (Greg-blocked).
 - ~~#1054~~, ~~#1058~~, ~~#1059~~, ~~#1069~~, ~~#1073~~, ~~#332~~ — SHIPPED this session.
@@ -592,7 +668,7 @@ Captured via vitest run on the final commit `8bb365b`:
 ```yaml
 chain_state_auto:
   project: planset
-  generated_at: 2026-05-14T18:36:29Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  generated_at: 2026-05-14T19:34:43Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
   main_head: 47fef5d  # feat(seer): mig 328+329 + Phase 6 R2 polish (Chain 7 Phase 6)
   main_head_committed: 2026-05-14T12:32:36-05:00
@@ -606,7 +682,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (3ec67fb): 58 ahead of main, 11 unpushed to origin/feat/planset-v8-layouts
+    - feat/planset-v8-layouts (918ab28): 60 ahead of main, 1 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main
@@ -617,6 +693,7 @@ chain_state_auto:
     - fix/restage-fanout-retry-565 (3738ee8): 1 ahead of main
     - fix/shared-rounding-helper-583 (33bd956): 3 ahead of main, never pushed
     - fix/tx-tax-tpp-526 (1d5164e): 1 ahead of main
+    - main (dd7f68c): 1 unpushed to origin/main
     - restage/atlas-canonical-p1-p2 (7ede9e7): 1 ahead of main
   open_prs:
     - #16 feat/atlas-canonical-drift-cron: feat(atlas): canonical-reports drift cron — daily snapshot replay + alerting
