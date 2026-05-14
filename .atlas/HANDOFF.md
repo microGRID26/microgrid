@@ -4,7 +4,7 @@
 **Last updated:** 2026-05-14 ~21:05 UTC (Phase H7 partial — Greg visual-reviewed v2 SLD against RUSH-stamped Tyson Rev1 PV-5; 4 of 8 categories shipped: top-of-sheet header strip, equipment annotation phrases, sheet-name rename to "Electrical Three Line Diagram", installer-notes block. 5 deeper-layout categories deferred to Phase H8.)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `918ab28` locally (1 commit ahead of origin `c9306c3`; H7 partial commit not yet pushed — awaiting Greg's signal).** This session shipped (on top of prior session's `4b717f5`):
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `0c09c4c` locally (2 commits ahead of origin `c9306c3`; H3-H6 pushed 19:55 UTC, H7 partial commits not yet pushed — awaiting Greg's signal).** This session shipped (on top of prior session's `4b717f5`):
   - `a17d602` — feat(mig 226): audit_log append-only seal (Phase H3)
   - `b291a0f` — feat(tests/integration): scaffold + close #1054 (Phase H3)
   - `b754478` — docs(planset/.atlas): handoff refresh (Phase H3)
@@ -14,9 +14,10 @@
   - `98363df` — docs(planset/.atlas): handoff refresh (Phase H5)
   - `a35783a` — docs(planset/.atlas): surface #332+#346 + close stale #335
   - `3ec67fb` — feat(planset): server-side puppeteer PDF route + cut-sheet merge (Phase H6, closes #332)
-  - `c9306c3` — docs(planset/.atlas): handoff refresh (Phase H6)
-  - `918ab28` — **feat(sld-v2): Phase H7 partial — PE-required PV-5 annotations (Tyson diff, 4 of 8 categories)**
-**Latest commit:** `918ab28` feat(sld-v2): Phase H7 partial — PE-required PV-5 annotations
+  - `c9306c3` — docs(planset/.atlas): handoff refresh (Phase H6) **← origin tip**
+  - `918ab28` — feat(sld-v2): Phase H7 partial — PE-required PV-5 annotations (Tyson diff, 4 of 8 categories)
+  - `0c09c4c` — **docs(planset/.atlas): handoff refresh (Phase H7 partial)**
+**Latest commit:** `0c09c4c` docs(planset/.atlas): handoff refresh — Phase H7 partial (4 of 8 Tyson-diff categories)
 
 ## Chain instruction (read this first, every session)
 
@@ -40,9 +41,9 @@ Pickup ritual:
 
 Multi-session effort to bring the MicroGRID planset generator's SLD output from "10 pages of mostly-empty placeholders" to RUSH-Engineering-stamp-ready drafting quality. Reference benchmark = `PROJ-26922 Corey Tyson Rev1.pdf` (36 pages, RUSH-stamped). Forward equipment baseline = Seraphim SRP-440-BTD-BG + Duracell PC Max Hybrid 15kW × 2 + 16× Duracell 5kWh LFP (80 kWh).
 
-**As of 2026-05-12 the chain pivoted** from canvas-iterating the v1 hand-positioned spec to a declarative equipment list → elkjs layout engine → React/SVG renderer with prop-driven label slots. Code lives in `lib/sld-v2/` + `components/planset-v2/`. v1 stays untouched and operational behind the existing routing in `lib/sld-layout.ts`. Phases 0-4 (equipment kinds + elkjs adapter + label picker + PlansetData adapter) shipped 2026-05-12. Phase 5 (SVG → PDF export) shipped 2026-05-13 morning. Phase 6 (feature flag + nodeOverrides + production route) shipped 2026-05-13 mid-morning. Phase 7a (per-project `use_sld_v2` column + 3-arg flag + SheetPV5 inline v2 swap) shipped 2026-05-13 ~11 UTC. Phase 7b (title block paint + Inter Regular + Lohf pilot PDF) shipped 2026-05-13 ~13 UTC; the cumulative R1 + R1-deferrals sweep shipped ~15:30 UTC. **Phase H1 (this session, evening 2026-05-13) used the RUSH-blocked window to fix two SECURITY DEFINER bypass bugs in the trigger guards (mig 223 + 224 — including a silently-broken-in-prod gap on 222b) and pre-empt the most likely RUSH typography ding by adding Inter Bold + Unicode-correct title-block rendering.** Phase 7c (folding RUSH stamp feedback) is the next forward phase but gated on the stamp turnaround for PROJ-32115 / Lohf (#1025, ~1 week out).
+**As of 2026-05-12 the chain pivoted** from canvas-iterating the v1 hand-positioned spec to a declarative equipment list → elkjs layout engine → React/SVG renderer with prop-driven label slots. Code lives in `lib/sld-v2/` + `components/planset-v2/`. v1 stays untouched and operational behind the existing routing in `lib/sld-layout.ts`. Phases 0-4 (equipment kinds + elkjs adapter + label picker + PlansetData adapter) shipped 2026-05-12. Phase 5 (SVG → PDF export) + Phase 6 (feature flag + nodeOverrides + production route) shipped 2026-05-13 morning. Phase 7a (per-project `use_sld_v2` column + 3-arg flag + SheetPV5 inline v2 swap) + Phase 7b (title block paint + Inter Regular + Lohf pilot PDF) + cumulative R1-deferrals sweep all shipped 2026-05-13. **Phases H1-H7 shipped 2026-05-13 evening through 2026-05-14:** H1 (RUSH-blocked-window hygiene — mig 223/224 session_user fix + Inter Bold typography prep), H2 (mig 225 audit_log AFTER trigger), H3 (mig 226 audit_log append-only seal + integration-test scaffolding), H4 (mig 227 REVOKE backport), H5 (cross-file SECDEF static-test tighten), H6 (server-side puppeteer PDF route + cut-sheet merge — closes #332), **H7 partial (PE-required PV-5 annotations from Greg's Tyson-diff visual review — 4 of 8 categories landed)**. Phase H8 carries the remaining 5 Tyson-diff categories. Phase 7c (folding the actual RUSH stamp feedback) is still gated on the stamp turnaround for PROJ-32115 / Lohf (#1025, snoozed to 2026-05-28).
 
-**Plan docs:** `~/.claude/plans/smooth-mixing-milner.md` (architectural, Greg-approved 2026-05-12), `~/.claude/plans/virtual-scribbling-raven.md` (Phase 7b, 2026-05-13), `~/.claude/plans/bright-forging-hare.md` (Phase H1, 2026-05-13 evening).
+**Plan docs:** `~/.claude/plans/smooth-mixing-milner.md` (architectural, Greg-approved 2026-05-12), `~/.claude/plans/virtual-scribbling-raven.md` (Phase 7b, 2026-05-13), `~/.claude/plans/bright-forging-hare.md` (Phase H1, 2026-05-13 evening), `~/.claude/plans/lexical-roaming-toast.md` (Phase H3 → H6, written + rewritten 2026-05-14).
 
 ## ✅ Shipped this session (2026-05-14 — Phase H7 partial: PE-required PV-5 annotations from Tyson visual diff)
 
@@ -421,57 +422,54 @@ None. All 4 deferrals (#1021–#1024) ended this session closed; #1025 remains o
 ```bash
 cd ~/repos/MicroGRID-planset-phase1
 
-# Commit history check — should see 8bb365b at HEAD on origin
-git log --oneline -8
-git log origin/feat/planset-v8-layouts --oneline -1   # should match 8bb365b
+# Commit history check — local HEAD is 0c09c4c (handoff refresh on top of
+# Phase H7 partial 918ab28). Origin tip is c9306c3 (Phase H6 handoff refresh).
+git log --oneline -10
+git log origin/feat/planset-v8-layouts --oneline -1   # should match c9306c3
 
 # Typecheck the whole worktree (v1 + v2 must coexist clean)
 npx tsc --noEmit
 
-# Run v2 test suites — 64 tests pass (was 60; +1 spy #1024 + +3 H1 prod-flag regression)
+# v2 SLD test suite — 67 tests pass (Phase H7 didn't change the test count)
 npx vitest run __tests__/sld-v2/
 
-# ESLint server-only gate — all 6 exempt files clean
-npx eslint --no-warn-ignored \
-  'app/api/sld/v2/**/route.ts' \
-  lib/sld-v2/pdf.ts \
-  scripts/render-sld-v2-pdf.tsx \
-  scripts/sld-v2-pdf-concurrency-smoke.tsx \
-  __tests__/sld-v2/pdf.test.ts \
-  __tests__/sld-v2/title-block.test.ts
-# Expected: no errors
+# Migration tests (mig 225 + mig 226 static-inspection)
+npx vitest run __tests__/migrations/
 
-# ESLint server-only gate (bait — should error on sibling + parent imports)
-cat > /tmp/eslint-bait.ts <<'EOF'
-import { renderSldToPdf as a } from "./pdf";
-import { renderSldToPdf as b } from "../pdf";
-import { renderSldToPdf as c } from "@/lib/sld-v2/pdf";
-EOF
-mkdir -p lib/_eslint-bait && mv /tmp/eslint-bait.ts lib/_eslint-bait/index.ts
-npx eslint --no-warn-ignored lib/_eslint-bait/index.ts   # expect 4 errors
-rm -rf lib/_eslint-bait/
+# SECDEF cross-file test (mig 227's cross-file scan with same-or-later-file gate)
+npx vitest run __tests__/security-definer-grants.test.ts
 
-# Chain test baseline — confirm no new regressions
+# pdf-merge helper (Phase H6's pure-function tests, @vitest-environment node)
+npx vitest run __tests__/lib/pdf-merge.test.ts
+
+# Integration suite (real Supabase JS client + real PostgREST + real DB)
+npm run test:integration
+
+# Chain test baseline — confirm no regressions vs Phase 5 baseline
 /opt/homebrew/bin/python3.12 ~/.claude/scripts/chain_test_baseline.py diff --repo $(pwd) --sha 8a5df3949028
 # Expected: NEW_FAIL = 0, STILL_FAIL = 16 (pre-existing v1)
 
-# Migration 222 + 222b applied (use_sld_v2 admin-only write trigger)
-# Verify via Supabase MCP execute_sql:
-#   SELECT tgname FROM pg_trigger WHERE tgname = 'projects_block_direct_use_sld_v2_update_trg';
+# Phase H3 migrations (mig 226 audit_log seal + mig 227 SECDEF revoke backport)
+# verify via Supabase MCP execute_sql:
+#   SELECT tgname FROM pg_trigger WHERE tgname = 'audit_log_block_admin_tamper_trg';
 #   -- Expect 1 row.
+#   SELECT proname, proacl::text FROM pg_proc WHERE proname IN
+#     ('audit_log_block_admin_tamper', 'projects_log_db_admin_bypass',
+#      'projects_block_direct_stage_update', 'projects_block_direct_use_sld_v2_update');
+#   -- Expect each ACL = {postgres=X/postgres, service_role=X/postgres}.
 
-# Render Lohf pilot PDF (still works, the actual pilot artifact)
+# Render Lohf pilot PDF (the Phase H7 visual artifact)
 npx tsx scripts/render-sld-v2-pilot-lohf.tsx
-# Expected: wrote ~/.claude/tmp/sld-v2-pilot-lohf.pdf (~197 KB)
-strings ~/.claude/tmp/sld-v2-pilot-lohf.pdf | grep -E 'Charles Lohf|PROJ-32115|Windrift|Round Rock|SINGLE LINE|PV-5'
+# Expected: wrote ~/.claude/tmp/sld-v2-pilot-lohf.pdf (~298 KB)
+#           mirror → ~/Desktop/sld-v2-pilot-lohf.pdf
+# Phase H7 added the header strip + installer notes; expect those visible
+# at the top + bottom-left of the rendered page.
+strings ~/.claude/tmp/sld-v2-pilot-lohf.pdf | grep -E 'Charles Lohf|PROJ-32115|Windrift|Round Rock|THREE LINE|PV-5'
+strings ~/.claude/tmp/sld-v2-pilot-lohf.pdf | grep -c 'INSTALLER NOTE'   # expect ≥1 (Phase H7 D)
+strings ~/.claude/tmp/sld-v2-pilot-lohf.pdf | grep -c 'BATTERY SCOPE'    # expect ≥1 (Phase H7 A)
 
-# Render Tyson with title block (regression check)
-npx tsx scripts/render-sld-v2-pdf.tsx
-# Expected: ~/.claude/tmp/sld-v2-tyson-titled.pdf (~171 KB, title block present)
-
-# Render Tyson WITHOUT title block (Phase 5/6 path, NEC grep still works)
-npx tsx scripts/render-sld-v2-pdf.tsx --no-title
-strings ~/.claude/tmp/sld-v2-tyson.pdf | grep -c 'NEC 690.12'   # Expected: ≥4
+# Visual diff target for Phase H8: side-by-side with the Tyson reference
+open ~/Desktop/PROJ-26922\ Corey\ Tyson\ Rev1.pdf   # page 22 = PV-5.1
 ```
 
 ## Spec deltas discovered this session (R1 sweep + cumulative milestone audit)
@@ -486,8 +484,8 @@ Three deltas, all folded into shipped code:
 
 ## Test baseline
 
-Captured via vitest run on the final commit `8bb365b`:
-- **sld-v2 suite: 64 tests pass, 0 fail.** Was 60 at end of Phase 7b. +1 spy regression catch (#1024), +3 H1 production-flag regression tests.
+Captured via vitest run on the Phase H7 partial commit `918ab28`:
+- **sld-v2 suite: 67 tests pass, 0 fail.** No new tests added in Phase H7 (visual-render changes verified by visual diff, not unit tests). H3 added 9 mig 226 + 5 pdf-merge tests (~unit); H4 modified the SECDEF static test for cross-file scan; H7 left the count at 67.
 - Chain baseline diff vs Phase 5 (`8a5df3949028`): **NEW_FAIL=0, STILL_FAIL=16** (pre-existing v1 sld-layout + SheetPV failures unchanged).
 - Cumulative since Phase 5 baseline: +24 passing tests (Phase 6 +6, Phase 7a +6, Phase 7b +4, this session +4).
 
@@ -516,20 +514,25 @@ Captured via vitest run on the final commit `8bb365b`:
 - ☐ Phase 7.x — Fill `StringInverterBox` / `MicroInverterBox` / `EVChargerBox` (deferred kinds)
 - ☐ PROJ-26922 Tyson stamp unblock — PDF-edit r12 path (Atlas-side, not blocked by v2)
 
-## Audit gates (this session)
+## Audit gates (this session — 2026-05-14)
 
-- **Cumulative milestone R1** (red-teamer, against `042cc1d` integrated surface): **B** (0C / 2H / 5M / 3L). All 10 findings fixed inline in commit `4d1a2da`. Post-fix grade: **A** (0 unmitigated).
-- **Migration 222 pre-apply** (migration-planner, against draft `222-projects-block-direct-use-sld-v2-update.sql`): **A** (0C / 0H / 0M / 0L) — Verdict: safe to execute as planned. Mirrors production-proven 215b pattern; ShareRowExclusive sub-second on 36 MB table; no UPDATE call sites in app code; service_role bypass intact (later corrected to current_user allowlist in 222b); idempotent re-run; rollback is two DROPs.
-- **Mig 222 + 222b post-apply** smoke test: passed (`projects_block_direct_use_sld_v2_update_trg` present in `pg_trigger`; postgres-role flip-down + flip-back-up on PROJ-32115 succeeds without raising).
-- **Phase 7b R1 deferrals**: #1021 closed as verified non-issue (JS single-threaded semantics); #1022 + #1023 + #1024 shipped with R1 self-review catching the #1023 catch-block swallow bug pre-commit.
+- **Phase H3 mig 226 pre-apply (migration-planner):** A (0C/0H/1M/1L). M1 dead-COALESCE + L1 unnecessary SECDEF acknowledged as pattern-consistent with mig 223/224/225.
+- **Phase H3 mig 226 post-apply (red-teamer):** A (0C/0H/2M/2L). M1 (REVOKE EXECUTE from PUBLIC/anon/authenticated) + M2 (postcondition pins BEFORE+enabled) folded inline.
+- **Phase H3 integration scaffold (red-teamer):** B (0C/2H/4M/2L) → A after fold. H1 (concurrent-CI namespacing via RUN_ID) + H2 (isPermissionDeniedError widening) + M3 (auth.admin listUsers pagination) + M4 (scrubSecrets sbp_) all folded inline.
+- **Phase H4 mig 227 retro-sign-off (migration-planner):** A (0C/0H/1M/2L). M1 (cross-file scan name-collision false-pass) filed as #1073 and shipped in H5.
+- **Phase H6 puppeteer PDF route (red-teamer):** B (0C/2H/2M/2L) → A after fold. H1 (host-header spoof → resolveOriginForPrint requires env or VERCEL_* in prod) + H2 (cookie scope filtered to `sb-` prefix) + M1 (429 warn-log) + M2 (cookie round-trip assertion) + L1 (X-Planset-PDF-Merged header dropped) all folded inline.
+- **Phase H7 partial sensitive-surface change (red-teamer):** A (0C/0H/0M/0L). Single string literal swap on `titleBlock.sheetName`; auth/RLS/rate-limit/error-log surfaces byte-identical pre/post.
 
 ## Live state worth knowing
 
-- **Branch status**: `feat/planset-v8-layouts` HEAD = `8bb365b`, origin matches (0 ahead). Four commits this session (57dc174, 042cc1d, 4d1a2da, 8bb365b) pushed together with Greg's end-of-session auth.
-- **Vercel preview URL**: `https://microgrid-git-feat-planset-v8-layouts-gkelsch-7941s-projects.vercel.app/api/sld/v2/PROJ-32115?sld=v2` (with auth cookie + internal role). **NOTE**: `?sld=v2` is now a NO-OP in production. The Vercel preview env is treated as production unless `NEXT_PUBLIC_VERCEL_ENV !== 'production'` makes NODE_ENV non-prod — check before assuming it works on preview. Use `SLD_V2_DEFAULT=1` env var or per-project `use_sld_v2=true` for forced v2 in any env.
-- **PROJ-32115 use_sld_v2 = true** — flipped via Supabase MCP. Production route will serve the v2 PDF for any authed internal user requesting Lohf's plansheet. **NEW: the column is now trigger-protected** — only `current_user IN ('postgres','supabase_admin','service_role')` OR `auth_is_admin()` can flip it. Manager-role end users get `42501`.
-- **This session's commit SHAs**: `57dc174` (R1-L1), `042cc1d` (R1-L2 + R1-L3), `4d1a2da` (cumulative R1 sweep), `8bb365b` (mig 222b). Earlier phases unchanged.
-- **Migrations applied this session**: `222_projects_block_direct_use_sld_v2_update` + `222b_use_sld_v2_trigger_fix_null_auth_role`. Both visible via `mcp__claude_ai_Supabase__list_migrations`.
+- **Branch status**: `feat/planset-v8-layouts` HEAD = `0c09c4c` (local), origin at `c9306c3` (2 ahead). H3-H6 pushed 19:55 UTC; H7 partial (`918ab28`) + handoff refresh (`0c09c4c`) not yet pushed.
+- **Vercel preview URL (v2 SLD)**: `https://microgrid-git-feat-planset-v8-layouts-gkelsch-7941s-projects.vercel.app/api/sld/v2/PROJ-32115` (with auth cookie + internal role). **NOTE**: `?sld=v2` is a NO-OP in production (Phase 7b cumulative-R1 H1 fix). For forced v2 in any env, use `SLD_V2_DEFAULT=1` env or per-project `use_sld_v2=true`.
+- **Vercel preview URL (full-planset PDF — NEW this session)**: `https://microgrid-git-feat-planset-v8-layouts-gkelsch-7941s-projects.vercel.app/api/planset/PROJ-32115/pdf`. Same auth gate as the v2 SLD route. Cold-start ~3-5s on first call. Returns `application/pdf` inline (planset puppeteer-rendered + cut sheets merged).
+- **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2 in prod. **Column is genuinely trigger-protected** via mig 224 (which fixed 222b's silent break): flipping requires `session_user IN ('postgres','supabase_admin','service_role')` OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user gets 42501.
+- **Migrations applied this session**: `mig 226` (audit_log append-only seal, applied twice — initial + R1-fold REVOKE+postcondition-tighten) + `mig 227` (REVOKE EXECUTE backport on mig 222b/223/224/225 SECDEF trigger fns). Both visible via `mcp__claude_ai_Supabase__list_migrations`.
+- **mig 226 GUC name:** `app.audit_log_admin_purge`. Future retention/purge tools MUST `SET LOCAL app.audit_log_admin_purge = 'true'` at txn start or every UPDATE/DELETE will raise 42501.
+- **New deps added this session**: `puppeteer-core@^23.11.1`, `@sparticuz/chromium@^129.0.0`, `pdf-lib@^1.17.1`. Externalized in `next.config.ts` via `serverExternalPackages`.
+- **New env var (optional)**: `PLANSET_PDF_ORIGIN` — overrides the print-route origin used by the puppeteer browser instance. Not required if `VERCEL_PROJECT_PRODUCTION_URL` or `VERCEL_URL` is set (Vercel sets these automatically). For local dev: `host` header is trusted only when it resolves to `localhost` / `127.0.0.1`.
 - **Python 3.12 required** for `scripts/sld-collision-check.py` (3.14 has broken pyexpat) — unchanged from Phase 5.
 - **Port id convention** unchanged from Phase 2 — dot-format (`pv.N`).
 - **PDF font behavior (post-H1):** when `titleBlock` is present, BOTH Inter Regular AND Inter Bold ttfs are registered (atomic-pair guarantee — if either fails to load, neither registers and the whole sheet falls back to Helvetica + WinAnsi sanitizer). Both ttfs SHA-256-verified on load. When `titleBlock` is absent, Inter is NOT registered; everything renders in Helvetica + WinAnsi (preserves `strings | grep NEC 690.12`).
@@ -630,7 +633,7 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 
 ## Specific gotchas for the next operator
 
-- **Branch is NOT pushed** — **4 commits** ahead of origin `211ede7`: `4b717f5` (Phase H2 handoff-refresh) → `600f5c0` (Phase H2 feat mig 225, pushed status applies on top of `4b717f5`) → `a17d602` (Phase H3 feat mig 226) → `b291a0f` (Phase H3 feat integration scaffold). Awaiting end-of-session push auth per CLAUDE.md / `feedback_no_mid_session_push.md`.
+- **Branch state at handoff:** H3-H6 commits pushed to origin (tip `c9306c3`). Phase H7 partial (`918ab28`) + this handoff refresh (`0c09c4c`) are **local-only, 2 commits ahead of origin** — push pending Greg's signal per CLAUDE.md / `feedback_no_mid_session_push.md`.
 - **`mig 226` is APPLIED to prod** (this session, two apply_migration calls — initial + R1-fold REVOKE+postcondition-tighten). Trigger is live: `audit_log_block_admin_tamper_trg` BEFORE UPDATE OR DELETE on public.audit_log, `tgenabled='O'`, NOT on INSERT. Live ACL on the function: `{postgres=X/postgres, service_role=X/postgres}` — PUBLIC/anon/authenticated stripped. Any direct UPDATE/DELETE on audit_log now raises 42501 unless the txn has `SET LOCAL app.audit_log_admin_purge='true'`. Heads-up to future operators: legitimate retention pruning of audit_log MUST set the GUC first.
 - **`mig 225` is APPLIED to prod** (Phase H2) — postcondition asserts ran during apply, trigger is live. Any subsequent direct MCP UPDATE to projects.stage / stage_date / use_sld_v2 will now write an audit_log row attributed to `'db-admin'` / session_user; PLUS that audit_log row is now tamper-protected by mig 226.
 - **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2. Re-render via the route → expect the title-block PDF. **Column is genuinely trigger-protected NOW** (mig 224 fixed 222b's silent break); flipping requires `session_user IN ('postgres','supabase_admin','service_role')` OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user genuinely gets 42501.
@@ -646,17 +649,22 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 - **`@react-pdf/renderer@^4.4.1`** still in active prod use for invoices / cost-basis — DO NOT remove.
 - **Integration test suite now exists.** Real client → JWT → PostgREST → DB. Lives at `__tests__/integration/` under its own vitest config (`vitest.integration.config.ts`). Run via `npm run test:integration`. Fixture identifiers are per-run (`E2E_TEST_PREFIX = 'e2e_test_'` + suffix from env or randomUUID). To add a new trigger/RLS/RPC E2E test: drop a `*.test.ts` in that dir, import `serviceClient` / `userClient` from `./clients`, import `getIntegrationContext()` from `./setup`, write the test. NO new setup/teardown plumbing needed for the basic shape. Heads-up: if your test writes any FK-child row against the fixture project (work_orders, change_orders, invoices, etc.), the existing teardown will FK-fail — extend `setup.ts:teardown()` to delete the child in dep order first (see the comment block on `evals/cleanup.ts` for the 19-FK-child enumeration pattern).
 - **mig 226 GUC name:** `app.audit_log_admin_purge`. Any future retention/purge tool MUST `SET LOCAL app.audit_log_admin_purge = 'true'` at txn start or every UPDATE/DELETE will raise 42501.
+- **Phase H7 added two new jsPDF painters** alongside the existing `paintTitleBlock`. `paintHeaderStrip` (top-of-sheet 4-box metadata) and `paintInstallerNotes` (bottom-left red bullet block) live in `lib/sld-v2/header-strip.ts` + `lib/sld-v2/installer-notes.ts`. Both painted only when `titleBlock` is supplied (same gate). Header strip reserves `HEADER_STRIP_HEIGHT_PT = 60` at the top of the page so the SLD body scales down. Installer-notes block is `260pt × 80pt` painted at bottom-left WITHOUT reserving space (overlaps the bottom-left corner where the layout has been empty). If a future change makes the SLD body fill the bottom-left, the installer-notes block will need its own reservation too.
+- **Phase H7 equipment-label edits live in `from-planset-data.ts` 161-310.** Each `Disconnect` / `MSP` / `BackupPanel` / `Meter` / `BatteryStack` has 3-4 dense Tyson-style label lines now (down from 1-3 pre-H7). The label-slot algorithm in `lib/sld-v2/labels.ts` places these inside the equipment block first, and overflows to numbered callouts in the right margin (the 1/2/3 callouts visible in the current Lohf render). When tuning labels: aim for 3-4 lines max per equipment — pushed past that, layout chaos surfaces (we hit this mid-H7 with 7-10 lines per disconnect; compressed to 3-4 to fix).
+- **Phase H7 sheet name is `"Electrical Three Line Diagram"`** across `render-sld-v2-pilot-lohf.tsx`, `app/planset/page.tsx`, `SheetPV5.tsx`, `SheetPV1.tsx` cover-page drawing-list, `app/api/sld/v2/[projectId]/route.ts`. If a future change needs to revert: those are the call sites.
 
 ## Reference
 
 - **Plan doc (architectural)**: `~/.claude/plans/smooth-mixing-milner.md` (Greg-approved 2026-05-12)
 - **Phase 7b session plan**: `~/.claude/plans/virtual-scribbling-raven.md` (Greg-approved 2026-05-13)
 - **Phase H1 session plan**: `~/.claude/plans/bright-forging-hare.md` (Greg-approved 2026-05-13 evening)
-- **Lohf pilot PDF**: `~/Desktop/sld-v2-pilot-lohf.pdf` (294 KB post-H1, was 197 KB pre-H1; Inter Bold subset embedded)
+- **Lohf pilot PDF**: `~/Desktop/sld-v2-pilot-lohf.pdf` (298 KB post-H7 partial — header strip + installer-notes block + enriched equipment annotations on top of H1's Inter Bold subset).
+- **Tyson reference for the next-pickup visual diff**: `~/Desktop/PROJ-26922 Corey Tyson Rev1.pdf` page 22 (the RUSH-stamped PV-5.1 — open it side-by-side with the Lohf pilot for Phase H8 work).
+- **Phase H3 + H6 plan doc**: `~/.claude/plans/lexical-roaming-toast.md` (was overwritten across H3 → H6; current content reflects the H6 puppeteer PDF route implementation). Phase H7 had no separate plan doc — work was driven directly by Greg's visual diff against `~/Desktop/PROJ-26922 Corey Tyson Rev1.pdf`. Phase H8 will likely write a fresh plan doc once Greg picks scope.
 - **Tyson demo PDFs**: `~/.claude/tmp/sld-v2-tyson-titled.pdf` (with title block), `~/.claude/tmp/sld-v2-tyson.pdf` (without)
 - **RUSH stamp tracking**: action #1025 (P1) — Greg eyeballs → email → record turnaround
-- **Hardening backlog**: #1053 (audit_log gap on DB-admin bypass), #1054 (PostgREST-path E2E test)
-- **HQ recap UI**: hq.gomicrogridenergy.com/recaps (Phase H1 recap = id 514)
+- **Hardening backlog**: Phase H8 (5 Tyson-diff categories on PV-5, ~10h), #1077 (PDF-route integration test, ~1h), #346 (Duracell datasheet PE-verify, Greg-blocked). All prior chain hardening (#1053, #1054, #1058, #1059, #1069, #1073) shipped this session.
+- **HQ recap UI**: hq.gomicrogridenergy.com/recaps. Recent recap ids: 514 (H1), 529 (H3), 536 (H7 partial).
 - **HQ actions UI**: hq.gomicrogridenergy.com/actions
 
 ---
