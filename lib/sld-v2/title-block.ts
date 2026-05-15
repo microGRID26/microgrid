@@ -61,6 +61,10 @@ const ROW_HEIGHTS = {
   revision: 36,
   sheetSize: 26,
   ahj: 26,
+  // Phase H8 polish — Tyson PV-5 has two more rows before SHEET NAME:
+  // homeowner approval signature + onsite-revision tracker.
+  homeownerApproval: 26,
+  osr: 26,
   sheetName: 30,
   // sheetNumber consumes the remainder.
 } as const
@@ -334,6 +338,20 @@ export function paintTitleBlock(
   drawValueLines(row8, [{ text: data.ahj || '—' }])
   drawRowSeparator(row8)
   cursorY += ROW_HEIGHTS.ahj
+
+  // ── Row 8a — HOMEOWNER APPROVAL DATE (Tyson PV-5 signature row) ───
+  const row8a: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.homeownerApproval }
+  drawLabel(row8a, 'Homeowner Approval Date')
+  drawValueLines(row8a, [{ text: '__________' }])
+  drawRowSeparator(row8a)
+  cursorY += ROW_HEIGHTS.homeownerApproval
+
+  // ── Row 8b — OSR / ONSITE REVISION (Tyson PV-5 onsite-revision tracker)
+  const row8b: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.osr }
+  drawLabel(row8b, 'OSR · Onsite Revision')
+  drawValueLines(row8b, [{ text: '—' }])
+  drawRowSeparator(row8b)
+  cursorY += ROW_HEIGHTS.osr
 
   // ── Row 9 — SHEET NAME (uppercase, slightly larger) ───────────────
   const row9: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.sheetName }

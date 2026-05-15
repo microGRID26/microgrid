@@ -10,8 +10,8 @@
 
 import type { jsPDF } from 'jspdf'
 
-export const CALLOUT_LEGEND_HEIGHT_PT = 80
-export const CALLOUT_LEGEND_WIDTH_PT = 260
+export const CALLOUT_LEGEND_HEIGHT_PT = 90
+export const CALLOUT_LEGEND_WIDTH_PT = 300
 
 interface PaintOptions {
   fontName?: string
@@ -19,7 +19,10 @@ interface PaintOptions {
 
 const TITLE_SIZE_PT = 6
 const BODY_SIZE_PT = 4.5
-const LINE_GAP = 5.4
+// Row spacing: enough room for the NEC ref line + the body line + a gap.
+// Was 5.4 which collided body-on-next-ref. 11pt clears both lines + gap.
+const LINE_GAP = 11
+const NEC_TO_BODY_GAP = 5.4
 const PAD_X = 4
 const PAD_Y = 8
 const NEAR_BLACK: [number, number, number] = [17, 17, 17]
@@ -86,25 +89,33 @@ export function paintCalloutLegend(
     const cx = inCol1 ? col1X : col2X
     const cy = bodyY0 + (inCol1 ? i : i - splitAt) * LINE_GAP
 
-    // Small numbered circle
+    // Small numbered circle — number rendered with baseline:'middle' so
+    // the digit sits visually centered on the circle's center y.
+    const circleCx = cx + 2.5
+    const circleCy = cy - 1.5
     pdf.setDrawColor(...NEAR_BLACK)
     pdf.setFillColor(255, 255, 255)
     pdf.setLineWidth(0.5)
-    pdf.circle(cx + 2.5, cy - 1.5, 2.2, 'FD')
+    pdf.circle(circleCx, circleCy, 2.2, 'FD')
     pdf.setFont(fontName, 'bold')
-    pdf.setFontSize(BODY_SIZE_PT)
+    pdf.setFontSize(4)
     pdf.setTextColor(...NEAR_BLACK)
-    pdf.text(String(c.number), cx + 2.5, cy - 0.3, { align: 'center' })
+    pdf.text(String(c.number), circleCx, circleCy, {
+      align: 'center',
+      baseline: 'middle',
+    })
 
     // NEC ref (bold)
     pdf.setFont(fontName, 'bold')
     pdf.setTextColor(...MUTED)
     pdf.text(c.nec, cx + 7, cy)
 
-    // Plain-English note (regular)
+    // Plain-English note (regular) — body sits a full line-height below
+    // the ref, with sane truncation given the wider column.
     pdf.setFont(fontName, 'normal')
     pdf.setTextColor(...NEAR_BLACK)
-    const truncated = c.text.length > 50 ? c.text.slice(0, 47) + '...' : c.text
-    pdf.text(truncated, cx + 7, cy + 2.2)
+    const charsPerCol = 56
+    const truncated = c.text.length > charsPerCol ? c.text.slice(0, charsPerCol - 3) + '...' : c.text
+    pdf.text(truncated, cx + 7, cy + NEC_TO_BODY_GAP)
   })
 }

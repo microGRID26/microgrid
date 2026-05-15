@@ -133,7 +133,9 @@ describe('Phase 4: PlansetData → EquipmentGraph adapter', () => {
   it('respects includeBackupPanel=false option (no BLP, no h1-backup connection)', () => {
     const data = duracellHybrid()
     const graph = equipmentGraphFromPlansetData(data, { includeBackupPanel: false })
-    expect(graph.equipment.find((e) => e.kind === 'BackupPanel')).toBeUndefined()
+    // Filter by id: the (N) PV Load Center also uses kind='BackupPanel' but is a
+    // distinct node always present. The option gates only the protected-load panel.
+    expect(graph.equipment.find((e) => e.id === 'blp')).toBeUndefined()
     expect(graph.connections.find((c) => c.id === 'h1-backup')).toBeUndefined()
   })
 

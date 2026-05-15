@@ -68,7 +68,12 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
         </text>
         <line x1="0.5" y1="32" x2="129.5" y2="32" stroke="#111" strokeWidth="1" />
 
-        {/* Main breaker — top right. Same inside-rect label pattern as backfeeds. */}
+        {/* Main breaker — top right. Same inside-rect label pattern as backfeeds.
+            "TOP FED" label above the breaker rect indicates NEC 705.12(B)(2)
+            compliance — main breaker fed from the top of the busbar. */}
+        <text x="102" y="35" fontSize="3" fontWeight="bold" fill="#b45309" textAnchor="middle">
+          TOP FED
+        </text>
         <rect
           x="83"
           y="37"
@@ -89,7 +94,36 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
 
         {/* Backfeed breakers — left side, vertically stacked.
             Role label lives INSIDE the rect under the amp rating to avoid
-            overlap when 2+ backfeeds stack. */}
+            overlap when 2+ backfeeds stack.
+            "OPPOSITE END OF BUS" label above the stack confirms NEC 705.12(B)(2)
+            compliance — backfeed at opposite end of busbar from the main.
+            Combo-breaker total below the OPPOSITE END label sums all backfeeds
+            (Tyson "2 × 45A = 125A/2P" convention). */}
+        <text x="28" y="34" fontSize="3" fontWeight="bold" fill="#b45309" textAnchor="middle">
+          OPPOSITE END OF BUS
+        </text>
+        {backfeeds.length > 1 && (
+          <>
+            <text
+              x="28"
+              y={51 + Math.min(backfeeds.length - 1, 2) * 16 + 5}
+              fontSize="2.8"
+              fill="#444"
+              textAnchor="middle"
+            >
+              {backfeeds.length} × {backfeeds[0].ampere}A = {backfeeds.reduce((s, bf) => s + bf.ampere, 0)}A/2P
+            </text>
+            <text
+              x="28"
+              y={51 + Math.min(backfeeds.length - 1, 2) * 16 + 9}
+              fontSize="2.4"
+              fill="#888"
+              textAnchor="middle"
+            >
+              WITH #18 SHIELDED CABLE
+            </text>
+          </>
+        )}
         {backfeeds.slice(0, 3).map((bf, i) => (
           <g key={bf.id}>
             <rect

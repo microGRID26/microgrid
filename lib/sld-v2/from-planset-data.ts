@@ -26,6 +26,7 @@ import {
   type EquipmentGraph,
   type GroundingElectrode,
   type HomeRouter,
+  type ProductionCT,
   type HybridInverter,
   type JunctionBox,
   type Meter,
@@ -51,6 +52,19 @@ export function isDuracellHybrid(data: PlansetData): boolean {
 function pvArrayFromData(data: PlansetData): PVArray {
   const stringCount = Math.max(1, data.stringsPerInverter.flat().length || 2)
   const modulesPerString = Math.max(1, Math.round(data.panelCount / stringCount))
+  // Phase H8 polish — per-Tyson "BRANCH CIRCUIT N: M MODULES" labels per
+  // string. Falls back to even-split when PlansetData doesn't carry an
+  // explicit per-string module count.
+  const branchCounts: number[] = (() => {
+    const flat = data.stringsPerInverter?.flat() ?? []
+    const explicit = flat.map((n) => Number(n)).filter((n) => n > 0)
+    if (explicit.length === stringCount) return explicit
+    // Even split with remainder on the last branch.
+    const base = Math.floor(data.panelCount / stringCount)
+    const arr = Array.from({ length: stringCount }, () => base)
+    arr[stringCount - 1] += data.panelCount - base * stringCount
+    return arr
+  })()
   return {
     id: 'pv',
     kind: 'PVArray',
@@ -59,9 +73,9 @@ function pvArrayFromData(data: PlansetData): PVArray {
     ports: quadPorts('pv'),
     labelSlots: defaultLabelSlots(280, 140),
     labels: [
-      { text: `(${data.panelCount}) ${data.panelModel} · ${data.panelWattage}W`, priority: 9 },
-      { text: `${stringCount} strings × ${modulesPerString} modules · ${data.systemDcKw} kW DC STC`, priority: 8 },
-      { text: `Roof: module-level ${data.rapidShutdownModel} per NEC 690.12(B)(2)`, priority: 7 },
+      { text: 'ROOF ARRAY WIRING', priority: 10, bold: true },
+      { text: `(N) MODULE: (${data.panelCount}) ${data.panelModel} · ${data.panelWattage}W`, priority: 9 },
+      { text: `${branchCounts.map((n) => `${n}-SERIES`).join(' · ')} · ${data.panelCount} × ${data.panelWattage} = ${data.systemDcKw} kW DC`, priority: 8 },
     ],
     props: {
       moduleModel: data.panelModel,
@@ -103,31 +117,49 @@ function dcJunctionBox(): JunctionBox {
     height: 40,
     ports: quadPorts('dc-jb'),
     labelSlots: defaultLabelSlots(60, 40),
-    labels: [],
+    labels: [
+      { text: '(N) JUNCTION BOX', priority: 9, bold: true },
+      { text: '20A/2P · 600V · NEMA 3R · UL', priority: 7 },
+    ],
     props: { role: 'dc', nemaRating: '3R', voltageRating: '600V' },
   }
 }
 
 function hybridInvertersFromData(data: PlansetData): HybridInverter[] {
   const count = Math.max(1, data.inverterCount)
-  return Array.from({ length: count }).map((_, i): HybridInverter => ({
-    id: `hybrid-${i + 1}`,
-    kind: 'HybridInverter',
-    width: 110,
-    height: 100,
-    ports: quadPorts(`hybrid-${i + 1}`),
-    labelSlots: defaultLabelSlots(110, 100),
-    labels: [
-      { text: `(N) HYBRID #${i + 1}`, priority: 9, bold: true },
-      { text: data.inverterModel, priority: 7 },
-    ],
-    props: {
-      model: data.inverterModel,
-      acKw: data.inverterAcPower,
-      backupAcA: 100,
-      listingStandard: 'UL 1741-SB',
-    },
-  }))
+  // Per-inverter module count — even-split fallback when stringsPerInverter
+  // doesn't carry an explicit count for this hybrid.
+  const flat = data.stringsPerInverter?.flat() ?? []
+  const explicit = flat.map((n) => Number(n)).filter((n) => n > 0)
+  const totalModules = data.panelCount
+  const baseModules = Math.floor(totalModules / count)
+  return Array.from({ length: count }).map((_, i): HybridInverter => {
+    const modulesThisInverter =
+      explicit.length === count
+        ? explicit[i]
+        : i === count - 1
+          ? totalModules - baseModules * (count - 1)
+          : baseModules
+    return {
+      id: `hybrid-${i + 1}`,
+      kind: 'HybridInverter',
+      width: 110,
+      height: 100,
+      ports: quadPorts(`hybrid-${i + 1}`),
+      labelSlots: defaultLabelSlots(110, 100),
+      labels: [
+        { text: `(N) HYBRID #${i + 1} · ${data.inverterAcPower} kW AC`, priority: 9, bold: true },
+        { text: `BRANCH CIRCUIT ${i + 1} · ${modulesThisInverter} MODULES`, priority: 7 },
+        { text: '102 VDC NOMINAL · UL 1741-SB', priority: 5 },
+      ],
+      props: {
+        model: data.inverterModel,
+        acKw: data.inverterAcPower,
+        backupAcA: 100,
+        listingStandard: 'UL 1741-SB',
+      },
+    }
+  })
 }
 
 function batteryStacksFromData(data: PlansetData): BatteryStack[] {
@@ -147,9 +179,9 @@ function batteryStacksFromData(data: PlansetData): BatteryStack[] {
       ports: quadPorts(`stack-${i + 1}`),
       labelSlots: defaultLabelSlots(90, 110),
       labels: [
-        { text: `(N) BATTERY STACK #${i + 1}`, priority: 8, bold: true },
-        { text: `${modulesThisStack}× ${data.batteryModel} · ${modulesThisStack * data.batteryCapacity} kWh`, priority: 6 },
-        { text: 'FLOOR · BOLLARDS 3FT · HEAT DET.', priority: 5 },
+        { text: `MICRO GRID #${i + 1} · ${modulesThisStack * data.batteryCapacity} kWh`, priority: 9, bold: true },
+        { text: `${modulesThisStack}× ${data.batteryModel}`, priority: 7 },
+        { text: 'FLOOR · BOLLARDS · HEAT DET.', priority: 6 },
       ],
       props: {
         model: data.batteryModel,
@@ -171,9 +203,10 @@ function pvDisconnect(): Disconnect {
     labelSlots: defaultLabelSlots(80, 90),
     labels: [
       // Tyson-spec NEC phrasing, compressed to fit the label-slot budget.
-      { text: '(N) PV DISCONNECT — NON-FUSIBLE', priority: 9, bold: true },
+      // Non-fusible is encoded in the EATON DG223URB model on the next line.
+      { text: '(N) PV DISCONNECT', priority: 9, bold: true },
       { text: '(EATON) DG223URB · 100A/2P · 240V 3R', priority: 7 },
-      { text: 'VISIBLE, LOCKABLE — "AC DISCONNECT"', priority: 6 },
+      { text: 'VISIBLE, LOCKABLE · "AC DISCONNECT"', priority: 6 },
       { text: 'EXTERIOR WALL', priority: 5 },
     ],
     props: {
@@ -196,10 +229,9 @@ function genDisconnect(): Disconnect {
     ports: quadPorts('disc-gen'),
     labelSlots: defaultLabelSlots(80, 90),
     labels: [
-      { text: '(N) CUSTOMER GEN DISC — FUSIBLE', priority: 9, bold: true },
-      { text: '(EATON) DG222NRB · 60A/2P · 240V 3R', priority: 7 },
-      { text: '(45A FUSES) · VISIBLE, LOCKABLE', priority: 6 },
-      { text: '"AC DISC" ≤10\' OF METER', priority: 5 },
+      { text: '(N) GEN DISC — FUSIBLE 60A', priority: 9, bold: true },
+      { text: 'DG222NRB · (45A FUSES)', priority: 7 },
+      { text: 'E-STOP ISOLATES LOAD', priority: 5 },
     ],
     props: {
       role: 'gen',
@@ -218,7 +250,7 @@ function mspFromData(data: PlansetData): MSP {
   const mainBreaker = parseInt(data.mainBreaker.replace(/A$/i, ''), 10) || 125
   const backfeeds = Array.from({ length: data.inverterCount }).map((_, i) => ({
     id: `h${i + 1}`,
-    label: `(N) HYBRID #${i + 1} BACKFEED`,
+    label: `(N) PV BREAKER #${i + 1}`,
     ampere: data.backfeedBreakerA,
   }))
   return {
@@ -229,10 +261,8 @@ function mspFromData(data: PlansetData): MSP {
     ports: quadPorts('msp'),
     labelSlots: defaultLabelSlots(130, 140),
     labels: [
-      { text: '(N) MAIN SERVICE PANEL', priority: 9, bold: true },
-      { text: `${busbar}A · ${data.voltage} · EXTERIOR NEMA 3R`, priority: 8 },
-      { text: `BUSBAR ${busbar}A · 120% NEC 705.12(B)`, priority: 7 },
-      { text: '(N) SURGE PROTECTOR', priority: 6 },
+      { text: `(N) MSP UPGRADE · ${busbar}A · EXTERIOR`, priority: 9, bold: true },
+      { text: 'BUSBAR 120% NEC 705.12(B)', priority: 7 },
     ],
     props: {
       busbarA: busbar,
@@ -280,10 +310,9 @@ function meterFromData(data: PlansetData): Meter {
     ports: quadPorts('meter'),
     labelSlots: defaultLabelSlots(70, 70),
     labels: [
-      { text: `(E) BI-DIR UTILITY METER`, priority: 9, bold: true },
-      { text: `1Φ 3W · ${data.voltage || '120/240V'} · 200A`, priority: 7 },
-      { text: `Meter: ${data.meter || '__________'}`, priority: 6 },
-      { text: `ESID: ${data.esid || '__________'}`, priority: 6 },
+      { text: `(N) CUSTOMER GENERATION`, priority: 9, bold: true },
+      { text: `(E) BI-DIR METER · ${data.voltage || '120/240V'} · 200A`, priority: 8 },
+      { text: 'TO UTILITY GRID →', priority: 6 },
     ],
     props: {
       utility: data.utility,
@@ -304,14 +333,38 @@ function backupPanel(): BackupPanel {
     ports: quadPorts('blp'),
     labelSlots: defaultLabelSlots(110, 70),
     labels: [
-      { text: '(N) PROTECTED LOAD PANEL', priority: 9, bold: true },
-      { text: 'EATON BRP20B125R · 125A', priority: 8 },
-      { text: 'MAIN 240V/40A/2P · NEMA 3R', priority: 7 },
+      { text: '(N) PROTECTED LOAD PANEL · 125A', priority: 9, bold: true },
+      { text: 'BRP20B125R · MLO · NEMA 3R', priority: 7 },
     ],
     props: {
       model: 'Eaton BRP20B125R',
       mainLugAmperage: 125,
       circuitCount: 20,
+      nemaRating: '3R',
+    },
+  }
+}
+
+// Phase H8 polish — (N) PV LOAD CENTER per Tyson PV-5 convention. Sits
+// between the PV disconnect and the MSP. Electrically passive in our v2
+// model (the MSP still owns the backfeed breakers), but visually marks
+// the load-center node AHJs look for. Reuses BackupPanel kind/box.
+function pvLoadCenter(): BackupPanel {
+  return {
+    id: 'pv-load-center',
+    kind: 'BackupPanel',
+    width: 100,
+    height: 60,
+    ports: quadPorts('pv-load-center'),
+    labelSlots: defaultLabelSlots(100, 60),
+    labels: [
+      { text: '(N) PV LOAD CENTER · 125A', priority: 9, bold: true },
+      { text: 'BRP12L125R · NEMA 3R · MLO', priority: 7 },
+    ],
+    props: {
+      model: 'Eaton BRP12L125R',
+      mainLugAmperage: 125,
+      circuitCount: 12,
       nemaRating: '3R',
     },
   }
@@ -350,6 +403,29 @@ function homeRouter(): HomeRouter {
     ],
     props: {
       label: 'ROUTER',
+    },
+  }
+}
+
+// Phase H8 polish — Production CT factory. Clamps on the service-entrance
+// wire between MSP and the service disconnect. Tyson PV-5 labels this
+// "PRIMARY CONSUMPTION AND PRODUCTION".
+function productionCtFromData(_data: PlansetData): ProductionCT {
+  return {
+    id: 'prod-ct',
+    kind: 'ProductionCT',
+    width: 40,
+    height: 20,
+    ports: quadPorts('prod-ct'),
+    labelSlots: defaultLabelSlots(40, 20),
+    labels: [
+      { text: 'PRIMARY CONSUMPTION + PRODUCTION', priority: 9, bold: true },
+      { text: 'FROM MAIN BREAKER · CT P/N 1001808', priority: 7 },
+    ],
+    props: {
+      model: 'CT EXT P/N 1001808',
+      targetLabel: 'Service Entrance · 200A',
+      cableSpec: '#18 SHIELDED',
     },
   }
 }
@@ -400,7 +476,7 @@ function buildConnections(
   const acServiceEgc = '(1) #4 AWG EGC'      // 200A service → #4
 
   // PV → RSD → DC JB (or direct PV → DC JB if integrated RSD)
-  const pvStringConductor = `${data.dcStringWire}\n${dcStringEgc}\n${data.dcConduit}`
+  const pvStringConductor = `${data.dcStringWire}\nTRUNK CABLE · ${dcStringEgc}\n${data.dcConduit}`
   if (rsd) {
     connections.push({
       id: 'pv-rsd',
@@ -467,10 +543,17 @@ function buildConnections(
     })
   }
 
-  // PV Disc → MSP, Gen Disc → MSP, MSP → Service → Meter
+  // PV Disc → PV Load Center → MSP, Gen Disc → MSP, MSP → Service → Meter
   connections.push({
-    id: 'pv-disc-msp',
+    id: 'pv-disc-loadctr',
     from: 'disc-pv.E',
+    to: 'pv-load-center.W',
+    conductor: `${data.acWireToPanel}\n${acBranchEgc}\n${data.acConduit}`,
+    category: 'ac-inverter',
+  })
+  connections.push({
+    id: 'pv-loadctr-msp',
+    from: 'pv-load-center.E',
     to: 'msp.W',
     conductor: `${data.acWireToPanel}\n${acBranchEgc}\n${data.acConduit}`,
     category: 'ac-inverter',
@@ -482,13 +565,23 @@ function buildConnections(
     conductor: '(2) #6 AWG CU THWN-2 · 45A\n(1) #10 AWG EGC',
     category: 'ac-inverter',
   })
+  // Phase H8 polish — Production CT inline on the service entrance.
+  // MSP → CT → service disconnect. Carries the service-entrance conductor
+  // spec on the MSP→CT edge; the CT→disc-service edge is the short clamp run.
   connections.push({
-    id: 'msp-service',
+    id: 'msp-prod-ct',
     from: 'msp.E',
-    to: 'disc-service.W',
+    to: 'prod-ct.W',
     conductor: data.serviceEntranceConduit
       ? `(2) #4/0 AWG CU THWN-2 · 200A\n${acServiceEgc}\n${data.serviceEntranceConduit}`
       : `(2) #4/0 AWG CU THWN-2 · 200A\n${acServiceEgc}`,
+    category: 'ac-service',
+  })
+  connections.push({
+    id: 'prod-ct-service',
+    from: 'prod-ct.E',
+    to: 'disc-service.W',
+    conductor: `(2) #4/0 AWG CU THWN-2 · 200A\n${acServiceEgc} TO UTILITY GRID`,
     category: 'ac-service',
   })
   connections.push({
@@ -586,6 +679,10 @@ export function equipmentGraphFromPlansetData(
   const router = homeRouter()
   // Phase H8 Category E — grounding electrode.
   const gnd = groundingElectrode()
+  // Phase H8 polish — Production CT on the service entrance.
+  const prodCt = productionCtFromData(data)
+  // Phase H8 polish — (N) PV LOAD CENTER between PV disconnect and MSP.
+  const pvLoad = pvLoadCenter()
 
   const equipment: Equipment[] = [
     pv,
@@ -594,8 +691,10 @@ export function equipmentGraphFromPlansetData(
     ...inverters,
     ...batteries,
     pvDisc,
+    pvLoad,
     genDisc,
     msp,
+    prodCt,
     sDisc,
     meter,
     ...(blp ? [blp] : []),

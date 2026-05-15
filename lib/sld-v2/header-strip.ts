@@ -181,10 +181,14 @@ function buildScopeLines(data: PlansetData): string[] {
         ? `(1) STRING OF (${len}) MODULES IN SERIES`
         : `(${count}) STRINGS OF (${len}) MODULES IN SERIES`,
     )
+  // Explicit per-Tyson AC math callout — INVERTER(S): N × kW = total kW AC.
+  // Pair with the kW-DC/kW-AC summary line for the AHJ math check.
+  const invMath = `INVERTER(S): ${data.inverterCount} × ${data.inverterAcPower}kW = ${fmtN(acKw)} kW AC`
   return [
     `${fmtN(dcKw)} kW DC / ${fmtN(acKw)} kW AC`,
     `(${data.panelCount}) ${data.panelModel} ${data.panelWattage}W`,
     `(${data.inverterCount}) ${data.inverterModel}`,
+    invMath,
     `MSP BUSBAR ${busbar || '—'}A   BRKR ${brkr || '—'}A`,
     ...stringSummary.slice(0, 2),
   ]

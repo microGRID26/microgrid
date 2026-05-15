@@ -30,6 +30,7 @@ import { paintTitleBlock, TITLE_BLOCK_WIDTH_PT } from './title-block'
 import { paintHeaderStrip, HEADER_STRIP_HEIGHT_PT, HEADER_STRIP_GAP_PT } from './header-strip'
 import { paintInstallerNotes, INSTALLER_NOTES_HEIGHT_PT, INSTALLER_NOTES_WIDTH_PT } from './installer-notes'
 import { paintCalloutLegend, CALLOUT_LEGEND_HEIGHT_PT, CALLOUT_LEGEND_WIDTH_PT } from './callout-legend'
+import { paintWireLegend, WIRE_LEGEND_HEIGHT_PT, WIRE_LEGEND_WIDTH_PT } from './wire-legend'
 import { loadInterTtfBase64, loadInterBoldTtfBase64 } from './fonts/inter-loader'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -327,6 +328,14 @@ async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
       const clX = marginPt + INSTALLER_NOTES_WIDTH_PT + 10
       const clY = pageHeightPt - marginPt - CALLOUT_LEGEND_HEIGHT_PT
       paintCalloutLegend(pdf, clX, clY, CALLOUT_LEGEND_WIDTH_PT, CALLOUT_LEGEND_HEIGHT_PT, {
+        fontName: titleFontName,
+      })
+
+      // Phase H8 polish — wire color legend further right of the callout
+      // legend. Pairs with H8 Category G full multi-line color split.
+      const wlX = clX + CALLOUT_LEGEND_WIDTH_PT + 10
+      const wlY = pageHeightPt - marginPt - WIRE_LEGEND_HEIGHT_PT
+      paintWireLegend(pdf, wlX, wlY, WIRE_LEGEND_WIDTH_PT, WIRE_LEGEND_HEIGHT_PT, {
         fontName: titleFontName,
       })
     }

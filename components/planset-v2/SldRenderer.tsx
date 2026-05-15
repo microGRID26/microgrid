@@ -301,17 +301,55 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
                 const phases = MULTI_LINE_PHASES[edge.connection.category]
                 if (phases) {
                   const baseOffset = -((phases.length - 1) / 2) * PHASE_SPACING
+                  // Phase H8 polish — inline phase labels at the TARGET end
+                  // of each parallel polyline (where the wire enters the
+                  // downstream equipment). One small colored label per phase,
+                  // text matches the phase ("L1" / "N" / "L2" / "+" / "-").
+                  const pts = edge.polyline
+                  const last = pts[pts.length - 1]
+                  const prev = pts[pts.length - 2] ?? last
+                  const dx = last.x - prev.x
+                  const dy = last.y - prev.y
+                  // Pull labels back 5pt along the segment direction so they
+                  // sit just BEFORE the equipment port instead of inside it.
+                  const segLen = Math.hypot(dx, dy) || 1
+                  const pullX = -(dx / segLen) * 5
+                  const pullY = -(dy / segLen) * 5
+                  // Perpendicular axis for stacking labels per parallel line.
+                  const perpAxis = Math.abs(dx) >= Math.abs(dy) ? 'y' : 'x'
                   return (
                     <g key={`line-${edge.connection.id}`}>
-                      {phases.map((p, i) => (
-                        <polyline
-                          key={`line-${edge.connection.id}-${p.label}`}
-                          points={offsetPolylinePoints(edge, baseOffset + i * PHASE_SPACING)}
-                          fill="none"
-                          stroke={p.color}
-                          strokeWidth="1.1"
-                        />
-                      ))}
+                      {phases.map((p, i) => {
+                        const offset = baseOffset + i * PHASE_SPACING
+                        return (
+                          <polyline
+                            key={`line-${edge.connection.id}-${p.label}`}
+                            points={offsetPolylinePoints(edge, offset)}
+                            fill="none"
+                            stroke={p.color}
+                            strokeWidth="1.1"
+                          />
+                        )
+                      })}
+                      {phases.map((p, i) => {
+                        const offset = baseOffset + i * PHASE_SPACING
+                        const lx = last.x + pullX + (perpAxis === 'x' ? offset : 0)
+                        const ly = last.y + pullY + (perpAxis === 'y' ? offset : 0)
+                        return (
+                          <text
+                            key={`phase-${edge.connection.id}-${p.label}`}
+                            x={lx}
+                            y={ly + 1}
+                            fontSize="2.6"
+                            fontWeight="bold"
+                            textAnchor="middle"
+                            fill={p.color}
+                            fontFamily="Helvetica, Arial, sans-serif"
+                          >
+                            {p.label}
+                          </text>
+                        )
+                      })}
                     </g>
                   )
                 }
@@ -371,7 +409,16 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
           const pvDisc = layout.laidOut.find((lo) => lo.equipment.id === 'disc-pv')
           const meter = layout.laidOut.find((lo) => lo.equipment.id === 'meter')
           if (!pvDisc || !meter) return null
-          const y = Math.min(pvDisc.y, meter.y) - 14
+          // Move the dim line ABOVE every equipment-top + every
+          // placed label slot above any equipment (top-slot labels can
+          // stack 2-3 lines). -40 from min equipment top gives ~18pt
+          // for label text + ~5pt clearance for callout circles
+          // (which sit at equipmentTop - 5).
+          const minEquipTop = layout.laidOut.reduce(
+            (m, lo) => Math.min(m, lo.y),
+            Math.min(pvDisc.y, meter.y),
+          )
+          const y = minEquipTop - 40
           const x1 = pvDisc.x + pvDisc.equipment.width / 2
           const x2 = meter.x + meter.equipment.width / 2
           const midX = (x1 + x2) / 2
@@ -384,7 +431,17 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
               {/* Arrows */}
               <polygon points={`${x1},${y} ${x1 + 4},${y - 2} ${x1 + 4},${y + 2}`} fill="#d97706" />
               <polygon points={`${x2},${y} ${x2 - 4},${y - 2} ${x2 - 4},${y + 2}`} fill="#d97706" />
-              <rect x={midX - 14} y={y - 8} width="28" height="8" fill="white" stroke="none" />
+              <rect x={midX - 22} y={y - 14} width="44" height="11" fill="white" stroke="none" />
+              <text
+                x={midX}
+                y={y - 8}
+                fontSize="4"
+                textAnchor="middle"
+                fill="#666"
+                fontFamily="Helvetica, Arial, sans-serif"
+              >
+                NEC 230.70(A)(1)
+              </text>
               <text
                 x={midX}
                 y={y - 2}
@@ -395,16 +452,6 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
                 fontFamily="Helvetica, Arial, sans-serif"
               >
                 10&apos; MAX
-              </text>
-              <text
-                x={midX}
-                y={y + 8}
-                fontSize="4"
-                textAnchor="middle"
-                fill="#666"
-                fontFamily="Helvetica, Arial, sans-serif"
-              >
-                NEC 230.70(A)(1)
               </text>
             </g>
           )
@@ -419,19 +466,26 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
         {TYSON_CALLOUTS_PV5.map((c) => {
           const target = layout.laidOut.find((lo) => lo.equipment.id === c.equipmentId)
           if (!target) return null
-          const cx = target.x + target.equipment.width - 2
-          const cy = target.y + 2
+          // Anchor INSIDE the equipment's top-right corner. External-label
+          // space above the box is owned by Phase 3 label placement (and
+          // can stack 3+ lines), so placing OUTSIDE causes collisions.
+          // Inside the corner, equipment box components keep their text
+          // centered or left-aligned away from corners — top-right (-6,+6)
+          // is reliably whitespace for boxes ≥ 50pt wide.
+          const cx = target.x + target.equipment.width - 6
+          const cy = target.y + 6
           return (
             <g key={`nec-callout-${c.number}`}>
-              <circle cx={cx} cy={cy} r="4.2" fill="#fde047" stroke="#111" strokeWidth="0.7" />
+              {/* Match the Phase 3 leader-callout pattern exactly — same
+                  r/fontSize/y-offset ratio that already renders centered. */}
+              <circle cx={cx} cy={cy} r="4" fill="#fde047" stroke="#111" strokeWidth="0.7" />
               <text
                 x={cx}
-                y={cy + 1.8}
-                fontSize="5.5"
+                y={cy + 1.7}
+                fontSize="5"
                 fontWeight="bold"
                 textAnchor="middle"
                 fill="#111"
-                fontFamily="Helvetica, Arial, sans-serif"
               >
                 {c.number}
               </text>
