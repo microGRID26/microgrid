@@ -360,6 +360,7 @@ function pvLoadCenter(): BackupPanel {
     labels: [
       { text: '(N) PV LOAD CENTER · 125A', priority: 9, bold: true },
       { text: 'BRP12L125R · NEMA 3R · MLO', priority: 7 },
+      { text: 'GRID LINE · (N) MAIN BREAKER', priority: 6 },
     ],
     props: {
       model: 'Eaton BRP12L125R',
@@ -381,6 +382,7 @@ function commGateway(): CommGateway {
     labelSlots: defaultLabelSlots(90, 40),
     labels: [
       { text: '(N) DPCRGM — CELL', priority: 9, bold: true },
+      { text: 'DURACELL DTU', priority: 8 },
       { text: 'COMM GATEWAY · DURACELL', priority: 7 },
     ],
     props: {
@@ -476,7 +478,7 @@ function buildConnections(
   const acServiceEgc = '(1) #4 AWG EGC'      // 200A service → #4
 
   // PV → RSD → DC JB (or direct PV → DC JB if integrated RSD)
-  const pvStringConductor = `${data.dcStringWire}\nTRUNK CABLE · ${dcStringEgc}\n${data.dcConduit}`
+  const pvStringConductor = `${data.dcStringWire}\nTRUNK CABLE · ${dcStringEgc}\nINTEGRATED GROUNDING WIRE\n${data.dcConduit}`
   if (rsd) {
     connections.push({
       id: 'pv-rsd',

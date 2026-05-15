@@ -21,7 +21,7 @@ import type { jsPDF } from 'jspdf'
 import type { PlansetData } from '../planset-types'
 
 /** Height of the installer-notes block in pt. */
-export const INSTALLER_NOTES_HEIGHT_PT = 80
+export const INSTALLER_NOTES_HEIGHT_PT = 110
 
 /** Width of the installer-notes block in pt. */
 export const INSTALLER_NOTES_WIDTH_PT = 260
@@ -77,6 +77,10 @@ function buildNoteLines(data: PlansetData): string[] {
   }
   lines.push('REQUIRES MAIN PANEL UPGRADE')
   lines.push('REQUIRES SMOKE DETECTORS')
+  lines.push('IF ROMEX IS USED THROUGH ATTIC - RUNS SHALL BE KEPT')
+  lines.push('  SEPARATE AND NOT BUNDLED')
+  lines.push('IF CONDUIT IS USED ON EXTERIOR - WITHIN 10\' OF UTILITY')
+  lines.push('  METER')
   return lines
 }
 

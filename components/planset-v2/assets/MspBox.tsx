@@ -171,7 +171,7 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
               strokeWidth="0.6"
             />
             <text x="65" y="111" fontSize="4" fill="#555" textAnchor="middle">
-              SURGE PROTECTOR
+              (N) SURGE PROTECTOR
             </text>
           </g>
         )}
