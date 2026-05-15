@@ -4,7 +4,7 @@
 **Last updated:** 2026-05-15 ~01:00 UTC (Phase H8 — remaining 5 Tyson-diff PV-5 categories shipped in one session: B per-wire 3-line specs / C numbered NEC callouts 1-9 + legend / E 10' MAX dim + GroundingElectrode + GEC / G full L1-L2-N multi-line conductor split / H comm subsystem DPCRGM + HomeRouter. **Chain parks here pending #1025 RUSH stamp return on 2026-05-28.** Pickup sessions during park window: do nothing — wait for Greg signal or RUSH stamp.)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `4ffb810` locally pre-H8 + uncommitted H8 working tree (~660 LOC across 9 files). 4 commits ahead of origin `c9306c3` pre-H8; H8 commit pending. H3-H6 pushed 19:55 UTC; H7 partial + handoff-review + SheetPV1 catch-up + Phase H8 all awaiting push signal.** This session shipped (on top of prior session's `4b717f5`):
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `25db5fd` locally (5 commits ahead of origin `c9306c3`; H3-H6 pushed 19:55 UTC; H7 partial + handoff-review + SheetPV1 catch-up + Phase H8 all awaiting push signal).** Chain test baseline diff vs parent `4ffb810`: NEW_FAIL=0, STILL_FAIL=16 (pre-existing v1 sld-layout + SheetPV1-render unchanged). This session shipped (on top of prior session's `4b717f5`):
   - `a17d602` — feat(mig 226): audit_log append-only seal (Phase H3)
   - `b291a0f` — feat(tests/integration): scaffold + close #1054 (Phase H3)
   - `b754478` — docs(planset/.atlas): handoff refresh (Phase H3)
@@ -19,8 +19,8 @@
   - `0c09c4c` — docs(planset/.atlas): handoff refresh (Phase H7 partial)
   - `a38090f` — docs(planset/.atlas): handoff review pass — refresh stale sections to current chain state
   - `4ffb810` — fix(planset): include SheetPV1 cover-page drawing-list "THREE LINE" rename (catch-up — file was dropped by 918ab28's protocol-guard re-stage dance)
-  - **(pending commit)** — feat(sld-v2): Phase H8 — remaining 5 Tyson-diff PV-5 categories (B/C/E/G full/H)
-**Latest commit:** `4ffb810` (H8 pending commit on top)
+  - `25db5fd` — **feat(sld-v2): Phase H8 — remaining 5 Tyson-diff PV-5 categories (B per-wire 3-line / C numbered NEC callouts 1-9 + legend / E 10' MAX dim + GroundingElectrode + GEC / G full L1-L2-N multi-line / H comm subsystem DPCRGM + HomeRouter). Chain parks here pending RUSH stamp return.**
+**Latest commit:** `25db5fd` feat(sld-v2): Phase H8 — remaining 5 Tyson-diff PV-5 categories
 
 ## Chain instruction (read this first, every session)
 
@@ -481,7 +481,8 @@ None. All 4 deferrals (#1021–#1024) ended this session closed; #1025 remains o
 cd ~/repos/MicroGRID-planset-phase1
 
 # Commit history check — local HEAD is 4ffb810 (SheetPV1 cover-page catch-up
-# on top of a38090f handoff-review + 0c09c4c H7 handoff refresh + 918ab28
+# on top of 4ffb810 SheetPV1 catch-up + a38090f handoff-review + 0c09c4c
+# H7 handoff refresh + 918ab28
 # H7 partial). Origin tip is c9306c3 (Phase H6 handoff refresh).
 git log --oneline -10
 git log origin/feat/planset-v8-layouts --oneline -1   # should match c9306c3
@@ -592,7 +593,7 @@ Captured via vitest run on the Phase H7 review-pass commit `4ffb810` (parent of 
 
 ## Live state worth knowing
 
-- **Branch status**: `feat/planset-v8-layouts` HEAD = `4ffb810` (local), origin at `c9306c3` (4 ahead). H3-H6 pushed 19:55 UTC; H7 partial (`918ab28`) + handoff refresh (`0c09c4c`) + handoff-review pass (`a38090f`) + SheetPV1 catch-up (`4ffb810`) not yet pushed.
+- **Branch status**: `feat/planset-v8-layouts` HEAD = `25db5fd` (local), origin at `c9306c3` (5 ahead). H3-H6 pushed 19:55 UTC; H7 partial (`918ab28`) + handoff refresh (`0c09c4c`) + handoff-review pass (`a38090f`) + SheetPV1 catch-up (`4ffb810`) + Phase H8 (`25db5fd`) not yet pushed.
 - **Vercel preview URL (v2 SLD)**: `https://microgrid-git-feat-planset-v8-layouts-gkelsch-7941s-projects.vercel.app/api/sld/v2/PROJ-32115` (with auth cookie + internal role). **NOTE**: `?sld=v2` is a NO-OP in production (Phase 7b cumulative-R1 H1 fix). For forced v2 in any env, use `SLD_V2_DEFAULT=1` env or per-project `use_sld_v2=true`.
 - **Vercel preview URL (full-planset PDF — NEW this session)**: `https://microgrid-git-feat-planset-v8-layouts-gkelsch-7941s-projects.vercel.app/api/planset/PROJ-32115/pdf`. Same auth gate as the v2 SLD route. Cold-start ~3-5s on first call. Returns `application/pdf` inline (planset puppeteer-rendered + cut sheets merged).
 - **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2 in prod. **Column is genuinely trigger-protected** via mig 224 (which fixed 222b's silent break): flipping requires `session_user IN ('postgres','supabase_admin','service_role')` OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user gets 42501.
@@ -704,7 +705,7 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 
 ## Specific gotchas for the next operator
 
-- **Branch state at handoff:** H3-H6 commits pushed to origin (tip `c9306c3`). Phase H7 partial (`918ab28`) + handoff refresh (`0c09c4c`) + handoff-review pass (`a38090f`) + SheetPV1 catch-up (`4ffb810`) are **local-only, 4 commits ahead of origin** — push pending Greg's signal per CLAUDE.md / `feedback_no_mid_session_push.md`.
+- **Branch state at handoff:** H3-H6 commits pushed to origin (tip `c9306c3`). Phase H7 partial (`918ab28`) + handoff refresh (`0c09c4c`) + handoff-review pass (`a38090f`) + SheetPV1 catch-up (`4ffb810`) + Phase H8 (`25db5fd`) are **local-only, 5 commits ahead of origin** — push pending Greg's signal per CLAUDE.md / `feedback_no_mid_session_push.md`.
 - **`mig 226` is APPLIED to prod** (this session, two apply_migration calls — initial + R1-fold REVOKE+postcondition-tighten). Trigger is live: `audit_log_block_admin_tamper_trg` BEFORE UPDATE OR DELETE on public.audit_log, `tgenabled='O'`, NOT on INSERT. Live ACL on the function: `{postgres=X/postgres, service_role=X/postgres}` — PUBLIC/anon/authenticated stripped. Any direct UPDATE/DELETE on audit_log now raises 42501 unless the txn has `SET LOCAL app.audit_log_admin_purge='true'`. Heads-up to future operators: legitimate retention pruning of audit_log MUST set the GUC first.
 - **`mig 225` is APPLIED to prod** (Phase H2) — postcondition asserts ran during apply, trigger is live. Any subsequent direct MCP UPDATE to projects.stage / stage_date / use_sld_v2 will now write an audit_log row attributed to `'db-admin'` / session_user; PLUS that audit_log row is now tamper-protected by mig 226.
 - **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2. Re-render via the route → expect the title-block PDF. **Column is genuinely trigger-protected NOW** (mig 224 fixed 222b's silent break); flipping requires `session_user IN ('postgres','supabase_admin','service_role')` OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user genuinely gets 42501.
@@ -747,7 +748,7 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 ```yaml
 chain_state_auto:
   project: planset
-  generated_at: 2026-05-14T19:57:56Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  generated_at: 2026-05-15T14:02:39Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
   main_head: 95c0c5a  # feat(maturity): edge fn v3 rate-limit collapse + webhook deliveries TTL (chain v1.45)
   main_head_committed: 2026-05-14T14:44:32-05:00
@@ -761,7 +762,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (4ffb810): 63 ahead of main, 4 unpushed to origin/feat/planset-v8-layouts
+    - feat/planset-v8-layouts (25db5fd): 64 ahead of main, 5 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main
@@ -772,6 +773,7 @@ chain_state_auto:
     - fix/restage-fanout-retry-565 (3738ee8): 1 ahead of main
     - fix/shared-rounding-helper-583 (33bd956): 3 ahead of main, never pushed
     - fix/tx-tax-tpp-526 (1d5164e): 1 ahead of main
+    - main (5110e50): 1 unpushed to origin/main
     - restage/atlas-canonical-p1-p2 (7ede9e7): 1 ahead of main
   open_prs:
     - #16 feat/atlas-canonical-drift-cron: feat(atlas): canonical-reports drift cron — daily snapshot replay + alerting
