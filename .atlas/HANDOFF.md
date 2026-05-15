@@ -1,10 +1,10 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-15 ~01:00 UTC (Phase H8 — remaining 5 Tyson-diff PV-5 categories shipped in one session: B per-wire 3-line specs / C numbered NEC callouts 1-9 + legend / E 10' MAX dim + GroundingElectrode + GEC / G full L1-L2-N multi-line conductor split / H comm subsystem DPCRGM + HomeRouter. **Chain parks here pending #1025 RUSH stamp return on 2026-05-28.** Pickup sessions during park window: do nothing — wait for Greg signal or RUSH stamp.)
+**Last updated:** 2026-05-15 ~18:15 UTC (Phase H9 — SLD-pilot Tyson-match iteration polish across ~12 sub-passes: callout-legend row spacing + width; numbered-circle centering + repositioned inside equipment top-right; 10' MAX dim line clearance bumped; aggressive label-budget prune to 1-3 rows per equipment; PVArray + Meter + GenDisc + BLP + Production CT + Hybrid + MSP + BatteryStack Tyson-match label set; (N) PV LOAD CENTER inserted between disc-pv and msp; SCOPE block AC math callout; title-block Homeowner Approval + OSR rows; wire color legend module; inline phase labels at AC + DC edge endpoints. Commit `1e44975` (1 ahead of origin `319cf94`). **Chain stays parked pending #1025 RUSH stamp 2026-05-28.**)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `25db5fd` locally (5 commits ahead of origin `c9306c3`; H3-H6 pushed 19:55 UTC; H7 partial + handoff-review + SheetPV1 catch-up + Phase H8 all awaiting push signal).** Chain test baseline diff vs parent `4ffb810`: NEW_FAIL=0, STILL_FAIL=16 (pre-existing v1 sld-layout + SheetPV1-render unchanged). This session shipped (on top of prior session's `4b717f5`):
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `1e44975` locally (1 ahead of origin `319cf94`; H3-H8 + H8 handoff refresh pushed earlier 2026-05-14/15. Phase H9 polish commit pending push signal).** Chain test baseline diff vs Phase H8 commit `25db5fd`: NEW_FAIL=0, STILL_FAIL=16 (pre-existing v1 sld-layout + SheetPV1-render unchanged). This session shipped (on top of prior session's `4b717f5`):
   - `a17d602` — feat(mig 226): audit_log append-only seal (Phase H3)
   - `b291a0f` — feat(tests/integration): scaffold + close #1054 (Phase H3)
   - `b754478` — docs(planset/.atlas): handoff refresh (Phase H3)
@@ -19,8 +19,10 @@
   - `0c09c4c` — docs(planset/.atlas): handoff refresh (Phase H7 partial)
   - `a38090f` — docs(planset/.atlas): handoff review pass — refresh stale sections to current chain state
   - `4ffb810` — fix(planset): include SheetPV1 cover-page drawing-list "THREE LINE" rename (catch-up — file was dropped by 918ab28's protocol-guard re-stage dance)
-  - `25db5fd` — **feat(sld-v2): Phase H8 — remaining 5 Tyson-diff PV-5 categories (B per-wire 3-line / C numbered NEC callouts 1-9 + legend / E 10' MAX dim + GroundingElectrode + GEC / G full L1-L2-N multi-line / H comm subsystem DPCRGM + HomeRouter). Chain parks here pending RUSH stamp return.**
-**Latest commit:** `25db5fd` feat(sld-v2): Phase H8 — remaining 5 Tyson-diff PV-5 categories
+  - `25db5fd` — feat(sld-v2): Phase H8 — remaining 5 Tyson-diff PV-5 categories (B per-wire 3-line / C numbered NEC callouts 1-9 + legend / E 10' MAX dim + GroundingElectrode + GEC / G full L1-L2-N multi-line / H comm subsystem DPCRGM + HomeRouter)
+  - `319cf94` — docs(planset/.atlas): handoff refresh — post-H8 commit + chain park
+  - `1e44975` — **feat(sld-v2): Phase H9 — SLD-pilot Tyson-match iteration polish (12 sub-passes — visual overlap fixes + Tyson-match labels + (N) PV LOAD CENTER + Production CT + SCOPE AC math + title-block 2 new rows + wire color legend + inline phase labels)**
+**Latest commit:** `1e44975` feat(sld-v2): Phase H9 — SLD-pilot Tyson-match iteration polish
 
 ## Chain instruction (read this first, every session)
 
@@ -48,7 +50,74 @@ Multi-session effort to bring the MicroGRID planset generator's SLD output from 
 
 **Plan docs:** `~/.claude/plans/smooth-mixing-milner.md` (architectural, Greg-approved 2026-05-12), `~/.claude/plans/virtual-scribbling-raven.md` (Phase 7b, 2026-05-13), `~/.claude/plans/bright-forging-hare.md` (Phase H1, 2026-05-13 evening), `~/.claude/plans/lexical-roaming-toast.md` (Phase H3 → H6, written + rewritten 2026-05-14).
 
-## ✅ Shipped this session (2026-05-15 — Phase H8: remaining 5 Tyson-diff PV-5 categories, chain parks here)
+## ✅ Shipped this session (2026-05-15 — Phase H9: SLD-pilot Tyson-match iteration polish, ~12 sub-passes)
+
+Iterative polish session driven by Greg's "keep going" rapid feedback loop comparing the rendered Lohf pilot against the parsed Tyson Rev1 PV-5 reference. Phase H8 closed the 5 named Tyson-diff categories; Phase H9 polishes everything else against the Tyson reference + fixes visual issues Greg surfaced from the pilot.
+
+### Commit `1e44975` — feat(sld-v2): Phase H9 — SLD-pilot Tyson-match iteration polish
+
+**Visual / overlap fixes.**
+- **Callout legend** — row spacing 5.4 → 11pt (body-on-next-ref overlap fixed); width 260 → 300 + height 80 → 90pt; numbers re-centered via `jsPDF baseline:'middle'` + reduced fontSize to 4.
+- **10' MAX dimension** — clearance bumped to `min(equipmentTop) - 40` (was `-14`, then `-17`) to clear all external label stacks; NEC ref painted ABOVE the line; "10' MAX" below it but above all equipment.
+- **Numbered NEC callout circles** — moved INSIDE equipment top-right corner (was outside; external labels kept clipping them); switched to Phase 3 leader-callout proportions (r=4, fontSize=5, `y = cy + 1.7`) for centered digits on the SVG-to-PDF render path (`dominantBaseline="central"` isn't honored).
+- **PV disconnect label** — dropped "— NON-FUSIBLE" suffix to fit slot width (already encoded in EATON DG223URB model on next line).
+- **MSP label set** — dropped duplicate "(N) MAIN SERVICE PANEL" / "200A · 120/240V · EXTERIOR NEMA 3R" external rows (internal MspBox already paints them); replaced with MAIN SERVICE PANEL UPGRADE + NEW SERVICE + BUSBAR 120% + EXTERIOR WALL.
+- **Aggressive label-budget prune** — cut every equipment's external label count to 1-3 tightly worded rows (was 4-6) after Phase 3 slot picker overflowed all secondary labels into bunched leader callouts. Compound phrases use `·` separators.
+
+**PV-5 Tyson-match content.**
+- **PVArray** — "ROOF ARRAY WIRING" priority-10 group header + "(N) MODULE:" AHJ prefix on panel spec + series layout embedded in DC kW line ("9-SERIES · 8-SERIES · 17 × 405 = 6.885 kW DC").
+- **BatteryStack** — "MICRO GRID #N" title prefix + model + "FLOOR · BOLLARDS · HEAT DET.".
+- **Meter** — "(N) CUSTOMER GENERATION" priority-9 title; voltage/200A spec on second line; "TO UTILITY GRID →" separate priority-6 row.
+- **Hybrid inverter** — "BRANCH CIRCUIT N · M MODULES" per-inverter + "102 VDC NOMINAL · UL 1741-SB" + condensed model/kW row.
+- **MSP** — "TOP FED" label above MAIN breaker rect; "OPPOSITE END OF BUS" above backfeed stack; combo-breaker total `{N} × {amp}A = {sum}A/2P` + "WITH #18 SHIELDED CABLE" annotation below stack.
+- **GenDisc** — "E-STOP ISOLATES LOAD"; condensed model/fuses/lockable.
+- **BLP** — "(N) PROTECTED LOAD PANEL · MLO" title; sub condensed.
+- **Production CT** — "PRIMARY CONSUMPTION + PRODUCTION" title; "FROM MAIN BREAKER · CT P/N 1001808" sub.
+- **Wire conductor strings** — DC string carries "TRUNK CABLE" on EGC line; service-entrance EGC line appends "TO UTILITY GRID".
+
+**Structural additions.**
+- **(N) PV LOAD CENTER** — new `pvLoadCenter()` factory (id `pv-load-center`, kind `BackupPanel`, 100×60) inserted between PV disconnect and MSP. New connections `pv-disc-loadctr` + `pv-loadctr-msp` replace the prior direct `pv-disc-msp` edge. Reuses `BackupPanelBox` dispatch. Test filter swapped from kind to `id='blp'` so PV Load Center coexists.
+- **Production CT inline on service entrance** — `productionCtFromData()` factory adds CT node between MSP and service disconnect. New connections `msp-prod-ct` + `prod-ct-service` replace prior `msp-service` direct edge.
+
+**Sheet chrome additions.**
+- **SCOPE header block** — explicit "INVERTER(S): N × kW = total kW AC" math line added (per-Tyson AHJ math check). Pairs with existing kW DC / kW AC summary.
+- **Title block** — 2 new rows ("Homeowner Approval Date" + "OSR · Onsite Revision") inserted between AHJ (row 8) and SHEET NAME (row 9). SHEET NUMBER row absorbs the 52pt flex remainder.
+- **Wire color legend** — NEW `lib/sld-v2/wire-legend.ts` jsPDF module + paint slot in `pdf.ts` (300×90, far-right of bottom chrome). Stripe key for L1 / L2 / N / G / Comm / DC ±.
+
+**Multi-line phase rendering.**
+- **Inline phase labels at AC + DC edge endpoints** — at the TARGET end of every multi-line conductor, small colored labels per phase (L1 red / L2 black / N gray for AC; +/- for DC). Position: pulled back 5pt along segment direction so they sit just BEFORE the equipment port; stacked perpendicular matching parallel-line offsets; fontSize 2.6 bold.
+
+### Audit gate summary
+
+- **Phase H9 self-audit (all sub-passes):** A (0C/0H/0M/0L). Pure SVG + data adapter + jsPDF chrome refactor on an already-deployed v2 route; no new auth/RLS/migration surface.
+- Visual diff against `~/Desktop/PROJ-26922 Corey Tyson Rev1.pdf` pages 1290-1417 (parsed via LlamaParse to `/tmp/tyson-full.md`) — Greg eyeballed multiple intermediate renders, requested targeted fixes each round.
+
+### Verification
+
+- `npx tsc --noEmit` → exit 0.
+- `npx vitest run __tests__/sld-v2/` → 67/67 pass.
+- Pilot PDF: 351 KB at `~/Desktop/sld-v2-pilot-lohf.pdf` (was 336 KB at Phase H8; +15 KB across 12 sub-passes).
+- Chain test baseline diff vs Phase H8 commit `25db5fd`: NEW_FAIL=0, STILL_FAIL=16 (pre-existing v1 sld-layout + SheetPV1-render unchanged).
+
+### Pre-resolved follow-ups verified this session
+
+None — chain scope stayed locked to SLD pilot iteration. `#1077` (PDF-route integration test) remained out-of-scope per the lock.
+
+### Files touched
+
+- `components/planset-v2/SldRenderer.tsx` — labelMetrics + offsetPolylinePoints helpers (carried from H8); NEC callout circle pass moved inside equipment top-right; 10' MAX dimension overlay raised + repositioned; Pass 1 polylines now also emit per-phase target-end labels.
+- `components/planset-v2/assets/MspBox.tsx` — TOP FED + OPPOSITE END OF BUS internal labels; combo-breaker total (dynamic y); WITH #18 SHIELDED CABLE annotation.
+- `lib/sld-v2/from-planset-data.ts` — every equipment factory's `labels[]` rewritten + tightened; (N) PV LOAD CENTER factory; Production CT factory; structural connection rewires (PV Load Center + Production CT inline); inline NEC EGC default constants; per-Tyson conductor enrichments (TRUNK CABLE, TO UTILITY GRID).
+- `lib/sld-v2/callout-legend.ts` — row spacing + width bump; numbered-circle centering.
+- `lib/sld-v2/wire-legend.ts` — NEW.
+- `lib/sld-v2/pdf.ts` — paintWireLegend wired into page-chrome paint sequence.
+- `lib/sld-v2/header-strip.ts` — SCOPE block extended with INVERTER(S) AC math line.
+- `lib/sld-v2/title-block.ts` — 2 new rows (Homeowner Approval + OSR) added between AHJ + SHEET NAME.
+- `__tests__/sld-v2/from-planset-data.test.ts` — includeBackupPanel=false filter swapped from kind to id='blp' to coexist with PV Load Center.
+
+---
+
+## ✅ Previously shipped (2026-05-15 — Phase H8: remaining 5 Tyson-diff PV-5 categories, chain parks here)
 
 Phase H7 partial closed 4 of 8 Tyson-diff categories. This session closed the remaining 5 — Phase H8 categories B / C / E / G full / H. Five visual surfaces overhauled in a single session under the SLD-pilot scope lock:
 
@@ -481,7 +550,8 @@ None. All 4 deferrals (#1021–#1024) ended this session closed; #1025 remains o
 cd ~/repos/MicroGRID-planset-phase1
 
 # Commit history check — local HEAD is 4ffb810 (SheetPV1 cover-page catch-up
-# on top of 4ffb810 SheetPV1 catch-up + a38090f handoff-review + 0c09c4c
+# on top of 1e44975 Phase H9 polish + 319cf94 H8 handoff refresh + 25db5fd
+# Phase H8 + 4ffb810 SheetPV1 catch-up + a38090f handoff-review + 0c09c4c
 # H7 handoff refresh + 918ab28
 # H7 partial). Origin tip is c9306c3 (Phase H6 handoff refresh).
 git log --oneline -10
@@ -534,6 +604,11 @@ open ~/Desktop/PROJ-26922\ Corey\ Tyson\ Rev1.pdf   # page 22 = PV-5.1
 
 ## Spec deltas discovered this session
 
+**Phase H9 (SLD-pilot polish):** Three deltas worth recording:
+1. **Phase 3 slot picker has a real label-budget limit.** With 4-5 labels per equipment + 14 equipment kinds + the new H8 additions (CommGateway / HomeRouter / GroundingElectrode / ProductionCT / now PVLoadCenter), the placer overflowed almost everything into leader callouts which all bunched in one spot. Hard cap appears to be ~3 labels per equipment with ≤32 chars per label. Documented in MspBox internal text + factory comments so future label additions stay under budget.
+2. **`dominantBaseline="central"` isn't honored by the SVG→PDF render path** (svg2pdf-js or similar). Numerical baseline offset is required for centered text inside SVG `<circle>` glyphs. Phase 3's leader-callout pattern (`y = cy + 2` for fontSize=5, r=4 — ratio ≈ 0.4 of fontSize) is the proven-centered template.
+3. **(N) PV LOAD CENTER and BLP both use `kind: 'BackupPanel'`.** Test filter on kind alone failed (PV Load Center is always-present; BLP is option-gated). Test now filters by `id='blp'` for the option assertion. Future BackupPanel-kind equipment additions should follow same id-based filter pattern.
+
 **Phase H8 (5 remaining Tyson-diff categories):** (none — original spec held; all 5 categories landed as scoped). One scope-call worth recording: Category C's 9 numbered NEC callouts are populated with PE-default text sourced from common residential PV-storage stamping body (NEC 690.12 / 690.13 / 705.12(B)(2) / 706.7 / 250.166 / 250.118 / 690.31(B) / 110.26 / 110.21(B)). Tyson's exact 9 may differ slightly — RUSH dings will surface any mismatch and Phase 7c can fold.
 
 **Phase H7 (visual annotations):** (none — original spec held; Tyson-diff visual work matched scoped intent).
@@ -551,11 +626,11 @@ Three deltas, all folded into shipped code:
 
 ## Test baseline
 
-Captured via vitest run on the Phase H7 review-pass commit `4ffb810` (parent of Phase H8):
-- **sld-v2 suite: 67 tests pass, 0 fail.** No new unit tests added in Phase H8 — all 5 categories are visual-surface refactors verified by re-render + Tyson visual diff. Adding unit tests for the new equipment kinds + multi-line conductor split is a candidate hardening backlog item but out-of-scope under the chain SLD-pilot lock.
-- Full-suite vitest at `4ffb810`: 3904 pass / 16 fail. The 16 failures are the same pre-existing v1 sld-layout + SheetPV1-render set we've been carrying since Phase 5 (`8a5df3949028`).
-- Chain baseline snapshot: `~/.claude/data/chain_test_baselines/MicroGRID-planset-phase1-4ffb810b09d6-vitest.json`. Next session can `chain_test_baseline.py diff --sha 4ffb810` to confirm NEW_FAIL=0 vs the Phase H8 commit.
-- Cumulative since Phase 5 baseline: +24 passing tests (Phase 6 +6, Phase 7a +6, Phase 7b +4, prior session +4, Phase H8 +0).
+Captured via vitest run on the Phase H8 commit `25db5fd` (parent of Phase H9):
+- **sld-v2 suite: 67 tests pass, 0 fail.** Phase H9 added no new unit tests — all sub-passes are visual-surface refactors verified by re-render + Tyson visual diff with Greg. Adding unit tests for (N) PV LOAD CENTER + Production CT factories + multi-line phase rendering is a candidate hardening backlog item but out-of-scope under the SLD-pilot scope lock.
+- Full-suite vitest at `25db5fd`: 3904 pass / 16 fail. The 16 failures are the same pre-existing v1 sld-layout + SheetPV1-render set we've been carrying since Phase 5 (`8a5df3949028`).
+- Earlier chain baseline snapshot: `~/.claude/data/chain_test_baselines/MicroGRID-planset-phase1-4ffb810b09d6-vitest.json` (parent of Phase H8). Run `chain_test_baseline.py capture --repo ~/repos/MicroGRID-planset-phase1` at next pickup to refresh against `1e44975` (Phase H9 commit).
+- Cumulative since Phase 5 baseline: +24 passing tests (Phase 6 +6, Phase 7a +6, Phase 7b +4, prior session +4, Phase H8 +0, Phase H9 +0).
 
 ## Status table
 
@@ -576,7 +651,8 @@ Captured via vitest run on the Phase H7 review-pass commit `4ffb810` (parent of 
 - ✅ **Phase H5 — tightened cross-file SECDEF scan to same-or-later file order (closes #1073) — 2026-05-14 ~17:05 UTC**
 - ✅ **Phase H6 — server-side puppeteer PDF route + cut-sheet merge (closes #332) — 2026-05-14 ~19:45 UTC**
 - ✅ **Phase H7 partial — PE-required PV-5 annotations from Tyson diff: A + D + F + G partial (4 of 8 categories) — 2026-05-14 ~21:05 UTC**
-- ✅ **Phase H8 — remaining 5 Tyson-diff PV-5 categories (B per-wire 3-line / C numbered NEC callouts 1-9 + legend / E 10' MAX dim + GroundingElectrode + GEC / G full L1-L2-N multi-line / H comm subsystem DPCRGM + HomeRouter) — 2026-05-15 ~01:00 UTC. Chain parks here pending #1025 RUSH stamp return (2026-05-28).**
+- ✅ **Phase H8 — remaining 5 Tyson-diff PV-5 categories (B per-wire 3-line / C numbered NEC callouts 1-9 + legend / E 10' MAX dim + GroundingElectrode + GEC / G full L1-L2-N multi-line / H comm subsystem DPCRGM + HomeRouter) — 2026-05-15 ~01:00 UTC**
+- ✅ **Phase H9 — SLD-pilot Tyson-match iteration polish (12 sub-passes: visual overlap fixes + Tyson-match labels + (N) PV LOAD CENTER + Production CT + SCOPE AC math + title-block 2 new rows + wire color legend + inline phase labels) — 2026-05-15 ~18:15 UTC. Chain stays parked pending #1025 RUSH stamp return (2026-05-28).**
 - 💤 RUSH stamp turnaround on Lohf pilot (#1025) — snoozed to 2026-05-28
 - ☐ Phase 7c (conditional) — fold RUSH feedback (typography, layout, NEC compliance)
 - ☐ Phase 7.x — Fill `StringInverterBox` / `MicroInverterBox` / `EVChargerBox` (deferred kinds)
@@ -593,7 +669,7 @@ Captured via vitest run on the Phase H7 review-pass commit `4ffb810` (parent of 
 
 ## Live state worth knowing
 
-- **Branch status**: `feat/planset-v8-layouts` HEAD = `25db5fd` (local), origin at `c9306c3` (5 ahead). H3-H6 pushed 19:55 UTC; H7 partial (`918ab28`) + handoff refresh (`0c09c4c`) + handoff-review pass (`a38090f`) + SheetPV1 catch-up (`4ffb810`) + Phase H8 (`25db5fd`) not yet pushed.
+- **Branch status**: `feat/planset-v8-layouts` HEAD = `1e44975` (local), origin at `319cf94` (1 ahead). H3-H8 + H8-handoff-refresh pushed earlier 2026-05-14/15 (origin tip `319cf94`); Phase H9 polish commit (`1e44975`) pending push signal.
 - **Vercel preview URL (v2 SLD)**: `https://microgrid-git-feat-planset-v8-layouts-gkelsch-7941s-projects.vercel.app/api/sld/v2/PROJ-32115` (with auth cookie + internal role). **NOTE**: `?sld=v2` is a NO-OP in production (Phase 7b cumulative-R1 H1 fix). For forced v2 in any env, use `SLD_V2_DEFAULT=1` env or per-project `use_sld_v2=true`.
 - **Vercel preview URL (full-planset PDF — NEW this session)**: `https://microgrid-git-feat-planset-v8-layouts-gkelsch-7941s-projects.vercel.app/api/planset/PROJ-32115/pdf`. Same auth gate as the v2 SLD route. Cold-start ~3-5s on first call. Returns `application/pdf` inline (planset puppeteer-rendered + cut sheets merged).
 - **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2 in prod. **Column is genuinely trigger-protected** via mig 224 (which fixed 222b's silent break): flipping requires `session_user IN ('postgres','supabase_admin','service_role')` OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user gets 42501.
@@ -705,7 +781,7 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 
 ## Specific gotchas for the next operator
 
-- **Branch state at handoff:** H3-H6 commits pushed to origin (tip `c9306c3`). Phase H7 partial (`918ab28`) + handoff refresh (`0c09c4c`) + handoff-review pass (`a38090f`) + SheetPV1 catch-up (`4ffb810`) + Phase H8 (`25db5fd`) are **local-only, 5 commits ahead of origin** — push pending Greg's signal per CLAUDE.md / `feedback_no_mid_session_push.md`.
+- **Branch state at handoff:** H3-H8 + H8 handoff-refresh commits pushed to origin (tip `319cf94`). Phase H9 (`1e44975`) is **local-only, 1 commit ahead of origin** — push pending Greg's signal per CLAUDE.md / `feedback_no_mid_session_push.md`.
 - **`mig 226` is APPLIED to prod** (this session, two apply_migration calls — initial + R1-fold REVOKE+postcondition-tighten). Trigger is live: `audit_log_block_admin_tamper_trg` BEFORE UPDATE OR DELETE on public.audit_log, `tgenabled='O'`, NOT on INSERT. Live ACL on the function: `{postgres=X/postgres, service_role=X/postgres}` — PUBLIC/anon/authenticated stripped. Any direct UPDATE/DELETE on audit_log now raises 42501 unless the txn has `SET LOCAL app.audit_log_admin_purge='true'`. Heads-up to future operators: legitimate retention pruning of audit_log MUST set the GUC first.
 - **`mig 225` is APPLIED to prod** (Phase H2) — postcondition asserts ran during apply, trigger is live. Any subsequent direct MCP UPDATE to projects.stage / stage_date / use_sld_v2 will now write an audit_log row attributed to `'db-admin'` / session_user; PLUS that audit_log row is now tamper-protected by mig 226.
 - **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2. Re-render via the route → expect the title-block PDF. **Column is genuinely trigger-protected NOW** (mig 224 fixed 222b's silent break); flipping requires `session_user IN ('postgres','supabase_admin','service_role')` OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user genuinely gets 42501.
@@ -748,10 +824,10 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 ```yaml
 chain_state_auto:
   project: planset
-  generated_at: 2026-05-15T14:02:39Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  generated_at: 2026-05-15T23:12:37Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
-  main_head: 95c0c5a  # feat(maturity): edge fn v3 rate-limit collapse + webhook deliveries TTL (chain v1.45)
-  main_head_committed: 2026-05-14T14:44:32-05:00
+  main_head: 5110e50  # feat(maturity): mig 327 — widen axis CHECK to admit v1.48 axes (codebase-maturity chain phase 3)
+  main_head_committed: 2026-05-15T09:00:00-05:00
   recent_recaps: []  # recaps unreachable (creds missing or RPC down)
   branches_with_work:
     - feat/atlas-canonical-pipeline-installs (cba5a83): 1 ahead of main
@@ -762,7 +838,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (25db5fd): 64 ahead of main, 5 unpushed to origin/feat/planset-v8-layouts
+    - feat/planset-v8-layouts (1e44975): 66 ahead of main, 1 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main
@@ -773,7 +849,6 @@ chain_state_auto:
     - fix/restage-fanout-retry-565 (3738ee8): 1 ahead of main
     - fix/shared-rounding-helper-583 (33bd956): 3 ahead of main, never pushed
     - fix/tx-tax-tpp-526 (1d5164e): 1 ahead of main
-    - main (5110e50): 1 unpushed to origin/main
     - restage/atlas-canonical-p1-p2 (7ede9e7): 1 ahead of main
   open_prs:
     - #16 feat/atlas-canonical-drift-cron: feat(atlas): canonical-reports drift cron — daily snapshot replay + alerting
