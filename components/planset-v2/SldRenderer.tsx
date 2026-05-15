@@ -8,6 +8,7 @@
 import type { LayoutResult, RoutedEdge } from '../../lib/sld-v2/layout'
 import type { Equipment } from '../../lib/sld-v2/equipment'
 import type { LabelPlacementResult } from '../../lib/sld-v2/labels'
+import { TYSON_CALLOUTS_PV5 } from '../../lib/sld-v2/callout-legend'
 
 import { MspBox } from './assets/MspBox'
 import { DisconnectBox } from './assets/DisconnectBox'
@@ -19,6 +20,9 @@ import { RapidShutdownBox } from './assets/RapidShutdownBox'
 import { JunctionBoxBox } from './assets/JunctionBoxBox'
 import { BackupPanelBox } from './assets/BackupPanelBox'
 import { ProductionCtBox } from './assets/ProductionCtBox'
+import { CommGatewayBox } from './assets/CommGatewayBox'
+import { HomeRouterBox } from './assets/HomeRouterBox'
+import { GroundingElectrodeBox } from './assets/GroundingElectrodeBox'
 
 export interface SldRendererProps {
   layout: LayoutResult
@@ -60,6 +64,12 @@ function renderEquipment(eq: Equipment, x: number, y: number, debug: boolean) {
       return <BackupPanelBox key={eq.id} panel={eq} x={x} y={y} debug={debug} />
     case 'ProductionCT':
       return <ProductionCtBox key={eq.id} ct={eq} x={x} y={y} debug={debug} />
+    case 'CommGateway':
+      return <CommGatewayBox key={eq.id} gw={eq} x={x} y={y} debug={debug} />
+    case 'HomeRouter':
+      return <HomeRouterBox key={eq.id} router={eq} x={x} y={y} debug={debug} />
+    case 'GroundingElectrode':
+      return <GroundingElectrodeBox key={eq.id} ge={eq} x={x} y={y} debug={debug} />
     // Phase 1.3-deferred kinds — Phase 7 will fill these in.
     case 'StringInverter':
     case 'MicroInverter':
@@ -79,6 +89,63 @@ function renderEquipment(eq: Equipment, x: number, y: number, debug: boolean) {
 function polylinePoints(edge: RoutedEdge): string {
   return edge.polyline.map((p) => `${p.x},${p.y}`).join(' ')
 }
+
+/** Phase H8 Category G full — multi-line conductor split.
+ *  Returns polyline points offset perpendicular to each segment. ELK gives
+ *  orthogonal routing (segments are horizontal or vertical), so perpendicular
+ *  is trivial: horizontal seg ⇒ offset y; vertical seg ⇒ offset x. At corners
+ *  the offset segments meet with a small visual gap which reads acceptably
+ *  for AHJ stamping. */
+function offsetPolylinePoints(edge: RoutedEdge, offset: number): string {
+  const pts = edge.polyline
+  if (pts.length < 2) return ''
+  if (offset === 0) return polylinePoints(edge)
+
+  const out: Array<{ x: number; y: number }> = []
+  for (let i = 0; i < pts.length; i++) {
+    const cur = pts[i]
+    // Decide perpendicular direction from the adjacent segment.
+    const adj = i < pts.length - 1 ? pts[i + 1] : pts[i - 1]
+    const dx = adj.x - cur.x
+    const dy = adj.y - cur.y
+    let nx = 0, ny = 0
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      // Horizontal segment — offset in y.
+      ny = 1
+    } else {
+      // Vertical segment — offset in x.
+      nx = 1
+    }
+    out.push({ x: cur.x + nx * offset, y: cur.y + ny * offset })
+  }
+  return out.map((p) => `${p.x},${p.y}`).join(' ')
+}
+
+/** Three-line / two-line conductor color schemes per category.
+ *  Phase H8 Category G full. Empty = single-line legacy render. */
+const MULTI_LINE_PHASES: Record<string, Array<{ color: string; label: string }>> = {
+  'ac-inverter': [
+    { color: '#dc2626', label: 'L1' },
+    { color: '#111',    label: 'L2' },
+    { color: '#9ca3af', label: 'N' },
+  ],
+  'ac-service': [
+    { color: '#dc2626', label: 'L1' },
+    { color: '#111',    label: 'L2' },
+    { color: '#9ca3af', label: 'N' },
+  ],
+  'dc-string': [
+    { color: '#dc2626', label: '+' },
+    { color: '#111',    label: '-' },
+  ],
+  'dc-battery': [
+    { color: '#dc2626', label: '+' },
+    { color: '#111',    label: '-' },
+  ],
+}
+
+/** Spacing between parallel phase polylines, in svg user-units. */
+const PHASE_SPACING = 1.6
 
 interface LayoutBBox { x: number; y: number; w: number; h: number }
 
@@ -109,9 +176,23 @@ function edgeSegmentBoxes(edges: RoutedEdge[]): LayoutBBox[] {
   return out
 }
 
+/** Phase H8 Category B — conductor text may carry `\n`-separated multi-line
+ *  Tyson-convention spec (wire / EGC / conduit). Compute the bbox the wire
+ *  label occupies on the page so midpoint placement + avoidance keep working.
+ *  fontSize=6, lineHeight=7, descender pad=2, char-width≈3.5. */
+function labelMetrics(text: string): { lines: string[]; w: number; h: number } {
+  const lines = text.split('\n')
+  const maxLen = lines.reduce((m, l) => Math.max(m, l.length), 0)
+  return {
+    lines,
+    w: maxLen * 3.5 + 4,
+    h: 7 * lines.length + 2,
+  }
+}
+
 /** Find a midpoint along the edge such that the conductor LABEL bbox
  *  (anchored at midpoint, extending rightward by ~labelText.length × 3.5 px,
- *  about 9 px tall) does NOT overlap any avoidance box. avoidance =
+ *  grows upward 7px per line) does NOT overlap any avoidance box. avoidance =
  *  equipment bboxes + segments of OTHER edges + previously-placed wire
  *  labels. Returns null if no segment works — caller skips the label. */
 function midpoint(
@@ -122,8 +203,7 @@ function midpoint(
   const pts = edge.polyline
   if (pts.length < 2) return null
 
-  const labelW = labelText.length * 3.5 + 4
-  const labelH = 9
+  const { w: labelW, h: labelH } = labelMetrics(labelText)
 
   const segments: Array<{ ax: number; ay: number; bx: number; by: number; len: number }> = []
   for (let i = 0; i < pts.length - 1; i++) {
@@ -137,7 +217,7 @@ function midpoint(
     const my = (s.ay + s.by) / 2
     const labelBBox: LayoutBBox = {
       x: mx - 2,
-      y: my - 10,
+      y: my - 1 - labelH,
       w: labelW,
       h: labelH,
     }
@@ -206,42 +286,72 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
             ]
             const mid = midpoint(edge, avoidance, edge.connection.conductor ?? '')
             if (mid && edge.connection.conductor) {
-              const w = edge.connection.conductor.length * 3.5 + 4
-              placedWireLabelBoxes.push({ x: mid.x - 2, y: mid.y - 10, w, h: 9 })
+              const { w, h } = labelMetrics(edge.connection.conductor)
+              placedWireLabelBoxes.push({ x: mid.x - 2, y: mid.y - 1 - h, w, h })
             }
             return { edge, color, mid }
           })
           return (
             <>
-              {/* Pass 1 — all polylines */}
-              {edgeRenderData.map(({ edge, color }) => (
-                <polyline
-                  key={`line-${edge.connection.id}`}
-                  points={polylinePoints(edge)}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth={edge.connection.category === 'ground' || edge.connection.category === 'gec' ? 1.4 : 1.6}
-                  strokeDasharray={edge.connection.category === 'comm' ? '4,2' : undefined}
-                />
-              ))}
-              {/* Pass 2 — all wire labels (always paint on top of any line) */}
-              {edgeRenderData.map(({ edge, color, mid }) =>
-                edge.connection.conductor && mid ? (
-                  <g key={`label-${edge.connection.id}`} transform={`translate(${mid.x}, ${mid.y - 3})`}>
+              {/* Pass 1 — all polylines. Phase H8 Category G full:
+                  ac-inverter / ac-service render as 3 parallel L1/L2/N
+                  polylines; dc-string / dc-battery render as 2 parallel +/-
+                  polylines. comm / ground / gec stay single-line legacy. */}
+              {edgeRenderData.map(({ edge, color }) => {
+                const phases = MULTI_LINE_PHASES[edge.connection.category]
+                if (phases) {
+                  const baseOffset = -((phases.length - 1) / 2) * PHASE_SPACING
+                  return (
+                    <g key={`line-${edge.connection.id}`}>
+                      {phases.map((p, i) => (
+                        <polyline
+                          key={`line-${edge.connection.id}-${p.label}`}
+                          points={offsetPolylinePoints(edge, baseOffset + i * PHASE_SPACING)}
+                          fill="none"
+                          stroke={p.color}
+                          strokeWidth="1.1"
+                        />
+                      ))}
+                    </g>
+                  )
+                }
+                return (
+                  <polyline
+                    key={`line-${edge.connection.id}`}
+                    points={polylinePoints(edge)}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={edge.connection.category === 'ground' || edge.connection.category === 'gec' ? 1.4 : 1.6}
+                    strokeDasharray={edge.connection.category === 'comm' ? '4,2' : undefined}
+                  />
+                )
+              })}
+              {/* Pass 2 — all wire labels (always paint on top of any line).
+                  Phase H8 Category B: multi-line stack grows UPWARD from the
+                  wire midpoint, so the bottom line baseline matches today's
+                  1-line position. */}
+              {edgeRenderData.map(({ edge, color, mid }) => {
+                if (!edge.connection.conductor || !mid) return null
+                const { lines, w, h } = labelMetrics(edge.connection.conductor)
+                const groupY = mid.y - 3 - 7 * (lines.length - 1)
+                return (
+                  <g key={`label-${edge.connection.id}`} transform={`translate(${mid.x}, ${groupY})`}>
                     <rect
                       x={-2}
                       y={-7}
-                      width={edge.connection.conductor.length * 3.5 + 4}
-                      height={9}
+                      width={w}
+                      height={h}
                       fill="white"
                       stroke="none"
                     />
                     <text fontSize="6" fill={color} fontFamily="Helvetica, Arial, sans-serif">
-                      {edge.connection.conductor}
+                      {lines.map((line, i) => (
+                        <tspan key={i} x={0} dy={i === 0 ? 0 : 7}>{line}</tspan>
+                      ))}
                     </text>
                   </g>
-                ) : null,
-              )}
+                )
+              })}
             </>
           )
         })()}
@@ -250,6 +360,84 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
       {/* Nodes on top */}
       <g transform={`translate(${ox}, ${oy})`}>
         {layout.laidOut.map((lo) => renderEquipment(lo.equipment, lo.x, lo.y, debug))}
+      </g>
+
+      {/* Phase H8 Category E — "10' MAX" dimension annotation between PV
+          disconnect and utility meter. NEC 230.70(A)(1) — service disconnect
+          must be within sight of and ≤10' from the meter. Skipped silently
+          if either target is missing. */}
+      <g transform={`translate(${ox}, ${oy})`}>
+        {(() => {
+          const pvDisc = layout.laidOut.find((lo) => lo.equipment.id === 'disc-pv')
+          const meter = layout.laidOut.find((lo) => lo.equipment.id === 'meter')
+          if (!pvDisc || !meter) return null
+          const y = Math.min(pvDisc.y, meter.y) - 14
+          const x1 = pvDisc.x + pvDisc.equipment.width / 2
+          const x2 = meter.x + meter.equipment.width / 2
+          const midX = (x1 + x2) / 2
+          return (
+            <g>
+              <line x1={x1} y1={y} x2={x2} y2={y} stroke="#d97706" strokeWidth="0.6" />
+              {/* End-cap tick marks */}
+              <line x1={x1} y1={y - 3} x2={x1} y2={y + 3} stroke="#d97706" strokeWidth="0.6" />
+              <line x1={x2} y1={y - 3} x2={x2} y2={y + 3} stroke="#d97706" strokeWidth="0.6" />
+              {/* Arrows */}
+              <polygon points={`${x1},${y} ${x1 + 4},${y - 2} ${x1 + 4},${y + 2}`} fill="#d97706" />
+              <polygon points={`${x2},${y} ${x2 - 4},${y - 2} ${x2 - 4},${y + 2}`} fill="#d97706" />
+              <rect x={midX - 14} y={y - 8} width="28" height="8" fill="white" stroke="none" />
+              <text
+                x={midX}
+                y={y - 2}
+                fontSize="6"
+                fontWeight="bold"
+                textAnchor="middle"
+                fill="#d97706"
+                fontFamily="Helvetica, Arial, sans-serif"
+              >
+                10&apos; MAX
+              </text>
+              <text
+                x={midX}
+                y={y + 8}
+                fontSize="4"
+                textAnchor="middle"
+                fill="#666"
+                fontFamily="Helvetica, Arial, sans-serif"
+              >
+                NEC 230.70(A)(1)
+              </text>
+            </g>
+          )
+        })()}
+      </g>
+
+      {/* Phase H8 Category C — distributed NEC numbered callouts (1-9).
+          Yellow filled circles at the NE corner of each target equipment.
+          Callouts whose target equipment isn't in the laid-out set are
+          silently skipped (e.g. RSD absent on integrated-microinverter topology). */}
+      <g transform={`translate(${ox}, ${oy})`}>
+        {TYSON_CALLOUTS_PV5.map((c) => {
+          const target = layout.laidOut.find((lo) => lo.equipment.id === c.equipmentId)
+          if (!target) return null
+          const cx = target.x + target.equipment.width - 2
+          const cy = target.y + 2
+          return (
+            <g key={`nec-callout-${c.number}`}>
+              <circle cx={cx} cy={cy} r="4.2" fill="#fde047" stroke="#111" strokeWidth="0.7" />
+              <text
+                x={cx}
+                y={cy + 1.8}
+                fontSize="5.5"
+                fontWeight="bold"
+                textAnchor="middle"
+                fill="#111"
+                fontFamily="Helvetica, Arial, sans-serif"
+              >
+                {c.number}
+              </text>
+            </g>
+          )
+        })}
       </g>
 
       {/* External slot labels (Phase 3) */}

@@ -231,6 +231,36 @@ export interface ProductionCT extends EquipmentBase {
   }
 }
 
+// Phase H8 Category H — comm subsystem (DPCRGM gateway + homeowner router).
+// Gateway aggregates inverter + battery comm and bridges to the homeowner's
+// router via ethernet. Router is dashed-bordered (existing equipment).
+export interface CommGateway extends EquipmentBase {
+  kind: 'CommGateway'
+  props: {
+    model: string               // e.g. 'DPCRGM-Cell'
+    bridge: 'ethernet' | 'cellular' | 'ethernet+cellular'
+  }
+}
+
+export interface HomeRouter extends EquipmentBase {
+  kind: 'HomeRouter'
+  props: {
+    label: string               // e.g. 'HOMEOWNER ROUTER'
+  }
+}
+
+// Phase H8 Category E — Grounding electrode + GEC. Anchor for the GEC
+// conductor from the service / MSP. Triangle-with-vertical-strokes symbol
+// (universal earth-ground glyph) painted in the box component.
+export interface GroundingElectrode extends EquipmentBase {
+  kind: 'GroundingElectrode'
+  props: {
+    electrodeType: 'rod' | 'plate' | 'concrete-encased' | 'water-pipe'
+    /** Display label (e.g. 'GROUNDING ELECTRODE · 5/8"x8' CU ROD'). */
+    label: string
+  }
+}
+
 /** Union of every equipment kind. The discriminator is `kind`. */
 export type Equipment =
   | PVArray
@@ -246,6 +276,9 @@ export type Equipment =
   | BackupPanel
   | EVCharger
   | ProductionCT
+  | CommGateway
+  | HomeRouter
+  | GroundingElectrode
 
 // ──────────────────────────────────────────────────────────────────────────
 // Graph: equipment + connections + sheet metadata

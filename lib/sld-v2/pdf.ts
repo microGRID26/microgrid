@@ -29,6 +29,7 @@ import type { PlansetData } from '../planset-types'
 import { paintTitleBlock, TITLE_BLOCK_WIDTH_PT } from './title-block'
 import { paintHeaderStrip, HEADER_STRIP_HEIGHT_PT, HEADER_STRIP_GAP_PT } from './header-strip'
 import { paintInstallerNotes, INSTALLER_NOTES_HEIGHT_PT, INSTALLER_NOTES_WIDTH_PT } from './installer-notes'
+import { paintCalloutLegend, CALLOUT_LEGEND_HEIGHT_PT, CALLOUT_LEGEND_WIDTH_PT } from './callout-legend'
 import { loadInterTtfBase64, loadInterBoldTtfBase64 } from './fonts/inter-loader'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -319,6 +320,15 @@ async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
         INSTALLER_NOTES_HEIGHT_PT,
         { fontName: titleFontName, unicodeSafe: titleUnicodeSafe },
       )
+
+      // Phase H8 Category C — numbered-callout legend at bottom-right of the
+      // SLD body area (mirror position of installer-notes). 9 NEC notes
+      // matching the in-SVG numbered circles painted by SldRenderer.
+      const clX = marginPt + INSTALLER_NOTES_WIDTH_PT + 10
+      const clY = pageHeightPt - marginPt - CALLOUT_LEGEND_HEIGHT_PT
+      paintCalloutLegend(pdf, clX, clY, CALLOUT_LEGEND_WIDTH_PT, CALLOUT_LEGEND_HEIGHT_PT, {
+        fontName: titleFontName,
+      })
     }
 
     const buf = pdf.output('arraybuffer')

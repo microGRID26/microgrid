@@ -19,10 +19,13 @@ import {
   quadPorts,
   type BackupPanel,
   type BatteryStack,
+  type CommGateway,
   type Connection,
   type Disconnect,
   type Equipment,
   type EquipmentGraph,
+  type GroundingElectrode,
+  type HomeRouter,
   type HybridInverter,
   type JunctionBox,
   type Meter,
@@ -314,6 +317,63 @@ function backupPanel(): BackupPanel {
   }
 }
 
+// Phase H8 Category H — comm subsystem factories.
+function commGateway(): CommGateway {
+  return {
+    id: 'comm-gw',
+    kind: 'CommGateway',
+    width: 90,
+    height: 40,
+    ports: quadPorts('comm-gw'),
+    labelSlots: defaultLabelSlots(90, 40),
+    labels: [
+      { text: '(N) DPCRGM — CELL', priority: 9, bold: true },
+      { text: 'COMM GATEWAY · DURACELL', priority: 7 },
+    ],
+    props: {
+      model: 'DPCRGM-Cell',
+      bridge: 'ethernet+cellular',
+    },
+  }
+}
+
+function homeRouter(): HomeRouter {
+  return {
+    id: 'home-router',
+    kind: 'HomeRouter',
+    width: 70,
+    height: 30,
+    ports: quadPorts('home-router'),
+    labelSlots: defaultLabelSlots(70, 30),
+    labels: [
+      { text: '(E) HOMEOWNER ROUTER', priority: 8 },
+    ],
+    props: {
+      label: 'ROUTER',
+    },
+  }
+}
+
+// Phase H8 Category E — grounding electrode factory.
+function groundingElectrode(): GroundingElectrode {
+  return {
+    id: 'gnd-electrode',
+    kind: 'GroundingElectrode',
+    width: 50,
+    height: 50,
+    ports: quadPorts('gnd-electrode'),
+    labelSlots: defaultLabelSlots(50, 50),
+    labels: [
+      { text: '(E) GROUNDING ELECTRODE', priority: 8 },
+      { text: '5/8" × 8\' CU ROD · NEC 250.52', priority: 7 },
+    ],
+    props: {
+      electrodeType: 'rod',
+      label: 'GROUNDING ELECTRODE · 5/8"x8\' CU ROD',
+    },
+  }
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Connection builder
 // ──────────────────────────────────────────────────────────────────────────
@@ -329,20 +389,31 @@ function buildConnections(
   const { inverters, batteries, rsd } = options
   const connections: Connection[] = []
 
+  // Phase H8 Category B — Tyson PV-5 convention is 3 stacked lines per
+  // conductor: (qty) #AWG TYPE-2 / (qty) #AWG EGC / conduit-size. PlansetData
+  // carries dcHomerun* as a full triplet; for the other runs PlansetData only
+  // stores wire + conduit, so EGC sizes below are NEC 250.122 defaults sized
+  // to the upstream OCPD for that category (PE-default; override at PlansetData
+  // level when a project's calc differs).
+  const dcStringEgc = '(1) #10 AWG EGC'      // PV string circuit OCPD ≤ 20A → #10
+  const acBranchEgc = '(1) #10 AWG EGC'      // hybrid AC branch OCPD ≤ 60A → #10
+  const acServiceEgc = '(1) #4 AWG EGC'      // 200A service → #4
+
   // PV → RSD → DC JB (or direct PV → DC JB if integrated RSD)
+  const pvStringConductor = `${data.dcStringWire}\n${dcStringEgc}\n${data.dcConduit}`
   if (rsd) {
     connections.push({
       id: 'pv-rsd',
       from: 'pv.E',
       to: 'rsd.W',
-      conductor: data.dcStringWire,
+      conductor: pvStringConductor,
       category: 'dc-string',
     })
     connections.push({
       id: 'rsd-dc-jb',
       from: 'rsd.E',
       to: 'dc-jb.W',
-      conductor: data.dcStringWire,
+      conductor: pvStringConductor,
       category: 'dc-string',
     })
   } else {
@@ -350,7 +421,7 @@ function buildConnections(
       id: 'pv-dc-jb',
       from: 'pv.E',
       to: 'dc-jb.W',
-      conductor: data.dcStringWire,
+      conductor: pvStringConductor,
       category: 'dc-string',
     })
   }
@@ -361,7 +432,7 @@ function buildConnections(
       id: `dc-jb-${inv.id}`,
       from: 'dc-jb.E',
       to: `${inv.id}.W`,
-      conductor: data.dcHomerunWire,
+      conductor: `${data.dcHomerunWire}\n${data.dcHomerunEgc}\n${data.dcHomerunConduit}`,
       category: 'dc-string',
     })
     // Match each inverter with its battery stack (1:1 when counts equal)
@@ -371,7 +442,7 @@ function buildConnections(
         id: `${inv.id}-batt`,
         from: `${inv.id}.S`,
         to: `${stack.id}.N`,
-        conductor: data.batteryWire,
+        conductor: `${data.batteryWire}\n${acBranchEgc}\n${data.batteryConduit}`,
         category: 'dc-battery',
       })
     }
@@ -380,7 +451,7 @@ function buildConnections(
       id: `${inv.id}-ac`,
       from: `${inv.id}.E`,
       to: 'disc-pv.W',
-      conductor: data.acWireToPanel,
+      conductor: `${data.acWireToPanel}\n${acBranchEgc}\n${data.acConduit}`,
       category: 'ac-inverter',
     })
   })
@@ -391,7 +462,7 @@ function buildConnections(
       id: 'h1-backup',
       from: `${inverters[0].id}.N`,
       to: 'blp.E',
-      conductor: '#6 AWG',
+      conductor: `(3) #6 AWG CU THWN-2\n${acBranchEgc}`,
       category: 'ac-inverter',
     })
   }
@@ -401,14 +472,14 @@ function buildConnections(
     id: 'pv-disc-msp',
     from: 'disc-pv.E',
     to: 'msp.W',
-    conductor: data.acWireToPanel,
+    conductor: `${data.acWireToPanel}\n${acBranchEgc}\n${data.acConduit}`,
     category: 'ac-inverter',
   })
   connections.push({
     id: 'gen-disc-msp',
     from: 'disc-gen.E',
     to: 'msp.W',
-    conductor: '(2) #6 AWG · 45A',
+    conductor: '(2) #6 AWG CU THWN-2 · 45A\n(1) #10 AWG EGC',
     category: 'ac-inverter',
   })
   connections.push({
@@ -416,15 +487,15 @@ function buildConnections(
     from: 'msp.E',
     to: 'disc-service.W',
     conductor: data.serviceEntranceConduit
-      ? `(2) #4/0 · 200A · ${data.serviceEntranceConduit}`
-      : '(2) #4/0 · 200A',
+      ? `(2) #4/0 AWG CU THWN-2 · 200A\n${acServiceEgc}\n${data.serviceEntranceConduit}`
+      : `(2) #4/0 AWG CU THWN-2 · 200A\n${acServiceEgc}`,
     category: 'ac-service',
   })
   connections.push({
     id: 'service-meter',
     from: 'disc-service.E',
     to: 'meter.W',
-    conductor: '(2) #4/0 · 200A',
+    conductor: `(2) #4/0 AWG CU THWN-2 · 200A\n${acServiceEgc}`,
     category: 'ac-service',
   })
 
@@ -510,6 +581,11 @@ export function equipmentGraphFromPlansetData(
   const sDisc = serviceDisc(serviceA)
   const meter = meterFromData(data)
   const blp = options.includeBackupPanel !== false ? backupPanel() : null
+  // Phase H8 Category H — comm subsystem (gateway + homeowner router).
+  const commGw = commGateway()
+  const router = homeRouter()
+  // Phase H8 Category E — grounding electrode.
+  const gnd = groundingElectrode()
 
   const equipment: Equipment[] = [
     pv,
@@ -523,9 +599,47 @@ export function equipmentGraphFromPlansetData(
     sDisc,
     meter,
     ...(blp ? [blp] : []),
+    commGw,
+    router,
+    gnd,
   ]
 
   const connections = buildConnections(data, { inverters, batteries, rsd })
+  // Comm subsystem connections — added after wire/AC build so categorical
+  // ordering stays readable.
+  inverters.forEach((inv) => {
+    connections.push({
+      id: `${inv.id}-comm`,
+      from: `${inv.id}.N`,
+      to: 'comm-gw.S',
+      conductor: 'CAT-6 ETHERNET',
+      category: 'comm',
+    })
+  })
+  batteries.forEach((stack) => {
+    connections.push({
+      id: `${stack.id}-comm`,
+      from: `${stack.id}.E`,
+      to: 'comm-gw.W',
+      conductor: 'CAN-BUS · #18 SHIELDED',
+      category: 'comm',
+    })
+  })
+  connections.push({
+    id: 'comm-router',
+    from: 'comm-gw.E',
+    to: 'home-router.W',
+    conductor: 'CAT-6 ETHERNET',
+    category: 'comm',
+  })
+  // Phase H8 Category E — GEC from MSP to grounding electrode.
+  connections.push({
+    id: 'msp-gec',
+    from: 'msp.S',
+    to: 'gnd-electrode.N',
+    conductor: `#6 AWG CU GEC\nNEC 250.166`,
+    category: 'gec',
+  })
   // Drop the h1-backup connection if backup panel isn't included.
   const filteredConnections = blp
     ? connections
