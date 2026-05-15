@@ -4,7 +4,7 @@
 **Last updated:** 2026-05-15 ~18:15 UTC (Phase H9 — SLD-pilot Tyson-match iteration polish across ~12 sub-passes: callout-legend row spacing + width; numbered-circle centering + repositioned inside equipment top-right; 10' MAX dim line clearance bumped; aggressive label-budget prune to 1-3 rows per equipment; PVArray + Meter + GenDisc + BLP + Production CT + Hybrid + MSP + BatteryStack Tyson-match label set; (N) PV LOAD CENTER inserted between disc-pv and msp; SCOPE block AC math callout; title-block Homeowner Approval + OSR rows; wire color legend module; inline phase labels at AC + DC edge endpoints. Commit `1e44975` (1 ahead of origin `319cf94`). **Chain stays parked pending #1025 RUSH stamp 2026-05-28.**)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `1e44975` locally (1 ahead of origin `319cf94`; H3-H8 + H8 handoff refresh pushed earlier 2026-05-14/15. Phase H9 polish commit pending push signal).** Chain test baseline diff vs Phase H8 commit `25db5fd`: NEW_FAIL=0, STILL_FAIL=16 (pre-existing v1 sld-layout + SheetPV1-render unchanged). This session shipped (on top of prior session's `4b717f5`):
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `0e22f8b` locally (2 ahead of origin `319cf94`; Phase H9 polish `1e44975` + this handoff-refresh `0e22f8b` pending push signal).** Chain test baseline diff vs Phase H8 commit `25db5fd`: NEW_FAIL=0, STILL_FAIL=16 (pre-existing v1 sld-layout + SheetPV1-render unchanged). This session shipped (on top of prior session's `4b717f5`):
   - `a17d602` — feat(mig 226): audit_log append-only seal (Phase H3)
   - `b291a0f` — feat(tests/integration): scaffold + close #1054 (Phase H3)
   - `b754478` — docs(planset/.atlas): handoff refresh (Phase H3)
@@ -22,7 +22,8 @@
   - `25db5fd` — feat(sld-v2): Phase H8 — remaining 5 Tyson-diff PV-5 categories (B per-wire 3-line / C numbered NEC callouts 1-9 + legend / E 10' MAX dim + GroundingElectrode + GEC / G full L1-L2-N multi-line / H comm subsystem DPCRGM + HomeRouter)
   - `319cf94` — docs(planset/.atlas): handoff refresh — post-H8 commit + chain park
   - `1e44975` — **feat(sld-v2): Phase H9 — SLD-pilot Tyson-match iteration polish (12 sub-passes — visual overlap fixes + Tyson-match labels + (N) PV LOAD CENTER + Production CT + SCOPE AC math + title-block 2 new rows + wire color legend + inline phase labels)**
-**Latest commit:** `1e44975` feat(sld-v2): Phase H9 — SLD-pilot Tyson-match iteration polish
+  - `0e22f8b` — docs(planset/.atlas): handoff refresh — post-H9 commit + recap link (HQ recap #570)
+**Latest commit:** `0e22f8b` docs(planset/.atlas): handoff refresh — post-H9 + recap link
 
 ## Chain instruction (read this first, every session)
 
@@ -669,7 +670,7 @@ Captured via vitest run on the Phase H8 commit `25db5fd` (parent of Phase H9):
 
 ## Live state worth knowing
 
-- **Branch status**: `feat/planset-v8-layouts` HEAD = `1e44975` (local), origin at `319cf94` (1 ahead). H3-H8 + H8-handoff-refresh pushed earlier 2026-05-14/15 (origin tip `319cf94`); Phase H9 polish commit (`1e44975`) pending push signal.
+- **Branch status**: `feat/planset-v8-layouts` HEAD = `0e22f8b` (local), origin at `319cf94` (2 ahead). H3-H8 + H8-handoff-refresh pushed earlier 2026-05-14/15 (origin tip `319cf94`); Phase H9 polish (`1e44975`) + this handoff-refresh (`0e22f8b`) pending push signal.
 - **Vercel preview URL (v2 SLD)**: `https://microgrid-git-feat-planset-v8-layouts-gkelsch-7941s-projects.vercel.app/api/sld/v2/PROJ-32115` (with auth cookie + internal role). **NOTE**: `?sld=v2` is a NO-OP in production (Phase 7b cumulative-R1 H1 fix). For forced v2 in any env, use `SLD_V2_DEFAULT=1` env or per-project `use_sld_v2=true`.
 - **Vercel preview URL (full-planset PDF — NEW this session)**: `https://microgrid-git-feat-planset-v8-layouts-gkelsch-7941s-projects.vercel.app/api/planset/PROJ-32115/pdf`. Same auth gate as the v2 SLD route. Cold-start ~3-5s on first call. Returns `application/pdf` inline (planset puppeteer-rendered + cut sheets merged).
 - **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2 in prod. **Column is genuinely trigger-protected** via mig 224 (which fixed 222b's silent break): flipping requires `session_user IN ('postgres','supabase_admin','service_role')` OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user gets 42501.
@@ -781,7 +782,7 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 
 ## Specific gotchas for the next operator
 
-- **Branch state at handoff:** H3-H8 + H8 handoff-refresh commits pushed to origin (tip `319cf94`). Phase H9 (`1e44975`) is **local-only, 1 commit ahead of origin** — push pending Greg's signal per CLAUDE.md / `feedback_no_mid_session_push.md`.
+- **Branch state at handoff:** H3-H8 + H8 handoff-refresh commits pushed to origin (tip `319cf94`). Phase H9 (`1e44975`) + this handoff refresh (`0e22f8b`) are **local-only, 2 commits ahead of origin** — push pending Greg's signal per CLAUDE.md / `feedback_no_mid_session_push.md`.
 - **`mig 226` is APPLIED to prod** (this session, two apply_migration calls — initial + R1-fold REVOKE+postcondition-tighten). Trigger is live: `audit_log_block_admin_tamper_trg` BEFORE UPDATE OR DELETE on public.audit_log, `tgenabled='O'`, NOT on INSERT. Live ACL on the function: `{postgres=X/postgres, service_role=X/postgres}` — PUBLIC/anon/authenticated stripped. Any direct UPDATE/DELETE on audit_log now raises 42501 unless the txn has `SET LOCAL app.audit_log_admin_purge='true'`. Heads-up to future operators: legitimate retention pruning of audit_log MUST set the GUC first.
 - **`mig 225` is APPLIED to prod** (Phase H2) — postcondition asserts ran during apply, trigger is live. Any subsequent direct MCP UPDATE to projects.stage / stage_date / use_sld_v2 will now write an audit_log row attributed to `'db-admin'` / session_user; PLUS that audit_log row is now tamper-protected by mig 226.
 - **PROJ-32115 use_sld_v2 = true** — Lohf is live on v2. Re-render via the route → expect the title-block PDF. **Column is genuinely trigger-protected NOW** (mig 224 fixed 222b's silent break); flipping requires `session_user IN ('postgres','supabase_admin','service_role')` OR an admin/super_admin JWT. MCP execute_sql works; the Supabase JS client as a manager-role user genuinely gets 42501.
@@ -824,7 +825,7 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 ```yaml
 chain_state_auto:
   project: planset
-  generated_at: 2026-05-15T23:12:37Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  generated_at: 2026-05-15T23:40:00Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
   main_head: 5110e50  # feat(maturity): mig 327 — widen axis CHECK to admit v1.48 axes (codebase-maturity chain phase 3)
   main_head_committed: 2026-05-15T09:00:00-05:00
@@ -838,7 +839,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (1e44975): 66 ahead of main, 1 unpushed to origin/feat/planset-v8-layouts
+    - feat/planset-v8-layouts (0e22f8b): 67 ahead of main, 2 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main
