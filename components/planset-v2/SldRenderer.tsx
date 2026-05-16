@@ -465,12 +465,16 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
               <polygon points={`${x2},${y} ${x2 - 4},${y - 2} ${x2 - 4},${y + 2}`} fill="#d97706" />
               {/* Pass-15c — bumped rect height + NEC baseline up so "10' MAX"
                   fontSize 6 apostrophe doesn't kiss the NEC line above (apostrophe
-                  glyph extends nearly a full em above baseline). */}
-              <rect x={midX - 22} y={y - 16} width="44" height="13" fill="white" stroke="none" />
+                  glyph extends nearly a full em above baseline).
+                  H13 Pass-1 — NEC caption 4→5pt (rect 13pt has headroom: cap-height
+                  ~3.5pt + ~1pt clearance below 10'MAX baseline). Sole reason: 4pt
+                  is below AHJ-copier readable threshold; 5pt is closer to the rest
+                  of the body chrome. */}
+              <rect x={midX - 22} y={y - 16} width="48" height="13" fill="white" stroke="none" />
               <text
                 x={midX}
                 y={y - 10}
-                fontSize="4"
+                fontSize="5"
                 textAnchor="middle"
                 fill="#666"
                 fontFamily="Helvetica, Arial, sans-serif"
