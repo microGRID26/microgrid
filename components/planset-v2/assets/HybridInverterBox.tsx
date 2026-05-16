@@ -12,7 +12,7 @@ export interface HybridInverterBoxProps {
 
 export function HybridInverterBox({ inv, x, y, debug }: HybridInverterBoxProps) {
   const { width: w, height: h } = inv
-  const { model, acKw, backupAcA, listingStandard } = inv.props
+  const { model, acKw, backupAcA, listingStandard, branchCircuit, moduleCount } = inv.props
   const sx = w / 110
   const sy = h / 100
 
@@ -23,10 +23,15 @@ export function HybridInverterBox({ inv, x, y, debug }: HybridInverterBoxProps) 
 
         {/* Name header */}
         <text x="55" y="13" fontSize="6.5" fontWeight="bold" fill="#222" textAnchor="middle">
-          HYBRID INVERTER
+          (N) HYBRID #{branchCircuit ?? 1} · {acKw} kW AC
         </text>
-        <text x="55" y="22" fontSize="5" fill="#444" textAnchor="middle">{model}</text>
-        <text x="55" y="30" fontSize="4.5" fill="#666" textAnchor="middle">{acKw} kW · {listingStandard}</text>
+        <text x="55" y="20" fontSize="3.8" fill="#444" textAnchor="middle">{model}</text>
+        {branchCircuit != null && moduleCount != null && (
+          <text x="55" y="26" fontSize="3.6" fontWeight="bold" fill="#0e7490" textAnchor="middle">
+            BRANCH CIRCUIT {branchCircuit} · {moduleCount} MODULES
+          </text>
+        )}
+        <text x="55" y="32" fontSize="3.5" fill="#666" textAnchor="middle">102 VDC NOMINAL · {listingStandard}</text>
 
         {/* Port labels — small badges */}
         <rect x="6" y="42" width="22" height="10" rx="1" fill="#f0f9ff" stroke="#22d3ee" strokeWidth="0.5" />

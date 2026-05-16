@@ -147,16 +147,20 @@ function hybridInvertersFromData(data: PlansetData): HybridInverter[] {
       height: 100,
       ports: quadPorts(`hybrid-${i + 1}`),
       labelSlots: defaultLabelSlots(110, 100),
-      labels: [
-        { text: `(N) HYBRID #${i + 1} · ${data.inverterAcPower} kW AC`, priority: 9, bold: true },
-        { text: `BRANCH CIRCUIT ${i + 1} · ${modulesThisInverter} MODULES`, priority: 7 },
-        { text: '102 VDC NOMINAL · UL 1741-SB', priority: 5 },
-      ],
+      // H10 Pass-3 — internal HybridInverterBox already paints
+      // model / acKw / UL listing. External labels were overflowing
+      // to the right-margin orphan staircase; hardcode the NEW info
+      // (BRANCH CIRCUIT N · M MODULES) inside HybridInverterBox via
+      // the branchCircuitLabel prop instead. Empty external labels
+      // here keeps the slot system from orphaning.
+      labels: [],
       props: {
         model: data.inverterModel,
         acKw: data.inverterAcPower,
         backupAcA: 100,
         listingStandard: 'UL 1741-SB',
+        branchCircuit: i + 1,
+        moduleCount: modulesThisInverter,
       },
     }
   })
@@ -178,16 +182,18 @@ function batteryStacksFromData(data: PlansetData): BatteryStack[] {
       height: 110,
       ports: quadPorts(`stack-${i + 1}`),
       labelSlots: defaultLabelSlots(90, 110),
-      labels: [
-        { text: `MICRO GRID #${i + 1} · ${modulesThisStack * data.batteryCapacity} kWh`, priority: 9, bold: true },
-        { text: `${modulesThisStack}× ${data.batteryModel}`, priority: 7 },
-        { text: 'FLOOR · BOLLARDS · HEAT DET.', priority: 6 },
-      ],
+      // H10 Pass-3 — BatteryStackBox internally paints title / chemistry /
+      // count × kWh / 8 MOD rows / + / − markers. External labels were
+      // overflowing to the orphan staircase. Move all NEW info inside
+      // via stackIndex / siteNote props on the box. Empty external.
+      labels: [],
       props: {
         model: data.batteryModel,
         moduleCount: modulesThisStack,
         moduleKwh: data.batteryCapacity,
         chemistry: /lfp/i.test(data.batteryModel) ? 'LFP' : /sonnen/i.test(data.batteryModel) ? 'NMC' : 'other',
+        stackIndex: i + 1,
+        siteNote: 'FLOOR · BOLLARDS · HEAT DET.',
       },
     }
   })
@@ -309,11 +315,9 @@ function meterFromData(data: PlansetData): Meter {
     height: 70,
     ports: quadPorts('meter'),
     labelSlots: defaultLabelSlots(70, 70),
-    labels: [
-      { text: `(N) CUSTOMER GENERATION`, priority: 9, bold: true },
-      { text: `(E) BI-DIR METER · ${data.voltage || '120/240V'} · 200A`, priority: 8 },
-      { text: 'TO UTILITY GRID →', priority: 6 },
-    ],
+    // H10 Pass-3 — captions now hardcoded inside MeterBox (above face,
+    // below face, footer). Empty external labels.
+    labels: [],
     props: {
       utility: data.utility,
       serviceA: 200,
@@ -416,14 +420,14 @@ function productionCtFromData(_data: PlansetData): ProductionCT {
   return {
     id: 'prod-ct',
     kind: 'ProductionCT',
-    width: 40,
-    height: 20,
+    width: 60,
+    height: 40,
     ports: quadPorts('prod-ct'),
-    labelSlots: defaultLabelSlots(40, 20),
-    labels: [
-      { text: 'PRIMARY CONSUMPTION + PRODUCTION', priority: 9, bold: true },
-      { text: 'FROM MAIN BREAKER · CT P/N 1001808', priority: 7 },
-    ],
+    labelSlots: defaultLabelSlots(60, 40),
+    // H10 Pass-3 — captions now hardcoded inside ProductionCtBox below
+    // the CT donut (box grew 40x20 → 60x40 for room). Empty external
+    // labels so slot system can't orphan.
+    labels: [],
     props: {
       model: 'CT EXT P/N 1001808',
       targetLabel: 'Service Entrance · 200A',

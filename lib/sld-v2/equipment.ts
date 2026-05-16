@@ -118,6 +118,8 @@ export interface HybridInverter extends EquipmentBase {
     acKw: number                // continuous AC output
     backupAcA?: number          // backup output amps
     listingStandard: string     // e.g. 'UL 1741-SB'
+    branchCircuit?: number      // Tyson PV-5 convention — N for "BRANCH CIRCUIT N"
+    moduleCount?: number        // count of modules on this circuit
   }
 }
 
@@ -128,6 +130,8 @@ export interface BatteryStack extends EquipmentBase {
     moduleCount: number         // e.g. 8 (per stack)
     moduleKwh: number           // e.g. 5
     chemistry: 'LFP' | 'NMC' | 'other'
+    stackIndex?: number         // e.g. 1 for MICRO GRID #1
+    siteNote?: string           // e.g. 'FLOOR · BOLLARDS · HEAT DET.'
   }
 }
 

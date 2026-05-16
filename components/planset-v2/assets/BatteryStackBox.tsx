@@ -11,7 +11,7 @@ export interface BatteryStackBoxProps {
 
 export function BatteryStackBox({ stack, x, y, debug }: BatteryStackBoxProps) {
   const { width: w, height: h } = stack
-  const { moduleCount, moduleKwh, chemistry } = stack.props
+  const { moduleCount, moduleKwh, chemistry, stackIndex, siteNote } = stack.props
   const sx = w / 90
   const sy = h / 110
 
@@ -27,15 +27,17 @@ export function BatteryStackBox({ stack, x, y, debug }: BatteryStackBoxProps) {
         <rect x="0.5" y="0.5" width="89" height="109" rx="2" ry="2" fill="white" stroke="#111" strokeWidth="1.2" />
 
         {/* Header */}
-        <text x="45" y="12" fontSize="6" fontWeight="bold" fill="#222" textAnchor="middle">
-          BATTERY STACK
+        <text x="45" y="11" fontSize="5.5" fontWeight="bold" fill="#222" textAnchor="middle">
+          MICRO GRID #{stackIndex ?? 1} · {totalKwh} kWh
         </text>
-        <text x="45" y="20" fontSize="4.5" fill="#444" textAnchor="middle">
-          {chemistry} · {totalKwh} kWh
+        <text x="45" y="17" fontSize="3.8" fill="#444" textAnchor="middle">
+          {chemistry} · ({moduleCount}) × {moduleKwh} kWh
         </text>
-        <text x="45" y="27" fontSize="4" fill="#888" textAnchor="middle">
-          ({moduleCount}) × {moduleKwh} kWh
-        </text>
+        {siteNote && (
+          <text x="45" y="23" fontSize="3.2" fill="#0e7490" textAnchor="middle">
+            {siteNote}
+          </text>
+        )}
 
         {/* Module bricks */}
         {Array.from({ length: moduleCount }).map((_, i) => {
