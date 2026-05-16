@@ -498,35 +498,44 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
           Callouts whose target equipment isn't in the laid-out set are
           silently skipped (e.g. RSD absent on integrated-microinverter topology). */}
       <g transform={`translate(${ox}, ${oy})`}>
-        {TYSON_CALLOUTS_PV5.map((c) => {
-          const target = layout.laidOut.find((lo) => lo.equipment.id === c.equipmentId)
-          if (!target) return null
-          // Anchor INSIDE the equipment's top-right corner. External-label
-          // space above the box is owned by Phase 3 label placement (and
-          // can stack 3+ lines), so placing OUTSIDE causes collisions.
-          // Inside the corner, equipment box components keep their text
-          // centered or left-aligned away from corners — top-right (-6,+6)
-          // is reliably whitespace for boxes ≥ 50pt wide.
-          const cx = target.x + target.equipment.width - 6
-          const cy = target.y + 6
-          return (
-            <g key={`nec-callout-${c.number}`}>
-              {/* Match the Phase 3 leader-callout pattern exactly — same
-                  r/fontSize/y-offset ratio that already renders centered. */}
-              <circle cx={cx} cy={cy} r="4" fill="#fde047" stroke="#111" strokeWidth="0.7" />
-              <text
-                x={cx}
-                y={cy + 1.7}
-                fontSize="5"
-                fontWeight="bold"
-                textAnchor="middle"
-                fill="#111"
-              >
-                {c.number}
-              </text>
-            </g>
-          )
-        })}
+        {(() => {
+          // H11 Pass-2 — when two callouts share the same anchor equipment
+          // (e.g. #3 BUSBAR + #6 EGC both on 'msp'), offset each successive
+          // sibling 12 SVG units to the left so the circles don't stack
+          // into a single-digit double-stamp. Circle diameter 8 + 4 gap.
+          const siblingIndex = new Map<string, number>()
+          return TYSON_CALLOUTS_PV5.map((c) => {
+            const target = layout.laidOut.find((lo) => lo.equipment.id === c.equipmentId)
+            if (!target) return null
+            const seenBefore = siblingIndex.get(c.equipmentId) ?? 0
+            siblingIndex.set(c.equipmentId, seenBefore + 1)
+            // Anchor INSIDE the equipment's top-right corner. External-label
+            // space above the box is owned by Phase 3 label placement (and
+            // can stack 3+ lines), so placing OUTSIDE causes collisions.
+            // Inside the corner, equipment box components keep their text
+            // centered or left-aligned away from corners — top-right (-6,+6)
+            // is reliably whitespace for boxes ≥ 50pt wide.
+            const cx = target.x + target.equipment.width - 6 - seenBefore * 12
+            const cy = target.y + 6
+            return (
+              <g key={`nec-callout-${c.number}`}>
+                {/* Match the Phase 3 leader-callout pattern exactly — same
+                    r/fontSize/y-offset ratio that already renders centered. */}
+                <circle cx={cx} cy={cy} r="4" fill="#fde047" stroke="#111" strokeWidth="0.7" />
+                <text
+                  x={cx}
+                  y={cy + 1.7}
+                  fontSize="5"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  fill="#111"
+                >
+                  {c.number}
+                </text>
+              </g>
+            )
+          })
+        })()}
       </g>
 
       {/* External slot labels (Phase 3) */}
