@@ -55,7 +55,7 @@ export function HybridInverterBox({ inv, x, y, debug }: HybridInverterBoxProps) 
         <text x="55" y="78" fontSize="4" fill="#888" textAnchor="middle">MPPT-1</text>
 
         {/* Standard listing footer */}
-        <text x="55" y="92" fontSize="3.5" fill="#888" textAnchor="middle">UL 9540 · IEEE 1547</text>
+        <text x="55" y="92" fontSize="3" fill="#888" textAnchor="middle">UL 9540 · IEEE 1547 · NEC 706.7</text>
 
         <g id={`anchors-${inv.id}`} fill="none" stroke="none" pointerEvents="none">
           <g id={`${inv.id}-N`} transform="translate(55, 0)" />

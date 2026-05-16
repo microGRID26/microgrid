@@ -265,10 +265,13 @@ function mspFromData(data: PlansetData): MSP {
   // shows the AC capacity each backfeed breaker is sized for. Even-split when
   // PlansetData doesn't carry per-inverter AC kW.
   const acKwPerInverter = data.inverterCount > 0 ? data.systemAcKw / data.inverterCount : 0
+  // Optional per-inverter amp override (Tyson "(N) 35A / (N) 45A" convention);
+  // falls back to global backfeedBreakerA when not populated.
+  const perInverterAmps = data.backfeedBreakerAPerInverter
   const backfeeds = Array.from({ length: data.inverterCount }).map((_, i) => ({
     id: `h${i + 1}`,
     label: `(N) PV BREAKER #${i + 1}`,
-    ampere: data.backfeedBreakerA,
+    ampere: perInverterAmps?.[i] ?? data.backfeedBreakerA,
     acKw: Math.round(acKwPerInverter * 100) / 100,
   }))
   return {

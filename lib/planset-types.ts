@@ -301,6 +301,10 @@ export interface PlansetData {
   inverterCount: number
   inverterAcPower: number
   backfeedBreakerA: number  // per-inverter NEC 705.12 backfeed breaker, rounded up to nearest 5A
+  // Optional per-inverter backfeed amp overrides (Tyson convention: different
+  // amps per hybrid when sizing per actual AC output). Length should match
+  // inverterCount when populated. Falls back to backfeedBreakerA when absent.
+  backfeedBreakerAPerInverter?: number[]
   maxPvPower: number
   mpptsPerInverter: number
   stringsPerMppt: number

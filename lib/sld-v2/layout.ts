@@ -80,10 +80,18 @@ const DEFAULT_LAYOUT_OPTIONS = {
   'elk.algorithm': 'layered',
   'elk.direction': 'RIGHT',
   'elk.edgeRouting': 'ORTHOGONAL',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '80',
-  'elk.spacing.nodeNode': '60',
-  'elk.spacing.edgeNode': '20',
-  'elk.spacing.edgeEdge': '15',
+  // H10 Pass-19 — bumped per-spacing for routing-chaos relief. 4-wide phase
+  // bundles (Pass-6 added G stripe) plus comm dashed wires need more lateral
+  // room between equipment AND between parallel edges; previously edges were
+  // overlapping equipment bodies on tight runs. Tuning:
+  //   nodeNodeBetweenLayers: 80 -> 110   (more horizontal breathing room)
+  //   spacing.nodeNode:       60 -> 80   (more between same-layer equipment)
+  //   spacing.edgeNode:       20 -> 30   (edges stay further from equipment)
+  //   spacing.edgeEdge:       15 -> 22   (parallel wire bundles separate)
+  'elk.layered.spacing.nodeNodeBetweenLayers': '110',
+  'elk.spacing.nodeNode': '80',
+  'elk.spacing.edgeNode': '30',
+  'elk.spacing.edgeEdge': '22',
   'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
   'elk.padding': '[top=40,bottom=40,left=40,right=40]',
 }

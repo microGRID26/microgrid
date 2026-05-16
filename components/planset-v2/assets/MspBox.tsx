@@ -118,7 +118,9 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
               fill="#444"
               textAnchor="middle"
             >
-              {backfeeds.length} × {backfeeds[0].ampere}A = {backfeeds.reduce((s, bf) => s + bf.ampere, 0)}A/2P
+              {backfeeds.every((bf) => bf.ampere === backfeeds[0].ampere)
+                ? `${backfeeds.length} × ${backfeeds[0].ampere}A = ${backfeeds.reduce((s, bf) => s + bf.ampere, 0)}A/2P`
+                : `${backfeeds.map((bf) => `${bf.ampere}A`).join(' + ')} = ${backfeeds.reduce((s, bf) => s + bf.ampere, 0)}A/2P`}
             </text>
             <text
               x="28"
