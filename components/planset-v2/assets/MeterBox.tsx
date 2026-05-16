@@ -11,7 +11,7 @@ export interface MeterBoxProps {
 
 export function MeterBox({ meter, x, y, debug }: MeterBoxProps) {
   const { width: w, height: h } = meter
-  const { utility, serviceA, voltage, bidirectional, isRevenueGrade } = meter.props
+  const { utility, serviceA, voltage, bidirectional, isRevenueGrade, meterNumber } = meter.props
   const sx = w / 70
   const sy = h / 70
 
@@ -49,10 +49,15 @@ export function MeterBox({ meter, x, y, debug }: MeterBoxProps) {
         <text x="35" y="55.5" fontSize="3" fill="#444" textAnchor="middle">
           {voltage} · {serviceA}A
         </text>
-        <text x="35" y="61" fontSize="2.8" fill="#666" textAnchor="middle">
+        <text x="35" y="60" fontSize="2.8" fill="#666" textAnchor="middle">
           {utility}{isRevenueGrade ? ' · RGM' : ''}
         </text>
-        <text x="35" y="66" fontSize="3" fontWeight="bold" fill="#0e7490" textAnchor="middle">
+        {meterNumber && (
+          <text x="35" y="63.5" fontSize="2.6" fontWeight="bold" fill="#222" textAnchor="middle">
+            METER NO: {meterNumber}
+          </text>
+        )}
+        <text x="35" y="67" fontSize="3" fontWeight="bold" fill="#0e7490" textAnchor="middle">
           TO UTILITY GRID →
         </text>
 

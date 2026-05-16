@@ -21,7 +21,7 @@ import type { jsPDF } from 'jspdf'
 import type { PlansetData } from '../planset-types'
 
 /** Height of the installer-notes block in pt. */
-export const INSTALLER_NOTES_HEIGHT_PT = 110
+export const INSTALLER_NOTES_HEIGHT_PT = 125
 
 /** Width of the installer-notes block in pt. */
 export const INSTALLER_NOTES_WIDTH_PT = 260
@@ -81,6 +81,9 @@ function buildNoteLines(data: PlansetData): string[] {
   lines.push('  SEPARATE AND NOT BUNDLED')
   lines.push('IF CONDUIT IS USED ON EXTERIOR - WITHIN 10\' OF UTILITY')
   lines.push('  METER')
+  lines.push('REQUIRES CT WIRE EXTENSION KIT PART #1001808')
+  lines.push('REQUIRES TO EXTEND CT WIRES WITH #18 AWG SHIELDED')
+  lines.push('  CABLE')
   return lines
 }
 

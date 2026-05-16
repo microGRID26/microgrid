@@ -202,6 +202,8 @@ export interface Meter extends EquipmentBase {
     bidirectional: boolean      // PV + utility flow
     /** Optional revenue-grade meter flag. */
     isRevenueGrade?: boolean
+    /** Utility meter serial / METER NO (Tyson PV-5 paints this inline). */
+    meterNumber?: string
   }
 }
 

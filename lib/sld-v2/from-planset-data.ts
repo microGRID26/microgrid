@@ -324,6 +324,7 @@ function meterFromData(data: PlansetData): Meter {
       voltage: data.voltage,
       bidirectional: true,
       isRevenueGrade: data.hasRgm,
+      meterNumber: data.meter,
     },
   }
 }
