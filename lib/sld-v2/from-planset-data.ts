@@ -276,7 +276,7 @@ function mspFromData(data: PlansetData): MSP {
     labelSlots: defaultLabelSlots(130, 140),
     labels: [
       { text: `(N) MSP UPGRADE · ${busbar}A · EXTERIOR`, priority: 9, bold: true },
-      { text: 'BUSBAR 120% NEC 705.12(B)', priority: 7 },
+      { text: 'BUSBAR 120% NEC 705.12(B)(2)', priority: 7 },
     ],
     props: {
       busbarA: busbar,

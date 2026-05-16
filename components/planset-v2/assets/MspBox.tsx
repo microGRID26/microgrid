@@ -150,9 +150,12 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
             <text x="28" y={49 + i * 18} fontSize="3" fill="#888" textAnchor="middle">
               {bf.label.replace(/^\(N\)\s*/, '').replace(/BACKFEED$/, '')}
             </text>
-            {/* Pass-8b — Tyson PV-5 "AT N.N kW AC SYSTEM" sub-line per backfeed */}
+            {/* Pass-8b — Tyson PV-5 "AT N.N kW AC SYSTEM" sub-line per backfeed.
+                Pass-9 — fontSize 2.4 -> 3.2 + bold so it's legible at the
+                standard PV-5 print zoom (Greg flagged it was rendered but
+                invisible in the prior screenshot). */}
             {bf.acKw != null && bf.acKw > 0 && (
-              <text x="28" y={52.5 + i * 18} fontSize="2.4" fill="#666" textAnchor="middle">
+              <text x="28" y={52.8 + i * 18} fontSize="3.2" fontWeight="bold" fill="#444" textAnchor="middle">
                 AT {bf.acKw} kW AC
               </text>
             )}
