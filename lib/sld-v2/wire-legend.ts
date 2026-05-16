@@ -8,18 +8,23 @@
 
 import type { jsPDF } from 'jspdf'
 
-export const WIRE_LEGEND_HEIGHT_PT = 60
-export const WIRE_LEGEND_WIDTH_PT = 130
+// H11 Pass-7 — bumped from 130×60 / TITLE=6 / BODY=4.5 / ROW_GAP=6.5
+// / stripeLen=14 so the legend is print-readable on the RUSH stamp page.
+// Available canvas at the bottom-right strip (after installer-notes +
+// callout-legend) is ~397pt before the title-block edge; using 220 leaves
+// generous buffer.
+export const WIRE_LEGEND_HEIGHT_PT = 80
+export const WIRE_LEGEND_WIDTH_PT = 220
 
 interface PaintOptions {
   fontName?: string
 }
 
-const TITLE_SIZE_PT = 6
-const BODY_SIZE_PT = 4.5
-const ROW_GAP = 6.5
-const PAD_X = 4
-const PAD_Y = 8
+const TITLE_SIZE_PT = 8
+const BODY_SIZE_PT = 6.5
+const ROW_GAP = 9.5
+const PAD_X = 5
+const PAD_Y = 10
 const NEAR_BLACK: [number, number, number] = [17, 17, 17]
 const RED: [number, number, number] = [180, 0, 0]
 
@@ -62,9 +67,9 @@ export function paintWireLegend(
   pdf.setFontSize(BODY_SIZE_PT)
   pdf.setTextColor(...NEAR_BLACK)
 
-  const bodyY0 = y + PAD_Y + 5
+  const bodyY0 = y + PAD_Y + 6
   const stripeX = x + PAD_X
-  const stripeLen = 14
+  const stripeLen = 22
 
   KEYS.forEach((k, i) => {
     const cy = bodyY0 + i * ROW_GAP
