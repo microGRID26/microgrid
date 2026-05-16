@@ -17,12 +17,16 @@ interface PaintOptions {
   fontName?: string
 }
 
-const TITLE_SIZE_PT = 6
-const BODY_SIZE_PT = 4.5
-// Row spacing: enough room for the NEC ref line + the body line + a gap.
-// Was 5.4 which collided body-on-next-ref. 11pt clears both lines + gap.
-const LINE_GAP = 11
-const NEC_TO_BODY_GAP = 5.4
+// Phase H12 Pass-3 — body 4.5→5.5, title 6→7, LINE_GAP 11→13,
+// NEC_TO_BODY_GAP 5.4→6, circle digit 4→4.5, circle radius 2.2→2.5.
+// 4.5pt body was unreadable at office-copier reproduction; AHJ reviewers
+// rely on the legend to translate the numbered circles back to NEC refs,
+// so legibility is load-bearing. 5 rows × 13pt = 65pt + title row fits
+// inside the 90pt block height.
+const TITLE_SIZE_PT = 7
+const BODY_SIZE_PT = 5.5
+const LINE_GAP = 13
+const NEC_TO_BODY_GAP = 6
 const PAD_X = 4
 const PAD_Y = 8
 const NEAR_BLACK: [number, number, number] = [17, 17, 17]
@@ -97,9 +101,9 @@ export function paintCalloutLegend(
     pdf.setDrawColor(...NEAR_BLACK)
     pdf.setFillColor(255, 255, 255)
     pdf.setLineWidth(0.5)
-    pdf.circle(circleCx, circleCy, 2.2, 'FD')
+    pdf.circle(circleCx, circleCy, 2.5, 'FD')
     pdf.setFont(fontName, 'bold')
-    pdf.setFontSize(4)
+    pdf.setFontSize(4.5)
     pdf.setTextColor(...NEAR_BLACK)
     pdf.text(String(c.number), circleCx, circleCy, {
       align: 'center',
