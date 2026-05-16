@@ -160,6 +160,8 @@ function buildBatteryLines(data: PlansetData): string[] {
     // Pass-16d — Tyson PV-5 spells "1-PHASE, 3-WIRE" alongside the symbol
     // shorthand. AHJ reviewers expect the literal phrase.
     `ELECTRICAL: 1${'Φ'} (1-PHASE), 3W, ${data.voltage || '120/240V'}`,
+    // Pass-18a — Tyson "NEW SERVICE: 1Φ, 3W, 200A" explicit callout.
+    `NEW SERVICE: 1${'Φ'}, 3W, ${busbar || '—'}A`,
     `MSP BUSBAR: ${busbar || '—'}A   MSB BRKR: ${brkr || '—'}A`,
   ]
 }
@@ -191,7 +193,9 @@ function buildScopeLines(data: PlansetData): string[] {
     `(${data.panelCount}) ${data.panelModel} ${data.panelWattage}W`,
     `(${data.inverterCount}) ${data.inverterModel}`,
     invMath,
-    `MSP BUSBAR ${busbar || '—'}A   BRKR ${brkr || '—'}A`,
+    // Pass-18b/c — Tyson PV-5 SCOPE block has explicit verbose ratings.
+    `BUSBAR RATING: ${busbar || '—'}A`,
+    `MAIN SERVICE BREAKER RATING: ${brkr || '—'}A`,
     ...stringSummary.slice(0, 2),
   ]
 }

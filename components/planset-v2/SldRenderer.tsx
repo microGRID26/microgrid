@@ -152,8 +152,13 @@ const MULTI_LINE_PHASES: Record<string, Array<{ color: string; label: string }>>
  *  H10 Pass-5 — bumped 1.6 → 2.8 so AC L1 / L2 / N (and DC + / −)
  *  visually separate at the standard PV-5 print scale. Tyson Rev1
  *  shows them clearly distinguishable; at 1.6 they blended into one
- *  thick stroke at default zoom. */
-const PHASE_SPACING = 2.8
+ *  thick stroke at default zoom.
+ *  H10 Pass-18d — trimmed 2.8 → 2.2. Pass-6 widened bundles from 3
+ *  to 4 stripes (added G ground); at 2.8pt × 4 stripes the AC bundle
+ *  was 11.2pt wide and crossed visibly through HYBRID box bodies on
+ *  the tight routing area. 2.2 × 4 = 8.8pt — still visually distinct
+ *  but ~20% less visual mass through congested regions. */
+const PHASE_SPACING = 2.2
 
 interface LayoutBBox { x: number; y: number; w: number; h: number }
 
@@ -352,11 +357,13 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
                         )
                       })}
                       {phases.map((p, i) => {
-                        // Pass-15d — labels were at PHASE_SPACING=2.8 with
-                        // fontSize 2.6 causing 0.17pt overlap between L1/L2.
-                        // Bump label perpendicular spacing to 3.4 (separate
-                        // from polyline PHASE_SPACING) so consecutive labels
-                        // have clean vertical clearance even when stacked.
+                        // Pass-15d — labels at perpendicular spacing 3.4
+                        // (separate from polyline PHASE_SPACING).
+                        // Pass-18e — drop the 'G' label text entirely. Ground
+                        // is documented in the wire-color legend; the thin
+                        // green stripe carries the visual cue. Cuts label
+                        // crowding at edge endpoints by 25%.
+                        if (p.label === 'G') return null
                         const labelOffset = baseOffset * (3.4 / PHASE_SPACING) + i * 3.4
                         const lx = last.x + pullX + (perpAxis === 'x' ? labelOffset : 0)
                         const ly = last.y + pullY + (perpAxis === 'y' ? labelOffset : 0)
