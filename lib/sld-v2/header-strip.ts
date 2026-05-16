@@ -157,7 +157,9 @@ function buildBatteryLines(data: PlansetData): string[] {
     `${fmtN(totalKwh, 1)} kWh / ${fmtN(totalKw, 1)} kW AC`,
     `(${data.inverterCount}) ${data.inverterModel}`,
     `(${data.batteryCount}) x ${data.batteryModel} = ${fmtN(totalKwh, 1)} kWh`,
-    `ELECTRICAL: 1${'Φ'}, 3W, ${data.voltage || '120/240V'}`,
+    // Pass-16d — Tyson PV-5 spells "1-PHASE, 3-WIRE" alongside the symbol
+    // shorthand. AHJ reviewers expect the literal phrase.
+    `ELECTRICAL: 1${'Φ'} (1-PHASE), 3W, ${data.voltage || '120/240V'}`,
     `MSP BUSBAR: ${busbar || '—'}A   MSB BRKR: ${brkr || '—'}A`,
   ]
 }

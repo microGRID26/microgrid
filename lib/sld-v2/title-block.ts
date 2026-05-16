@@ -258,8 +258,12 @@ export function paintTitleBlock(
     { text: data.contractor.name, bold: true },
     { text: data.contractor.address },
     { text: data.contractor.city },
-    { text: `Ph: ${data.contractor.phone}` },
-    { text: `Lic# ${data.contractor.license}` },
+    // Pass-16b/16c — added EMAIL row + Tyson-convention "PHONE NUMBER:" /
+    // "LICENSE#" prefixes (was "Ph:" / "Lic#" — non-AHJ-standard
+    // abbreviations). Compact size keeps the row from overflowing.
+    { text: `PHONE NUMBER: ${data.contractor.phone}` },
+    ...(data.contractor.email ? [{ text: `EMAIL: ${data.contractor.email}` }] : []),
+    { text: `LICENSE# ${data.contractor.license}` },
   ])
   drawRowSeparator(row1)
   cursorY += ROW_HEIGHTS.contractor

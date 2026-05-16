@@ -77,7 +77,7 @@ function pvArrayFromData(data: PlansetData): PVArray {
       { text: `(N) MODULE: (${data.panelCount}) ${data.panelModel} · ${data.panelWattage}W`, priority: 9 },
       // Pass-8a — Tyson PV-5 phrasing: per-string breakdown spelled out
       // ("(1) STRING OF (9) MODULES CONNECTED IN SERIES & (1) STRING OF (8) MODULES...")
-      { text: branchCounts.map((n) => `(1) STRING OF (${n}) MODULES IN SERIES`).join(' & '), priority: 8 },
+      { text: branchCounts.map((n) => `(1) STRING OF (${n}) MODULES CONNECTED IN SERIES`).join(' & '), priority: 8 },
       { text: `${data.panelCount} × ${data.panelWattage}W = ${data.systemDcKw} kW DC`, priority: 7 },
     ],
     props: {
@@ -371,7 +371,7 @@ function pvLoadCenter(): BackupPanel {
     ports: quadPorts('pv-load-center'),
     labelSlots: defaultLabelSlots(100, 60),
     labels: [
-      { text: '(N) PV LOAD CENTER · 125A', priority: 9, bold: true },
+      { text: '(N) PV LOAD CENTER · 125A · FUSIBLE LOAD', priority: 9, bold: true },
       { text: 'BRP12L125R · NEMA 3R · MLO', priority: 7 },
       { text: 'GRID LINE · (N) MAIN BREAKER', priority: 6 },
     ],
