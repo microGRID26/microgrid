@@ -329,13 +329,20 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
                     <g key={`line-${edge.connection.id}`}>
                       {phases.map((p, i) => {
                         const offset = baseOffset + i * PHASE_SPACING
+                        // Pass-10 — Ground stripe rendered thinner than the
+                        // load-bearing L1/L2/N (or +/-) lines so it reads as
+                        // "additional NEC ground" rather than competing for
+                        // visual weight with the actual phase conductors.
+                        // Cuts down bundle "thickness" complaints from the
+                        // 4-wide AC stripes added in Pass-6.
+                        const isGround = p.label === 'G'
                         return (
                           <polyline
                             key={`line-${edge.connection.id}-${p.label}`}
                             points={offsetPolylinePoints(edge, offset)}
                             fill="none"
                             stroke={p.color}
-                            strokeWidth="1.1"
+                            strokeWidth={isGround ? '0.55' : '1.1'}
                           />
                         )
                       })}
