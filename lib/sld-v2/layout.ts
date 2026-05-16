@@ -94,6 +94,15 @@ const DEFAULT_LAYOUT_OPTIONS = {
   'elk.spacing.edgeEdge': '22',
   'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
   'elk.padding': '[top=40,bottom=40,left=40,right=40]',
+  // H11 Pass-8 attempted `elk.aspectRatio: '1.55'` to nudge ELK to
+  // fill the SLD body's vertical area; verified no visible change on
+  // the Lohf render — `layered` algorithm with rigid graph
+  // dependencies doesn't respond. H12 candidates if Greg wants to
+  // attack the upper-half-whitespace: (a) switch to BRANDES_KOEPF
+  // placement strategy with BALANCED alignment, (b) reorganize the
+  // equipment graph so batteries/hybrids/MSP form deeper layer
+  // dependencies, (c) reduce vertical centering whitespace by
+  // top-aligning the SLD body in pdf.ts:223 instead of centering.
 }
 
 /** Map our Port.side ('N'/'S'/'E'/'W') to ELK port side enum. */

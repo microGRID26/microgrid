@@ -67,7 +67,9 @@ export function paintWireLegend(
   pdf.setFontSize(BODY_SIZE_PT)
   pdf.setTextColor(...NEAR_BLACK)
 
-  const bodyY0 = y + PAD_Y + 6
+  // Title is now TITLE_SIZE_PT=8 (was 6 pre-Pass-7); body must start
+  // below the title's descent or the first row overlaps the title.
+  const bodyY0 = y + PAD_Y + 11
   const stripeX = x + PAD_X
   const stripeLen = 22
 
