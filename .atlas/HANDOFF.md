@@ -60,9 +60,65 @@ Cumulative across H10 + prior phases (Phase H1 through Pass-5 of H10 listed belo
   - `319cf94` — docs(planset/.atlas): handoff refresh — post-H8 commit + chain park
   - `1e44975` — **feat(sld-v2): Phase H9 — SLD-pilot Tyson-match iteration polish (12 sub-passes — visual overlap fixes + Tyson-match labels + (N) PV LOAD CENTER + Production CT + SCOPE AC math + title-block 2 new rows + wire color legend + inline phase labels)**
   - `0e22f8b` — docs(planset/.atlas): handoff refresh — post-H9 commit + recap link (HQ recap #570)
-**Latest commit:** `6d51c5b` feat(sld-v2): Phase H13 Pass-2 — leader-callout circle r=4→5 + digit fontSize=5→6
+**Latest commit:** `9ad1482` feat(sld-v2): Phase H14 — decouple slot-picker fontSize from layout
 
-## ✅ Shipped this session (2026-05-16 PM-very-late — Phase H13 Pass-1 + Pass-2: body-side numbered-callout system bumped to AHJ-readable, body-side polish ceiling discovered)
+## ✅ Shipped this session (2026-05-16 PM-late+1 — Phase H14: slot-picker fontSize decouple — the body-side ceiling H13 discovered is now lifted)
+
+Greg's session start: `/chain plansets`. The pickup wrapper stole a stale claim from a crashed parallel session (`local-TriSMARTs-MacBook-Pro-68466`), audited the prior 20 unpushed commits as clean, and surfaced the H14 decision block. Greg picked **all five** remaining iteration targets (a-e) — Atlas pushed back on ordering and recommended **b → a → c → d → e** (b first because b unblocks a's per-session ceiling); Greg signed off. Procedural items authorized at the same turn: push 20 H11-H13 commits to origin, re-capture chain baseline.
+
+This session shipped Phase H14 (b). H15-H18 remain in queue for subsequent sessions.
+
+### Key delivery — `lib/sld-v2/labels.ts` slot-picker decouple
+
+Introduced `REFERENCE_FS = 7` constant and rewrote the `tryFitInSlot` pre-filter to scale `slot.maxLineWidth` by `(fs / REFERENCE_FS)`. Three `?? 7` sites converted to `?? REFERENCE_FS` (pre-filter line 222, fit-loop line 233, orphan callout line 342). Geometric truth at `bboxOverlaps` (combined-bbox vs occupied set, line 236-238) is preserved — the decouple only affects the cheap calibration-budget pre-filter.
+
+**Why this matters for the rest of the chain.** Pre-H14, bumping any `?? 7` default cascaded: slot pre-filter rejects more lines → orphan-callout staircase grows → free-zone shrinks → ELK-fit body re-scales. Path (a)'s scope was capped at 2-3 safe sub-passes per session BECAUSE of this coupling. Post-H14, the cap is lifted. Path (a) now opens up to 5-8 sub-passes per session AND the highest-impact body lever ("global +1pt to all equipment labels") becomes a single safe lever pull.
+
+### Tests added — 4 new cases in `__tests__/sld-v2/slot-picker-decouple.test.ts`
+
+1. Reference-size baseline: 30-char @ fs=7 fits N/S (sanity guard).
+2. **45-char @ fs=8 lands in N/S slot.** Pre-H14: 208.8pt textWidth > N/S 200pt + > E/W 180pt → all reject → callout. Post-H14: N/S effMax = 228.6pt accepts. This is the regression-catch case.
+3. 70-char @ fs=8: 324.8pt overflows even the scaled budget → all slots reject → callout. Locks geometric-truth preservation.
+4. No fit-rate degradation: 4× 45-char lines at fs=7 → 2 placed (N+S); at fs=8 → must place ≥2. Pre-H14 fs=8 would place 0 → degradation. Post-H14 placeholder-equal.
+
+Sld-v2 test count: 67 → 71. All pass.
+
+### Audit gates (vH14)
+
+- R1 (general-purpose subagent): A (0C/0H/2M/2L) — deferred: #1194 (M-2 orphan callout `lineH=11` hardcoded — blocks H15 stretch, NOT H14). M-1 + L-1 fixed inline in same commit. L-2 = perf wart, no action.
+- R2 (verify, inline structured): A (0/0/0/0 unaddressed). Re-grepped `?? 7` and fontSize-literal-7 across `labels.ts` — empty. `from-planset-data.ts:80` PV-array labels confirmed identity-preserved (they don't set fontSize → fall back to REFERENCE_FS=7).
+
+### Verification commands for the next operator
+
+- `cd ~/repos/MicroGRID-planset-phase1 && git log --oneline 9ad1482 -1` → matches the H14 feat commit
+- `git rev-list --count be4f4ba..9ad1482` → 1 (single H14 commit)
+- `git rev-list --count 416cb02..9ad1482` → 21 (full H11+H12+H13+H14 stack, all pushed to origin this session)
+- `npx tsc --noEmit` → clean
+- `npx vitest run __tests__/sld-v2` → 71/71 pass
+- `python3 ~/.claude/scripts/chain_test_baseline.py diff --repo ~/repos/MicroGRID-planset-phase1 --sha be4f4ba51cd0` → `NEW_FAIL=0 NEW_PASS=4 STILL_FAIL=16` (the 4 NEW_PASS are the H14 test additions)
+- `grep -c REFERENCE_FS lib/sld-v2/labels.ts` → 8 (constant decl + 3 use sites + 4 doc-comment mentions)
+- `grep -E '\?\? *7\b' lib/sld-v2/labels.ts | wc -l` → 0 (no leftover literal-7 fontSize fallbacks)
+- Pilot re-rendered at `9ad1482`: `~/Desktop/sld-v2-pilot-lohf.pdf` (359,469 bytes — byte-identical to `68d202a` H12 tip). Body topology pixel-identical to be4f4ba (decouple is a strict no-op when no caller bumps fontSize, which no caller does today).
+
+### Pre-resolved follow-ups verified this session
+
+None. #1025 (RUSH snoozed 2026-05-28), #1077 (PDF-route integration test), #346 (Duracell datasheet Greg-blocked) all remain out-of-scope per the SLD-pilot lock.
+
+### Spec deltas discovered this session
+
+(none — H14 plan held exactly; the H13 spec-delta recommendation to refactor the slot picker is exactly what shipped here.)
+
+### Test baseline
+
+`be4f4ba51cd0` baseline captured at session start (3920 / 3904 pass / 16 fail). Re-captured at `9ad14825b8b5` for next-session diff: 3924 / 3908 pass / 16 fail. The +4 pass / +4 test are the H14 slot-picker-decouple suite.
+
+### New action filed this session
+
+- **#1194 (P2, NEW)** — Decouple LeaderCallout `lineH=11` from fontSize before H15 stretch ("global +1pt") ships. Pre-existing bug exposed by H14 R1; orphan callout line-spacing is currently fontSize-independent, so callouts at fs ≥ 12 visually overlap. ~30 min. Source: H14 R1 audit.
+
+---
+
+## ✅ Previously shipped (2026-05-16 PM-very-late — Phase H13 Pass-1 + Pass-2: body-side numbered-callout system bumped to AHJ-readable, body-side polish ceiling discovered)
 
 Greg's session start: `/chain planset` (no further instructions; defaults from handoff). The chain-pickup wrapper stole a stale claim, confirmed no drift, and surfaced the H12 handoff's three open decisions. Greg picked **(a) body-side polish loop** + **wait on push** via AskUserQuestion. Atlas drove the loop solo from there.
 
@@ -919,6 +975,7 @@ Captured via vitest run on the Phase H8 commit `25db5fd` (parent of Phase H9):
 
 - **#1025 (P1, SNOOZED to 2026-05-28)** — RUSH stamp turnaround tracking for PROJ-32115 (Charles Lohf). Greg deferred this two weeks at Phase H3 start; resumes 2026-05-28. Re-rendered PDF stays at 294 KB (Inter Bold subset). Closes when stamped sheet returns + decision on Phase 7c made.
 - **#1077 (P2, NEW this session)** — integration test for the planset PDF route. Adds an admin-role test user to the integration scaffold and exercises the auth/role/404 paths. Optionally adds a 200-path test if CI has a live Next dev server. Deferred because adding the admin fixture cleanly requires extending `__tests__/integration/setup.ts` with a second user (the existing `e2e_test_integration` user is load-bearing role='user' for the trigger-guard tests). ~1h.
+- **#1194 (P2, NEW 2026-05-16 PM-late+1 from H14 R1)** — decouple LeaderCallout `lineH=11` from fontSize before H15 stretch ships. Pre-existing bug — orphan callout line-spacing is currently independent of fontSize, so callouts at fs ≥ 9 visually overlap. Doesn't block H14 (which is identity at REFERENCE_FS=7); blocks H15's "global +1pt" stretch. Fix ~30 min in `lib/sld-v2/labels.ts:317-322` + a vitest case. Recommend folding into H15 Pass-1.
 - ~~#332~~ — closed this session by commit `3ec67fb` (Phase H6: puppeteer PDF route + cut-sheet merge). Architecture pick was puppeteer via `@sparticuz/chromium`.
 - **#346 (P2, GREG-BLOCKED)** — Verify PV-6 row 6 battery-combiner-to-inverter wire spec; needs Duracell Power Center Max Hybrid 15kW datasheet. SheetPV6 was made data-driven in May (no longer hardcoded), but the default values `data.batteryCombinerOutputWire` + `data.batteryCombinerOutputConduit` need PE verification against the datasheet.
 - ~~#335~~ — closed this session as stale. Premise verified (4 hardcoded EMT specs in `app/redesign/components/SingleLineDiagram.tsx`) but the proposed fix `data.batteryConduit` doesn't fit the redesign tool's data shape `{existing, target, results}`. Redesign tool is on the deprecation path; hardcodes vanish when it's deleted.
@@ -945,41 +1002,40 @@ Captured via vitest run on the Phase H8 commit `25db5fd` (parent of Phase H9):
 
 ### ⬅ ~~Phase H13~~ — SHIPPED 2026-05-16 PM-very-late. 2 commits `eac6a1d` → `6d51c5b`. NEC 230.70(A)(1) dim caption 4→5pt + leader-callout circle r=4→5/digit fontSize=5→6 (matches H12 Pass-9 NEC-callout bump for visual consistency). One mid-pass revert documented body-side cross-dependencies as the H14 planning anchor. Block kept for chain history.
 
-### ⬅ Phase H14 (next session) — narrow body-side polish OR slot-picker decouple OR structural pivot
+### ⬅ ~~Phase H14~~ — SHIPPED 2026-05-16 PM-late+1. 1 commit `9ad1482` (one atomic refactor) + the in-repo handoff refresh (this commit). Greg picked path **b** (slot-picker decouple) reordered to the front of the a-e queue on Atlas's recommendation. Decouple unlocks the body-side polish ceiling H13 surfaced — path (a) opens from 2-3 safe sub-passes per session to 5-8, AND the "global +1pt to all equipment labels" lever becomes safe. R1 = A (general-purpose subagent, 0C/0H/2M/2L; M-1 + L-1 fixed inline, M-2 deferred to #1194). R2 verify = clean. Block kept for chain history.
 
-H13 closed the body's two numbered-callout systems (NEC dim caption + leader-callout circles) to AHJ-readable. The body now has visual consistency between its two numbered-callout types (both r=5 / digit fontSize=6, post-H12-Pass-9 + this session's Pass-2). Body topology is otherwise pixel-identical to the H12 tip.
+### ⬅ Phase H15 (next session) — narrow body-side polish loop (now with wider headroom)
 
-The session also discovered the body-side polish ceiling: the `labels.ts` slot-picker fontSize defaults are load-bearing layout constants (slot pre-filter → orphan callout staircase → free-zone → body scale). The chain-skill's earlier estimate of "5-8 safe sub-passes per session" overstates body-side; revised to **2-3 safe sub-passes** unless the slot picker is refactored.
+H14 lifted the cap. Pre-H14 the body-side polish loop was bounded at 2-3 safe sub-passes per session because bumping any `?? 7` default in `labels.ts` cascaded into orphan-staircase rejections. Post-H14, bumping fontSize is a no-op at the cheap pre-filter (the budget scales with the bump) and only `bboxOverlaps` truly gates placement. Path (a)'s scope is now 5-8 sub-passes per session AND the high-impact lever ("global +1pt to all equipment labels") unlocks.
+
+The "global +1pt" stretch is gated on **#1194** (orphan-callout `lineH=11` hardcode — pre-existing bug exposed by H14 R1; fontSize-independent line spacing means callouts at fs ≥ 12 visually overlap). At fs=8 the bug is invisible; at fs ≥ 9 it surfaces. Fix is ~30 min — recommend folding it into H15 before the global stretch.
 
 **Decisions Greg must answer before this phase starts:**
 
-1. **What's the next iteration target?**
-   - (a) **Default: narrow body-side polish loop.** Same render→PNG→read pattern but with the narrower safety envelope: target only contained text elements (single text in its own background rect, OR equipment-internal text with verifiable y-budget). Specific candidates left: PVArrayBox subtitle/source text (fontSize=4, line 32), ProductionCtBox primary captions (fontSize=3.5, lines 23/28), HybridInverterBox port labels (fontSize=4, lines 38/41/44). Each needs a per-box y-budget audit before bumping. ~10-20 min per sub-pass; 2-3 sub-passes safely per session. **DO NOT** bump the `?? 7` defaults in `lib/sld-v2/labels.ts` (slot-picker cascade — load-bearing per H13 Pass-1-first-attempt anchor).
-   - (b) **Decouple slot-picker fontSize from layout (medium-scope refactor).** Make `labels.ts` slot pre-filter compute `slot.maxLineWidth` proportionally to the line's `fontSize` so bumping the font default doesn't trigger overflow. Unblocks "global +1pt to all equipment labels" (the highest-impact body-side change still on the table). ~2-3h, requires test additions to lock the new behaviour. New path, opens up the chain.
-   - (c) **ELK upper-half whitespace** — still on the table from H11 decision (b). H12 Pass-1 top-aligned the body which reduces the upper-whitespace problem visually but doesn't increase the body's scale. Options remaining: (i) BRANDES_KOEPF + BALANCED placement, (ii) reorganize equipment graph for deeper layer dependencies (most impactful). Medium scope, ~1-2h.
-   - (d) **Routing chaos pivot** — disc-pv → load-center → MSP corridor still cramped. ELK `portConstraints: FIXED_ORDER` per-port groups. ~3-4h.
-   - (e) **Equipment-abbreviation legend block** — Tyson PV-5 has a `PV / RSS / EV / REC` legend; we don't. New legend block in bottom-right strip. ~1h. (Caveat: bottom-right strip is now full — installer-notes + callout-legend + wire-legend at 92pt. Adding a 4th block needs layout rework.)
-   - (f) **Pause until RUSH ding** — #1025 snoozed to 2026-05-28; let RUSH dictate the next iteration shape.
+1. **Fold #1194 into H15 Pass-1, or ship H15 first then circle back?**
+   - (a) **Default: fold #1194 into Pass-1.** ~30 min added. Makes the "global +1pt" stretch safe to ship in the same session. Clean dependency chain.
+   - (b) Ship H15 per-box polish first (PVArrayBox/ProductionCtBox/HybridInverterBox bumps), defer #1194 + the global stretch to H15 Pass-N or H16. Lower-risk sequencing; gives Greg an early visual checkpoint before any global lever pulls.
 
-   Default: **(a)** unless Greg signals. Note: (a) is now narrower than the H13-defined (a) — only 2-3 safe sub-passes per session, not 5-8.
+2. **Should the H15 phase include the global +1pt stretch, or stay narrow on per-box hand-tunes only?**
+   - (a) Per-box only — 3 named targets: PVArrayBox subtitle/source (fs=4 → 5), ProductionCtBox primary captions (fs=3.5 → 4.5), HybridInverterBox port labels (fs=4 → 5). Each gets a per-box y-budget audit. ~10-20 min per sub-pass.
+   - (b) **Default: per-box AND global +1pt.** Pull the global lever (REFERENCE_FS=7 → 8 at all 3 sites in labels.ts) once #1194 lands. The single biggest body-side readability win the chain has left. Render pilot before/after, walk every equipment box for visible regression, ship.
 
-2. **Push the 20 unpushed commits to origin?**
-   - Branch is 20 ahead of `416cb02` (8 from H11 + 10 from H12 + 2 from H13). Per CLAUDE.md per-push confirmation rule, this needs an explicit keyword from Greg. Default = wait.
+3. **Push H15 commits at session end?**
+   - Default = wait per CLAUDE.md per-push rule. Greg authorized H11-H14 stack push this session (now at origin tip `9ad1482`); H15+ holds for the next signal.
 
-3. **Re-capture chain test baseline at `6d51c5b`.**
-   - H13 captured at `d80f83c` at session start. Next session should re-capture at the new HEAD so H14's diff is clean. Procedural, no decision needed.
+**Phase work — Pass-1 (recommended pickup, default a+b above):**
 
-**Phase work (when picking up path a — narrow body-side polish):**
+1. Fold #1194: in `lib/sld-v2/labels.ts` ~line 317-322, replace `const lineH = 11` with `const lineH = Math.max(8, fs * 1.4)` (or similar fontSize-aware spacing). Recompute `labelXY` totalPriorLines with per-callout lineH. Add a vitest case verifying spacing scales with fontSize. Ship + verify per-render at fs=10 (no overlap).
+2. Global +1pt: `REFERENCE_FS = 7` stays 7 (calibration constant — don't move it). Bump all three caller `?? REFERENCE_FS` defaults conceptually by setting explicit `fontSize: 8` on LabelLine emissions in `from-planset-data.ts` for the equipment label sets. OR — simpler — just bump REFERENCE_FS to 8 and update the constant doc accordingly (slot widths in equipment.ts stay calibrated for 7, so the new constant pulls effectiveMax wider). **Pick the variant before coding**: bumping REFERENCE_FS is one-line, but it shifts the calibration target — clean and ships fast. Setting `fontSize: 8` explicitly at every LabelLine emission site is more verbose but keeps REFERENCE_FS as a true documentation anchor for the original 7pt calibration.
 
-- Render pilot → `pdftoppm -r 200 -png` → `Read` the PNG → enumerate body-side deltas → for each candidate, **before code change** verify (i) the text element is in its own background rect or the equipment box has y-headroom, (ii) the change won't trigger the H13 cascade (no `labels.ts` slot defaults). Fix → re-render → commit → repeat.
-- Body-side targets to look at first: PVArrayBox subtitle bumps, ProductionCtBox primary caption bumps, HybridInverterBox port-label bumps. Each one is per-asset hand-tuning, not a global lever.
-- HANDOFF.md refresh + recap at end of session.
+**Phase work — Pass-2+:**
 
-**Phase work (when picking up path b — slot-picker decouple, recommended if Greg wants impact):**
+- PVArrayBox subtitle / source text bumps (fontSize=4 → 5, per-box y-budget audit first).
+- ProductionCtBox primary captions (fontSize=3.5 → 4.5, with the per-line text-rect audit).
+- HybridInverterBox port labels (fontSize=4 → 5).
+- Each one: code change → typecheck → 71+/71+ tests → render pilot → Read PNG → diff vs `9ad1482` baseline → commit OR revert.
 
-- Read `lib/sld-v2/labels.ts:189-246` (the `tryFitInSlot` function and its `maxLineWidth` pre-filter). Spec change: rather than `if (textWidth(line.text, fs) > slot.maxLineWidth) return null`, scale `maxLineWidth` by `(fs / referenceFs)` where `referenceFs = 7`. Same for the per-line fit-loop.
-- Add a vitest case that locks the new behaviour: equipment with explicit `fontSize: 8` labels should NOT have its slot fit-rate degrade vs `fontSize: 7`.
-- Re-render pilot before/after. If body re-flows, that's an intentional consequence of the decouple — surface for Greg's go/no-go.
+**Re-capture baseline at HEAD before starting.** Already done this session at `9ad14825b8b5` (3924 / 3908 pass / 16 fail) — next session can use that directly if it picks up immediately; otherwise re-capture at whatever HEAD becomes.
 
 **Open methodology / tools (carry-over from H10–H13):**
 
@@ -1052,6 +1108,7 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 
 - **Phase H8 — 5 remaining Tyson-diff categories on PV-5 (B/C/E/H/G full, ~10h total).** See "Next phase to pick up" above for the full breakdown + decisions for Greg.
 - **#1077 (P2, ~1h)** — integration test for the planset PDF route. Extends `__tests__/integration/setup.ts` with an admin-role test user, then adds a test file that exercises auth/role/404 against the new route.
+- **#1194 (P2, ~30 min)** — orphan-callout `lineH` fontSize decouple. Pre-condition for H15 stretch (`global +1pt to all equipment labels`).
 - **#346 (P2)** — Duracell datasheet PE-verify (Greg-blocked).
 - ~~#1054~~, ~~#1058~~, ~~#1059~~, ~~#1069~~, ~~#1073~~, ~~#332~~ — SHIPPED this session.
 - ~~#335~~ — closed as stale (deprecated-path hygiene).
@@ -1100,24 +1157,19 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 
 ---
 
-**End of handoff. Next session: Phase H14 — Greg picks (a) narrow body-side polish, (b) slot-picker decouple refactor, (c-e) deferred structural pivots, or (f) pause until RUSH. Default = (a). Branch is 20 ahead of `416cb02`, holding push per CLAUDE.md per-push rule. Pass it forward.**
+**End of handoff. Next session: Phase H15 — narrow body-side polish loop with H14's wider headroom. Pick (a) per-box only OR (b) per-box + global +1pt (default — folds #1194 into Pass-1 to make the stretch safe). Branch tip at origin `9ad1482` (H11-H14 all pushed this session); H15 commits hold for next signal. Chain remains in SLD-pilot scope lock until RUSH ding lands (#1025 snoozed to 2026-05-28). Pass it forward.**
 
 ## Chain state (auto)
 
 ```yaml
 chain_state_auto:
-  project: MicroGRID
-  generated_at: 2026-05-16T19:44:28Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  project: MicroGRID-planset-phase1
+  generated_at: 2026-05-16T21:43:07Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
   main_head: 2c26ef5  # feat(security): mig 345 Seer Learn + atlas_hq postgres-drop, mig 346 cost-basis shim
   main_head_committed: 2026-05-16T13:54:33-05:00
   recent_recaps:  # newest first; pulled from atlas_session_recaps
-    - planset-h11-2026-05-16 (2026-05-16T18:02:34, b596be6): Phase H11: 8-sub-pass Tyson-fidelity polish loop on Lohf SLD pilot
-    - planset-h10-pass17-19-handoff-push (2026-05-16T17:21:35, 906d51a): Planset chain Phase H10 Pass-17/18/19 + handoff refresh + push to origin (closes 15-commit session)
-    - norad-2026-05-16-secdef-marathon-part-2 (2026-05-16T17:19:55, aeb6dfb): NORAD second half — auth-helper hygiene (mig 342), grant-guard scope expansion + multi-role regex (#1169), ...
-    - regan-chain-pickup-3-2026-05-16-final (2026-05-16T17:13:13, no-commit): Regan chain pickup 3 — full sweep: $3.98M contracts restored, 43 permits backfilled, 5 buckets closed, R1+R...
-    - planset-h10-pass6-16 (2026-05-16T16:57:37, 36bbf57): Planset chain Phase H10 — 11 sub-pass polish sweep (Pass-6 through Pass-16) against Tyson PV-5
-    - norad-2026-05-16-secdef-marathon (2026-05-16T16:57:10, no-commit): NORAD swept SECDEF surfaces across MG + EDGE + SPARK; closed 3 Criticals + 2 Highs end-to-end (5 prod migra...
+    - planset-v11-2026-05-06 (2026-05-06T13:31:43, 7575984): Rebuilt planset SLD to JSON-spec architecture and shipped v11 rush-spatial with 230 elements at Tyson-plans...
   branches_with_work:
     - feat/atlas-canonical-pipeline-installs (cba5a83): 1 ahead of main
     - feat/atlas-canonical-subhub-signed-vwc (8a1590a): 3 ahead of main
@@ -1127,7 +1179,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (6d51c5b): 110 ahead of main, 22 unpushed to origin/feat/planset-v8-layouts
+    - feat/planset-v8-layouts (9ad1482): 112 ahead of main, 1 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main
