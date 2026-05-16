@@ -46,7 +46,7 @@ const HEADER_FILL: [number, number, number] = [245, 245, 245]
 
 const TITLE_SIZE_PT = 5.5
 const BODY_SIZE_PT = 4.8
-const LINE_GAP = 5.3
+const LINE_GAP = 6.0  // Pass-15a — was 5.3, less than BODY_SIZE_PT (4.8) effective line height; every consecutive line overlapped by ~0.5pt across all 4 header boxes per pdftotext bbox dump.
 const PAD_X = 4
 const PAD_Y_TITLE = 6
 const HEADER_BAND_H = 11

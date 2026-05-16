@@ -29,17 +29,21 @@ export function GroundingElectrodeBox({ ge, x, y, debug }: GroundingElectrodeBox
         <line x1="19" y1="26" x2="31" y2="26" stroke="#111" strokeWidth="0.8" />
         <line x1="22" y1="30" x2="28" y2="30" stroke="#111" strokeWidth="0.8" />
 
-        {/* H10 Pass-4 — Tyson PV-5 GE captions hardcoded; was orphaning */}
+        {/* H10 Pass-4 — Tyson PV-5 GE captions hardcoded; was orphaning.
+            Pass-15b — line baselines were 4pt apart for fontSize 3.5
+            (overlap by 0.14pt per pdftotext) and 3pt apart for fontSize 3
+            (overlap by 0.38pt). Bumped to 4.5/4.5 gaps for clean 1pt+ gaps
+            between consecutive baselines. */}
         <text x="25" y="38" fontSize="3.5" fontWeight="bold" fill="#222" textAnchor="middle">
           (E) GROUNDING
         </text>
-        <text x="25" y="42" fontSize="3.5" fontWeight="bold" fill="#222" textAnchor="middle">
+        <text x="25" y="42.5" fontSize="3.5" fontWeight="bold" fill="#222" textAnchor="middle">
           ELECTRODE
         </text>
-        <text x="25" y="46.5" fontSize="3" fill="#666" textAnchor="middle">
+        <text x="25" y="47" fontSize="3" fill="#666" textAnchor="middle">
           5/8&quot; × 8&apos; CU ROD
         </text>
-        <text x="25" y="49.5" fontSize="3" fill="#666" textAnchor="middle">
+        <text x="25" y="51" fontSize="3" fill="#666" textAnchor="middle">
           NEC 250.52
         </text>
 

@@ -187,14 +187,18 @@ function edgeSegmentBoxes(edges: RoutedEdge[]): LayoutBBox[] {
 /** Phase H8 Category B — conductor text may carry `\n`-separated multi-line
  *  Tyson-convention spec (wire / EGC / conduit). Compute the bbox the wire
  *  label occupies on the page so midpoint placement + avoidance keep working.
- *  fontSize=6, lineHeight=7, descender pad=2, char-width≈3.5. */
+ *  Pass-15e — lineHeight bumped 7 -> 8 because at fontSize=6, consecutive
+ *  baselines 7pt apart caused 0.13pt overlap between lines (pdftotext bbox
+ *  bottom of "(3) #6 CU THWN-2" intruded into top of "(1) #10 EGC"). 8pt
+ *  baseline-to-baseline gives ~1pt clean visual gap. */
+const LABEL_LINE_HEIGHT = 8
 function labelMetrics(text: string): { lines: string[]; w: number; h: number } {
   const lines = text.split('\n')
   const maxLen = lines.reduce((m, l) => Math.max(m, l.length), 0)
   return {
     lines,
     w: maxLen * 3.5 + 4,
-    h: 7 * lines.length + 2,
+    h: LABEL_LINE_HEIGHT * lines.length + 2,
   }
 }
 
@@ -347,9 +351,14 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
                         )
                       })}
                       {phases.map((p, i) => {
-                        const offset = baseOffset + i * PHASE_SPACING
-                        const lx = last.x + pullX + (perpAxis === 'x' ? offset : 0)
-                        const ly = last.y + pullY + (perpAxis === 'y' ? offset : 0)
+                        // Pass-15d — labels were at PHASE_SPACING=2.8 with
+                        // fontSize 2.6 causing 0.17pt overlap between L1/L2.
+                        // Bump label perpendicular spacing to 3.4 (separate
+                        // from polyline PHASE_SPACING) so consecutive labels
+                        // have clean vertical clearance even when stacked.
+                        const labelOffset = baseOffset * (3.4 / PHASE_SPACING) + i * 3.4
+                        const lx = last.x + pullX + (perpAxis === 'x' ? labelOffset : 0)
+                        const ly = last.y + pullY + (perpAxis === 'y' ? labelOffset : 0)
                         return (
                           <text
                             key={`phase-${edge.connection.id}-${p.label}`}
@@ -386,7 +395,7 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
               {edgeRenderData.map(({ edge, color, mid }) => {
                 if (!edge.connection.conductor || !mid) return null
                 const { lines, w, h } = labelMetrics(edge.connection.conductor)
-                const groupY = mid.y - 3 - 7 * (lines.length - 1)
+                const groupY = mid.y - 3 - LABEL_LINE_HEIGHT * (lines.length - 1)
                 return (
                   <g key={`label-${edge.connection.id}`} transform={`translate(${mid.x}, ${groupY})`}>
                     <rect
@@ -399,7 +408,7 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
                     />
                     <text fontSize="6" fill={color} fontFamily="Helvetica, Arial, sans-serif">
                       {lines.map((line, i) => (
-                        <tspan key={i} x={0} dy={i === 0 ? 0 : 7}>{line}</tspan>
+                        <tspan key={i} x={0} dy={i === 0 ? 0 : LABEL_LINE_HEIGHT}>{line}</tspan>
                       ))}
                     </text>
                   </g>
@@ -446,10 +455,13 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
               {/* Arrows */}
               <polygon points={`${x1},${y} ${x1 + 4},${y - 2} ${x1 + 4},${y + 2}`} fill="#d97706" />
               <polygon points={`${x2},${y} ${x2 - 4},${y - 2} ${x2 - 4},${y + 2}`} fill="#d97706" />
-              <rect x={midX - 22} y={y - 14} width="44" height="11" fill="white" stroke="none" />
+              {/* Pass-15c — bumped rect height + NEC baseline up so "10' MAX"
+                  fontSize 6 apostrophe doesn't kiss the NEC line above (apostrophe
+                  glyph extends nearly a full em above baseline). */}
+              <rect x={midX - 22} y={y - 16} width="44" height="13" fill="white" stroke="none" />
               <text
                 x={midX}
-                y={y - 8}
+                y={y - 10}
                 fontSize="4"
                 textAnchor="middle"
                 fill="#666"
