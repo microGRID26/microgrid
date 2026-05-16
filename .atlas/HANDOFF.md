@@ -1,10 +1,25 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-15 ~18:15 UTC (Phase H9 — SLD-pilot Tyson-match iteration polish across ~12 sub-passes: callout-legend row spacing + width; numbered-circle centering + repositioned inside equipment top-right; 10' MAX dim line clearance bumped; aggressive label-budget prune to 1-3 rows per equipment; PVArray + Meter + GenDisc + BLP + Production CT + Hybrid + MSP + BatteryStack Tyson-match label set; (N) PV LOAD CENTER inserted between disc-pv and msp; SCOPE block AC math callout; title-block Homeowner Approval + OSR rows; wire color legend module; inline phase labels at AC + DC edge endpoints. Commit `1e44975` (1 ahead of origin `319cf94`). **Chain stays parked pending #1025 RUSH stamp 2026-05-28.**)
+**Last updated:** 2026-05-16 ~17:30 UTC (Phase H10 — chain UNPARKED on Greg's "keep working on pv-5 until we have it right". 14 sub-pass polish loop against Tyson PV-5: G ground stripe in MULTI_LINE_PHASES; METER NO inline + CT installer notes; per-string layout phrasing + per-backfeed AC kW; AT kW AC legibility + NEC 705.12(B)(2) completion; MSP spacing rework; folded AC kW INTO amp line; OPPOSITE END OF BUS / TOP FED off divider line (caught a SVG-text-baseline-vs-ascent bug); MeterBox footer compaction; 5-fix text-overlap sweep; Tyson phrasing diff catches (CONNECTED / EMAIL / PHONE NUMBER / LICENSE# / 1-PHASE / FUSIBLE LOAD); TRUNK label render + avoidance-bbox bugfix (reference-equality filter was rejecting wire labels everywhere); 3 verbose header-strip ratings (NEW SERVICE / BUSBAR RATING / MAIN SERVICE BREAKER RATING); PHASE_SPACING 2.8 → 2.2; G label drop; NEC 706.7 ESS; per-inverter backfeed amps; ELK spacing tuning for routing chaos. Commit `acb8272` (13 ahead of origin `319cf94`). HQ recap id=595.)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `0e22f8b` locally (2 ahead of origin `319cf94`; Phase H9 polish `1e44975` + this handoff-refresh `0e22f8b` pending push signal).** Chain test baseline diff vs Phase H8 commit `25db5fd`: NEW_FAIL=0, STILL_FAIL=16 (pre-existing v1 sld-layout + SheetPV1-render unchanged). This session shipped (on top of prior session's `4b717f5`):
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `acb8272` locally (13 ahead of origin `319cf94`; Phase H10 Pass-6 through Pass-19 polish loop pending push signal).** Chain test baseline diff vs Phase H8 commit `25db5fd`: NEW_FAIL=0, STILL_FAIL=16 (pre-existing v1 sld-layout + SheetPV1-render unchanged across H10 too). This session (Phase H10 Pass-6 through Pass-19) shipped:
+  - `36bbf57` — feat(sld-v2): Phase H10 Pass-6 — G ground stripe in MULTI_LINE_PHASES
+  - `88543b1` — feat(sld-v2): Phase H10 Pass-7 — METER NO inline + 2 CT-extension installer-note bullets
+  - `26ec161` — feat(sld-v2): Phase H10 Pass-8 — 5 Tyson-PV-5 parse-diff catches batch
+  - `f8c37e0` — fix(sld-v2): Phase H10 Pass-9 — AT kW AC legibility + 705.12(B)(2) citation
+  - `71bbb39` — fix(sld-v2): Phase H10 Pass-10 — cosmetic sweep (MSP spacing + G stripe weight)
+  - `322b02b` — fix(sld-v2): Phase H10 Pass-11 — fold AC kW into amp line
+  - `53e3be5` — fix(sld-v2): Phase H10 Pass-12 — OPPOSITE END OF BUS / TOP FED off backfeed rect
+  - `6ed77dc` — fix(sld-v2): Phase H10 Pass-13 — same labels OFF the divider line (ascent bug)
+  - `9deb3ee` — fix(sld-v2): Phase H10 Pass-14 — MeterBox footer cleanup
+  - `02622db` — fix(sld-v2): Phase H10 Pass-15 — 5 text-overlap fixes from pdftotext sweep
+  - `bbe09b4` — feat(sld-v2): Phase H10 Pass-16 — 5 Tyson-PV-5 phrasing / content catches
+  - `906d51a` — feat(sld-v2): Phase H10 Pass-17 — 5 Tyson catches + wire-label avoidance bugfix
+  - `06c83da` — feat(sld-v2): Phase H10 Pass-18 — 3 verbose header-strip ratings + PHASE_SPACING + G label drop
+  - `acb8272` — feat(sld-v2): Phase H10 Pass-19 — NEC 706.7 + per-inverter backfeed amps + ELK spacing
+Cumulative across H10 + prior phases (Phase H1 through Pass-5 of H10 listed below for chain history):
   - `a17d602` — feat(mig 226): audit_log append-only seal (Phase H3)
   - `b291a0f` — feat(tests/integration): scaffold + close #1054 (Phase H3)
   - `b754478` — docs(planset/.atlas): handoff refresh (Phase H3)
@@ -23,7 +38,44 @@
   - `319cf94` — docs(planset/.atlas): handoff refresh — post-H8 commit + chain park
   - `1e44975` — **feat(sld-v2): Phase H9 — SLD-pilot Tyson-match iteration polish (12 sub-passes — visual overlap fixes + Tyson-match labels + (N) PV LOAD CENTER + Production CT + SCOPE AC math + title-block 2 new rows + wire color legend + inline phase labels)**
   - `0e22f8b` — docs(planset/.atlas): handoff refresh — post-H9 commit + recap link (HQ recap #570)
-**Latest commit:** `0e22f8b` docs(planset/.atlas): handoff refresh — post-H9 + recap link
+**Latest commit:** `acb8272` feat(sld-v2): Phase H10 Pass-19 — NEC 706.7 + per-inverter backfeed amps + ELK spacing tuning
+
+## ✅ Shipped this session (2026-05-16 — Phase H10 Pass-6 through Pass-19: 14-sub-pass Tyson PV-5 polish loop)
+
+Greg unparked the chain with "keep working on pv-5 until we have it right" + "next 5" iterations. 14 sub-passes (Pass-6 → Pass-19) landed against the Tyson Rev1 PV-5 reference using a tight feedback loop (Greg screenshots → fix → re-render → repeat).
+
+### Key bugs caught (not just polish)
+
+1. **SVG text baseline ≠ visual top** — Pass-12/13: OPPOSITE END OF BUS at baseline y=33 put the visual top edge at y=31.3 (above the divider line at y=32). pdftotext bbox approximates cap-height only — visual ascent is ~0.7 × fontSize. Memory anchor: `feedback_svg_text_baseline_ascent.md`.
+
+2. **Wire-label avoidance bbox reference-equality bug** — Pass-17: SldRenderer's per-edge "own segments" exclusion used `.includes(b)` against fresh-constructed bbox objects → never matched → every wire label was checking against its own segments as avoidance, silently dropping labels on tight runs (pv-rsd / rsd-dc-jb / dc-jb-hybrid-1 had been losing their TRUNK CABLE / INTEGRATED GROUNDING WIRE labels for the entire chain). Replaced with id-based exclusion. After fix: 4 THWN-2 + 4 EGC + 3 EMT + 2 TRUNK + 1 BARE GEC wire labels now render (was ~half that).
+
+### Methodology — pdftotext bbox sweep as a tool
+
+Pass-15 introduced a systematic pdftotext bbox dump → pair-wise overlap detection script. Finds every text pair with <1pt vertical clearance in the rendered PDF. Surfaced 5 distinct overlaps in one pass (header strip LINE_GAP, GroundingElectrode baselines, 10' MAX dim NEC ref, inline phase labels, multi-line wire labels). Reusable for future chain iterations.
+
+### Verification
+
+- `npx tsc --noEmit` → clean after every commit
+- `npx vitest run __tests__/sld-v2/` → 67/67 pass after every commit (no test pins on the y-coords / fontSizes / label texts moved this session)
+- Pilot PDF `~/Desktop/sld-v2-pilot-lohf.pdf` re-rendered after every commit
+- HQ recap id=595 (covers Pass-6 through Pass-16; Pass-17+18+19 land here)
+
+### Pre-resolved follow-ups verified this session
+
+None — chain scope stayed locked to SLD pilot iteration. `#1077` (PDF-route integration test) + `#346` (PV-6 row 6 Duracell datasheet) remain out-of-scope per the SLD-pilot lock.
+
+### Spec deltas discovered this session
+
+- The pvStringConductor (PV→RSD→JB) layout segments are SHORT (80pt single segment). Any wire label wider than ~40pt is rejected by avoidance bbox even after the Pass-17 reference-equality fix. Pass-17a (rev5) settled on a single-word "TRUNK" label for these runs; full NEC wire spec lives in the BOM/schedule. Future projects with longer PV-string runs might display more spec.
+- `dominantBaseline="middle"` is NOT reliably honored by svg2pdf.js — renders the baseline lower than expected. Pass-13 abandoned the attempt; use alphabetic baseline + visual-ascent math instead.
+
+### Test baseline
+
+Reused baseline at `25db5fd` (Phase H8 parent): NEW_FAIL=0, STILL_FAIL=16. No code-baseline regression detected.
+
+---
+
 
 ## Chain instruction (read this first, every session)
 
@@ -710,9 +762,42 @@ Captured via vitest run on the Phase H8 commit `25db5fd` (parent of Phase H9):
 
 ## Next phase to pick up
 
-> **🅿️ CHAIN PARKED (2026-05-15).** Phase H8 shipped all 5 Tyson-diff categories in one session. Per the SLD-pilot scope lock (`feedback_planset_chain_sld_pilot_only.md`), the chain parks here until **(a)** `#1025` RUSH stamp returns 2026-05-28 → triggers Phase 7c, OR **(b)** Greg explicitly broadens scope ("lift the lock" / picks up a non-SLD-pilot task). Pickup sessions during the park window: **do nothing**. Do NOT drift into `#1077` puppeteer-route integration test, SheetPV1 cover-page polish, SheetCutSheets work, the Hardening backlog, or cross-app audit-rotation surfaces. The exit signal is Greg's call, not a clock-based pickup.
->
-> If RUSH dings something specific on the Lohf pilot, Phase 7c picks up here with that specific feedback scoped tight (typography fix / NEC compliance / layout tweak — whatever was dinged). Phase H8 categories are NOT re-litigated.
+> **🔓 CHAIN UNPARKED (2026-05-16).** Greg lifted the park with "keep working on pv-5 until we have it right". Phase H10 polish loop ran 14 sub-passes (Pass-6 → Pass-19) covering ground stripe / METER NO / per-backfeed kW / divider-line clearance / text-overlap sweep / Tyson phrasing diff / TRUNK label render bug / verbose header ratings / NEC 706.7 / per-inverter backfeed amps / ELK spacing. Chain remains UNDER the SLD-pilot scope lock (still iterating the same pilot vs same Tyson reference) but now actively iterating rather than parked.
+
+### ⬅ Phase H11 (next session) — continue Tyson-PV-5 polish loop OR wait for #1025
+
+The Lohf pilot is now substantially closer to Tyson PV-5 fidelity. Next pickup has two paths:
+
+**Decisions Greg must answer before this phase starts:**
+
+1. **What's the next iteration target?**
+   - (a) **Default: continue the polish loop.** Open `~/Desktop/sld-v2-pilot-lohf.pdf`, point at whatever's still off vs Tyson Rev1 PV-5, iterate sub-pass. Same pattern as H10 Pass-6 → Pass-19.
+   - (b) **Pause until RUSH ding.** Stop iterating; wait for #1025 (snoozed to 2026-05-28) to surface specific RUSH feedback before further work. Avoids over-polishing what RUSH will accept.
+   - (c) **Pivot to the routing chaos (deeper fix).** Pass-19c bumped ELK spacing knobs but a full fix may require port-side groups (ELK `portConstraints: FIXED_ORDER`) so AC vs comm vs ground edges don't share corridors. ~3-4h scope.
+
+   Default: **(a)** unless Greg signals.
+
+2. **Push the 13 H10 commits to origin?**
+   - Branch is now 13 ahead of `319cf94`. Per CLAUDE.md per-push confirmation rule, this needs an explicit keyword from Greg. Default = wait.
+
+**Phase work (when picking up path a):**
+
+- Same loop as H10: render pilot → Greg points at issue → fix → re-render → commit → repeat.
+- Re-run the pdftotext bbox overlap sweep at session start (script lives in chain-skill memory; can be inlined into a helper).
+- Re-run the Tyson-vs-Lohf parse-diff to find any new gaps from the latest render.
+- HANDOFF.md refresh + recap at end of session.
+
+**Open methodology / tools added this session (reusable):**
+
+- `pdftotext -layout -bbox-layout` + Python overlap-detection script — finds every text pair with <1pt vertical clearance. Reusable for any SLD render audit.
+- Tyson-vs-Lohf token-diff via pdftotext + the `/tmp/tyson-full.md` LlamaParse output. Spots verbatim Tyson phrases we haven't rendered yet.
+- Memory anchor `feedback_svg_text_baseline_ascent.md` — when SVG text sits between two visual references with <2pt clearance, use ascent math by hand (visual top = baseline − 0.7 × fontSize). pdftotext bbox is NOT visual extent.
+
+---
+
+### ⬅ ~~Phase H8/H9/H10 (chain history — shipped)~~
+
+Phase H8 (5 Tyson categories) shipped 2026-05-15 in commit `25db5fd`. Phase H9 (12 sub-passes polish) shipped same day in `1e44975`. Phase H10 Pass-1 through Pass-5 shipped before this session (commits `fc231ea` → `7b28053`). Phase H10 Pass-6 through Pass-19 shipped this session (`36bbf57` → `acb8272`). All visible in the `✅ Shipped` blocks above.
 
 
 ### ✅ ~~Phase H8~~ — SHIPPED 2026-05-15. All 5 categories landed in one session. Block kept for chain history.
