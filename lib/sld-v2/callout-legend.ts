@@ -48,6 +48,7 @@ export const TYSON_CALLOUTS_PV5: Array<{
   { number: 7, equipmentId: 'pv', nec: 'NEC 690.31(B)', text: 'PV SOURCE CIRCUIT WIRING · CU THWN-2 OR PV WIRE · 90°C INSULATION' },
   { number: 8, equipmentId: 'disc-service', nec: 'NEC 110.26', text: 'WORKING SPACE · 36" DEPTH · 30" WIDTH · 78" HEIGHT' },
   { number: 9, equipmentId: 'meter', nec: 'NEC 110.21(B)', text: 'PERMANENT WARNING LABELS · BI-DIR METER · BACKFED BREAKER' },
+  { number: 10, equipmentId: 'disc-pv', nec: 'NEC 690.15(B)', text: 'ISOLATING DEVICE · LOAD-RATED OR LABEL "DO NOT DISCONNECT UNDER LOAD"' },
 ]
 
 /** Paint the numbered-callout legend at (x, y) with given width/height.

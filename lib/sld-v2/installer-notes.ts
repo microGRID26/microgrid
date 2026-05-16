@@ -81,7 +81,7 @@ function buildNoteLines(data: PlansetData): string[] {
   lines.push('  SEPARATE AND NOT BUNDLED')
   lines.push('IF CONDUIT IS USED ON EXTERIOR - WITHIN 10\' OF UTILITY')
   lines.push('  METER')
-  lines.push('REQUIRES CT WIRE EXTENSION KIT PART #1001808')
+  lines.push('REQUIRES CT EXTENSION KIT — PART #1001808')
   lines.push('REQUIRES TO EXTEND CT WIRES WITH #18 AWG SHIELDED')
   lines.push('  CABLE')
   return lines
