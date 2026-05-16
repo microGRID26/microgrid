@@ -52,9 +52,13 @@ interface PaintOptions {
 // Mirrors v1 TitleBlockHtml's layout exactly: row 3 (PE stamp) pinned at 1.7" =
 // 122.4 pt per Greg's 2026-05-01 measurement; row 10 (sheet number) absorbs the
 // flex remainder.
+// Phase H12 Pass-7 row-height adjustments: bumped contractor 70→76 +
+// project 60→64 to accommodate the new LINE_GAP=9.5 without text running
+// into the row separator. Stamp/drawn/revision/sheet rows are tight but
+// still fit because they only have 1-2 value lines.
 const ROW_HEIGHTS = {
-  contractor: 70,
-  project: 60,
+  contractor: 76,
+  project: 64,
   stamp: 122,
   drawnDate: 26,
   drawnBy: 26,
@@ -76,9 +80,17 @@ const ROW_HEIGHTS = {
 const PAD_X = 6
 const PAD_Y_LABEL = 8
 const PAD_Y_VALUE = 16
-const LINE_GAP = 8.5
-const LABEL_SIZE_PT = 4.5
-const VALUE_SIZE_PT = 6.5
+// Phase H12 Pass-7 — bumped LABEL 4.5→5 and VALUE 6.5→7.5 for title-block
+// readability across all rows (CONTRACTOR / PROJECT / DRAWN DATE / DRAWN BY
+// / REVISION / SHEET SIZE / AHJ / HOMEOWNER APPROVAL / OSR). REV row was
+// the worst — "REV 1 · 05/16/2026" + "Tyson-match polish" sub-line were
+// both undersized for the role. LINE_GAP bumped 8.5→9.5 to maintain a
+// 2pt visual separation between line baselines at the new font size. Row
+// heights confirmed adequate: contractor (5-6 lines) fits 70pt = 16 +
+// 6*9.5 = 73 → bumped contractor row to 74 below.
+const LINE_GAP = 9.5
+const LABEL_SIZE_PT = 5
+const VALUE_SIZE_PT = 7.5
 // Phase H12 Pass-5 — sheet name visual emphasis (7→11pt). Was rendering
 // at 7pt — slightly larger than label size, no visual hierarchy. Tyson
 // reference treats SHEET NAME as a heading-weight row. ROW_HEIGHTS.sheetName
