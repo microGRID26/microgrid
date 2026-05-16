@@ -579,8 +579,16 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
                 strokeWidth="0.5"
                 strokeDasharray="3,2"
               />
-              <circle cx={c.anchor.x} cy={c.anchor.y} r="4" fill="#22d3ee" stroke="#0e7490" strokeWidth="0.6" />
-              <text x={c.anchor.x} y={c.anchor.y + 2} fontSize="5" fontWeight="bold" textAnchor="middle" fill="white">
+              {/* H13 Pass-2 — leader-callout circle r=4→5 and digit fontSize=5→6.
+                  Matches H12 Pass-9's NEC-callout bump for visual consistency
+                  between the two numbered-callout systems. After the body scale,
+                  r=4/fontSize=5 rendered the digit at ~3.95pt — same threshold
+                  bug Pass-9 fixed for the NEC circles. Top-LEFT inset (6,6) is
+                  reliably whitespace across every equipment box (per
+                  labels.ts:301-306), so 1pt circle growth doesn't collide with
+                  internal hardcoded captions. */}
+              <circle cx={c.anchor.x} cy={c.anchor.y} r="5" fill="#22d3ee" stroke="#0e7490" strokeWidth="0.6" />
+              <text x={c.anchor.x} y={c.anchor.y + 2} fontSize="6" fontWeight="bold" textAnchor="middle" fill="white">
                 {c.number}
               </text>
               {c.label.lines.map((line, j) => (
