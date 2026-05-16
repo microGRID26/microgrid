@@ -75,9 +75,16 @@ function pvArrayFromData(data: PlansetData): PVArray {
     labels: [
       { text: 'ROOF ARRAY WIRING', priority: 10, bold: true },
       { text: `(N) MODULE: (${data.panelCount}) ${data.panelModel} ${data.panelWattage}W MODULES`, priority: 9 },
-      // Pass-8a — Tyson PV-5 phrasing: per-string breakdown spelled out
-      // ("(1) STRING OF (9) MODULES CONNECTED IN SERIES & (1) STRING OF (8) MODULES...")
-      { text: branchCounts.map((n) => `(1) STRING OF (${n}) MODULES CONNECTED IN SERIES`).join(' & '), priority: 8 },
+      // H11 Pass-5 — emit one label per string. Pass-8a's joined " & "
+      // form produced a ~400pt-wide single label that exceeded the
+      // 360pt slot maxLineWidth on PV array → orphan-staircase fallback
+      // in labels.ts placed both string labels in the top-right freezone,
+      // visually disconnected from the array. One label per string keeps
+      // each under 200pt and fits inside the south slot's 4-line budget.
+      ...branchCounts.map((n) => ({
+        text: `(1) STRING OF (${n}) MODULES CONNECTED IN SERIES`,
+        priority: 8,
+      })),
       { text: `${data.panelCount} × ${data.panelWattage}W = ${data.systemDcKw} kW DC`, priority: 7 },
     ],
     props: {
