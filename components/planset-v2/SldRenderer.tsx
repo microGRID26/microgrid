@@ -144,8 +144,12 @@ const MULTI_LINE_PHASES: Record<string, Array<{ color: string; label: string }>>
   ],
 }
 
-/** Spacing between parallel phase polylines, in svg user-units. */
-const PHASE_SPACING = 1.6
+/** Spacing between parallel phase polylines, in svg user-units.
+ *  H10 Pass-5 — bumped 1.6 → 2.8 so AC L1 / L2 / N (and DC + / −)
+ *  visually separate at the standard PV-5 print scale. Tyson Rev1
+ *  shows them clearly distinguishable; at 1.6 they blended into one
+ *  thick stroke at default zoom. */
+const PHASE_SPACING = 2.8
 
 interface LayoutBBox { x: number; y: number; w: number; h: number }
 
