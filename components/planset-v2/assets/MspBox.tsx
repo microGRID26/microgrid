@@ -106,7 +106,7 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
           <>
             <text
               x="28"
-              y={51 + Math.min(backfeeds.length - 1, 2) * 22 + 7}
+              y={51 + Math.min(backfeeds.length - 1, 2) * 16 + 5}
               fontSize="2.8"
               fill="#444"
               textAnchor="middle"
@@ -115,7 +115,7 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
             </text>
             <text
               x="28"
-              y={51 + Math.min(backfeeds.length - 1, 2) * 22 + 11}
+              y={51 + Math.min(backfeeds.length - 1, 2) * 16 + 9}
               fontSize="2.4"
               fill="#888"
               textAnchor="middle"
@@ -128,7 +128,7 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
           <g key={bf.id}>
             <rect
               x="9"
-              y={37 + i * 22}
+              y={37 + i * 16}
               width="38"
               height="14"
               rx="1.5"
@@ -137,43 +137,36 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
               stroke="#111"
               strokeWidth="0.8"
             />
+            {/* Pass-11 — collapse the 3-line stack (amp / label / AT kW AC)
+                back to 2 lines inside the rect, with amp + kW AC compounded
+                on the first line. Eliminates the spacing crisis that
+                Pass-9/10 tried to wedge around. Tyson PV-5 paints similar
+                compound spec text on the breaker faces. */}
             <text
               x="28"
-              y={44 + i * 22}
-              fontSize="4.5"
+              y={43 + i * 16}
+              fontSize="4"
               fontWeight="bold"
               fill="#222"
               textAnchor="middle"
             >
-              {bf.ampere}A · 2P
+              {bf.ampere}A · 2P{bf.acKw != null && bf.acKw > 0 ? ` · ${bf.acKw}kW` : ''}
             </text>
-            <text x="28" y={49 + i * 22} fontSize="3" fill="#888" textAnchor="middle">
+            <text x="28" y={48.5 + i * 16} fontSize="3" fill="#888" textAnchor="middle">
               {bf.label.replace(/^\(N\)\s*/, '').replace(/BACKFEED$/, '')}
             </text>
-            {/* Pass-8b — Tyson PV-5 "AT N.N kW AC SYSTEM" sub-line per backfeed.
-                Pass-9 — fontSize 2.4 -> 3.2 + bold so legible at PV-5 print zoom.
-                Pass-10 — stride bumped 18 -> 22 so AT line clears next rect top
-                AND combo-total / shielded-cable lines don't overlap AT i=last. */}
-            {bf.acKw != null && bf.acKw > 0 && (
-              <text x="28" y={53 + i * 22} fontSize="3.2" fontWeight="bold" fill="#444" textAnchor="middle">
-                AT {bf.acKw} kW AC
-              </text>
-            )}
           </g>
         ))}
 
-        {/* Busbar separator — push down to clear stacked backfeeds.
-            Pass-10 — bumped 92 -> 110 to give 3-backfeed rendering enough
-            room for rect (bot=95) + AT kW AC (y=97) + combo total (y=102)
-            + WITH #18 SHIELDED CABLE (y=106) without colliding the busbar. */}
-        <line x1="10" y1="110" x2="120" y2="110" stroke="#888" strokeWidth="0.8" />
+        {/* Busbar separator — push down to clear stacked backfeeds */}
+        <line x1="10" y1="92" x2="120" y2="92" stroke="#888" strokeWidth="0.8" />
 
         {/* Surge protector — below busbar, only if equipped */}
         {hasSurgeProtector && (
           <g>
             <rect
               x="37"
-              y="118"
+              y="102"
               width="56"
               height="14"
               rx="1"
@@ -182,14 +175,14 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
               stroke="#888"
               strokeWidth="0.6"
             />
-            <text x="65" y="127" fontSize="4" fill="#555" textAnchor="middle">
+            <text x="65" y="111" fontSize="4" fill="#555" textAnchor="middle">
               (N) SURGE PROTECTOR
             </text>
           </g>
         )}
 
         {/* Ground bus indicator (bottom-left) */}
-        <text x="6" y="138" fontSize="5.5" fontWeight="bold" fill="#222">
+        <text x="6" y="136" fontSize="6" fontWeight="bold" fill="#222">
           G
         </text>
 
