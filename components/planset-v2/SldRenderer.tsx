@@ -515,17 +515,23 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
             // Inside the corner, equipment box components keep their text
             // centered or left-aligned away from corners — top-right (-6,+6)
             // is reliably whitespace for boxes ≥ 50pt wide.
-            const cx = target.x + target.equipment.width - 6 - seenBefore * 12
-            const cy = target.y + 6
+            // Phase H12 Pass-9 — sibling offset bumped 12→14 to accommodate
+            // the larger r=5 circles without overlap (2 × r + 4pt gap).
+            const cx = target.x + target.equipment.width - 7 - seenBefore * 14
+            const cy = target.y + 7
             return (
               <g key={`nec-callout-${c.number}`}>
-                {/* Match the Phase 3 leader-callout pattern exactly — same
-                    r/fontSize/y-offset ratio that already renders centered. */}
-                <circle cx={cx} cy={cy} r="4" fill="#fde047" stroke="#111" strokeWidth="0.7" />
+                {/* Phase H12 Pass-9 — bumped r=4→5 and fontSize=5→6 for AHJ
+                    readability. After the SVG-to-PDF body scale (~0.79),
+                    r=4/fontSize=5 rendered as r~3.16pt/digit~3.95pt — barely
+                    visible. r=5/fontSize=6 renders as r~3.95pt/digit~4.74pt,
+                    a 25% bump that compounds with Pass-3's legend bump.
+                    cy offset re-centered for the larger digit. */}
+                <circle cx={cx} cy={cy} r="5" fill="#fde047" stroke="#111" strokeWidth="0.7" />
                 <text
                   x={cx}
-                  y={cy + 1.7}
-                  fontSize="5"
+                  y={cy + 2}
+                  fontSize="6"
                   fontWeight="bold"
                   textAnchor="middle"
                   fill="#111"
