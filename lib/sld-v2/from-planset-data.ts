@@ -404,9 +404,9 @@ function homeRouter(): HomeRouter {
     height: 30,
     ports: quadPorts('home-router'),
     labelSlots: defaultLabelSlots(70, 30),
-    labels: [
-      { text: '(E) HOMEOWNER ROUTER', priority: 8 },
-    ],
+    // H10 Pass-4 — HomeRouterBox internally paints "(E) HOMEOWNER ROUTER".
+    // External label duplicated, was orphan-prone.
+    labels: [],
     props: {
       label: 'ROUTER',
     },
@@ -442,13 +442,13 @@ function groundingElectrode(): GroundingElectrode {
     id: 'gnd-electrode',
     kind: 'GroundingElectrode',
     width: 50,
-    height: 50,
+    height: 60,
     ports: quadPorts('gnd-electrode'),
-    labelSlots: defaultLabelSlots(50, 50),
-    labels: [
-      { text: '(E) GROUNDING ELECTRODE', priority: 8 },
-      { text: '5/8" × 8\' CU ROD · NEC 250.52', priority: 7 },
-    ],
+    labelSlots: defaultLabelSlots(50, 60),
+    // H10 Pass-4 — captions hardcoded inside GroundingElectrodeBox.
+    // Was orphaning to a far-right leader callout that visually crossed
+    // the battery stack at diagonal.
+    labels: [],
     props: {
       electrodeType: 'rod',
       label: 'GROUNDING ELECTRODE · 5/8"x8\' CU ROD',
