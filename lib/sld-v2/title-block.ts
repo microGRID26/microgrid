@@ -65,7 +65,11 @@ const ROW_HEIGHTS = {
   // homeowner approval signature + onsite-revision tracker.
   homeownerApproval: 26,
   osr: 26,
-  sheetName: 30,
+  // Phase H12 Pass-5 — was 30. At SHEET_NAME_SIZE_PT=11, long sheet names
+  // like "ELECTRICAL THREE LINE DIAGRAM" (26 chars) wrap to 2 lines
+  // (inner width 163pt < ~174pt rendered width). Bumped to 44 so the
+  // wrapped second line sits cleanly above the row separator.
+  sheetName: 44,
   // sheetNumber consumes the remainder.
 } as const
 
@@ -75,7 +79,11 @@ const PAD_Y_VALUE = 16
 const LINE_GAP = 8.5
 const LABEL_SIZE_PT = 4.5
 const VALUE_SIZE_PT = 6.5
-const SHEET_NAME_SIZE_PT = 7
+// Phase H12 Pass-5 — sheet name visual emphasis (7→11pt). Was rendering
+// at 7pt — slightly larger than label size, no visual hierarchy. Tyson
+// reference treats SHEET NAME as a heading-weight row. ROW_HEIGHTS.sheetName
+// is 30pt; PAD_Y_VALUE (16) + glyph height (~11pt) = 27pt → fits cleanly.
+const SHEET_NAME_SIZE_PT = 11
 const SHEET_NUMBER_SIZE_PT = 32
 const SHEET_OF_SIZE_PT = 7
 const LABEL_GRAY: [number, number, number] = [102, 102, 102]
