@@ -138,12 +138,21 @@ function stripTrailingA(s: string): string {
 }
 
 function buildStcLines(data: PlansetData): string[] {
+  // Phase H12 Pass-8 — STC column was 3 short lines at the top of the box
+  // with empty space below, visually asymmetric with the other 3 columns
+  // that distribute content across the full box height. Added panel model
+  // detail + DC array rating + Tyson-convention STC test conditions line
+  // so the STC box reads as "module-level performance at STC" the way an
+  // AHJ reviewer expects (STC = Standard Test Conditions in solar).
   const dc = data.panelCount * data.panelWattage
   const invKw = data.inverterCount * data.inverterAcPower
   return [
     `MODULES: ${data.panelCount} x ${data.panelWattage}W = ${fmtN(dc / 1000)} kW DC`,
+    `MODEL: ${data.panelModel}`,
     `INVERTER(S): ${data.inverterCount} x ${data.inverterAcPower}kW = ${fmtN(invKw)} kW AC`,
-    `TOTAL kW AC = ${fmtN(data.systemAcKw)} kW AC`,
+    `TOTAL: ${fmtN(data.systemAcKw)} kW AC NAMEPLATE`,
+    `STC: 1000 W/m${'²'} · 25${'°'}C · AM 1.5`,
+    `OPERATING: -40${'°'}C to +85${'°'}C`,
   ]
 }
 
