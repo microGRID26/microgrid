@@ -139,6 +139,20 @@ function edgeBBoxes(edges: RoutedEdge[]): BBox[] {
 
 const SLOT_GAP = 6   // px gap between equipment edge and slot zone
 
+// H14 — REFERENCE_FS is the fontSize the slot capacity heuristics (maxLineWidth
+// in equipment.ts:361-364, textBBox/textWidth) were calibrated against. The
+// slot pre-filter scales maxLineWidth by (fs / REFERENCE_FS) so a label line
+// with a bigger fontSize doesn't trip the cheap pre-filter on width budget that
+// was set assuming this reference size.
+//
+// Design intent: bboxOverlaps (combined-bbox vs occupied set, line 236-238)
+// is GEOMETRIC TRUTH — it uses real page coordinates and gates the placement
+// regardless of fontSize. slot.maxLineWidth is a CALIBRATION BUDGET — cheap
+// early-exit that scales with the assumed reference size. Loosening the
+// budget at high fontSize cannot cause silent collisions; it can only let
+// borderline-fit lines reach the truth-check.
+const REFERENCE_FS = 7
+
 /**
  * Compute the slot anchor point + textAnchor for a given equipment + side.
  * Returns where the FIRST line of the label group should be painted.
@@ -200,9 +214,14 @@ function tryFitInSlot(
   if (fittable.length === 0) return null
 
   // Reject lines that exceed slot.maxLineWidth (cheap pre-filter).
+  // H14 — scale maxLineWidth by (fs / REFERENCE_FS): equipment.ts slot widths
+  // were calibrated at REFERENCE_FS, so a line bumped above that size gets
+  // proportionally more headroom in the pre-filter and falls through to the
+  // real-coordinate collision check at bboxOverlaps below.
   for (const line of fittable) {
-    const fs = line.fontSize ?? 7
-    if (textWidth(line.text, fs) > slot.maxLineWidth) return null
+    const fs = line.fontSize ?? REFERENCE_FS
+    const effectiveMax = slot.maxLineWidth * (fs / REFERENCE_FS)
+    if (textWidth(line.text, fs) > effectiveMax) return null
   }
 
   const anchor = slotAnchor(lo, slot.side, lh, fittable.length)
@@ -211,7 +230,7 @@ function tryFitInSlot(
 
   for (let i = 0; i < fittable.length; i++) {
     const line = fittable[i]
-    const fs = line.fontSize ?? 7
+    const fs = line.fontSize ?? REFERENCE_FS
     const y = anchor.y + i * lh
     const bbox = textBBox(line.text, fs, anchor.x, y, anchor.textAnchor)
     placedLines.push({
@@ -320,7 +339,7 @@ export function placeLabels(
         text: orphan.text,
         x: labelXY.x,
         y: labelXY.y + i * lineH,
-        fontSize: orphan.fontSize ?? 7,
+        fontSize: orphan.fontSize ?? REFERENCE_FS,
         bold: orphan.bold,
         textAnchor: 'start' as const,
       }))
