@@ -19,7 +19,12 @@ import type { PlansetData } from '../planset-types'
  * printable height by `renderSldToPdf` so the auto-fit scale leaves room
  * at the top.
  */
-export const HEADER_STRIP_HEIGHT_PT = 60
+// Phase H12 Pass-4 — was 60. Bumped to 70 to accommodate larger body text
+// (4.8pt was illegible at office-copier reproduction). The 4-box header is
+// the first thing PE/AHJ reviewers look at; values must be readable. Pass-1
+// top-aligned the SLD body, so the additional 10pt of header reserve simply
+// shifts the body down 10pt with no scale impact.
+export const HEADER_STRIP_HEIGHT_PT = 70
 
 /** Gap below the header strip before the SLD body starts. */
 export const HEADER_STRIP_GAP_PT = 6
@@ -44,9 +49,12 @@ const LABEL_GRAY: [number, number, number] = [102, 102, 102]
 const VALUE_NEAR_BLACK: [number, number, number] = [17, 17, 17]
 const HEADER_FILL: [number, number, number] = [245, 245, 245]
 
-const TITLE_SIZE_PT = 5.5
-const BODY_SIZE_PT = 4.8
-const LINE_GAP = 6.0  // Pass-15a — was 5.3, less than BODY_SIZE_PT (4.8) effective line height; every consecutive line overlapped by ~0.5pt across all 4 header boxes per pdftotext bbox dump.
+// Phase H12 Pass-4 — body 4.8→5.5, title 5.5→6.5, LINE_GAP 6.0→6.5.
+// Print-readable at AHJ copier scale. 8 lines × 6.5pt + HEADER_BAND_H +
+// PAD_Y_TITLE = 69pt, fits in the new 70pt header height.
+const TITLE_SIZE_PT = 6.5
+const BODY_SIZE_PT = 5.5
+const LINE_GAP = 6.5
 const PAD_X = 4
 const PAD_Y_TITLE = 6
 const HEADER_BAND_H = 11
