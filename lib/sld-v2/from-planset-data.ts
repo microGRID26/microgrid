@@ -387,7 +387,13 @@ function pvLoadCenter(): BackupPanel {
     labels: [
       { text: '(N) PV LOAD CENTER · 125A · FUSIBLE LOAD', priority: 9, bold: true },
       { text: 'BRP12L125R · NEMA 3R · MLO', priority: 7 },
-      { text: 'GRID LINE · (N) MAIN BREAKER', priority: 6 },
+      // H11 Pass-6 — removed the "GRID LINE · (N) MAIN BREAKER" third label.
+      // It rendered in pv-load-center's East slot, physically between
+      // pv-load-center and MSP, and the content (MAIN BREAKER) belongs to
+      // MSP, not the load center. MSP already labels its main breaker via
+      // its own `(N) MAIN SERVICE PANEL UPGRADE` + the service disc's
+      // `(N) MAIN BREAKER TO HOUSE`. Dropping it removes the orphan-looking
+      // floating annotation between the two equipment blocks.
     ],
     props: {
       model: 'Eaton BRP12L125R',
