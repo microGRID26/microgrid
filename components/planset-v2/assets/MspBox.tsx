@@ -71,7 +71,8 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
         {/* Main breaker — top right. Same inside-rect label pattern as backfeeds.
             "TOP FED" label above the breaker rect indicates NEC 705.12(B)(2)
             compliance — main breaker fed from the top of the busbar. */}
-        <text x="102" y="35" fontSize="3" fontWeight="bold" fill="#b45309" textAnchor="middle">
+        {/* Same Pass-12 sizing as OPPOSITE END OF BUS for visual symmetry. */}
+        <text x="102" y="33" fontSize="2.4" fontWeight="bold" fill="#b45309" textAnchor="middle">
           TOP FED
         </text>
         <rect
@@ -99,7 +100,12 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
             compliance — backfeed at opposite end of busbar from the main.
             Combo-breaker total below the OPPOSITE END label sums all backfeeds
             (Tyson "2 × 45A = 125A/2P" convention). */}
-        <text x="28" y="34" fontSize="3" fontWeight="bold" fill="#b45309" textAnchor="middle">
+        {/* Pass-12 — fontSize 3 at y=34 baseline put the text's top edge at
+            ~y=31.6, crossing the divider line at y=32. Slot between divider
+            (y=32) and first backfeed rect top (y=37) is only 5pt. Downsized
+            to fontSize 2.4 + baseline y=35 so text bbox (~33.1-35.4) fits
+            cleanly between divider and rect without crossing either. */}
+        <text x="28" y="33" fontSize="2.4" fontWeight="bold" fill="#b45309" textAnchor="middle">
           OPPOSITE END OF BUS
         </text>
         {backfeeds.length > 1 && (
