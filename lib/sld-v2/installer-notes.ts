@@ -34,8 +34,13 @@ interface PaintOptions {
 const VALUE_NEAR_BLACK: [number, number, number] = [17, 17, 17]
 const RED: [number, number, number] = [180, 0, 0]
 
-const TITLE_SIZE_PT = 6
-const BODY_SIZE_PT = 5
+// Phase H12 Pass-2 — bumped title 6→7 and body 5→6 for AHJ-reviewer
+// print readability. The Tyson reference renders bullets at ~6pt; at 5pt
+// the block was illegible under typical office-copier reproduction. Kept
+// LINE_GAP=6 so the 17-bullet stack still fits inside the 125pt block
+// (17 × 6 = 102pt ≤ 107pt available after PAD_Y + title row).
+const TITLE_SIZE_PT = 7
+const BODY_SIZE_PT = 6
 const LINE_GAP = 6
 const PAD_X = 4
 const PAD_Y = 8
