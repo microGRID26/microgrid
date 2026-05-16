@@ -128,19 +128,23 @@ const MULTI_LINE_PHASES: Record<string, Array<{ color: string; label: string }>>
     { color: '#dc2626', label: 'L1' },
     { color: '#111',    label: 'L2' },
     { color: '#9ca3af', label: 'N' },
+    { color: '#16a34a', label: 'G' },
   ],
   'ac-service': [
     { color: '#dc2626', label: 'L1' },
     { color: '#111',    label: 'L2' },
     { color: '#9ca3af', label: 'N' },
+    { color: '#16a34a', label: 'G' },
   ],
   'dc-string': [
     { color: '#dc2626', label: '+' },
     { color: '#111',    label: '-' },
+    { color: '#16a34a', label: 'G' },
   ],
   'dc-battery': [
     { color: '#dc2626', label: '+' },
     { color: '#111',    label: '-' },
+    { color: '#16a34a', label: 'G' },
   ],
 }
 
