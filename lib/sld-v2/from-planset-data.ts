@@ -380,11 +380,11 @@ function commGateway(): CommGateway {
     height: 40,
     ports: quadPorts('comm-gw'),
     labelSlots: defaultLabelSlots(90, 40),
-    labels: [
-      { text: '(N) DPCRGM — CELL', priority: 9, bold: true },
-      { text: 'DURACELL DTU', priority: 8 },
-      { text: 'COMM GATEWAY · DURACELL', priority: 7 },
-    ],
+    // H10 Pass-2 — CommGatewayBox internally hardcodes all 4 lines now
+    // ((N) DPCRGM-CELL / DURACELL DTU / COMM GATEWAY / BRIDGE: ...).
+    // Empty external `labels` so the slot system can't orphan anything
+    // — 90×40 box is too tight to externalize without overlap.
+    labels: [],
     props: {
       model: 'DPCRGM-Cell',
       bridge: 'ethernet+cellular',

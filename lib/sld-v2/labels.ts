@@ -298,9 +298,15 @@ export function placeLabels(
     // numbered circles overlapping each other on the same equipment center.
     if (remaining.length > 0) {
       calloutCounter += 1
+      // H10 Pass-2 — anchor orphan callout INSIDE the equipment's top-LEFT
+      // corner (6,6 inset). Center-of-box was colliding with internal
+      // hardcoded labels (BatteryStackBox MOD rows, CommGatewayBox COMM
+      // GATEWAY caption). Top-right is reserved for NEC numbered callouts
+      // (TYSON_CALLOUTS_PV5 in SldRenderer); top-left is whitespace across
+      // every existing equipment box.
       const calloutAnchor = {
-        x: lo.x + lo.equipment.width / 2,
-        y: lo.y + lo.equipment.height / 2,
+        x: lo.x + 6,
+        y: lo.y + 6,
       }
       // Default callout label placement — right margin staircase.
       // Step by the number of lines in the prior callout (variable-height).

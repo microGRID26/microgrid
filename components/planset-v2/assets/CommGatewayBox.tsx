@@ -21,11 +21,12 @@ export function CommGatewayBox({ gw, x, y, debug }: CommGatewayBoxProps) {
       <g transform={`scale(${sx}, ${sy})`}>
         <rect x="0.5" y="0.5" width="89" height="39" rx="1.5" ry="1.5" fill="white" stroke="#111" strokeWidth="1" />
 
-        <text x="45" y="11" fontSize="5" fontWeight="bold" fill="#222" textAnchor="middle">
+        <text x="45" y="10" fontSize="5" fontWeight="bold" fill="#222" textAnchor="middle">
           (N) {model.toUpperCase()}
         </text>
-        <text x="45" y="20" fontSize="3.5" fill="#666" textAnchor="middle">COMM GATEWAY</text>
-        <text x="45" y="27" fontSize="3.5" fill="#666" textAnchor="middle">BRIDGE: {bridge.toUpperCase()}</text>
+        <text x="45" y="17" fontSize="3.5" fill="#444" textAnchor="middle">DURACELL DTU</text>
+        <text x="45" y="23" fontSize="3.2" fill="#666" textAnchor="middle">COMM GATEWAY</text>
+        <text x="45" y="29" fontSize="3.2" fill="#666" textAnchor="middle">BRIDGE: {bridge.toUpperCase()}</text>
 
         {/* Aggregation marks — three small dots indicating multi-source comm input */}
         <circle cx="20" cy="34" r="1.2" fill="#111" />
