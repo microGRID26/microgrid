@@ -60,9 +60,59 @@ Cumulative across H10 + prior phases (Phase H1 through Pass-5 of H10 listed belo
   - `319cf94` — docs(planset/.atlas): handoff refresh — post-H8 commit + chain park
   - `1e44975` — **feat(sld-v2): Phase H9 — SLD-pilot Tyson-match iteration polish (12 sub-passes — visual overlap fixes + Tyson-match labels + (N) PV LOAD CENTER + Production CT + SCOPE AC math + title-block 2 new rows + wire color legend + inline phase labels)**
   - `0e22f8b` — docs(planset/.atlas): handoff refresh — post-H9 commit + recap link (HQ recap #570)
-**Latest commit:** `68d202a` feat(sld-v2): Phase H12 Pass-10 — split DC+/DC− in wire color legend
+**Latest commit:** `6d51c5b` feat(sld-v2): Phase H13 Pass-2 — leader-callout circle r=4→5 + digit fontSize=5→6
 
-## ✅ Shipped this session (2026-05-16 PM-late — Phase H12 Pass-1 through Pass-10: 10-sub-pass Atlas-picked chrome-readability loop)
+## ✅ Shipped this session (2026-05-16 PM-very-late — Phase H13 Pass-1 + Pass-2: body-side numbered-callout system bumped to AHJ-readable, body-side polish ceiling discovered)
+
+Greg's session start: `/chain planset` (no further instructions; defaults from handoff). The chain-pickup wrapper stole a stale claim, confirmed no drift, and surfaced the H12 handoff's three open decisions. Greg picked **(a) body-side polish loop** + **wait on push** via AskUserQuestion. Atlas drove the loop solo from there.
+
+Two clean commits landed; one attempt was reverted in-place per the chain's "have a clean revert ready" rule. The reverted attempt is the load-bearing finding for H14 planning.
+
+### Key bugs caught / lessons (not just polish)
+
+1. **Pass-1 first attempt: slot-picker fontSize bump cascades through layout.** Initial Pass-1 bumped the default `LabelLine.fontSize` 7→8 across `labels.ts` slot pre-filter + orphan-callout output. Result: more labels exceeded `slot.maxLineWidth` → fell through to leader callout → right-margin staircase grew → free-zone shrank → body re-scaled ~15% narrower with equipment positions visibly re-arranged. Reverted in-place (no commit, clean `git diff`). Same class of bug as H12 Pass-1's `bottomReserve`. **Standing rule for H14+:** any bump that touches the slot pre-filter `?? 7` defaults or the orphan callout `?? 7` default re-flows the body. Treat the slot-picker fontSize as a load-bearing constant, not a polish lever.
+
+2. **Body-side legibility levers are nearly all coupled.** Enumerated `fontSize=` sites in `components/planset-v2/SldRenderer.tsx`:
+   - `fontSize="2.6"` phase labels along polylines (L1/L2/N) — packed at PHASE_SPACING, no headroom.
+   - `fontSize="6"` wire-midpoint conductor labels — width comes from `labelMetrics()` heuristic `maxLen * 3.5 + 4`; bumping fontSize without re-scaling the heuristic over-runs the white-fill rect. Bumping both cascades into `midpoint()` avoidance.
+   - `fontSize="6"` "10' MAX" — Pass-15c (H10) specifically tuned the apostrophe-glyph clearance against the NEC line above. Pass-1 here just pulled NEC's glyph top up by 0.5pt; pushing 10'MAX up further would re-trigger the kissed-glyph bug.
+   - Asset-box internal text (BatteryStackBox MOD rows, MspBox L1/L2 callouts, MeterBox ESID/utility — fontSize 2.4 through 5.5) — hand-tuned to specific y-baselines, one-off changes risk box-overflow.
+
+   **Conclusion for the chain:** body-side polish is much more constrained than chrome was. Two safe targets remain after this session (PVArrayBox / ProductionCtBox subtitle bumps with full y-rebudget) but they require per-box tuning, not a global lever.
+
+### Methodology — PDF → PNG → visual read (same as H10–H12)
+
+Pre-flight `chain_test_baseline.py capture` at HEAD `d80f83cdb352`. Per sub-pass: code change → `npx tsc --noEmit` → `npx vitest run __tests__/sld-v2/` (must stay 67/67) → `npx tsx scripts/render-sld-v2-pilot-lohf.tsx` → `pdftoppm -r 200 -png` → Read PNG → diff vs baseline → commit (or revert).
+
+### Audit gates (vH13)
+
+- Pass-1 R1 (self): A (0C/0H/0M/0L) — deferred: none. Eac6a1d. NEC dim caption 4→5pt; rect widened 44→48 for new string width.
+- Pass-1-first-attempt R1 (self): D (0C/1H/0M/0L) — deferred: none (caught + reverted in same sub-pass). 1H = body re-scaled ~15% narrower under slot-picker cascade; documented as load-bearing finding for H14.
+- Pass-2 R1 (self): A (0C/0H/0M/0L) — deferred: none. 6d51c5b. Leader-callout circle r=4→5 + digit fontSize=5→6 (matches H12 Pass-9 NEC-callout bump for visual consistency).
+
+### Verification
+
+- `npx tsc --noEmit` → clean after every commit.
+- `npx vitest run __tests__/sld-v2/` → 67/67 pass after every commit.
+- `chain_test_baseline.py diff --sha d80f83cdb352` → NEW_FAIL=0 / NEW_PASS=0 / STILL_FAIL=16 / NEW_TEST_FAIL=0 (16 pre-existing failures match the parent baseline exactly).
+- Pilot `~/Desktop/sld-v2-pilot-lohf.pdf` re-rendered + Read after every commit. PDF byte-size delta over the session: 359455 → 359469 (+14 bytes, font-table noise). Body topology pixel-identical to H12 tip; only the two numbered-callout systems and the NEC dim caption visibly bumped.
+
+### Pre-resolved follow-ups verified this session
+
+None. Open follow-ups (#1025 RUSH stamp snoozed to 2026-05-28, #1077 PDF-route integration test out-of-scope per SLD-pilot lock, #346 PV-6 Greg-blocked) all remain out-of-scope.
+
+### Spec deltas discovered this session
+
+- **`labels.ts` slot fontSize defaults are load-bearing layout constants, not polish levers.** The original H13 plan recommended bumping `lh` 10→11 as the equipment-label legibility lever. Investigation revealed (a) `lh` is line-spacing, not font-size — bumping it only affects 3+ line multi-line labels, of which there are few in this pilot, and (b) the actual font-size lever (`?? 7` at labels.ts:204, 214, 323) cascades through the slot pre-filter → orphan-callout staircase → body free-zone → ELK-fit body scale. The H10–H12 spec block "5-8 sub-passes likely" for body-side polish overstates what's safely available; revised estimate is 2-3 safe sub-passes per future H-phase session unless someone refactors the slot picker to decouple fontSize from layout (large change, ~3-4h).
+- **`labelMetrics()` width heuristic (3.5 × maxLen + 4) is implicit fontSize-coupling.** Bumping the wire-midpoint conductor label fontSize (line 417) without bumping the 3.5 constant in tandem over-runs the white-fill rect. The heuristic was tuned for fontSize=6; a coordinated bump to fontSize=7 needs the constant to scale to ~4.1, plus a re-pass through `midpoint()` avoidance with the new bbox width.
+
+### Test baseline
+
+`d80f83cdb352` baseline captured at session start (3904 pass / 16 pre-existing fail — identical to H12 capture at `7ff1b37`, confirming no drift from H12 close → H13 start). NEXT SESSION must re-capture at `6d51c5b` for H14 diffing.
+
+---
+
+## ✅ Previously shipped (2026-05-16 PM-late — Phase H12 Pass-1 through Pass-10: 10-sub-pass Atlas-picked chrome-readability loop)
 
 Greg's session start: **"Pick 10 things and do them."** Atlas-driven — I rendered the pilot to PNG, enumerated 10 deltas from a fresh visual audit vs the post-H11 state, and shipped 10 sub-passes. Each sub-pass: code change → tsc → 67/67 sld-v2 vitest → re-render → PNG read → commit. No Greg-in-the-loop per sub-pass (he was off-screen for the session).
 
@@ -893,39 +943,52 @@ Captured via vitest run on the Phase H8 commit `25db5fd` (parent of Phase H9):
 
 ### ⬅ ~~Phase H12~~ — SHIPPED 2026-05-16 PM-late. 10 commits `efabb05` → `68d202a`. All chrome-readability deltas (top-align body, installer-notes + callout-legend + header-strip text bumps, sheet name heading emphasis, PE stamp placeholder styling, title-block sizes, STC column distribution, NEC callout circle bump, wire-legend DC split) landed at A grade. Block kept for chain history.
 
-### ⬅ Phase H13 (next session) — body-side polish OR structural pivot (chrome polish exhausted)
+### ⬅ ~~Phase H13~~ — SHIPPED 2026-05-16 PM-very-late. 2 commits `eac6a1d` → `6d51c5b`. NEC 230.70(A)(1) dim caption 4→5pt + leader-callout circle r=4→5/digit fontSize=5→6 (matches H12 Pass-9 NEC-callout bump for visual consistency). One mid-pass revert documented body-side cross-dependencies as the H14 planning anchor. Block kept for chain history.
 
-H12 closed the page-chrome side. The pilot now reads cleanly at AHJ-copier scale: header strip readable, body top-aligned, installer notes + callout legend + wire legend all print-readable, title block hierarchy clear (sheet name a heading, PE stamp area a labeled placeholder), STC column distributes its content vertically, NEC callouts visible at body scale. What's left splits into "body-side polish" (still ~3-5 deltas possible) vs "structural pivot" (still ~3 items from H11's deferred list).
+### ⬅ Phase H14 (next session) — narrow body-side polish OR slot-picker decouple OR structural pivot
+
+H13 closed the body's two numbered-callout systems (NEC dim caption + leader-callout circles) to AHJ-readable. The body now has visual consistency between its two numbered-callout types (both r=5 / digit fontSize=6, post-H12-Pass-9 + this session's Pass-2). Body topology is otherwise pixel-identical to the H12 tip.
+
+The session also discovered the body-side polish ceiling: the `labels.ts` slot-picker fontSize defaults are load-bearing layout constants (slot pre-filter → orphan callout staircase → free-zone → body scale). The chain-skill's earlier estimate of "5-8 safe sub-passes per session" overstates body-side; revised to **2-3 safe sub-passes** unless the slot picker is refactored.
 
 **Decisions Greg must answer before this phase starts:**
 
 1. **What's the next iteration target?**
-   - (a) **Default: body-side polish loop.** Same render→PNG→read pattern but focused on equipment labels (label slot picker), wire labels (TRUNK/EGC/conduit visibility along polylines), label-callout leader visibility, equipment-internal box detail (MSP backfeed annotations, BatteryStack labels, Hybrid inverter rows). Several deltas were visible in H12 audit but skipped because they need slot-picker work (Pass-9 risk noted in chain-skill). ~5-15 min per sub-pass; 5-8 sub-passes likely.
-   - (b) **ELK upper-half whitespace** — still on the table from H11 decision (b). H12 Pass-1 top-aligned the body which reduces the upper-whitespace problem visually but doesn't increase the body's scale. Options remaining: (i) BRANDES_KOEPF + BALANCED placement, (ii) reorganize equipment graph for deeper layer dependencies (most impactful). Medium scope, ~1-2h.
-   - (c) **Routing chaos pivot** — disc-pv → load-center → MSP corridor still cramped. ELK `portConstraints: FIXED_ORDER` per-port groups. ~3-4h.
-   - (d) **Equipment-abbreviation legend block** — Tyson PV-5 has a `PV / RSS / EV / REC` legend; we don't. New legend block in bottom-right strip. ~1h. (Caveat: bottom-right strip is now full — installer-notes + callout-legend + wire-legend at 92pt. Adding a 4th block needs layout rework.)
-   - (e) **Pause until RUSH ding** — #1025 snoozed to 2026-05-28; let RUSH dictate the next iteration shape.
+   - (a) **Default: narrow body-side polish loop.** Same render→PNG→read pattern but with the narrower safety envelope: target only contained text elements (single text in its own background rect, OR equipment-internal text with verifiable y-budget). Specific candidates left: PVArrayBox subtitle/source text (fontSize=4, line 32), ProductionCtBox primary captions (fontSize=3.5, lines 23/28), HybridInverterBox port labels (fontSize=4, lines 38/41/44). Each needs a per-box y-budget audit before bumping. ~10-20 min per sub-pass; 2-3 sub-passes safely per session. **DO NOT** bump the `?? 7` defaults in `lib/sld-v2/labels.ts` (slot-picker cascade — load-bearing per H13 Pass-1-first-attempt anchor).
+   - (b) **Decouple slot-picker fontSize from layout (medium-scope refactor).** Make `labels.ts` slot pre-filter compute `slot.maxLineWidth` proportionally to the line's `fontSize` so bumping the font default doesn't trigger overflow. Unblocks "global +1pt to all equipment labels" (the highest-impact body-side change still on the table). ~2-3h, requires test additions to lock the new behaviour. New path, opens up the chain.
+   - (c) **ELK upper-half whitespace** — still on the table from H11 decision (b). H12 Pass-1 top-aligned the body which reduces the upper-whitespace problem visually but doesn't increase the body's scale. Options remaining: (i) BRANDES_KOEPF + BALANCED placement, (ii) reorganize equipment graph for deeper layer dependencies (most impactful). Medium scope, ~1-2h.
+   - (d) **Routing chaos pivot** — disc-pv → load-center → MSP corridor still cramped. ELK `portConstraints: FIXED_ORDER` per-port groups. ~3-4h.
+   - (e) **Equipment-abbreviation legend block** — Tyson PV-5 has a `PV / RSS / EV / REC` legend; we don't. New legend block in bottom-right strip. ~1h. (Caveat: bottom-right strip is now full — installer-notes + callout-legend + wire-legend at 92pt. Adding a 4th block needs layout rework.)
+   - (f) **Pause until RUSH ding** — #1025 snoozed to 2026-05-28; let RUSH dictate the next iteration shape.
 
-   Default: **(a)** unless Greg signals.
+   Default: **(a)** unless Greg signals. Note: (a) is now narrower than the H13-defined (a) — only 2-3 safe sub-passes per session, not 5-8.
 
-2. **Push the 18 unpushed commits to origin?**
-   - Branch is 18 ahead of `416cb02` (8 from H11 + 10 from H12). Per CLAUDE.md per-push confirmation rule, this needs an explicit keyword from Greg. Default = wait.
+2. **Push the 20 unpushed commits to origin?**
+   - Branch is 20 ahead of `416cb02` (8 from H11 + 10 from H12 + 2 from H13). Per CLAUDE.md per-push confirmation rule, this needs an explicit keyword from Greg. Default = wait.
 
-3. **Re-capture chain test baseline at `68d202a`.**
-   - H12 captured at `7ff1b37` at session start. Next session should re-capture at the new HEAD so H13's diff is clean. Procedural, no decision needed.
+3. **Re-capture chain test baseline at `6d51c5b`.**
+   - H13 captured at `d80f83c` at session start. Next session should re-capture at the new HEAD so H14's diff is clean. Procedural, no decision needed.
 
-**Phase work (when picking up path a):**
+**Phase work (when picking up path a — narrow body-side polish):**
 
-- Render pilot → `pdftoppm -r 200 -png` → `Read` the PNG → enumerate body-side deltas → fix → re-render → commit → repeat.
-- Body-side targets to look at first: equipment-label legibility (try bumping `lh` in labels.ts from 10 to 11 — risky for slot overflow; test carefully), wire-trace label visibility on polylines, leader-line callout visibility (the `c.label.lines` system in SldRenderer 576-588), equipment-internal annotations on MSP/BatteryStack/HybridInverter.
+- Render pilot → `pdftoppm -r 200 -png` → `Read` the PNG → enumerate body-side deltas → for each candidate, **before code change** verify (i) the text element is in its own background rect or the equipment box has y-headroom, (ii) the change won't trigger the H13 cascade (no `labels.ts` slot defaults). Fix → re-render → commit → repeat.
+- Body-side targets to look at first: PVArrayBox subtitle bumps, ProductionCtBox primary caption bumps, HybridInverterBox port-label bumps. Each one is per-asset hand-tuning, not a global lever.
 - HANDOFF.md refresh + recap at end of session.
 
-**Open methodology / tools added this session (reusable for H13+):**
+**Phase work (when picking up path b — slot-picker decouple, recommended if Greg wants impact):**
 
-- **Atlas-driven polish** (Greg-off-screen mode): "Pick N things and do them" — render → enumerate → execute. Token-cheaper than per-pass back-and-forth, works when chrome-side has many independent items. May NOT work when items have cross-dependencies (Pass-1 body shift affected later passes' coordinates) — surface the sequence consideration before committing to long batches.
-- **Italic font fallback on Inter** (Pass-6 lesson): jsPDF emits a warning but renders normal. Acceptable for placeholder; avoid for AHJ-required italics until Inter Italic is registered.
-- **Row-height budget tracking in title-block** (Pass-5 + Pass-7 combined): row10 SHEET NUMBER flex remainder shrank 246pt → 222pt across H12. Track this — next "add a row" change should re-check the budget.
-- **chain_test_baseline.py prune** isn't running automatically. The 25db5fd snapshot was missing from H11 because no one captured it OR it was pruned. Surface this if it bites a future chain.
+- Read `lib/sld-v2/labels.ts:189-246` (the `tryFitInSlot` function and its `maxLineWidth` pre-filter). Spec change: rather than `if (textWidth(line.text, fs) > slot.maxLineWidth) return null`, scale `maxLineWidth` by `(fs / referenceFs)` where `referenceFs = 7`. Same for the per-line fit-loop.
+- Add a vitest case that locks the new behaviour: equipment with explicit `fontSize: 8` labels should NOT have its slot fit-rate degrade vs `fontSize: 7`.
+- Re-render pilot before/after. If body re-flows, that's an intentional consequence of the decouple — surface for Greg's go/no-go.
+
+**Open methodology / tools (carry-over from H10–H13):**
+
+- **Slot-picker fontSize defaults are layout constants, not polish levers** (NEW this session). The `?? 7` defaults at `labels.ts:204/214/323` cascade through slot pre-filter → orphan callout staircase → free-zone → body scale. Path (b) above is the proper fix.
+- **`labelMetrics()` 3.5×maxLen width heuristic** at `SldRenderer.tsx:205` is implicit fontSize-coupling for wire-midpoint conductor labels. Tuned for fontSize=6; any fontSize bump on line 417 needs a coordinated bump to the 3.5 constant.
+- **Atlas-driven polish** (Greg-off-screen mode) works for contained text elements but NOT for slot/heuristic-bound ones. Pre-check the dependency surface before committing to long batches.
+- **Italic font fallback on Inter**: jsPDF emits a warning but renders normal. Acceptable for placeholder; avoid for AHJ-required italics until Inter Italic is registered.
+- **Row-height budget in title-block**: row10 SHEET NUMBER flex remainder at 222pt post-H12. Track if any chrome-side row addition lands in H14+.
+- **chain_test_baseline.py prune** isn't automatic; capture at session start and re-capture at session end for the next-session diff to work.
 
 ---
 
@@ -1037,14 +1100,14 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 
 ---
 
-**End of handoff. Next session: Phase 7c when RUSH feedback arrives (#1025). Hardening backlog (#1053, #1054) is fair game while waiting — Phase 7.x deferred equipment kinds (StringInverter / MicroInverter / EVCharger) is the bigger forward unlock and needs a planning conversation. Pass it forward.**
+**End of handoff. Next session: Phase H14 — Greg picks (a) narrow body-side polish, (b) slot-picker decouple refactor, (c-e) deferred structural pivots, or (f) pause until RUSH. Default = (a). Branch is 20 ahead of `416cb02`, holding push per CLAUDE.md per-push rule. Pass it forward.**
 
 ## Chain state (auto)
 
 ```yaml
 chain_state_auto:
   project: MicroGRID
-  generated_at: 2026-05-16T19:10:42Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  generated_at: 2026-05-16T19:44:28Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
   main_head: 2c26ef5  # feat(security): mig 345 Seer Learn + atlas_hq postgres-drop, mig 346 cost-basis shim
   main_head_committed: 2026-05-16T13:54:33-05:00
@@ -1064,7 +1127,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (68d202a): 107 ahead of main, 19 unpushed to origin/feat/planset-v8-layouts
+    - feat/planset-v8-layouts (6d51c5b): 110 ahead of main, 22 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main
