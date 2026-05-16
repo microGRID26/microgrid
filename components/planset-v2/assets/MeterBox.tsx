@@ -49,14 +49,15 @@ export function MeterBox({ meter, x, y, debug }: MeterBoxProps) {
         <text x="35" y="55.5" fontSize="3" fill="#444" textAnchor="middle">
           {voltage} · {serviceA}A
         </text>
-        <text x="35" y="60" fontSize="2.8" fill="#666" textAnchor="middle">
-          {utility}{isRevenueGrade ? ' · RGM' : ''}
+        {/* Pass-14 — dropped the utility-name line. Long names like
+            "Oncor Electric Delivery Company, LLC" overflowed horizontally
+            AND squeezed the METER NO line below. Utility lives in the
+            header strip's METER + UTILITY box; no need to duplicate here.
+            METER NO promoted to fill the freed slot; RGM tag suffixed
+            when present so we keep the revenue-grade indicator. */}
+        <text x="35" y="61" fontSize="2.6" fontWeight="bold" fill="#222" textAnchor="middle">
+          METER NO: {meterNumber || '__________'}{isRevenueGrade ? ' · RGM' : ''}
         </text>
-        {meterNumber && (
-          <text x="35" y="63.5" fontSize="2.6" fontWeight="bold" fill="#222" textAnchor="middle">
-            METER NO: {meterNumber}
-          </text>
-        )}
         <text x="35" y="67" fontSize="3" fontWeight="bold" fill="#0e7490" textAnchor="middle">
           TO UTILITY GRID →
         </text>
