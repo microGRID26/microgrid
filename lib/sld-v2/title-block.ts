@@ -305,13 +305,19 @@ export function paintTitleBlock(
   doc.setLineWidth(0.75)
   doc.rect(stampInsetX, stampInsetY, stampW, stampH)
   doc.setLineDashPattern([], 0)
+  // Phase H12 Pass-6 — italic + lighter gray + 6pt placeholder, plus an
+  // explicit "(PE seal goes here)" hint line so a fresh reviewer doesn't
+  // confuse the placeholder box for a real stamp area on stamped output.
   doc.setTextColor(...STAMP_PLACEHOLDER_GRAY)
-  doc.setFont(font, 'normal')
-  doc.setFontSize(5.5)
-  // Centered placeholder text.
+  doc.setFont(font, 'italic')
+  doc.setFontSize(6)
   const placeholderText = sanitize('PE STAMP AREA')
   const ptWidth = doc.getTextWidth(placeholderText)
-  doc.text(placeholderText, stampInsetX + (stampW - ptWidth) / 2, stampInsetY + stampH / 2 + 2)
+  doc.text(placeholderText, stampInsetX + (stampW - ptWidth) / 2, stampInsetY + stampH / 2 - 1)
+  doc.setFontSize(4.5)
+  const hintText = sanitize('(stamp + signature applied here)')
+  const hintWidth = doc.getTextWidth(hintText)
+  doc.text(hintText, stampInsetX + (stampW - hintWidth) / 2, stampInsetY + stampH / 2 + 7)
   drawRowSeparator(row3)
   cursorY += ROW_HEIGHTS.stamp
 
