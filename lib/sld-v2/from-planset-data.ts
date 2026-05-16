@@ -74,7 +74,7 @@ function pvArrayFromData(data: PlansetData): PVArray {
     labelSlots: defaultLabelSlots(280, 140),
     labels: [
       { text: 'ROOF ARRAY WIRING', priority: 10, bold: true },
-      { text: `(N) MODULE: (${data.panelCount}) ${data.panelModel} · ${data.panelWattage}W`, priority: 9 },
+      { text: `(N) MODULE: (${data.panelCount}) ${data.panelModel} ${data.panelWattage}W MODULES`, priority: 9 },
       // Pass-8a — Tyson PV-5 phrasing: per-string breakdown spelled out
       // ("(1) STRING OF (9) MODULES CONNECTED IN SERIES & (1) STRING OF (8) MODULES...")
       { text: branchCounts.map((n) => `(1) STRING OF (${n}) MODULES CONNECTED IN SERIES`).join(' & '), priority: 8 },
@@ -121,8 +121,8 @@ function dcJunctionBox(): JunctionBox {
     ports: quadPorts('dc-jb'),
     labelSlots: defaultLabelSlots(60, 40),
     labels: [
-      { text: '(N) JUNCTION BOX', priority: 9, bold: true },
-      { text: '20A/2P · 600V · NEMA 3R · UL', priority: 7 },
+      { text: '(N) JUNCTION BOX · 20A/2P FUSES', priority: 9, bold: true },
+      { text: '600V · NEMA 3R · UL LISTED', priority: 7 },
     ],
     props: { role: 'dc', nemaRating: '3R', voltageRating: '600V' },
   }
@@ -238,8 +238,12 @@ function genDisconnect(): Disconnect {
     ports: quadPorts('disc-gen'),
     labelSlots: defaultLabelSlots(80, 90),
     labels: [
-      { text: '(N) GEN DISC — FUSIBLE 60A', priority: 9, bold: true },
-      { text: 'DG222NRB · (45A FUSES)', priority: 7 },
+      // Pass-17e — Tyson convention is `(N) AC DISC ≤10' OF METER` for the
+      // fusible disconnect, with model + fuse rating in the second line.
+      // "GEN DISC" + "FUSIBLE 60A" were redundant (fusible state is encoded
+      // in the (45A FUSES) suffix).
+      { text: '(N) AC DISC · DG222NRB · (45A FUSES)', priority: 9, bold: true },
+      { text: 'VISIBLE, LOCKABLE — "AC DISC" ≤10\' OF METER', priority: 7 },
       { text: 'E-STOP ISOLATES LOAD', priority: 5 },
     ],
     props: {
@@ -491,7 +495,12 @@ function buildConnections(
   const acServiceEgc = '(1) #4 AWG EGC'      // 200A service → #4
 
   // PV → RSD → DC JB (or direct PV → DC JB if integrated RSD)
-  const pvStringConductor = `${data.dcStringWire}\nTRUNK CABLE · ${dcStringEgc}\nINTEGRATED GROUNDING WIRE\n${data.dcConduit}`
+  // Pass-17a (rev5) — debug confirmed pv-rsd midpoint at (360, 495); RSD
+  // left edge at x=400; label of 11 chars / 42pt width extended to x=401,
+  // overlapping RSD by 1pt. Even tighter: just "TRUNK" (~22pt) + use a
+  // separate conductor on the dc-jb→hybrid run for the full spec. PV string
+  // conductor is the trunk wire by NEC convention — wire spec elsewhere.
+  const pvStringConductor = `TRUNK`
   if (rsd) {
     connections.push({
       id: 'pv-rsd',
@@ -751,7 +760,7 @@ export function equipmentGraphFromPlansetData(
     id: 'msp-gec',
     from: 'msp.S',
     to: 'gnd-electrode.N',
-    conductor: `#6 AWG CU GEC\nNEC 250.166`,
+    conductor: `(1) #6 BARE CU GEC\nNEC 250.166`,
     category: 'gec',
   })
   // Drop the h1-backup connection if backup panel isn't included.

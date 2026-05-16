@@ -273,23 +273,24 @@ export function SldRenderer({ layout, labelPlacement, debug = false }: SldRender
             h: lo.equipment.height,
           }))
           const placedLabelBoxes: LayoutBBox[] = (labelPlacement?.slots ?? []).map((s) => s.bbox)
-          // Map from edge id → segment bboxes for that edge alone.
-          const segmentsByEdge = new Map<string, LayoutBBox[]>()
+          // Pass-17 bugfix — was computing per-edge "own segments" via a Map
+          // built from `edgeSegmentBoxes([e])`, then trying to filter the
+          // ALL-EDGES bbox list by `!ownSegments.includes(b)`. But
+          // edgeSegmentBoxes constructs new objects each call, so reference
+          // equality NEVER matched — every wire label was checking against
+          // its OWN segments as avoidance and getting rejected on tight runs
+          // (pv-rsd / rsd-dc-jb / dc-jb-hybrid-1 were silently dropping their
+          // labels for the entire chain). Replaced with a value-equality
+          // approach: build "other-edge bboxes" by edge id at compute time.
+          const allOtherSegmentsByEdge = new Map<string, LayoutBBox[]>()
           for (const e of layout.edges) {
-            segmentsByEdge.set(e.connection.id, edgeSegmentBoxes([e]))
+            const others = layout.edges.filter((o) => o.connection.id !== e.connection.id)
+            allOtherSegmentsByEdge.set(e.connection.id, edgeSegmentBoxes(others))
           }
-          const allSegmentBoxes = edgeSegmentBoxes(layout.edges)
           const placedWireLabelBoxes: LayoutBBox[] = []
-          // Compute per-edge midpoint up-front so we can render in two
-          // passes: all polylines first, then all wire labels on top.
-          // Z-order fix for #1006 — single-pass rendering lets a later
-          // edge's polyline paint over an earlier edge's label even when
-          // the label's white-mask rect was drawn correctly within its
-          // own group.
           const edgeRenderData = layout.edges.map((edge) => {
             const color = EDGE_COLOR_BY_CATEGORY[edge.connection.category] ?? '#111'
-            const ownSegments = segmentsByEdge.get(edge.connection.id) ?? []
-            const otherEdgeBoxes = allSegmentBoxes.filter((b) => !ownSegments.includes(b))
+            const otherEdgeBoxes = allOtherSegmentsByEdge.get(edge.connection.id) ?? []
             const avoidance: LayoutBBox[] = [
               ...blockBoxes,
               ...otherEdgeBoxes,
