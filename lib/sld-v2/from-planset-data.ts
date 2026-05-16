@@ -215,7 +215,7 @@ function pvDisconnect(): Disconnect {
       // Non-fusible is encoded in the EATON DG223URB model on the next line.
       { text: '(N) PV DISCONNECT', priority: 9, bold: true },
       { text: '(EATON) DG223URB · 100A/2P · 240V 3R', priority: 7 },
-      { text: 'VISIBLE, LOCKABLE · "AC DISCONNECT"', priority: 6 },
+      { text: 'VISIBLE, LOCKABLE, LABELED DISCONNECT · "AC DISC"', priority: 6 },
       { text: 'EXTERIOR WALL', priority: 5 },
     ],
     props: {
@@ -282,7 +282,7 @@ function mspFromData(data: PlansetData): MSP {
     ports: quadPorts('msp'),
     labelSlots: defaultLabelSlots(130, 140),
     labels: [
-      { text: `(N) MSP UPGRADE · ${busbar}A · EXTERIOR`, priority: 9, bold: true },
+      { text: `(N) MAIN SERVICE PANEL UPGRADE · ${busbar}A · EXTERIOR`, priority: 9, bold: true },
       { text: 'BUSBAR 120% NEC 705.12(B)(2)', priority: 7 },
     ],
     props: {
@@ -554,7 +554,7 @@ function buildConnections(
       id: `${inv.id}-ac`,
       from: `${inv.id}.E`,
       to: 'disc-pv.W',
-      conductor: `${data.acWireToPanel}\n${acBranchEgc}\n${data.acConduit}`,
+      conductor: `${data.acWireToPanel}\n${acBranchEgc}\n${data.acConduit} TYPE CONDUIT`,
       category: 'ac-inverter',
     })
   })
@@ -575,14 +575,14 @@ function buildConnections(
     id: 'pv-disc-loadctr',
     from: 'disc-pv.E',
     to: 'pv-load-center.W',
-    conductor: `${data.acWireToPanel}\n${acBranchEgc}\n${data.acConduit}`,
+    conductor: `${data.acWireToPanel}\n${acBranchEgc}\n${data.acConduit} TYPE CONDUIT`,
     category: 'ac-inverter',
   })
   connections.push({
     id: 'pv-loadctr-msp',
     from: 'pv-load-center.E',
     to: 'msp.W',
-    conductor: `${data.acWireToPanel}\n${acBranchEgc}\n${data.acConduit}`,
+    conductor: `${data.acWireToPanel}\n${acBranchEgc}\n${data.acConduit} TYPE CONDUIT`,
     category: 'ac-inverter',
   })
   connections.push({

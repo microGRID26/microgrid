@@ -44,7 +44,7 @@ export function MeterBox({ meter, x, y, debug }: MeterBoxProps) {
 
         {/* Footer info */}
         <text x="35" y="51" fontSize="3.5" fontWeight="bold" fill="#222" textAnchor="middle">
-          (E) BI-DIR METER
+          (E) BI-DIR UTILITY METER
         </text>
         <text x="35" y="55.5" fontSize="3" fill="#444" textAnchor="middle">
           {voltage} · {serviceA}A

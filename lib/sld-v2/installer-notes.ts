@@ -76,7 +76,7 @@ function buildNoteLines(data: PlansetData): string[] {
     if (isLfp) lines.push('REQUIRES BOLLARDS 3 FEET FROM THE BATTERY')
   }
   lines.push('REQUIRES MAIN PANEL UPGRADE')
-  lines.push('REQUIRES SMOKE DETECTORS')
+  lines.push('REQUIRES (N) SMOKE DETECTOR')
   lines.push('IF ROMEX IS USED THROUGH ATTIC - RUNS SHALL BE KEPT')
   lines.push('  SEPARATE AND NOT BUNDLED')
   lines.push('IF CONDUIT IS USED ON EXTERIOR - WITHIN 10\' OF UTILITY')
