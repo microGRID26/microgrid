@@ -220,7 +220,16 @@ async function runOneRender(args: RunOneRenderArgs): Promise<Uint8Array> {
     const fitW = svgW * scale
     const fitH = svgH * scale
     const offX = marginPt + (sldAreaW - fitW) / 2
-    const offY = marginPt + headerReserve + (sldAreaH - fitH) / 2
+    // Phase H12 Pass-1 — top-align the SLD body (was vertically centered).
+    // The SVG's aspect ratio is wider than the inter-margin area's height/width
+    // ratio, so scale is always width-bound — leaves ~150pt of dead space split
+    // between upper and lower halves of the page. Top-aligning collapses the
+    // upper half cleanly; the lower whitespace stays but the bottom strip
+    // (installer-notes / callout-legend / wire-legend) is anchored to the
+    // page's bottom margin and visually occupies the lower region, so the
+    // total layout reads more balanced. This is option (iii) from the H11
+    // ELK-whitespace breadcrumb in lib/sld-v2/layout.ts.
+    const offY = marginPt + headerReserve
 
     const pdf = new jsPDF({
       orientation: 'landscape',
