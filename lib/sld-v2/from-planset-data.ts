@@ -75,7 +75,10 @@ function pvArrayFromData(data: PlansetData): PVArray {
     labels: [
       { text: 'ROOF ARRAY WIRING', priority: 10, bold: true },
       { text: `(N) MODULE: (${data.panelCount}) ${data.panelModel} · ${data.panelWattage}W`, priority: 9 },
-      { text: `${branchCounts.map((n) => `${n}-SERIES`).join(' · ')} · ${data.panelCount} × ${data.panelWattage} = ${data.systemDcKw} kW DC`, priority: 8 },
+      // Pass-8a — Tyson PV-5 phrasing: per-string breakdown spelled out
+      // ("(1) STRING OF (9) MODULES CONNECTED IN SERIES & (1) STRING OF (8) MODULES...")
+      { text: branchCounts.map((n) => `(1) STRING OF (${n}) MODULES IN SERIES`).join(' & '), priority: 8 },
+      { text: `${data.panelCount} × ${data.panelWattage}W = ${data.systemDcKw} kW DC`, priority: 7 },
     ],
     props: {
       moduleModel: data.panelModel,
@@ -254,10 +257,15 @@ function genDisconnect(): Disconnect {
 function mspFromData(data: PlansetData): MSP {
   const busbar = parseInt(data.mspBusRating, 10) || 225
   const mainBreaker = parseInt(data.mainBreaker.replace(/A$/i, ''), 10) || 125
+  // Pass-8b — per-Tyson PV-5 backfeed label format: amp + "AT N.N kW AC SYSTEM"
+  // shows the AC capacity each backfeed breaker is sized for. Even-split when
+  // PlansetData doesn't carry per-inverter AC kW.
+  const acKwPerInverter = data.inverterCount > 0 ? data.systemAcKw / data.inverterCount : 0
   const backfeeds = Array.from({ length: data.inverterCount }).map((_, i) => ({
     id: `h${i + 1}`,
     label: `(N) PV BREAKER #${i + 1}`,
     ampere: data.backfeedBreakerA,
+    acKw: Math.round(acKwPerInverter * 100) / 100,
   }))
   return {
     id: 'msp',

@@ -149,7 +149,7 @@ export interface MSP extends EquipmentBase {
     /** NEMA rating (e.g. '3R'). */
     nemaRating: string
     /** Backfeed breaker descriptors for hybrid inverters. */
-    backfeeds: Array<{ id: string; label: string; ampere: number }>
+    backfeeds: Array<{ id: string; label: string; ampere: number; acKw?: number }>
     /** Whether to include a surge protector slot. */
     hasSurgeProtector?: boolean
   }

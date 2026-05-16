@@ -235,7 +235,8 @@ export function paintTitleBlock(
   const dataWithOpt = data as PlansetData & {
     drawnBy?: string
     sheetSize?: string
-    revisions?: Array<{ rev: number; date: string; note: string }>
+    revisions?: Array<{ rev: number; date: string; note: string; by?: string }>
+    coordinates?: string
   }
   const drawnBy = dataWithOpt.drawnBy ?? 'MicroGRID'
   const sheetSize = dataWithOpt.sheetSize ?? 'ANSI B (11"×17")'
@@ -271,6 +272,10 @@ export function paintTitleBlock(
     { text: data.projectId ?? '' },
     { text: data.address ?? '' },
     { text: [data.city, data.state, data.zip].filter(Boolean).join(', ') },
+    // Pass-8e — Tyson PV-5 paints project lat/long under the city line.
+    ...(dataWithOpt.coordinates
+      ? [{ text: dataWithOpt.coordinates, size: 6, color: [85, 85, 85] as [number, number, number] }]
+      : []),
   ])
   drawRowSeparator(row2)
   cursorY += ROW_HEIGHTS.project
@@ -316,7 +321,13 @@ export function paintTitleBlock(
   const row6: RowCtx = { doc, font, x, y: cursorY, width, sanitize, height: ROW_HEIGHTS.revision }
   drawLabel(row6, 'Revision')
   const revLines: Array<{ text: string; size?: number; color?: [number, number, number] }> = [
-    { text: `REV ${latestRev.rev}  ·  ${latestRev.date}` },
+    {
+      text:
+        `REV ${latestRev.rev}  ·  ${latestRev.date}` +
+        // Pass-8d — Tyson PV-5 revision row carries the reviser name
+        // ("REV#1 02/24/2025 BY FRANZ JOSEPH E. TENORIO"). Append when present.
+        (latestRev.by ? `  ·  BY ${latestRev.by}` : ''),
+    },
   ]
   if (latestRev.note) {
     revLines.push({ text: latestRev.note, size: 5.5, color: [85, 85, 85] })

@@ -128,7 +128,7 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
           <g key={bf.id}>
             <rect
               x="9"
-              y={37 + i * 16}
+              y={37 + i * 18}
               width="38"
               height="14"
               rx="1.5"
@@ -139,7 +139,7 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
             />
             <text
               x="28"
-              y={44 + i * 16}
+              y={44 + i * 18}
               fontSize="4.5"
               fontWeight="bold"
               fill="#222"
@@ -147,9 +147,15 @@ export function MspBox({ msp, x, y, debug }: MspBoxProps) {
             >
               {bf.ampere}A · 2P
             </text>
-            <text x="28" y={49 + i * 16} fontSize="3" fill="#888" textAnchor="middle">
+            <text x="28" y={49 + i * 18} fontSize="3" fill="#888" textAnchor="middle">
               {bf.label.replace(/^\(N\)\s*/, '').replace(/BACKFEED$/, '')}
             </text>
+            {/* Pass-8b — Tyson PV-5 "AT N.N kW AC SYSTEM" sub-line per backfeed */}
+            {bf.acKw != null && bf.acKw > 0 && (
+              <text x="28" y={52.5 + i * 18} fontSize="2.4" fill="#666" textAnchor="middle">
+                AT {bf.acKw} kW AC
+              </text>
+            )}
           </g>
         ))}
 

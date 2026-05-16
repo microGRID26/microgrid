@@ -49,6 +49,18 @@ const data: PlansetData = buildPlansetData(project, {
   batteryCount: 16,
   batteriesPerStack: 8,
 })
+// Pass-8c — exercise the title-block DRAWN BY render path with an actual
+// draftsperson name. Without an override the row falls back to 'MicroGRID'.
+;(data as PlansetData & { drawnBy?: string }).drawnBy = 'G. Kelsch · MicroGRID Engineering'
+// Pass-8e — Tyson PV-5 shows project lat/long; Lohf's Round Rock coords.
+;(data as PlansetData & { coordinates?: string }).coordinates = '(30.5083, -97.6789)'
+// Pass-8d — exercise the revisions `by` column with a Tyson-style entry.
+;(data as PlansetData & {
+  revisions?: Array<{ rev: number; date: string; note: string; by?: string }>
+}).revisions = [
+  { rev: 0, date: data.drawnDate, note: 'Initial issue', by: 'G. Kelsch' },
+  { rev: 1, date: data.drawnDate, note: 'Tyson-match polish', by: 'G. Kelsch' },
+]
 
 async function main() {
   const graph = equipmentGraphFromPlansetData(data)
