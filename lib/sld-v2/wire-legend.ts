@@ -13,7 +13,13 @@ import type { jsPDF } from 'jspdf'
 // Available canvas at the bottom-right strip (after installer-notes +
 // callout-legend) is ~397pt before the title-block edge; using 220 leaves
 // generous buffer.
-export const WIRE_LEGEND_HEIGHT_PT = 80
+//
+// Phase H12 Pass-10 — bumped 80→92 to accommodate split DC+/DC− rows
+// (was a single "DC + / DC −" row painted with a single red stripe — but
+// in the SLD body DC + renders red and DC − renders black per
+// MULTI_LINE_PHASES, so the legend's single-color stripe misrepresented
+// the actual rendering convention).
+export const WIRE_LEGEND_HEIGHT_PT = 92
 export const WIRE_LEGEND_WIDTH_PT = 220
 
 interface PaintOptions {
@@ -35,13 +41,18 @@ interface WireKey {
   dashed?: boolean
 }
 
+// Phase H12 Pass-10 — split DC + and DC − so the legend matches what the
+// renderer actually paints (MULTI_LINE_PHASES draws DC + in red and DC −
+// in black; a single combined row was misrepresenting that). Order
+// follows the AC-then-DC progression an AHJ reviewer expects.
 const KEYS: WireKey[] = [
-  { label: 'L1 — Line 1 (hot)', color: [220, 38, 38] },
-  { label: 'L2 — Line 2 (hot)', color: [17, 17, 17] },
+  { label: 'L1 — Line 1 (AC hot)', color: [220, 38, 38] },
+  { label: 'L2 — Line 2 (AC hot)', color: [17, 17, 17] },
   { label: 'N — Neutral', color: [156, 163, 175] },
   { label: 'G / GEC — Ground', color: [22, 163, 74] },
   { label: 'Comm (CAT-6 / CAN)', color: [126, 34, 206], dashed: true },
-  { label: 'DC + / DC −', color: [220, 38, 38] },
+  { label: 'DC + — Positive', color: [220, 38, 38] },
+  { label: 'DC − — Negative', color: [17, 17, 17] },
 ]
 
 export function paintWireLegend(
