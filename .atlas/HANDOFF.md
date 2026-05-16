@@ -1,10 +1,22 @@
 # Chain handoff — planset
 
 **Topic:** planset
-**Last updated:** 2026-05-16 ~18:00 UTC (Phase H11 — 8-sub-pass Tyson-fidelity polish loop. Pass-1 title-block PV-5/of-10 overlap fix (getTextWidth font-state bug); Pass-2 stacked NEC-callout sibling-index offset (#3 + #6 on MSP); Pass-3 NEC 690.15(B) added as callout #10 + CT EXTENSION wording; Pass-4 truncation fix + 5 Tyson-PV-5 phrases (MAIN SERVICE PANEL UPGRADE, (N) SMOKE DETECTOR, VISIBLE/LOCKABLE/LABELED DISCONNECT, EMT TYPE CONDUIT ×3, BI-DIR UTILITY METER, full DO-NOT-DISCONNECT-UNDER-LOAD); Pass-5 PV-array orphan-staircase fix (joined STRING-OF label exceeded slot maxLineWidth → split per-string); Pass-6 dropped mislabeled GRID LINE label on pv-load-center; Pass-7 wire-color legend resize 130×60 → 220×80 for print readability; Pass-8 ELK aspectRatio experiment reverted (no visible response from `layered` algorithm) + wire-legend title-clearance fix the experiment surfaced. 8 commits `b596be6` → `7ff1b37`, 8 ahead of origin tip `416cb02`. 0 structural overlaps end-to-end.)
+**Last updated:** 2026-05-16 ~21:00 UTC (Phase H12 — 10-sub-pass Atlas-picked polish loop. Greg said "Pick 10 things and do them" — I enumerated visual deltas from a PNG-of-the-pilot read, then shipped 10 sub-passes. Pass-1 top-align SLD body (collapse upper whitespace, deferred H11 option iii); Pass-2 installer-notes title 6→7 / body 5→6; Pass-3 callout-legend title 6→7 / body 4.5→5.5 / LINE_GAP 11→13 / circle r 2.2→2.5; Pass-4 header-strip body 4.8→5.5 / title 5.5→6.5 / strip height 60→70; Pass-5 sheet name 7→11pt + row height 30→44 (heading-weight emphasis); Pass-6 PE stamp area italic + hint line "(stamp + signature applied here)"; Pass-7 title-block label 4.5→5 / value 6.5→7.5 / LINE_GAP 8.5→9.5 / contractor row 70→76 / project row 60→64; Pass-8 STC column 3-line→6-line distribution (added MODEL / STC test conditions / OPERATING temp range); Pass-9 NEC callout circle r 4→5 / digit fontSize 5→6 (visible at body scale); Pass-10 split DC+/DC− in wire-color legend (was misrepresenting MULTI_LINE_PHASES). 10 commits `efabb05` → `68d202a`, 18 ahead of origin tip `416cb02`. Chain test baseline re-captured at `7ff1b37` (3904 pass / 16 pre-existing fail). 67/67 sld-v2 tests + typecheck clean after every commit.)
 **Project:** MicroGRID
 **Worktree:** `~/repos/MicroGRID-planset-phase1`
-**Branch:** `feat/planset-v8-layouts` — **HEAD = `7ff1b37` locally (8 ahead of origin tip `416cb02`; Phase H11 Pass-1 through Pass-8 polish loop pending push signal).** Chain test baseline at `25db5fd` was pruned/missing this session, so no diff possible — full sld-v2 suite (67/67) passed after every Pass-1 through Pass-8 commit. Next session should `chain_test_baseline.py capture --sha 7ff1b37` to re-anchor. This session (Phase H11) shipped:
+**Branch:** `feat/planset-v8-layouts` — **HEAD = `68d202a` locally (18 ahead of origin tip `416cb02`; Phase H11 Pass-1-8 + Phase H12 Pass-1-10 awaiting push signal).** Chain test baseline NOW exists at `7ff1b37` snapshot in `~/.claude/data/chain_test_baselines/`. Next session should `chain_test_baseline.py capture --sha 68d202a` to re-anchor on the H12 tip. This session (Phase H12) shipped:
+  - `efabb05` — feat(sld-v2): Phase H12 Pass-1 — top-align SLD body to collapse upper whitespace
+  - `4a15317` — feat(sld-v2): Phase H12 Pass-2 — bump installer-notes title 6→7, body 5→6
+  - `8ad082e` — feat(sld-v2): Phase H12 Pass-3 — bump callout-legend text + circle size
+  - `b50a137` — feat(sld-v2): Phase H12 Pass-4 — bump header-strip body 4.8→5.5, title 5.5→6.5
+  - `dcb61c4` — feat(sld-v2): Phase H12 Pass-5 — bump sheet name 7→11pt + row height 30→44
+  - `4073dd6` — feat(sld-v2): Phase H12 Pass-6 — PE stamp area placeholder styling
+  - `ba993c9` — feat(sld-v2): Phase H12 Pass-7 — bump title-block label + value sizes globally
+  - `cb59eb4` — feat(sld-v2): Phase H12 Pass-8 — STC column vertical distribution
+  - `1b05028` — feat(sld-v2): Phase H12 Pass-9 — bump NEC callout circles for body readability
+  - `68d202a` — feat(sld-v2): Phase H12 Pass-10 — split DC+/DC− in wire color legend
+
+Prior session (Phase H11, 2026-05-16 PM) shipped:
   - `b596be6` — feat(sld-v2): Phase H11 Pass-1 — title-block PV-5/of-10 overlap fix
   - `50c45df` — feat(sld-v2): Phase H11 Pass-2 — offset stacked NEC callouts on shared anchor
   - `70ecdf0` — feat(sld-v2): Phase H11 Pass-3 — 2 missing Tyson-PV-5 phrases (NEC 690.15 callout + CT EXTENSION wording)
@@ -48,9 +60,60 @@ Cumulative across H10 + prior phases (Phase H1 through Pass-5 of H10 listed belo
   - `319cf94` — docs(planset/.atlas): handoff refresh — post-H8 commit + chain park
   - `1e44975` — **feat(sld-v2): Phase H9 — SLD-pilot Tyson-match iteration polish (12 sub-passes — visual overlap fixes + Tyson-match labels + (N) PV LOAD CENTER + Production CT + SCOPE AC math + title-block 2 new rows + wire color legend + inline phase labels)**
   - `0e22f8b` — docs(planset/.atlas): handoff refresh — post-H9 commit + recap link (HQ recap #570)
-**Latest commit:** `7ff1b37` chore(sld-v2): Phase H11 Pass-8 — title-clearance fix + ELK-whitespace H12 notes
+**Latest commit:** `68d202a` feat(sld-v2): Phase H12 Pass-10 — split DC+/DC− in wire color legend
 
-## ✅ Shipped this session (2026-05-16 PM — Phase H11 Pass-1 through Pass-8: 8-sub-pass Tyson-fidelity polish loop)
+## ✅ Shipped this session (2026-05-16 PM-late — Phase H12 Pass-1 through Pass-10: 10-sub-pass Atlas-picked chrome-readability loop)
+
+Greg's session start: **"Pick 10 things and do them."** Atlas-driven — I rendered the pilot to PNG, enumerated 10 deltas from a fresh visual audit vs the post-H11 state, and shipped 10 sub-passes. Each sub-pass: code change → tsc → 67/67 sld-v2 vitest → re-render → PNG read → commit. No Greg-in-the-loop per sub-pass (he was off-screen for the session).
+
+### Key bugs caught (not just polish)
+
+1. **Body-shrink miss on Pass-1 first attempt** (reverted). Initial Pass-1 added a `bottomReserve` constant to `sldAreaH`, expecting the body to recenter in the smaller area. Instead the height-bound scale factor kicked in (width was previously the binding constraint), and the body scaled DOWN to fit the reduced area. Reverted in same sub-pass; settled on plain top-align (option iii from H11's ELK breadcrumb).
+
+2. **Sheet name wrap overflow on Pass-5 first attempt** (caught + fixed inline). Bumping `SHEET_NAME_SIZE_PT` 7→11 caused "ELECTRICAL THREE LINE DIAGRAM" to wrap to 2 lines (174pt rendered width vs 163pt inner width). Second line crossed the row separator. Fixed by bumping `ROW_HEIGHTS.sheetName` 30→44 in the same commit.
+
+3. **Wire-legend misrepresentation** (Pass-10). The single "DC + / DC −" row painted a red stripe, but MULTI_LINE_PHASES renders DC + in red and DC − in black. AHJ reviewer reading the legend would expect both DC polarities the same color. Split into two rows; fixed.
+
+### Methodology — PDF → PNG → visual read
+
+Same as H11 but the visual deltas this session were chrome-side (page-frame readability, title-block hierarchy, header-strip text legibility, legend correctness), not body-side. H10's token-diff is exhausted; H11's structural-overlap bbox is at 0 and stayed there; what's left is print-readability quality at AHJ-copier reproduction scale. The 10 deltas this session compound — heading hierarchy, body-text legibility on all 4 chrome blocks, and one bug fix in the legend.
+
+### Audit gates (vH12)
+
+- Pass-1 R1 (self): A (0C/0H/1H/0L) — deferred: none (1H = body-shrink miss caught + reverted in same sub-pass)
+- Pass-2 R1 (self): A (0C/0H/0M/0L) — deferred: none
+- Pass-3 R1 (self): A (0C/0H/0M/0L) — deferred: none
+- Pass-4 R1 (self): A (0C/0H/0M/0L) — deferred: none
+- Pass-5 R1 (self): A (0C/0H/1H/0L) — deferred: none (1H = sheet name wrap, fixed same sub-pass)
+- Pass-6 R1 (self): A (0C/0H/0M/0L) — deferred: none (italic fallback warning on Inter — benign)
+- Pass-7 R1 (self): A (0C/0H/0M/0L) — deferred: none
+- Pass-8 R1 (self): A (0C/0H/0M/0L) — deferred: none
+- Pass-9 R1 (self): A (0C/0H/0M/0L) — deferred: none
+- Pass-10 R1 (self): A (0C/0H/0M/0L) — deferred: none
+
+### Verification
+
+- `npx tsc --noEmit` → clean after every commit
+- `npx vitest run __tests__/sld-v2/` → 67/67 pass after every commit
+- Structural-overlap bbox sweep → 0 (carried over from H11)
+- Pilot PDF `~/Desktop/sld-v2-pilot-lohf.pdf` re-rendered + Read after every commit
+
+### Pre-resolved follow-ups verified this session
+
+None new. #1025 (RUSH stamp, snoozed 2026-05-28), #1077 (PDF-route integration test, ~1h, Atlas-doable), #346 (PV-6 row 6 Duracell datasheet, Greg-blocked) all remain open and out-of-scope per the SLD-pilot lock.
+
+### Spec deltas discovered this session
+
+- **jsPDF italic fallback on Inter.** Pass-6 used `pdf.setFont(font, 'italic')` on the PE stamp area placeholder. Inter is only registered with `normal` and `bold` variants (pdf.ts:259-263). Calling `italic` emits a benign jsPDF warning + falls back to normal — text still renders, just not slanted. Acceptable for the placeholder use case. If a future pass needs reliable italic, register Inter Italic explicitly.
+- **Title-block row-height pile-up risk.** Pass-5 + Pass-7 both bumped row heights (sheetName +14, contractor +6, project +4). Total: +24pt eaten from row10 (SHEET NUMBER flex remainder), bringing it from 246pt → 222pt. Still plenty for the 32pt PV-5 numeral, but a future "add another row" change should re-check the budget.
+
+### Test baseline
+
+`7ff1b37` baseline captured at session start (3904 pass / 16 pre-existing fail). All 67 sld-v2 tests passed after every commit so no regression — but no diff against H11 was possible since the 25db5fd baseline was pruned. Next session should re-capture at `68d202a` for H13 diffing.
+
+---
+
+## ✅ Previously shipped (2026-05-16 PM — Phase H11 Pass-1 through Pass-8: 8-sub-pass Tyson-fidelity polish loop)
 
 Greg picked path (a) at session start: continue the H10 polish loop. 8 sub-passes landed using the same render→audit-sweep→fix→re-render loop pattern from H10, but added a Greg-visible visual audit pass at the midpoint (rendered PDF → PNG → I read the image to surface real visual deltas the token-diff couldn't catch).
 
@@ -828,38 +891,41 @@ Captured via vitest run on the Phase H8 commit `25db5fd` (parent of Phase H9):
 
 ### ⬅ ~~Phase H11~~ — SHIPPED 2026-05-16 PM. 8 commits `b596be6` → `7ff1b37`. All visual-audit-surfaced deltas (title-block overlap, stacked callouts, orphan staircase, mislabeled GRID LINE, wire-legend size) landed at A grade. ELK whitespace tuning attempted via `aspectRatio` — no visible response from `layered` algorithm, reverted with H12 breadcrumb. Block kept for chain history.
 
-### ⬅ Phase H12 (next session) — continue Tyson-PV-5 polish loop OR attack remaining structural items
+### ⬅ ~~Phase H12~~ — SHIPPED 2026-05-16 PM-late. 10 commits `efabb05` → `68d202a`. All chrome-readability deltas (top-align body, installer-notes + callout-legend + header-strip text bumps, sheet name heading emphasis, PE stamp placeholder styling, title-block sizes, STC column distribution, NEC callout circle bump, wire-legend DC split) landed at A grade. Block kept for chain history.
 
-H11 closed the small-batch wins (8 sub-passes, all visual-audit-driven). What's left splits into "more polish" vs "bigger structural work" — both legit paths.
+### ⬅ Phase H13 (next session) — body-side polish OR structural pivot (chrome polish exhausted)
+
+H12 closed the page-chrome side. The pilot now reads cleanly at AHJ-copier scale: header strip readable, body top-aligned, installer notes + callout legend + wire legend all print-readable, title block hierarchy clear (sheet name a heading, PE stamp area a labeled placeholder), STC column distributes its content vertically, NEC callouts visible at body scale. What's left splits into "body-side polish" (still ~3-5 deltas possible) vs "structural pivot" (still ~3 items from H11's deferred list).
 
 **Decisions Greg must answer before this phase starts:**
 
 1. **What's the next iteration target?**
-   - (a) **Default: continue the polish loop.** Visual-audit cycle (render PDF → PNG → read for deltas) is now grooved. Each sub-pass is ~5-15 min. Likely next polish targets: visible-but-not-yet-attacked items from H11's visual audit — equipment-density imbalance, leader-line clarity on callouts, PE-stamp area styling, header-strip proportions. Same pattern as H11.
-   - (b) **Attack the ELK upper-half whitespace (item B from H11 audit).** H11 Pass-8 tried `elk.aspectRatio` and got no response. Three remaining options (documented in `lib/sld-v2/layout.ts` Pass-8 comment): (i) switch to BRANDES_KOEPF + BALANCED, (ii) reorganize equipment graph for deeper layer dependencies, (iii) top-align the SLD body in `pdf.ts:223`. Medium scope, ~1-2h.
-   - (c) **Routing chaos pivot (item C from H11 audit).** Deferred from H11 decision-1 originally. AC vs comm vs ground edges share corridors in the disc-pv → load-center → MSP corridor. Real fix: ELK `portConstraints: FIXED_ORDER` per-port groups. ~3-4h scope.
-   - (d) **Add equipment-abbreviation legend block** (deferred from H11 Pass-3). Tyson PV-5 has a `PV = Production Meter, RSS = Rapid Shutdown Switch, EV = EV Outlet, REC = REC Meter` legend on the sheet. We don't have one. Would require a new legend block in the bottom-right strip alongside the callout-legend + wire-legend. ~1h.
-   - (e) **Pause until RUSH ding.** Stop iterating; wait for #1025 (snoozed to 2026-05-28) to surface specific RUSH feedback before further work. Avoids over-polishing what RUSH will accept.
+   - (a) **Default: body-side polish loop.** Same render→PNG→read pattern but focused on equipment labels (label slot picker), wire labels (TRUNK/EGC/conduit visibility along polylines), label-callout leader visibility, equipment-internal box detail (MSP backfeed annotations, BatteryStack labels, Hybrid inverter rows). Several deltas were visible in H12 audit but skipped because they need slot-picker work (Pass-9 risk noted in chain-skill). ~5-15 min per sub-pass; 5-8 sub-passes likely.
+   - (b) **ELK upper-half whitespace** — still on the table from H11 decision (b). H12 Pass-1 top-aligned the body which reduces the upper-whitespace problem visually but doesn't increase the body's scale. Options remaining: (i) BRANDES_KOEPF + BALANCED placement, (ii) reorganize equipment graph for deeper layer dependencies (most impactful). Medium scope, ~1-2h.
+   - (c) **Routing chaos pivot** — disc-pv → load-center → MSP corridor still cramped. ELK `portConstraints: FIXED_ORDER` per-port groups. ~3-4h.
+   - (d) **Equipment-abbreviation legend block** — Tyson PV-5 has a `PV / RSS / EV / REC` legend; we don't. New legend block in bottom-right strip. ~1h. (Caveat: bottom-right strip is now full — installer-notes + callout-legend + wire-legend at 92pt. Adding a 4th block needs layout rework.)
+   - (e) **Pause until RUSH ding** — #1025 snoozed to 2026-05-28; let RUSH dictate the next iteration shape.
 
    Default: **(a)** unless Greg signals.
 
-2. **Push the 8 H11 commits (+ prior H10 stack already at origin) to origin?**
-   - Branch is now 8 ahead of `416cb02`. Per CLAUDE.md per-push confirmation rule, this needs an explicit keyword from Greg. Default = wait.
+2. **Push the 18 unpushed commits to origin?**
+   - Branch is 18 ahead of `416cb02` (8 from H11 + 10 from H12). Per CLAUDE.md per-push confirmation rule, this needs an explicit keyword from Greg. Default = wait.
 
-3. **Re-capture chain test baseline.**
-   - `25db5fd` baseline snapshot is missing from `~/.claude/data/chain_test_baselines/`. H12 should first run `chain_test_baseline.py capture --sha 7ff1b37` to re-anchor. No code-baseline regression possible this session (all 67/67 sld-v2 tests green every commit), but the next operator needs a baseline to diff against.
+3. **Re-capture chain test baseline at `68d202a`.**
+   - H12 captured at `7ff1b37` at session start. Next session should re-capture at the new HEAD so H13's diff is clean. Procedural, no decision needed.
 
 **Phase work (when picking up path a):**
 
-- Render pilot → `pdftoppm -r 200 -png ~/Desktop/sld-v2-pilot-lohf.pdf /tmp/lohf` → `Read` the PNG → Greg points at delta → fix → re-render → commit → repeat.
-- Optional sweeps at session start: pdftotext bbox overlap (now expected: 0 from H11), Tyson-vs-Lohf token diff (now exhausted to Tyson-equipment noise — won't surface new actionable items).
+- Render pilot → `pdftoppm -r 200 -png` → `Read` the PNG → enumerate body-side deltas → fix → re-render → commit → repeat.
+- Body-side targets to look at first: equipment-label legibility (try bumping `lh` in labels.ts from 10 to 11 — risky for slot overflow; test carefully), wire-trace label visibility on polylines, leader-line callout visibility (the `c.label.lines` system in SldRenderer 576-588), equipment-internal annotations on MSP/BatteryStack/HybridInverter.
 - HANDOFF.md refresh + recap at end of session.
 
-**Open methodology / tools added this session (reusable for H12+):**
+**Open methodology / tools added this session (reusable for H13+):**
 
-- **PDF → PNG → visual read** is now the highest-signal audit step for "what's left." Token-diff is exhausted; bbox sweep catches text overlaps only. Visual read catches whitespace, proportion, adjacency, color/legibility issues.
-- **Sibling-index offset pattern** (Pass-2) is the right shape for any "two things share an anchor" bug. Reusable for future cases where multiple callouts/labels/annotations land on the same equipment.
-- **Slot maxLineWidth gate** (Pass-5 lesson): labels.ts rejects labels wider than slot's `maxLineWidth` and silently falls back to orphan-staircase. Always check label string length vs equipment.width + 80 when adding a new label.
+- **Atlas-driven polish** (Greg-off-screen mode): "Pick N things and do them" — render → enumerate → execute. Token-cheaper than per-pass back-and-forth, works when chrome-side has many independent items. May NOT work when items have cross-dependencies (Pass-1 body shift affected later passes' coordinates) — surface the sequence consideration before committing to long batches.
+- **Italic font fallback on Inter** (Pass-6 lesson): jsPDF emits a warning but renders normal. Acceptable for placeholder; avoid for AHJ-required italics until Inter Italic is registered.
+- **Row-height budget tracking in title-block** (Pass-5 + Pass-7 combined): row10 SHEET NUMBER flex remainder shrank 246pt → 222pt across H12. Track this — next "add a row" change should re-check the budget.
+- **chain_test_baseline.py prune** isn't running automatically. The 25db5fd snapshot was missing from H11 because no one captured it OR it was pruned. Surface this if it bites a future chain.
 
 ---
 
@@ -978,17 +1044,17 @@ Phase H7 partial closed 4 of 8 categories Greg identified by visually diffing th
 ```yaml
 chain_state_auto:
   project: MicroGRID
-  generated_at: 2026-05-16T17:59:54Z  # auto — do not hand-edit, run chain_state_snapshot.py
+  generated_at: 2026-05-16T19:10:42Z  # auto — do not hand-edit, run chain_state_snapshot.py
   current_branch: feat/planset-v8-layouts
-  main_head: b64a4b3  # chore(security): mig 344 — atlas_* suspicious RPC anon REVOKE sweep (closes #643)
-  main_head_committed: 2026-05-16T12:51:35-05:00
+  main_head: 2c26ef5  # feat(security): mig 345 Seer Learn + atlas_hq postgres-drop, mig 346 cost-basis shim
+  main_head_committed: 2026-05-16T13:54:33-05:00
   recent_recaps:  # newest first; pulled from atlas_session_recaps
+    - planset-h11-2026-05-16 (2026-05-16T18:02:34, b596be6): Phase H11: 8-sub-pass Tyson-fidelity polish loop on Lohf SLD pilot
     - planset-h10-pass17-19-handoff-push (2026-05-16T17:21:35, 906d51a): Planset chain Phase H10 Pass-17/18/19 + handoff refresh + push to origin (closes 15-commit session)
     - norad-2026-05-16-secdef-marathon-part-2 (2026-05-16T17:19:55, aeb6dfb): NORAD second half — auth-helper hygiene (mig 342), grant-guard scope expansion + multi-role regex (#1169), ...
     - regan-chain-pickup-3-2026-05-16-final (2026-05-16T17:13:13, no-commit): Regan chain pickup 3 — full sweep: $3.98M contracts restored, 43 permits backfilled, 5 buckets closed, R1+R...
     - planset-h10-pass6-16 (2026-05-16T16:57:37, 36bbf57): Planset chain Phase H10 — 11 sub-pass polish sweep (Pass-6 through Pass-16) against Tyson PV-5
     - norad-2026-05-16-secdef-marathon (2026-05-16T16:57:10, no-commit): NORAD swept SECDEF surfaces across MG + EDGE + SPARK; closed 3 Criticals + 2 Highs end-to-end (5 prod migra...
-    - regan-chain-pickup-3-2026-05-16 (2026-05-16T16:12:16, no-commit): Filled in 12 zero-dollar contracts on MG by reading the actual signed PDFs; restored $3,445,652.50 in contr...
   branches_with_work:
     - feat/atlas-canonical-pipeline-installs (cba5a83): 1 ahead of main
     - feat/atlas-canonical-subhub-signed-vwc (8a1590a): 3 ahead of main
@@ -998,7 +1064,7 @@ chain_state_auto:
     - feat/mobile-project-activity (15beb0f): 6 ahead of main, 4 unpushed to origin/feat/mobile-project-activity
     - feat/partner-fanout-dlq (a4b6db7): 11 ahead of main
     - feat/phase-2-prod-readiness (3fad16b): 23 ahead of main
-    - feat/planset-v8-layouts (7ff1b37): 96 ahead of main, 8 unpushed to origin/feat/planset-v8-layouts
+    - feat/planset-v8-layouts (68d202a): 107 ahead of main, 19 unpushed to origin/feat/planset-v8-layouts
     - feat/subhub-payload-shape-diag (520d571): 2 ahead of main, never pushed
     - feat/together-phase-1 (5350f05): 14 ahead of main, never pushed
     - fix/atlas-canonical-optional-since (09e3917): 2 ahead of main
