@@ -395,6 +395,10 @@ export function paintTitleBlock(
   doc.setFontSize(SHEET_NUMBER_SIZE_PT)
   doc.setTextColor(255, 255, 255)
   doc.text(safeNumber, x + PAD_X + 4, cursorY + row10Height / 2 + 14)
+  // Measure numeral width at the LARGE font size before switching to the
+  // small "of N" font — otherwise getTextWidth returns the width at 7pt
+  // and "of N" lands inside the 32pt PV-5 glyph.
+  const numeralWidth = doc.getTextWidth(safeNumber) + 8
   // "of N" small.
   const sheetTotalRaw = (data as PlansetData & { sheetTotal?: string | number }).sheetTotal
   const sheetTotal = sheetTotalRaw != null ? sanitize(String(sheetTotalRaw)) : ''
@@ -402,7 +406,6 @@ export function paintTitleBlock(
     doc.setFont(font, 'normal')
     doc.setFontSize(SHEET_OF_SIZE_PT)
     doc.setTextColor(...SHEET_NUMBER_GRAY_LABEL)
-    const numeralWidth = doc.getTextWidth(safeNumber) + 8
     doc.text(`of ${sheetTotal}`, x + PAD_X + 4 + numeralWidth, cursorY + row10Height / 2 + 14)
   }
 }
